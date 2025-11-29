@@ -3,11 +3,65 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Download } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+
+// ASCII art character map for converting text
+const asciiChars: Record<string, string[]> = {
+  'A': ['█████╗ ', '██╔══██╗', '███████║', '██╔══██║', '██║  ██║', '╚═╝  ╚═╝'],
+  'B': ['██████╗ ', '██╔══██╗', '██████╔╝', '██╔══██╗', '██████╔╝', '╚═════╝ '],
+  'C': ['██████╗', '██╔════╝', '██║     ', '██║     ', '╚██████╗', ' ╚═════╝'],
+  'D': ['██████╗ ', '██╔══██╗', '██║  ██║', '██║  ██║', '██████╔╝', '╚═════╝ '],
+  'E': ['███████╗', '██╔════╝', '█████╗  ', '██╔══╝  ', '███████╗', '╚══════╝'],
+  'F': ['███████╗', '██╔════╝', '█████╗  ', '██╔══╝  ', '██║     ', '╚═╝     '],
+  'G': ['██████╗ ', '██╔════╝ ', '██║  ███╗', '██║   ██║', '╚██████╔╝', ' ╚═════╝ '],
+  'H': ['██╗  ██╗', '██║  ██║', '███████║', '██╔══██║', '██║  ██║', '╚═╝  ╚═╝'],
+  'I': ['██╗', '██║', '██║', '██║', '██║', '╚═╝'],
+  'J': ['     ██╗', '     ██║', '     ██║', '██   ██║', '╚█████╔╝', ' ╚════╝ '],
+  'K': ['██╗  ██╗', '██║ ██╔╝', '█████╔╝ ', '██╔═██╗ ', '██║  ██╗', '╚═╝  ╚═╝'],
+  'L': ['██╗     ', '██║     ', '██║     ', '██║     ', '███████╗', '╚══════╝'],
+  'M': ['███╗   ███╗', '████╗ ████║', '██╔████╔██║', '██║╚██╔╝██║', '██║ ╚═╝ ██║', '╚═╝     ╚═╝'],
+  'N': ['███╗   ██╗', '████╗  ██║', '██╔██╗ ██║', '██║╚██╗██║', '██║ ╚████║', '╚═╝  ╚═══╝'],
+  'O': ['██████╗ ', '██╔═══██╗', '██║   ██║', '██║   ██║', '╚██████╔╝', ' ╚═════╝ '],
+  'P': ['██████╗ ', '██╔══██╗', '██████╔╝', '██╔═══╝ ', '██║     ', '╚═╝     '],
+  'Q': ['██████╗ ', '██╔═══██╗', '██║   ██║', '██║▄▄ ██║', '╚██████╔╝', ' ╚══▀▀═╝ '],
+  'R': ['██████╗ ', '██╔══██╗', '██████╔╝', '██╔══██╗', '██║  ██║', '╚═╝  ╚═╝'],
+  'S': ['███████╗', '██╔════╝', '███████╗', '╚════██║', '███████║', '╚══════╝'],
+  'T': ['████████╗', '╚══██╔══╝', '   ██║   ', '   ██║   ', '   ██║   ', '   ╚═╝   '],
+  'U': ['██╗   ██╗', '██║   ██║', '██║   ██║', '██║   ██║', '╚██████╔╝', ' ╚═════╝ '],
+  'V': ['██╗   ██╗', '██║   ██║', '██║   ██║', '╚██╗ ██╔╝', ' ╚████╔╝ ', '  ╚═══╝  '],
+  'W': ['██╗    ██╗', '██║    ██║', '██║ █╗ ██║', '██║███╗██║', '╚███╔███╔╝', ' ╚══╝╚══╝ '],
+  'X': ['██╗  ██╗', '╚██╗██╔╝', ' ╚███╔╝ ', ' ██╔██╗ ', '██╔╝ ██╗', '╚═╝  ╚═╝'],
+  'Y': ['██╗   ██╗', '╚██╗ ██╔╝', ' ╚████╔╝ ', '  ╚██╔╝  ', '   ██║   ', '   ╚═╝   '],
+  'Z': ['███████╗', '╚══███╔╝', '  ███╔╝ ', ' ███╔╝  ', '███████╗', '╚══════╝'],
+  ' ': ['   ', '   ', '   ', '   ', '   ', '   '],
+  '0': ['██████╗ ', '██╔═████╗', '██║██╔██║', '████╔╝██║', '╚██████╔╝', ' ╚═════╝ '],
+  '1': ['██╗', '██║', '██║', '██║', '██║', '╚═╝'],
+  '2': ['██████╗ ', '╚════██╗', ' █████╔╝', '██╔═══╝ ', '███████╗', '╚══════╝'],
+  '3': ['██████╗ ', '╚════██╗', ' █████╔╝', ' ╚═══██╗', '██████╔╝', '╚═════╝ '],
+  '4': ['██╗  ██╗', '██║  ██║', '███████║', '╚════██║', '     ██║', '     ╚═╝'],
+  '5': ['███████╗', '██╔════╝', '███████╗', '╚════██║', '███████║', '╚══════╝'],
+  '6': ['██████╗ ', '██╔════╝ ', '███████╗', '██╔═══██╗', '╚██████╔╝', ' ╚═════╝ '],
+  '7': ['███████╗', '╚════██║', '    ██╔╝', '   ██╔╝ ', '   ██║  ', '   ╚═╝  '],
+  '8': ['██████╗ ', '██╔══██╗', '╚█████╔╝', '██╔══██╗', '╚█████╔╝', ' ╚════╝ '],
+  '9': ['██████╗ ', '██╔═══██╗', '╚██████║', ' ╚═══██║', ' █████╔╝', ' ╚════╝ '],
+};
+
+const convertToAsciiArt = (text: string): string => {
+  const upperText = text.toUpperCase();
+  const lines: string[] = ['', '', '', '', '', ''];
+  
+  for (const char of upperText) {
+    const asciiChar = asciiChars[char] || asciiChars[' '];
+    for (let i = 0; i < 6; i++) {
+      lines[i] += asciiChar[i] || '   ';
+    }
+  }
+  
+  return lines.join('\n');
+};
 
 const Dashboard = () => {
   const [numKeys, setNumKeys] = useState("");
@@ -17,14 +71,8 @@ const Dashboard = () => {
   const { toast } = useToast();
 
   const generateRandomKey = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     return Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-  };
-
-  const convertToAsciiArt = async (text: string): Promise<string> => {
-    // This would ideally call an API, but for now we'll use the text as-is
-    // In production, you'd want to use a proper ASCII art generator
-    return text.toUpperCase();
   };
 
   const generateLuaCode = async () => {
@@ -41,42 +89,73 @@ const Dashboard = () => {
 
     try {
       const keys = Array.from({ length: parseInt(numKeys) }, () => generateRandomKey());
-      const asciiText = await convertToAsciiArt(keySystemName);
+      const asciiText = convertToAsciiArt(keySystemName);
       
-      // Base Lua code template
-      let luaCode = `-- ULT LUA PROTECTS KEY SYSTEM
+      const luaCode = `-- // ULT LUA PROTECTS KEY SYSTEM \\ --
+
+--[[
+  HOW THE KEY-USER ID TRACKING WORKS:
+  
+  SCENARIO 1: First Time User Uses a Key
+  - User enters a valid key that hasn't been used
+  - System saves: usedKeysData["keyValue"] = "userId"
+  - Result: ACCESS GRANTED
+  
+  SCENARIO 2: Same User Uses Key Again
+  - User enters a key they previously used
+  - System checks: Key owner matches current user
+  - Result: ACCESS GRANTED (same owner can reuse their key)
+  
+  SCENARIO 3: Different User Tries to Use Already-Used Key
+  - User tries to enter a key someone else claimed
+  - System checks: Key owner doesn't match current user
+  - Result: ACCESS DENIED (different user can't use someone else's key)
+  
+  HOW TO MANUALLY ASSIGN KEYS TO SPECIFIC USER IDS:
+  Replace: local usedKeysData = {}
+  With: local usedKeysData = {
+    ["${keys[0] || 'KEY1'}"] = "123456789",  -- Pre-assign to specific user
+  }
+]]--
+
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local TextService = game:GetService("TextService")
-
--- Valid keys and their assigned user IDs
-local validKeys = {
-${keys.map(key => `    ["${key}"] = nil`).join(',\n')}
-}
+local HttpService = game:GetService("HttpService")
 
 local plr = Players.LocalPlayer
-local userId = plr.UserId
-
--- Check if user already used a key
-local usedKey = nil
-for key, assignedUserId in pairs(validKeys) do
-    if assignedUserId == userId then
-        usedKey = key
-        break
-    end
-end
-
-if usedKey then
-    print("Welcome back! Key: " .. usedKey)
-    loadstring(game:HttpGet("https://pastebin.com/raw/YOUR_SCRIPT_HERE"))()
-    return
-end
-
 local gui = Instance.new("ScreenGui", plr:WaitForChild("PlayerGui"))
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 999999999
 
+-- Valid keys (5 characters each)
+local VALID_KEYS = {${keys.map(key => `"${key}"`).join(', ')}}
+
+-- Storage for used keys (key -> userId mapping)
+local usedKeysData = {}
+local DATA_KEY = "UltLuaUsedKeys_${keySystemName.replace(/\s+/g, '_')}"
+
+-- Load used keys from DataStore
+local function loadUsedKeys()
+    local success, data = pcall(function()
+        return HttpService:JSONDecode(game:GetService("DataStoreService"):GetDataStore(DATA_KEY):GetAsync("keys") or "{}")
+    end)
+    if success then
+        usedKeysData = data
+    end
+end
+
+-- Save used keys to DataStore
+local function saveUsedKeys()
+    pcall(function()
+        game:GetService("DataStoreService"):GetDataStore(DATA_KEY):SetAsync("keys", HttpService:JSONEncode(usedKeysData))
+    end)
+end
+
+loadUsedKeys()
+
+-- Window
 local win = Instance.new("Frame", gui)
 win.Size = UDim2.new(0, 680, 0, 290)
 win.Position = UDim2.new(0.5, -340, 0.5, -145)
@@ -93,6 +172,7 @@ glow.Thickness = 6
 glow.Transparency = 0.65
 glow.Color = Color3.fromRGB(${themeColor})
 
+-- Logo + flicker
 local logo = Instance.new("TextLabel", win)
 logo.Size = UDim2.new(1,0,0,125)
 logo.Position = UDim2.new(0,0,0,10)
@@ -101,7 +181,9 @@ logo.TextColor3 = Color3.fromRGB(${themeColor})
 logo.TextTransparency = 1
 logo.Font = Enum.Font.Code
 logo.TextSize = 18
-logo.Text = [[${asciiText}]]
+logo.Text = [[
+${asciiText}
+]]
 
 task.spawn(function()
     task.wait(0.3)
@@ -112,6 +194,7 @@ task.spawn(function()
     TweenService:Create(logo, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
 end)
 
+-- Fixed prefix
 local prefix = Instance.new("TextLabel", win)
 prefix.Size = UDim2.new(1,-60,0,50)
 prefix.Position = UDim2.new(0,30,0,200)
@@ -123,6 +206,7 @@ prefix.TextSize = 28
 prefix.TextXAlignment = Enum.TextXAlignment.Left
 prefix.TextTransparency = 1
 
+-- Real TextBox
 local input = Instance.new("TextBox", win)
 input.Size = UDim2.new(1,-60,0,50)
 input.Position = UDim2.new(0,30,0,200)
@@ -134,6 +218,7 @@ input.TextSize = 28
 input.TextXAlignment = Enum.TextXAlignment.Left
 input.ClearTextOnFocus = false
 
+-- Position input after prefix
 local prefixWidth = 0
 task.spawn(function()
     task.wait()
@@ -142,6 +227,7 @@ task.spawn(function()
     input.Size = UDim2.new(1, -90 - prefixWidth, 0, 50)
 end)
 
+-- Fade + load
 local function fadeAndDestroy(msg, color, load)
     input.TextEditable = false
     input.Text = msg
@@ -156,27 +242,52 @@ local function fadeAndDestroy(msg, color, load)
 
     task.wait(1)
     if load then
+        -- REPLACE WITH YOUR SCRIPT URL
         loadstring(game:HttpGet("https://pastebin.com/raw/YOUR_SCRIPT_HERE"))()
     end
     gui:Destroy()
 end
 
 input.FocusLost:Connect(function(enter)
-    if enter then
-        local enteredKey = input.Text
-        if validKeys[enteredKey] then
-            if validKeys[enteredKey] == nil then
-                validKeys[enteredKey] = userId
-                fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), true)
-            else
-                fadeAndDestroy("Key already used by another user!", Color3.fromRGB(255,0,0), false)
-            end
-        else
-            fadeAndDestroy("Invalid Key! Access Denied", Color3.fromRGB(255,0,0), false)
+    if not enter then return end
+    
+    local userId = tostring(plr.UserId)
+    local enteredKey = input.Text
+    
+    -- STEP 1: Check if the entered key exists in VALID_KEYS array
+    local isValidKey = false
+    for _, key in ipairs(VALID_KEYS) do
+        if key == enteredKey then
+            isValidKey = true
+            break
         end
     end
+    
+    if not isValidKey then
+        fadeAndDestroy("Wrong Key! Access Denied", Color3.fromRGB(255,0,0), false)
+        return
+    end
+    
+    -- STEP 2: Check if this key has been used before
+    if usedKeysData[enteredKey] then
+        -- Key has been used before, check WHO used it
+        if usedKeysData[enteredKey] == userId then
+            -- Same user who originally used the key - ALLOW
+            fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), true)
+        else
+            -- Different user trying to use an already-claimed key - DENY
+            fadeAndDestroy("Key Already Used! Access Denied", Color3.fromRGB(255,0,0), false)
+        end
+        return
+    end
+    
+    -- STEP 3: Key is valid and hasn't been used - claim it for this user
+    usedKeysData[enteredKey] = userId
+    saveUsedKeys()
+    fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), true)
 end)
 
+-- FIXED DRAGGING (no more sticking)
 local dragging = false
 local dragStart, startPos
 
@@ -219,6 +330,7 @@ UserInputService.InputChanged:Connect(function(inputObj)
     end
 end)
 
+-- Fade in
 TweenService:Create(win, TweenInfo.new(0.7), {BackgroundTransparency = 0.25}):Play()
 TweenService:Create(prefix, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
 TweenService:Create(input, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
@@ -320,7 +432,7 @@ TweenService:Create(input, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
                 className="bg-input"
               />
               <p className="text-sm text-muted-foreground">
-                This will be displayed as the logo text
+                This will be converted to ASCII art and displayed as the logo
               </p>
             </div>
 
@@ -339,11 +451,12 @@ TweenService:Create(input, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
         <Card className="p-6 bg-card/30 border-border/50">
           <h3 className="text-lg font-semibold mb-3">How it works:</h3>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>• Keys are 5 characters long (letters and numbers)</li>
-            <li>• Each key can only be used by one Roblox user (locked to User ID)</li>
-            <li>• Keys are embedded directly in the Lua script</li>
-            <li>• Fully customizable UI colors and branding</li>
-            <li>• No maximum key limit - generate as many as you need</li>
+            <li>- Keys are 5 characters long (letters and numbers)</li>
+            <li>- Each key can only be used by one Roblox user (locked to User ID via DataStore)</li>
+            <li>- Keys persist across sessions using Roblox DataStore</li>
+            <li>- Name is converted to ASCII art automatically</li>
+            <li>- Fully customizable UI colors</li>
+            <li>- No maximum key limit - generate as many as you need</li>
           </ul>
         </Card>
       </div>
