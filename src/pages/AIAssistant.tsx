@@ -48,6 +48,16 @@ const AIAssistant = () => {
           ...prev,
           { role: "assistant", content: data.response },
         ]);
+        
+        // Log activity for password reset verification
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('user_activity').insert({
+            user_id: user.id,
+            activity_type: 'ai_chat',
+            activity_data: { topic: userMessage.slice(0, 50) }
+          });
+        }
       }
     } catch (error: any) {
       toast({

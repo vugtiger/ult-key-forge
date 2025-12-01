@@ -3,13 +3,16 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, RotateCcw } from "lucide-react";
+import { Save, RotateCcw, Sparkles, Type } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 
 const Settings = () => {
   const [themeColor, setThemeColor] = useState("255, 255, 255");
+  const [neonEnabled, setNeonEnabled] = useState(false);
+  const [ultLuaStyle, setUltLuaStyle] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const { toast } = useToast();
@@ -24,13 +27,15 @@ const Settings = () => {
       if (!user) return;
       const { data, error } = await supabase
         .from('user_themes')
-        .select('primary_color')
+        .select('primary_color, neon_enabled, ult_lua_style')
         .eq('user_id', user.id)
         .single();
       if (error) throw error;
       if (data) {
         setThemeColor(data.primary_color);
-        applyTheme(data.primary_color);
+        setNeonEnabled(data.neon_enabled || false);
+        setUltLuaStyle(data.ult_lua_style || false);
+        applyTheme(data.primary_color, data.neon_enabled || false, data.ult_lua_style || false);
       }
     } catch (error: any) {
       console.error('Error fetching theme:', error);
@@ -39,7 +44,7 @@ const Settings = () => {
     }
   };
 
-  const applyTheme = (color: string) => {
+  const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
     const root = document.documentElement;
     const [r, g, b] = color.split(',').map(c => parseInt(c.trim()));
     const rNorm = r / 255, gNorm = g / 255, bNorm = b / 255;
@@ -56,10 +61,27 @@ const Settings = () => {
       }
     }
     const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+    
     root.style.setProperty('--foreground', hsl);
     root.style.setProperty('--card-foreground', hsl);
     root.style.setProperty('--popover-foreground', hsl);
     root.style.setProperty('--sidebar-foreground', hsl);
+    
+    // Apply neon effect
+    if (neon) {
+      root.style.setProperty('--text-shadow-neon', `0 0 5px rgb(${color}), 0 0 10px rgb(${color}), 0 0 20px rgb(${color}), 0 0 40px rgb(${color})`);
+      root.classList.add('neon-text-enabled');
+    } else {
+      root.style.removeProperty('--text-shadow-neon');
+      root.classList.remove('neon-text-enabled');
+    }
+    
+    // Apply ULT LUA style (bold italic)
+    if (ultStyle) {
+      root.classList.add('ult-lua-style-enabled');
+    } else {
+      root.classList.remove('ult-lua-style-enabled');
+    }
   };
 
   const handleSaveTheme = async () => {
@@ -72,10 +94,27 @@ const Settings = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      const { error } = await supabase.from('user_themes').update({ primary_color: themeColor }).eq('user_id', user.id);
+      
+      const { error } = await supabase
+        .from('user_themes')
+        .update({ 
+          primary_color: themeColor,
+          neon_enabled: neonEnabled,
+          ult_lua_style: ultLuaStyle
+        })
+        .eq('user_id', user.id);
+      
       if (error) throw error;
-      applyTheme(themeColor);
-      toast({ title: "Success!", description: "Text color updated successfully" });
+      
+      // Log activity for password reset verification
+      await supabase.from('user_activity').insert({
+        user_id: user.id,
+        activity_type: 'theme_change',
+        activity_data: { color: themeColor, neon: neonEnabled, ultLua: ultLuaStyle }
+      });
+      
+      applyTheme(themeColor, neonEnabled, ultLuaStyle);
+      toast({ title: "Success!", description: "Theme settings updated successfully" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -85,11 +124,16 @@ const Settings = () => {
 
   const handleReset = () => {
     setThemeColor("255, 255, 255");
+    setNeonEnabled(false);
+    setUltLuaStyle(false);
     const root = document.documentElement;
     root.style.removeProperty('--foreground');
     root.style.removeProperty('--card-foreground');
     root.style.removeProperty('--popover-foreground');
     root.style.removeProperty('--sidebar-foreground');
+    root.style.removeProperty('--text-shadow-neon');
+    root.classList.remove('neon-text-enabled');
+    root.classList.remove('ult-lua-style-enabled');
   };
 
   if (fetching) return <DashboardLayout><div className="text-center py-12">Loading settings...</div></DashboardLayout>;
@@ -118,42 +162,109 @@ const Settings = () => {
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">Settings</h1>
-          <p className="text-muted-foreground">Customize your text color (glow effects stay white)</p>
+          <p className="text-muted-foreground">Customize your text color and style</p>
         </div>
+        
+        {/* Text Color Card */}
         <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl">
           <h2 className="text-2xl font-semibold mb-6">Text Color</h2>
           <div className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="themeColor">Text Color (RGB)</Label>
-              <Input id="themeColor" placeholder="e.g., 255, 100, 50" value={themeColor} onChange={(e) => setThemeColor(e.target.value)} className="bg-input" />
+              <Input 
+                id="themeColor" 
+                placeholder="e.g., 255, 100, 50" 
+                value={themeColor} 
+                onChange={(e) => setThemeColor(e.target.value)} 
+                className="bg-input" 
+              />
               <p className="text-sm text-muted-foreground">Only changes text colors. Glow effects stay white.</p>
             </div>
+            
             <div className="p-4 rounded-lg border border-border bg-input/30">
               <p className="text-sm mb-2 text-muted-foreground">Preview:</p>
-              <div className="p-4 rounded-md bg-background border border-border" style={{ color: `rgb(${themeColor})` }}>
+              <div 
+                className="p-4 rounded-md bg-background border border-border" 
+                style={{ 
+                  color: `rgb(${themeColor})`,
+                  textShadow: neonEnabled ? `0 0 5px rgb(${themeColor}), 0 0 10px rgb(${themeColor}), 0 0 20px rgb(${themeColor})` : 'none',
+                  fontWeight: ultLuaStyle ? 'bold' : 'normal',
+                  fontStyle: ultLuaStyle ? 'italic' : 'normal'
+                }}
+              >
                 <p className="text-lg font-bold">Sample Text Preview</p>
                 <p className="text-sm">This is how your text will look.</p>
               </div>
             </div>
+          </div>
+        </Card>
+
+        {/* Text Style Card */}
+        <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl">
+          <h2 className="text-2xl font-semibold mb-6">Text Style</h2>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-input/30">
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-6 h-6 text-foreground" />
+                <div>
+                  <Label htmlFor="neon" className="text-base font-medium">Neon Effect</Label>
+                  <p className="text-sm text-muted-foreground">Add a glowing neon effect to text</p>
+                </div>
+              </div>
+              <Switch
+                id="neon"
+                checked={neonEnabled}
+                onCheckedChange={setNeonEnabled}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-input/30">
+              <div className="flex items-center gap-3">
+                <Type className="w-6 h-6 text-foreground" />
+                <div>
+                  <Label htmlFor="ultLua" className="text-base font-medium">ULT LUA Style</Label>
+                  <p className="text-sm text-muted-foreground">Bold italic text like the ULT LUA logo</p>
+                </div>
+              </div>
+              <Switch
+                id="ultLua"
+                checked={ultLuaStyle}
+                onCheckedChange={setUltLuaStyle}
+              />
+            </div>
+            
             <div className="flex gap-3">
               <Button onClick={handleSaveTheme} disabled={loading} className="flex-1 cyber-glow" size="lg">
                 <Save className="mr-2" size={20} />{loading ? "Saving..." : "Save Changes"}
               </Button>
-              <Button onClick={handleReset} variant="outline" size="lg"><RotateCcw className="mr-2" size={20} />Reset</Button>
+              <Button onClick={handleReset} variant="outline" size="lg">
+                <RotateCcw className="mr-2" size={20} />Reset
+              </Button>
             </div>
           </div>
         </Card>
+        
+        {/* Color Presets Card */}
         <Card className="p-6 bg-card/30 border-border/50">
           <h3 className="text-lg font-semibold mb-4">Color Presets</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {colorPresets.map((preset) => (
-              <Button key={preset.name} variant="outline" onClick={() => setThemeColor(preset.color)} className="justify-start h-auto py-2 px-3">
+              <Button 
+                key={preset.name} 
+                variant="outline" 
+                onClick={() => setThemeColor(preset.color)} 
+                className="justify-start h-auto py-2 px-3"
+              >
                 <div className={`w-4 h-4 rounded-full ${preset.bg} mr-2 flex-shrink-0`} />
                 <span className="text-xs truncate">{preset.name}</span>
               </Button>
             ))}
           </div>
         </Card>
+        
+        <p className="text-sm text-muted-foreground text-center">
+          Note: Theme settings are reset when you log out and restored when you log back in.
+        </p>
       </div>
     </DashboardLayout>
   );

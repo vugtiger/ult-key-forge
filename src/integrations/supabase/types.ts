@@ -98,25 +98,82 @@ export type Database = {
         }
         Relationships: []
       }
+      user_activity: {
+        Row: {
+          activity_data: Json | null
+          activity_type: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          activity_data?: Json | null
+          activity_type: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          activity_data?: Json | null
+          activity_type?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_ips: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: string
+          is_primary: boolean | null
+          last_used_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address: string
+          is_primary?: boolean | null
+          last_used_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: string
+          is_primary?: boolean | null
+          last_used_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_themes: {
         Row: {
           created_at: string | null
           id: string
+          neon_enabled: boolean | null
           primary_color: string
+          ult_lua_style: boolean | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
+          neon_enabled?: boolean | null
           primary_color?: string
+          ult_lua_style?: boolean | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
+          neon_enabled?: boolean | null
           primary_color?: string
+          ult_lua_style?: boolean | null
           updated_at?: string | null
           user_id?: string
         }

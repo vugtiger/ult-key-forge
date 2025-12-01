@@ -38,12 +38,24 @@ const Auth = () => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: `${window.location.origin}/` }
         });
         if (error) throw error;
+        
+        // Track IP on registration
+        if (data.user) {
+          try {
+            await supabase.functions.invoke('track-ip', {
+              body: { user_id: data.user.id, action: 'register' }
+            });
+          } catch (ipError) {
+            console.error('Error tracking IP:', ipError);
+          }
+        }
+        
         toast({
           title: "Success!",
           description: "Account created successfully. You're now logged in.",
@@ -134,13 +146,21 @@ const Auth = () => {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-3">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors block w-full"
             >
               {isLogin ? "Need an account? Sign up" : "Already have an account? Sign in"}
             </button>
+            {isLogin && (
+              <button
+                onClick={() => navigate("/password-reset")}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors block w-full"
+              >
+                Forgot your password?
+              </button>
+            )}
           </div>
         </Card>
       </div>

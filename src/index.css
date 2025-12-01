@@ -108,4 +108,29 @@ All colors MUST be HSL.
     background-size: 50px 50px;
     animation: grid-shift 20s linear infinite;
   }
+
+  /* Neon text effect */
+  .neon-text-enabled h1,
+  .neon-text-enabled h2,
+  .neon-text-enabled h3,
+  .neon-text-enabled h4,
+  .neon-text-enabled p,
+  .neon-text-enabled span,
+  .neon-text-enabled a,
+  .neon-text-enabled label {
+    text-shadow: var(--text-shadow-neon, none);
+  }
+
+  /* ULT LUA style (bold italic) */
+  .ult-lua-style-enabled h1,
+  .ult-lua-style-enabled h2,
+  .ult-lua-style-enabled h3,
+  .ult-lua-style-enabled h4,
+  .ult-lua-style-enabled p,
+  .ult-lua-style-enabled span,
+  .ult-lua-style-enabled a,
+  .ult-lua-style-enabled label {
+    font-weight: bold;
+    font-style: italic;
+  }
 }
