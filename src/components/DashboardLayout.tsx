@@ -26,12 +26,65 @@ const navigationItems = [
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
+// Reset theme to default
+const resetTheme = () => {
+  const root = document.documentElement;
+  root.style.removeProperty('--foreground');
+  root.style.removeProperty('--card-foreground');
+  root.style.removeProperty('--popover-foreground');
+  root.style.removeProperty('--sidebar-foreground');
+  root.style.removeProperty('--text-shadow-neon');
+  root.classList.remove('neon-text-enabled');
+  root.classList.remove('ult-lua-style-enabled');
+};
+
+// Apply theme from user settings
+const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
+  const root = document.documentElement;
+  const [r, g, b] = color.split(',').map(c => parseInt(c.trim()));
+  const rNorm = r / 255, gNorm = g / 255, bNorm = b / 255;
+  const max = Math.max(rNorm, gNorm, bNorm), min = Math.min(rNorm, gNorm, bNorm);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case rNorm: h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6; break;
+      case gNorm: h = ((bNorm - rNorm) / d + 2) / 6; break;
+      case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break;
+    }
+  }
+  const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+  
+  root.style.setProperty('--foreground', hsl);
+  root.style.setProperty('--card-foreground', hsl);
+  root.style.setProperty('--popover-foreground', hsl);
+  root.style.setProperty('--sidebar-foreground', hsl);
+  
+  if (neon) {
+    root.style.setProperty('--text-shadow-neon', `0 0 5px rgb(${color}), 0 0 10px rgb(${color}), 0 0 20px rgb(${color}), 0 0 40px rgb(${color})`);
+    root.classList.add('neon-text-enabled');
+  } else {
+    root.style.removeProperty('--text-shadow-neon');
+    root.classList.remove('neon-text-enabled');
+  }
+  
+  if (ultStyle) {
+    root.classList.add('ult-lua-style-enabled');
+  } else {
+    root.classList.remove('ult-lua-style-enabled');
+  }
+};
+
 const AppSidebar = ({ user }: { user: User | null }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { state } = useSidebar();
 
   const handleLogout = async () => {
+    // Reset theme before logout
+    resetTheme();
     await supabase.auth.signOut();
     navigate("/auth");
   };
@@ -96,19 +149,57 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const loadUserTheme = async (userId: string) => {
+      try {
+        const { data } = await supabase
+          .from('user_themes')
+          .select('primary_color, neon_enabled, ult_lua_style')
+          .eq('user_id', userId)
+          .single();
+        
+        if (data) {
+          applyTheme(
+            data.primary_color, 
+            data.neon_enabled || false, 
+            data.ult_lua_style || false
+          );
+        }
+      } catch (error) {
+        console.error('Error loading theme:', error);
+      }
+    };
+
+    const trackLogin = async (userId: string) => {
+      try {
+        await supabase.functions.invoke('track-ip', {
+          body: { user_id: userId, action: 'login' }
+        });
+      } catch (error) {
+        console.error('Error tracking IP:', error);
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
+        resetTheme();
         navigate("/auth");
       } else {
         setUser(session.user);
+        loadUserTheme(session.user.id);
+        trackLogin(session.user.id);
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
+        resetTheme();
         navigate("/auth");
       } else {
         setUser(session.user);
+        if (event === 'SIGNED_IN') {
+          loadUserTheme(session.user.id);
+          trackLogin(session.user.id);
+        }
       }
     });
 

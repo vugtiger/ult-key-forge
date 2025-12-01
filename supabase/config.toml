@@ -1,1 +1,10 @@
 project_id = "iyfvpnjrghsownkpazec"
+
+[functions.ai-chat]
+verify_jwt = false
+
+[functions.track-ip]
+verify_jwt = false
+
+[functions.verify-account-owner]
+verify_jwt = false

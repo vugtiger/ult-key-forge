@@ -349,6 +349,13 @@ TweenService:Create(input, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
         generated_code: luaCode,
       });
 
+      // Log activity for password reset verification
+      await supabase.from('user_activity').insert({
+        user_id: user.id,
+        activity_type: 'key_system_created',
+        activity_data: { name: keySystemName, num_keys: parseInt(numKeys) }
+      });
+
       // Download file
       const blob = new Blob([luaCode], { type: 'text/plain' });
       const url = window.URL.createObjectURL(blob);
