@@ -16,12 +16,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { Zap, Save, Bot, Settings, LogOut, Menu } from "lucide-react";
+import { Zap, Save, Bot, Settings, LogOut, Menu, FileCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navigationItems = [
   { title: "Key System Gen", url: "/dashboard", icon: Zap },
   { title: "Script Storage", url: "/scripts", icon: Save },
+  { title: "Pastebin", url: "/pastebin", icon: FileCode },
   { title: "AI Assistant", url: "/ai-assistant", icon: Bot },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
