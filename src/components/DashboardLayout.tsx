@@ -33,7 +33,8 @@ const resetTheme = () => {
   root.style.removeProperty('--card-foreground');
   root.style.removeProperty('--popover-foreground');
   root.style.removeProperty('--sidebar-foreground');
-  root.style.removeProperty('--text-shadow-neon');
+  root.style.removeProperty('--neon-color');
+  root.style.removeProperty('--neon-color-glow');
   root.classList.remove('neon-text-enabled');
   root.classList.remove('ult-lua-style-enabled');
 };
@@ -63,10 +64,12 @@ const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
   root.style.setProperty('--sidebar-foreground', hsl);
   
   if (neon) {
-    root.style.setProperty('--text-shadow-neon', `0 0 5px rgb(${color}), 0 0 10px rgb(${color}), 0 0 20px rgb(${color}), 0 0 40px rgb(${color})`);
+    root.style.setProperty('--neon-color', `rgb(${color})`);
+    root.style.setProperty('--neon-color-glow', `rgba(${color}, 0.6)`);
     root.classList.add('neon-text-enabled');
   } else {
-    root.style.removeProperty('--text-shadow-neon');
+    root.style.removeProperty('--neon-color');
+    root.style.removeProperty('--neon-color-glow');
     root.classList.remove('neon-text-enabled');
   }
   
