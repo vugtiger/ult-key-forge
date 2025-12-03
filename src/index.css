@@ -109,7 +109,7 @@ All colors MUST be HSL.
     animation: grid-shift 20s linear infinite;
   }
 
-  /* Neon text effect */
+  /* Neon text effect - proper glow on text */
   .neon-text-enabled h1,
   .neon-text-enabled h2,
   .neon-text-enabled h3,
@@ -118,7 +118,11 @@ All colors MUST be HSL.
   .neon-text-enabled span,
   .neon-text-enabled a,
   .neon-text-enabled label {
-    text-shadow: var(--text-shadow-neon, none);
+    text-shadow: 
+      0 0 2px var(--neon-color, currentColor),
+      0 0 4px var(--neon-color, currentColor),
+      0 0 8px var(--neon-color, currentColor),
+      0 0 12px var(--neon-color-glow, currentColor);
   }
 
   /* ULT LUA style (bold italic) */

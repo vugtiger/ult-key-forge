@@ -69,10 +69,12 @@ const Settings = () => {
     
     // Apply neon effect
     if (neon) {
-      root.style.setProperty('--text-shadow-neon', `0 0 5px rgb(${color}), 0 0 10px rgb(${color}), 0 0 20px rgb(${color}), 0 0 40px rgb(${color})`);
+      root.style.setProperty('--neon-color', `rgb(${color})`);
+      root.style.setProperty('--neon-color-glow', `rgba(${color}, 0.6)`);
       root.classList.add('neon-text-enabled');
     } else {
-      root.style.removeProperty('--text-shadow-neon');
+      root.style.removeProperty('--neon-color');
+      root.style.removeProperty('--neon-color-glow');
       root.classList.remove('neon-text-enabled');
     }
     
@@ -131,7 +133,8 @@ const Settings = () => {
     root.style.removeProperty('--card-foreground');
     root.style.removeProperty('--popover-foreground');
     root.style.removeProperty('--sidebar-foreground');
-    root.style.removeProperty('--text-shadow-neon');
+    root.style.removeProperty('--neon-color');
+    root.style.removeProperty('--neon-color-glow');
     root.classList.remove('neon-text-enabled');
     root.classList.remove('ult-lua-style-enabled');
   };
@@ -187,7 +190,7 @@ const Settings = () => {
                 className="p-4 rounded-md bg-background border border-border" 
                 style={{ 
                   color: `rgb(${themeColor})`,
-                  textShadow: neonEnabled ? `0 0 5px rgb(${themeColor}), 0 0 10px rgb(${themeColor}), 0 0 20px rgb(${themeColor})` : 'none',
+                  textShadow: neonEnabled ? `0 0 2px rgb(${themeColor}), 0 0 4px rgb(${themeColor}), 0 0 8px rgb(${themeColor}), 0 0 12px rgba(${themeColor}, 0.6)` : 'none',
                   fontWeight: ultLuaStyle ? 'bold' : 'normal',
                   fontStyle: ultLuaStyle ? 'italic' : 'normal'
                 }}
