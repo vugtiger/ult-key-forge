@@ -106,16 +106,20 @@ const PasswordReset = () => {
 
     setLoading(true);
     try {
-      // Send password reset email
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth`,
+      // Directly update password via edge function
+      const response = await supabase.functions.invoke('reset-password', {
+        body: { email, newPassword }
       });
 
-      if (error) throw error;
+      if (response.error) throw new Error(response.error.message);
+      
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
 
       toast({ 
         title: "Success!", 
-        description: "A password reset link has been sent to your email." 
+        description: "Your password has been updated. You can now sign in with your new password." 
       });
       navigate("/auth");
     } catch (error: any) {
@@ -255,7 +259,7 @@ const PasswordReset = () => {
               </div>
               
               <Button onClick={handlePasswordReset} disabled={loading} className="w-full cyber-glow">
-                {loading ? "Sending..." : "Send Reset Email"}
+                {loading ? "Updating..." : "Update Password"}
               </Button>
             </div>
           )}
