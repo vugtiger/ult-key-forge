@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import PasswordReset from "./pages/PasswordReset";
 import Dashboard from "./pages/Dashboard";
 import Scripts from "./pages/Scripts";
+import Pastebin from "./pages/Pastebin";
 import AIAssistant from "./pages/AIAssistant";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/password-reset" element={<PasswordReset />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/scripts" element={<Scripts />} />
+          <Route path="/pastebin" element={<Pastebin />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="/settings" element={<Settings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

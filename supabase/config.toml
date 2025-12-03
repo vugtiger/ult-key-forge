@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.verify-account-owner]
 verify_jwt = false
+
+[functions.reset-password]
+verify_jwt = false
+
+[functions.get-paste]
+verify_jwt = false
