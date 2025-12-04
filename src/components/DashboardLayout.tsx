@@ -16,8 +16,9 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { Zap, Save, Bot, Settings, LogOut, Menu, FileCode } from "lucide-react";
+import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAdminStatus } from "@/hooks/useAdminStatus";
 
 const navigationItems = [
   { title: "Key System Gen", url: "/dashboard", icon: Zap },
@@ -25,6 +26,10 @@ const navigationItems = [
   { title: "Pastebin", url: "/pastebin", icon: FileCode },
   { title: "AI Assistant", url: "/ai-assistant", icon: Bot },
   { title: "Settings", url: "/settings", icon: Settings },
+];
+
+const adminItems = [
+  { title: "Admin Panel", url: "/admin", icon: Shield },
 ];
 
 // Reset theme to default
@@ -85,6 +90,7 @@ const AppSidebar = ({ user }: { user: User | null }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { state } = useSidebar();
+  const { isAdmin } = useAdminStatus(user?.id);
 
   const handleLogout = async () => {
     // Reset theme before logout
@@ -128,6 +134,33 @@ const AppSidebar = ({ user }: { user: User | null }) => {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className={state === "collapsed" ? "sr-only" : ""}>
+              Admin
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        end
+                        className="hover:bg-sidebar-accent"
+                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                      >
+                        <item.icon className={state === "collapsed" ? "" : "mr-2"} size={20} />
+                        {state !== "collapsed" && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         <div className="mt-auto p-4 border-t border-sidebar-border">
           <Button
