@@ -190,7 +190,7 @@ const Settings = () => {
                 className="p-4 rounded-md bg-background border border-border" 
                 style={{ 
                   color: `rgb(${themeColor})`,
-                  textShadow: neonEnabled ? `0 0 2px rgb(${themeColor}), 0 0 4px rgb(${themeColor}), 0 0 8px rgb(${themeColor}), 0 0 12px rgba(${themeColor}, 0.6)` : 'none',
+                  textShadow: neonEnabled ? `0 0 5px rgb(${themeColor}), 0 0 10px rgb(${themeColor}), 0 0 20px rgba(${themeColor}, 0.6), 0 0 40px rgba(${themeColor}, 0.4), 0 0 80px rgba(${themeColor}, 0.2)` : 'none',
                   fontWeight: ultLuaStyle ? 'bold' : 'normal',
                   fontStyle: ultLuaStyle ? 'italic' : 'normal'
                 }}
