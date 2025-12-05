@@ -12,7 +12,6 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [discordUsername, setDiscordUsername] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -30,63 +29,21 @@ const Auth = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Check if user is banned
-  const checkBanStatus = async (userId: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('is_banned')
-      .eq('id', userId)
-      .single();
-    
-    return data?.is_banned || false;
-  };
-
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
       if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        
-        // Check if user is banned
-        if (data.user) {
-          const isBanned = await checkBanStatus(data.user.id);
-          if (isBanned) {
-            await supabase.auth.signOut();
-            throw new Error("Your account has been banned. Contact support for more information.");
-          }
-        }
       } else {
-        // Require Discord username for signup
-        if (!discordUsername.trim()) {
-          throw new Error("Discord username is required");
-        }
-
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: `${window.location.origin}/` }
         });
         if (error) throw error;
-        
-        // Update profile with Discord username and track IP
-        if (data.user) {
-          try {
-            // Update profile with Discord username
-            await supabase
-              .from('profiles')
-              .update({ discord_username: discordUsername.trim() })
-              .eq('id', data.user.id);
-
-            await supabase.functions.invoke('track-ip', {
-              body: { user_id: data.user.id, action: 'register' }
-            });
-          } catch (ipError) {
-            console.error('Error updating profile:', ipError);
-          }
-        }
         
         toast({
           title: "Success!",
@@ -134,21 +91,6 @@ const Auth = () => {
           </div>
           
           <form onSubmit={handleAuth} className="space-y-6">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="discord">Discord Username</Label>
-                <Input
-                  id="discord"
-                  type="text"
-                  placeholder="username#1234 or username"
-                  value={discordUsername}
-                  onChange={(e) => setDiscordUsername(e.target.value)}
-                  required={!isLogin}
-                  className="bg-input border-border"
-                />
-              </div>
-            )}
-
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
