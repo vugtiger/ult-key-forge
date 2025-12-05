@@ -7,7 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Copy, Upload, Trash2, Edit2, Check, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus } from "lucide-react";
 
 interface Paste {
   id: string;
@@ -16,6 +18,15 @@ interface Paste {
   slug: string;
   created_at: string;
   updated_at: string;
+  protection_enabled: boolean;
+}
+
+interface AccessEntry {
+  id: string;
+  paste_id: string;
+  roblox_user_id: string;
+  access_type: 'whitelist' | 'blacklist';
+  created_at: string;
 }
 
 const Pastebin = () => {
@@ -28,6 +39,12 @@ const Pastebin = () => {
   const [pastes, setPastes] = useState<Paste[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  
+  // Access control state
+  const [selectedPasteId, setSelectedPasteId] = useState<string>("");
+  const [robloxUserId, setRobloxUserId] = useState("");
+  const [accessEntries, setAccessEntries] = useState<AccessEntry[]>([]);
+  const [loadingAccess, setLoadingAccess] = useState(false);
 
   const generateSlug = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -61,9 +78,36 @@ const Pastebin = () => {
     setPastes(data || []);
   };
 
+  const fetchAccessEntries = async (pasteId: string) => {
+    if (!pasteId) {
+      setAccessEntries([]);
+      return;
+    }
+    
+    setLoadingAccess(true);
+    const { data, error } = await supabase
+      .from('paste_access_control')
+      .select('*')
+      .eq('paste_id', pasteId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching access entries:', error);
+    } else {
+      setAccessEntries((data || []) as AccessEntry[]);
+    }
+    setLoadingAccess(false);
+  };
+
   useEffect(() => {
     fetchPastes();
   }, []);
+
+  useEffect(() => {
+    if (selectedPasteId) {
+      fetchAccessEntries(selectedPasteId);
+    }
+  }, [selectedPasteId]);
 
   const handleUpload = async () => {
     if (!content.trim()) {
@@ -87,7 +131,8 @@ const Pastebin = () => {
           user_id: user.id,
           title: title.trim() || null,
           content: content,
-          slug: slug
+          slug: slug,
+          protection_enabled: false
         });
 
       if (error) throw error;
@@ -140,7 +185,92 @@ const Pastebin = () => {
       if (error) throw error;
 
       toast({ title: "Deleted", description: "Paste removed successfully" });
+      if (selectedPasteId === id) {
+        setSelectedPasteId("");
+        setAccessEntries([]);
+      }
       fetchPastes();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const toggleProtection = async (pasteId: string, enabled: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('pastes')
+        .update({ protection_enabled: enabled })
+        .eq('id', pasteId);
+
+      if (error) throw error;
+
+      toast({ 
+        title: enabled ? "Protection Enabled" : "Protection Disabled",
+        description: enabled 
+          ? "Only whitelisted users can execute this script" 
+          : "Anyone can execute this script"
+      });
+      fetchPastes();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const addAccessEntry = async (accessType: 'whitelist' | 'blacklist') => {
+    if (!selectedPasteId) {
+      toast({ title: "Error", description: "Please select a paste first", variant: "destructive" });
+      return;
+    }
+    if (!robloxUserId.trim()) {
+      toast({ title: "Error", description: "Please enter a Roblox User ID", variant: "destructive" });
+      return;
+    }
+    if (!/^\d+$/.test(robloxUserId.trim())) {
+      toast({ title: "Error", description: "Roblox User ID must be a number", variant: "destructive" });
+      return;
+    }
+
+    try {
+      // Remove any existing entry for this user (could be on whitelist/blacklist)
+      await supabase
+        .from('paste_access_control')
+        .delete()
+        .eq('paste_id', selectedPasteId)
+        .eq('roblox_user_id', robloxUserId.trim());
+
+      // Add new entry
+      const { error } = await supabase
+        .from('paste_access_control')
+        .insert({
+          paste_id: selectedPasteId,
+          roblox_user_id: robloxUserId.trim(),
+          access_type: accessType
+        });
+
+      if (error) throw error;
+
+      toast({ 
+        title: "Added!",
+        description: `User ${robloxUserId} added to ${accessType}`
+      });
+      setRobloxUserId("");
+      fetchAccessEntries(selectedPasteId);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const removeAccessEntry = async (entryId: string) => {
+    try {
+      const { error } = await supabase
+        .from('paste_access_control')
+        .delete()
+        .eq('id', entryId);
+
+      if (error) throw error;
+
+      toast({ title: "Removed", description: "Access entry removed" });
+      fetchAccessEntries(selectedPasteId);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
@@ -155,6 +285,10 @@ const Pastebin = () => {
     setEditingId(paste.id);
     setEditContent(paste.content);
   };
+
+  const selectedPaste = pastes.find(p => p.id === selectedPasteId);
+  const whitelistEntries = accessEntries.filter(e => e.access_type === 'whitelist');
+  const blacklistEntries = accessEntries.filter(e => e.access_type === 'blacklist');
 
   return (
     <DashboardLayout>
@@ -171,7 +305,6 @@ const Pastebin = () => {
             <CardTitle className="text-lg">Create New Paste</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Title Input */}
             <div className="space-y-2">
               <Label htmlFor="title">Title (optional)</Label>
               <Input
@@ -183,7 +316,6 @@ const Pastebin = () => {
               />
             </div>
 
-            {/* Code Textarea */}
             <div className="space-y-2">
               <Label htmlFor="content">Lua Code</Label>
               <Textarea
@@ -195,7 +327,6 @@ const Pastebin = () => {
               />
             </div>
 
-            {/* URL Display Boxes */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Raw URL</Label>
@@ -207,11 +338,7 @@ const Pastebin = () => {
                     className="bg-muted/50 text-muted-foreground"
                   />
                   {rawUrl && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => copyToClipboard(rawUrl)}
-                    >
+                    <Button variant="outline" size="icon" onClick={() => copyToClipboard(rawUrl)}>
                       <Copy className="h-4 w-4" />
                     </Button>
                   )}
@@ -227,11 +354,7 @@ const Pastebin = () => {
                     className="bg-muted/50 text-muted-foreground"
                   />
                   {pasteUrl && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => copyToClipboard(pasteUrl)}
-                    >
+                    <Button variant="outline" size="icon" onClick={() => copyToClipboard(pasteUrl)}>
                       <Copy className="h-4 w-4" />
                     </Button>
                   )}
@@ -239,7 +362,6 @@ const Pastebin = () => {
               </div>
             </div>
 
-            {/* Upload Button */}
             <Button 
               onClick={handleUpload} 
               disabled={loading || !content.trim()}
@@ -248,6 +370,155 @@ const Pastebin = () => {
               <Upload className="mr-2 h-4 w-4" />
               {loading ? "Uploading..." : "Upload Paste"}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Script Protection Section */}
+        <Card className={`border-border/50 backdrop-blur-sm transition-opacity ${pastes.length === 0 ? 'opacity-50 pointer-events-none' : 'bg-card/50'}`}>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Script Protection
+              {pastes.length === 0 && (
+                <span className="text-xs text-muted-foreground font-normal ml-2">(Create a paste to unlock)</span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Paste Selector */}
+            <div className="space-y-2">
+              <Label>Select Paste</Label>
+              <Select value={selectedPasteId} onValueChange={setSelectedPasteId}>
+                <SelectTrigger className="bg-background/50">
+                  <SelectValue placeholder="Choose a paste to manage..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {pastes.map((paste) => (
+                    <SelectItem key={paste.id} value={paste.id}>
+                      {paste.title || "Untitled"} - {paste.slug}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Protection Toggle */}
+            {selectedPaste && (
+              <div className="flex items-center justify-between p-3 rounded-lg bg-background/30 border border-border/30">
+                <div className="flex items-center gap-2">
+                  {selectedPaste.protection_enabled ? (
+                    <Lock className="h-4 w-4 text-primary" />
+                  ) : (
+                    <Unlock className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <span className="text-sm">
+                    {selectedPaste.protection_enabled ? "Protection Enabled" : "Protection Disabled"}
+                  </span>
+                </div>
+                <Switch
+                  checked={selectedPaste.protection_enabled}
+                  onCheckedChange={(checked) => toggleProtection(selectedPaste.id, checked)}
+                />
+              </div>
+            )}
+
+            {/* User ID Input */}
+            {selectedPaste && (
+              <div className="space-y-2">
+                <Label>Roblox User ID</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter Roblox User ID (e.g., 123456789)"
+                    value={robloxUserId}
+                    onChange={(e) => setRobloxUserId(e.target.value)}
+                    className="bg-background/50 flex-1"
+                  />
+                  <Button 
+                    variant="outline" 
+                    onClick={() => addAccessEntry('whitelist')}
+                    className="shrink-0"
+                  >
+                    <UserPlus className="h-4 w-4 mr-1" />
+                    Whitelist
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => addAccessEntry('blacklist')}
+                    className="shrink-0 text-destructive border-destructive/50 hover:bg-destructive/10"
+                  >
+                    <UserMinus className="h-4 w-4 mr-1" />
+                    Blacklist
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Whitelist/Blacklist Display */}
+            {selectedPaste && (
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Whitelist */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1 text-green-400">
+                    <UserPlus className="h-4 w-4" />
+                    Whitelist ({whitelistEntries.length})
+                  </Label>
+                  <div className="p-3 rounded-lg bg-background/30 border border-green-500/20 min-h-[120px] max-h-[200px] overflow-y-auto">
+                    {loadingAccess ? (
+                      <p className="text-xs text-muted-foreground">Loading...</p>
+                    ) : whitelistEntries.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No users whitelisted</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {whitelistEntries.map((entry) => (
+                          <div key={entry.id} className="flex items-center justify-between text-sm bg-background/50 p-2 rounded">
+                            <span className="font-mono">{entry.roblox_user_id}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => removeAccessEntry(entry.id)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Blacklist */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1 text-red-400">
+                    <UserMinus className="h-4 w-4" />
+                    Blacklist ({blacklistEntries.length})
+                  </Label>
+                  <div className="p-3 rounded-lg bg-background/30 border border-red-500/20 min-h-[120px] max-h-[200px] overflow-y-auto">
+                    {loadingAccess ? (
+                      <p className="text-xs text-muted-foreground">Loading...</p>
+                    ) : blacklistEntries.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No users blacklisted</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {blacklistEntries.map((entry) => (
+                          <div key={entry.id} className="flex items-center justify-between text-sm bg-background/50 p-2 rounded">
+                            <span className="font-mono">{entry.roblox_user_id}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => removeAccessEntry(entry.id)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -268,9 +539,14 @@ const Pastebin = () => {
                     <CardContent className="pt-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-medium truncate">
-                            {paste.title || "Untitled"}
-                          </h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium truncate">
+                              {paste.title || "Untitled"}
+                            </h3>
+                            {paste.protection_enabled && (
+                              <Lock className="h-3 w-3 text-primary" />
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             Created: {new Date(paste.created_at).toLocaleDateString()}
                           </p>
@@ -304,7 +580,6 @@ const Pastebin = () => {
                         </div>
                       </div>
 
-                      {/* Raw URL Display */}
                       <div className="mt-2">
                         <Input
                           readOnly
@@ -313,7 +588,6 @@ const Pastebin = () => {
                         />
                       </div>
 
-                      {/* Edit Mode */}
                       {editingId === paste.id && (
                         <div className="mt-4 space-y-2">
                           <Textarea
@@ -322,10 +596,7 @@ const Pastebin = () => {
                             className="min-h-[150px] font-mono text-sm"
                           />
                           <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleUpdate(paste.id, paste.slug)}
-                            >
+                            <Button size="sm" onClick={() => handleUpdate(paste.id, paste.slug)}>
                               <Check className="mr-1 h-3 w-3" />
                               Save
                             </Button>
@@ -344,7 +615,6 @@ const Pastebin = () => {
                         </div>
                       )}
 
-                      {/* Code Preview (when not editing) */}
                       {editingId !== paste.id && (
                         <pre className="mt-2 p-2 bg-muted/20 rounded text-xs font-mono overflow-x-auto max-h-[100px] overflow-y-auto">
                           {paste.content.slice(0, 300)}
