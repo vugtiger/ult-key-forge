@@ -47,11 +47,44 @@ export type Database = {
         }
         Relationships: []
       }
+      paste_access_control: {
+        Row: {
+          access_type: string
+          created_at: string
+          id: string
+          paste_id: string
+          roblox_user_id: string
+        }
+        Insert: {
+          access_type: string
+          created_at?: string
+          id?: string
+          paste_id: string
+          roblox_user_id: string
+        }
+        Update: {
+          access_type?: string
+          created_at?: string
+          id?: string
+          paste_id?: string
+          roblox_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paste_access_control_paste_id_fkey"
+            columns: ["paste_id"]
+            isOneToOne: false
+            referencedRelation: "pastes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pastes: {
         Row: {
           content: string
           created_at: string
           id: string
+          protection_enabled: boolean
           slug: string
           title: string | null
           updated_at: string
@@ -61,6 +94,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          protection_enabled?: boolean
           slug: string
           title?: string | null
           updated_at?: string
@@ -70,6 +104,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          protection_enabled?: boolean
           slug?: string
           title?: string | null
           updated_at?: string
