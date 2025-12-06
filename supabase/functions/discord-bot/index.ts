@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const DISCORD_PUBLIC_KEY = Deno.env.get("DISCORD_PUBLIC_KEY")!;
+const DISCORD_BOT_TOKEN = Deno.env.get("DISCORD_BOT_TOKEN")!;
 
 // Verify Discord request signature
 async function verifyDiscordRequest(request: Request, body: string): Promise<boolean> {
@@ -13,7 +14,6 @@ async function verifyDiscordRequest(request: Request, body: string): Promise<boo
   const encoder = new TextEncoder();
   const message = encoder.encode(timestamp + body);
   
-  // Import the public key
   const keyData = new Uint8Array(DISCORD_PUBLIC_KEY.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
   const key = await crypto.subtle.importKey(
     "raw",
@@ -40,7 +40,7 @@ function getSupabaseClient() {
   );
 }
 
-// ASCII art character map (simplified for Discord)
+// ASCII art character map
 const asciiChars: Record<string, string[]> = {
   'A': ['█████╗ ', '██╔══██╗', '███████║', '██╔══██║', '██║  ██║', '╚═╝  ╚═╝'],
   'B': ['██████╗ ', '██╔══██╗', '██████╔╝', '██╔══██╗', '██████╔╝', '╚═════╝ '],
@@ -72,7 +72,7 @@ const asciiChars: Record<string, string[]> = {
 };
 
 function convertToAsciiArt(text: string): string {
-  const upperText = text.toUpperCase().slice(0, 10); // Limit for Discord
+  const upperText = text.toUpperCase().slice(0, 10);
   const lines: string[] = ['', '', '', '', '', ''];
   
   for (const char of upperText) {
@@ -90,6 +90,71 @@ function generateRandomKey(): string {
   return Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
+function generateSlug(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+// Send DM to user
+async function sendDM(userId: string, content: string, files?: { name: string; content: string }[]) {
+  try {
+    // Create DM channel
+    const dmChannelRes = await fetch(`https://discord.com/api/v10/users/@me/channels`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ recipient_id: userId })
+    });
+    
+    const dmChannel = await dmChannelRes.json();
+    if (!dmChannel.id) {
+      console.error('Failed to create DM channel:', dmChannel);
+      return false;
+    }
+
+    // Send message with optional file attachments
+    if (files && files.length > 0) {
+      const formData = new FormData();
+      formData.append('payload_json', JSON.stringify({ content }));
+      
+      files.forEach((file, index) => {
+        const blob = new Blob([file.content], { type: 'text/plain' });
+        formData.append(`files[${index}]`, blob, file.name);
+      });
+
+      await fetch(`https://discord.com/api/v10/channels/${dmChannel.id}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bot ${DISCORD_BOT_TOKEN}`
+        },
+        body: formData
+      });
+    } else {
+      await fetch(`https://discord.com/api/v10/channels/${dmChannel.id}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content })
+      });
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to send DM:', error);
+    return false;
+  }
+}
+
+// Fetch attachment content
+async function fetchAttachment(url: string): Promise<string> {
+  const response = await fetch(url);
+  return await response.text();
+}
+
 // Handle slash commands
 async function handleCommand(interaction: any) {
   const { data, member } = interaction;
@@ -101,17 +166,16 @@ async function handleCommand(interaction: any) {
   
   console.log(`Command received: ${commandName} from ${discordUsername} (${discordUserId})`);
 
-  // Get or create user by Discord ID
-  async function getOrCreateUser() {
-    // Check if user exists by discord_user_id
+  // Get user by Discord ID
+  async function getUser() {
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, username')
       .eq('discord_user_id', discordUserId)
-      .single();
+      .maybeSingle();
     
     if (profile) {
-      return { userId: profile.id, username: profile.username, isNew: false };
+      return { userId: profile.id, username: profile.username };
     }
     return null;
   }
@@ -122,34 +186,23 @@ async function handleCommand(interaction: any) {
       const password = data.options?.find((o: any) => o.name === 'password')?.value;
       
       if (!email || !password) {
-        return {
-          type: 4,
-          data: { content: '❌ Please provide both email and password.', flags: 64 }
-        };
+        return { type: 4, data: { content: '❌ Please provide both email and password.', flags: 64 } };
       }
 
       if (password.length < 6) {
-        return {
-          type: 4,
-          data: { content: '❌ Password must be at least 6 characters.', flags: 64 }
-        };
+        return { type: 4, data: { content: '❌ Password must be at least 6 characters.', flags: 64 } };
       }
 
-      // Check if Discord ID already registered
       const { data: existingProfile } = await supabase
         .from('profiles')
         .select('id')
         .eq('discord_user_id', discordUserId)
-        .single();
+        .maybeSingle();
 
       if (existingProfile) {
-        return {
-          type: 4,
-          data: { content: '❌ Your Discord account is already linked to an account.', flags: 64 }
-        };
+        return { type: 4, data: { content: '❌ Your Discord account is already linked to an account.', flags: 64 } };
       }
 
-      // Create auth user
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email,
         password,
@@ -158,28 +211,17 @@ async function handleCommand(interaction: any) {
 
       if (authError) {
         console.error('Auth error:', authError);
-        return {
-          type: 4,
-          data: { content: `❌ Registration failed: ${authError.message}`, flags: 64 }
-        };
+        return { type: 4, data: { content: `❌ Registration failed: ${authError.message}`, flags: 64 } };
       }
 
-      // Update profile with Discord info
       await supabase
         .from('profiles')
-        .update({ 
-          discord_user_id: discordUserId,
-          discord_username: discordUsername 
-        })
+        .update({ discord_user_id: discordUserId, discord_username: discordUsername })
         .eq('id', authData.user.id);
 
-      return {
-        type: 4,
-        data: { 
-          content: `✅ Account created successfully!\n\n**Email:** ${email}\nYou can now login on the website or use bot commands.`, 
-          flags: 64 
-        }
-      };
+      await sendDM(discordUserId, `✅ **Account Created Successfully!**\n\n**Email:** ${email}\n\nYou can now use all bot commands and login on the website!`);
+
+      return { type: 4, data: { content: `✅ Account created! Check your DMs for details.`, flags: 64 } };
     }
 
     case 'login': {
@@ -187,75 +229,75 @@ async function handleCommand(interaction: any) {
       const password = data.options?.find((o: any) => o.name === 'password')?.value;
       
       if (!email || !password) {
-        return {
-          type: 4,
-          data: { content: '❌ Please provide both email and password.', flags: 64 }
-        };
+        return { type: 4, data: { content: '❌ Please provide both email and password.', flags: 64 } };
       }
 
-      // Verify credentials
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
       if (authError) {
-        return {
-          type: 4,
-          data: { content: '❌ Invalid email or password.', flags: 64 }
-        };
+        return { type: 4, data: { content: '❌ Invalid email or password.', flags: 64 } };
       }
 
-      // Link Discord ID to profile
       await supabase
         .from('profiles')
-        .update({ 
-          discord_user_id: discordUserId,
-          discord_username: discordUsername 
-        })
+        .update({ discord_user_id: discordUserId, discord_username: discordUsername })
         .eq('id', authData.user.id);
 
-      return {
-        type: 4,
-        data: { 
-          content: `✅ Logged in and Discord linked!\n\nYou can now use all bot commands.`, 
-          flags: 64 
-        }
-      };
+      await sendDM(discordUserId, `✅ **Discord Account Linked!**\n\nYou can now use all bot commands.`);
+
+      return { type: 4, data: { content: `✅ Logged in and Discord linked! Check your DMs.`, flags: 64 } };
     }
 
-    case 'genkeys': {
-      const user = await getOrCreateUser();
+    case 'keysystemgen': {
+      const user = await getUser();
       if (!user) {
-        return {
-          type: 4,
-          data: { content: '❌ Please `/register` or `/login` first to link your Discord account.', flags: 64 }
-        };
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
       }
 
-      const numKeys = data.options?.find((o: any) => o.name === 'amount')?.value || 10;
+      const numKeys = data.options?.find((o: any) => o.name === 'keys')?.value || 10;
       const name = data.options?.find((o: any) => o.name === 'name')?.value || 'KeySystem';
       const color = data.options?.find((o: any) => o.name === 'color')?.value || '255, 255, 255';
 
       if (numKeys < 1 || numKeys > 1000) {
-        return {
-          type: 4,
-          data: { content: '❌ Number of keys must be between 1 and 1000.', flags: 64 }
-        };
+        return { type: 4, data: { content: '❌ Number of keys must be between 1 and 1000.', flags: 64 } };
       }
 
       const keys = Array.from({ length: numKeys }, () => generateRandomKey());
       const asciiText = convertToAsciiArt(name);
       
-      // Generate Lua code (simplified for Discord)
+      // Generate full Lua code
       const luaCode = `-- ULT LUA PROTECTS KEY SYSTEM
 -- Name: ${name}
 -- Keys: ${numKeys}
 -- Theme: RGB(${color})
 
-local VALID_KEYS = {${keys.map(key => `"${key}"`).join(', ')}}
+local VALID_KEYS = {
+${keys.map(key => `    "${key}"`).join(',\n')}
+}
 
--- Full code available on the website
+local function checkKey(inputKey)
+    for _, key in ipairs(VALID_KEYS) do
+        if key == inputKey then
+            return true
+        end
+    end
+    return false
+end
+
+-- ASCII Art Title
+local ascii = [[
+${asciiText}
+]]
+
+print(ascii)
+print("Enter your key:")
+local userKey = io.read()
+
+if checkKey(userKey) then
+    print("✅ Key Valid! Access Granted.")
+else
+    print("❌ Invalid Key!")
+end
 `;
 
       // Save to database
@@ -268,32 +310,208 @@ local VALID_KEYS = {${keys.map(key => `"${key}"`).join(', ')}}
         generated_code: luaCode,
       });
 
-      // Log activity
       await supabase.from('user_activity').insert({
         user_id: user.userId,
         activity_type: 'key_system_created',
         activity_data: { name, num_keys: numKeys, source: 'discord_bot' }
       });
 
-      const keysList = keys.slice(0, 10).join('\n');
-      const moreKeysMsg = keys.length > 10 ? `\n... and ${keys.length - 10} more keys` : '';
+      // DM the user with the file
+      await sendDM(
+        discordUserId,
+        `✅ **Key System Generated!**\n\n**Name:** ${name}\n**Keys:** ${numKeys}\n**Theme:** RGB(${color})\n\nYour key system file is attached below!`,
+        [{ name: `${name.replace(/\s+/g, '_')}_keysystem.lua`, content: luaCode }]
+      );
 
-      return {
-        type: 4,
-        data: { 
-          content: `✅ **Key System Generated!**\n\n**Name:** ${name}\n**Keys:** ${numKeys}\n**Theme:** RGB(${color})\n\n\`\`\`\n${keysList}${moreKeysMsg}\n\`\`\`\n\n*View full code on the website*`, 
-          flags: 64 
+      return { type: 4, data: { content: `✅ Key system **${name}** generated! Check your DMs for the file.`, flags: 64 } };
+    }
+
+    case 'savescript': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const name = data.options?.find((o: any) => o.name === 'name')?.value;
+      const attachmentId = data.options?.find((o: any) => o.name === 'file')?.value;
+      
+      if (!name) {
+        return { type: 4, data: { content: '❌ Please provide a script name.', flags: 64 } };
+      }
+
+      // Get attachment from resolved data
+      const attachment = data.resolved?.attachments?.[attachmentId];
+      if (!attachment) {
+        return { type: 4, data: { content: '❌ Please upload a file.', flags: 64 } };
+      }
+
+      // Fetch file content
+      const scriptContent = await fetchAttachment(attachment.url);
+
+      await supabase.from('saved_scripts').insert({
+        user_id: user.userId,
+        name,
+        script_content: scriptContent,
+        description: `Uploaded via Discord: ${attachment.filename}`
+      });
+
+      await supabase.from('user_activity').insert({
+        user_id: user.userId,
+        activity_type: 'script_saved',
+        activity_data: { name, source: 'discord_bot', filename: attachment.filename }
+      });
+
+      await sendDM(discordUserId, `✅ **Script Saved!**\n\n**Name:** ${name}\n**File:** ${attachment.filename}\n\nYou can view it in the Script Storage tab on the website.`);
+
+      return { type: 4, data: { content: `✅ Script **${name}** saved! Check your DMs for confirmation.`, flags: 64 } };
+    }
+
+    case 'paste': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const title = data.options?.find((o: any) => o.name === 'name')?.value || 'Untitled';
+      const attachmentId = data.options?.find((o: any) => o.name === 'file')?.value;
+
+      // Get attachment from resolved data
+      const attachment = data.resolved?.attachments?.[attachmentId];
+      if (!attachment) {
+        return { type: 4, data: { content: '❌ Please upload a file.', flags: 64 } };
+      }
+
+      // Fetch file content
+      const content = await fetchAttachment(attachment.url);
+      const slug = generateSlug();
+
+      const { data: paste, error } = await supabase
+        .from('pastes')
+        .insert({
+          user_id: user.userId,
+          title,
+          content,
+          slug,
+          protection_enabled: false
+        })
+        .select('id, slug')
+        .single();
+
+      if (error) {
+        console.error('Paste error:', error);
+        return { type: 4, data: { content: `❌ Failed to create paste: ${error.message}`, flags: 64 } };
+      }
+
+      const rawUrl = `https://iyfvpnjrghsownkpazec.supabase.co/functions/v1/get-paste/${paste.slug}`;
+
+      await sendDM(discordUserId, `✅ **Paste Created!**\n\n**Title:** ${title}\n**Raw URL:** ${rawUrl}\n\nYou can manage it in the Pastebin tab on the website.`);
+
+      return { type: 4, data: { content: `✅ Paste **${title}** created! Check your DMs for the raw URL.`, flags: 64 } };
+    }
+
+    case 'scriptprotection': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const pasteSlug = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
+
+      if (!pasteSlug) {
+        return { type: 4, data: { content: '❌ Please select a paste.', flags: 64 } };
+      }
+
+      // Update protection status
+      const { error } = await supabase
+        .from('pastes')
+        .update({ protection_enabled: enabled })
+        .eq('slug', pasteSlug)
+        .eq('user_id', user.userId);
+
+      if (error) {
+        return { type: 4, data: { content: `❌ Failed to update: ${error.message}`, flags: 64 } };
+      }
+
+      await sendDM(discordUserId, `✅ **Protection Updated!**\n\n**Paste:** ${pasteSlug}\n**Protection:** ${enabled ? 'Enabled' : 'Disabled'}`);
+
+      return { type: 4, data: { content: `✅ Protection ${enabled ? 'enabled' : 'disabled'} for paste! Check your DMs.`, flags: 64 } };
+    }
+
+    case 'whitelist': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const pasteSlug = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const robloxUserId = data.options?.find((o: any) => o.name === 'userid')?.value;
+
+      if (!pasteSlug || !robloxUserId) {
+        return { type: 4, data: { content: '❌ Please provide both paste and user ID.', flags: 64 } };
+      }
+
+      // Get paste ID from slug
+      const { data: paste } = await supabase
+        .from('pastes')
+        .select('id')
+        .eq('slug', pasteSlug)
+        .eq('user_id', user.userId)
+        .maybeSingle();
+
+      if (!paste) {
+        return { type: 4, data: { content: '❌ Paste not found or you don\'t own it.', flags: 64 } };
+      }
+
+      // Add to whitelist
+      const { error } = await supabase
+        .from('paste_access_control')
+        .insert({
+          paste_id: paste.id,
+          roblox_user_id: robloxUserId,
+          access_type: 'whitelist'
+        });
+
+      if (error) {
+        if (error.code === '23505') {
+          return { type: 4, data: { content: '❌ User ID already whitelisted for this paste.', flags: 64 } };
         }
-      };
+        return { type: 4, data: { content: `❌ Failed to whitelist: ${error.message}`, flags: 64 } };
+      }
+
+      await sendDM(discordUserId, `✅ **User Whitelisted!**\n\n**Paste:** ${pasteSlug}\n**User ID:** ${robloxUserId}`);
+
+      return { type: 4, data: { content: `✅ User ID **${robloxUserId}** whitelisted! Check your DMs.`, flags: 64 } };
+    }
+
+    case 'mypastes': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const { data: pastes } = await supabase
+        .from('pastes')
+        .select('title, slug, protection_enabled, created_at')
+        .eq('user_id', user.userId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (!pastes || pastes.length === 0) {
+        return { type: 4, data: { content: '📭 No pastes found. Use `/paste` to create one!', flags: 64 } };
+      }
+
+      const list = pastes.map((p, i) => 
+        `${i + 1}. **${p.title || 'Untitled'}** (\`${p.slug}\`) - Protection: ${p.protection_enabled ? '✅' : '❌'}`
+      ).join('\n');
+
+      return { type: 4, data: { content: `📝 **Your Pastes:**\n\n${list}`, flags: 64 } };
     }
 
     case 'mykeys': {
-      const user = await getOrCreateUser();
+      const user = await getUser();
       if (!user) {
-        return {
-          type: 4,
-          data: { content: '❌ Please `/register` or `/login` first.', flags: 64 }
-        };
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
       }
 
       const { data: keySystems } = await supabase
@@ -304,29 +522,20 @@ local VALID_KEYS = {${keys.map(key => `"${key}"`).join(', ')}}
         .limit(10);
 
       if (!keySystems || keySystems.length === 0) {
-        return {
-          type: 4,
-          data: { content: '📭 You haven\'t created any key systems yet. Use `/genkeys` to create one!', flags: 64 }
-        };
+        return { type: 4, data: { content: '📭 No key systems found. Use `/keysystemgen` to create one!', flags: 64 } };
       }
 
       const list = keySystems.map((ks, i) => 
         `${i + 1}. **${ks.name}** - ${ks.num_keys} keys`
       ).join('\n');
 
-      return {
-        type: 4,
-        data: { content: `🔑 **Your Key Systems:**\n\n${list}`, flags: 64 }
-      };
+      return { type: 4, data: { content: `🔑 **Your Key Systems:**\n\n${list}`, flags: 64 } };
     }
 
     case 'scripts': {
-      const user = await getOrCreateUser();
+      const user = await getUser();
       if (!user) {
-        return {
-          type: 4,
-          data: { content: '❌ Please `/register` or `/login` first.', flags: 64 }
-        };
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
       }
 
       const { data: scripts } = await supabase
@@ -337,117 +546,20 @@ local VALID_KEYS = {${keys.map(key => `"${key}"`).join(', ')}}
         .limit(10);
 
       if (!scripts || scripts.length === 0) {
-        return {
-          type: 4,
-          data: { content: '📭 No saved scripts found.', flags: 64 }
-        };
+        return { type: 4, data: { content: '📭 No scripts found. Use `/savescript` to save one!', flags: 64 } };
       }
 
       const list = scripts.map((s, i) => 
         `${i + 1}. **${s.name}** - ${s.description || 'No description'}`
       ).join('\n');
 
-      return {
-        type: 4,
-        data: { content: `📜 **Your Saved Scripts:**\n\n${list}`, flags: 64 }
-      };
-    }
-
-    case 'savescript': {
-      const user = await getOrCreateUser();
-      if (!user) {
-        return {
-          type: 4,
-          data: { content: '❌ Please `/register` or `/login` first.', flags: 64 }
-        };
-      }
-
-      const name = data.options?.find((o: any) => o.name === 'name')?.value;
-      const code = data.options?.find((o: any) => o.name === 'code')?.value;
-      const description = data.options?.find((o: any) => o.name === 'description')?.value || '';
-
-      if (!name || !code) {
-        return {
-          type: 4,
-          data: { content: '❌ Please provide both name and code.', flags: 64 }
-        };
-      }
-
-      await supabase.from('saved_scripts').insert({
-        user_id: user.userId,
-        name,
-        script_content: code,
-        description
-      });
-
-      await supabase.from('user_activity').insert({
-        user_id: user.userId,
-        activity_type: 'script_saved',
-        activity_data: { name, source: 'discord_bot' }
-      });
-
-      return {
-        type: 4,
-        data: { content: `✅ Script **${name}** saved successfully!`, flags: 64 }
-      };
-    }
-
-    case 'paste': {
-      const user = await getOrCreateUser();
-      if (!user) {
-        return {
-          type: 4,
-          data: { content: '❌ Please `/register` or `/login` first.', flags: 64 }
-        };
-      }
-
-      const content = data.options?.find((o: any) => o.name === 'content')?.value;
-      const title = data.options?.find((o: any) => o.name === 'title')?.value || 'Untitled';
-      const isPublic = data.options?.find((o: any) => o.name === 'public')?.value ?? true;
-
-      if (!content) {
-        return {
-          type: 4,
-          data: { content: '❌ Please provide paste content.', flags: 64 }
-        };
-      }
-
-      const { data: paste, error } = await supabase
-        .from('pastes')
-        .insert({
-          user_id: user.userId,
-          title,
-          content,
-          is_public: isPublic
-        })
-        .select('id')
-        .single();
-
-      if (error) {
-        return {
-          type: 4,
-          data: { content: `❌ Failed to create paste: ${error.message}`, flags: 64 }
-        };
-      }
-
-      const baseUrl = Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '.lovable.app') || 'https://yoursite.com';
-      
-      return {
-        type: 4,
-        data: { 
-          content: `✅ Paste created!\n\n**Title:** ${title}\n**Visibility:** ${isPublic ? 'Public' : 'Private'}\n**ID:** \`${paste.id}\``, 
-          flags: 64 
-        }
-      };
+      return { type: 4, data: { content: `📜 **Your Saved Scripts:**\n\n${list}`, flags: 64 } };
     }
 
     case 'profile': {
-      const user = await getOrCreateUser();
+      const user = await getUser();
       if (!user) {
-        return {
-          type: 4,
-          data: { content: '❌ Please `/register` or `/login` first.', flags: 64 }
-        };
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
       }
 
       const { data: profile } = await supabase
@@ -486,29 +598,24 @@ local VALID_KEYS = {${keys.map(key => `"${key}"`).join(', ')}}
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/profile\` - View your profile\n\n**Key Systems:**\n\`/genkeys\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a new script\n\n**Pastebin:**\n\`/paste\` - Create a paste`, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/profile\` - View your profile\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system (DMs you the file)\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script (upload file)\n\n**Pastebin:**\n\`/paste\` - Create a paste (upload file, DMs raw URL)\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle paste protection\n\`/whitelist\` - Add user ID to paste whitelist`, 
           flags: 0 
         }
       };
     }
 
     default:
-      return {
-        type: 4,
-        data: { content: '❓ Unknown command. Use `/help` to see available commands.', flags: 64 }
-      };
+      return { type: 4, data: { content: '❓ Unknown command. Use `/help` to see available commands.', flags: 64 } };
   }
 }
 
 serve(async (req) => {
-  // Only accept POST requests
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
 
   const body = await req.text();
   
-  // Verify the request is from Discord
   const isValid = await verifyDiscordRequest(req, body);
   if (!isValid) {
     console.error("Invalid Discord signature");
@@ -518,7 +625,7 @@ serve(async (req) => {
   const interaction = JSON.parse(body);
   console.log("Interaction received:", interaction.type, interaction.data?.name);
 
-  // Handle PING (type 1) - Discord verification
+  // Handle PING (type 1)
   if (interaction.type === 1) {
     return new Response(JSON.stringify({ type: 1 }), {
       headers: { "Content-Type": "application/json" }
