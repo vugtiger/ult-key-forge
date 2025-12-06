@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.get-paste]
 verify_jwt = false
+
+[functions.discord-bot]
+verify_jwt = false
+
+[functions.discord-register-commands]
+verify_jwt = false
