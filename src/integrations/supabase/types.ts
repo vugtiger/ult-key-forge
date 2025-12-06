@@ -117,6 +117,7 @@ export type Database = {
           ban_reason: string | null
           banned_at: string | null
           created_at: string | null
+          discord_user_id: string | null
           discord_username: string | null
           id: string
           is_banned: boolean | null
@@ -127,6 +128,7 @@ export type Database = {
           ban_reason?: string | null
           banned_at?: string | null
           created_at?: string | null
+          discord_user_id?: string | null
           discord_username?: string | null
           id: string
           is_banned?: boolean | null
@@ -137,6 +139,7 @@ export type Database = {
           ban_reason?: string | null
           banned_at?: string | null
           created_at?: string | null
+          discord_user_id?: string | null
           discord_username?: string | null
           id?: string
           is_banned?: boolean | null

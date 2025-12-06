@@ -376,7 +376,7 @@ local VALID_KEYS = {${keys.map(key => `"${key}"`).join(', ')}}
       await supabase.from('saved_scripts').insert({
         user_id: user.userId,
         name,
-        code,
+        script_content: code,
         description
       });
 
