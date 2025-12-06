@@ -10,62 +10,25 @@ const commands = [
     name: "register",
     description: "Create a new ULT LUA PROTECTS account",
     options: [
-      {
-        name: "email",
-        description: "Your email address",
-        type: 3, // STRING
-        required: true
-      },
-      {
-        name: "password",
-        description: "Your password (min 6 characters)",
-        type: 3,
-        required: true
-      }
+      { name: "email", description: "Your email address", type: 3, required: true },
+      { name: "password", description: "Your password (min 6 characters)", type: 3, required: true }
     ]
   },
   {
     name: "login",
     description: "Link your existing account to Discord",
     options: [
-      {
-        name: "email",
-        description: "Your email address",
-        type: 3,
-        required: true
-      },
-      {
-        name: "password",
-        description: "Your password",
-        type: 3,
-        required: true
-      }
+      { name: "email", description: "Your email address", type: 3, required: true },
+      { name: "password", description: "Your password", type: 3, required: true }
     ]
   },
   {
-    name: "genkeys",
-    description: "Generate a new key system",
+    name: "keysystemgen",
+    description: "Generate a key system (DMs you the file)",
     options: [
-      {
-        name: "name",
-        description: "Name of the key system",
-        type: 3,
-        required: true
-      },
-      {
-        name: "amount",
-        description: "Number of keys to generate (1-1000)",
-        type: 4, // INTEGER
-        required: true,
-        min_value: 1,
-        max_value: 1000
-      },
-      {
-        name: "color",
-        description: "RGB color (e.g., 255, 0, 0 for red)",
-        type: 3,
-        required: false
-      }
+      { name: "keys", description: "Number of keys to generate (1-1000)", type: 4, required: true, min_value: 1, max_value: 1000 },
+      { name: "color", description: "UI theme color RGB (e.g., 255, 0, 0)", type: 3, required: true },
+      { name: "name", description: "Key system name", type: 3, required: true }
     ]
   },
   {
@@ -73,55 +36,43 @@ const commands = [
     description: "View your generated key systems"
   },
   {
+    name: "savescript",
+    description: "Save a script to your account",
+    options: [
+      { name: "name", description: "Script name", type: 3, required: true },
+      { name: "file", description: "Script file to upload", type: 11, required: true } // 11 = ATTACHMENT
+    ]
+  },
+  {
     name: "scripts",
     description: "View your saved scripts"
   },
   {
-    name: "savescript",
-    description: "Save a new script",
+    name: "paste",
+    description: "Create a paste (DMs you the raw URL)",
     options: [
-      {
-        name: "name",
-        description: "Script name",
-        type: 3,
-        required: true
-      },
-      {
-        name: "code",
-        description: "The script code",
-        type: 3,
-        required: true
-      },
-      {
-        name: "description",
-        description: "Script description",
-        type: 3,
-        required: false
-      }
+      { name: "name", description: "Paste title", type: 3, required: true },
+      { name: "file", description: "File to paste", type: 11, required: true } // 11 = ATTACHMENT
     ]
   },
   {
-    name: "paste",
-    description: "Create a new paste",
+    name: "mypastes",
+    description: "View your pastes"
+  },
+  {
+    name: "scriptprotection",
+    description: "Toggle protection on a paste",
     options: [
-      {
-        name: "content",
-        description: "Paste content",
-        type: 3,
-        required: true
-      },
-      {
-        name: "title",
-        description: "Paste title",
-        type: 3,
-        required: false
-      },
-      {
-        name: "public",
-        description: "Make paste public",
-        type: 5, // BOOLEAN
-        required: false
-      }
+      { name: "paste", description: "Paste slug (from /mypastes)", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable protection", type: 5, required: true } // 5 = BOOLEAN
+    ]
+  },
+  {
+    name: "whitelist",
+    description: "Add a Roblox user ID to paste whitelist",
+    options: [
+      { name: "paste", description: "Paste slug (from /mypastes)", type: 3, required: true },
+      { name: "userid", description: "Roblox user ID to whitelist", type: 3, required: true }
     ]
   },
   {
@@ -147,7 +98,6 @@ serve(async (req) => {
       throw new Error("Missing Discord credentials");
     }
 
-    // Register global commands
     const response = await fetch(
       `https://discord.com/api/v10/applications/${DISCORD_APPLICATION_ID}/commands`,
       {
