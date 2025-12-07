@@ -932,11 +932,100 @@ async function handleCommand(interaction: any) {
       };
     }
 
+    case 'ai': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
+      const message = data.options?.find((o: any) => o.name === 'message')?.value;
+
+      if (enabled === false) {
+        return { type: 4, data: { content: '🤖 **AI Assistant disabled.** Use `/ai enabled:True message:"your question"` to chat with the AI.', flags: 64 } };
+      }
+
+      if (!message) {
+        return { type: 4, data: { content: '❌ Please provide a message to send to the AI.\n\nExample: `/ai enabled:True message:"How do I make a Roblox script?"`', flags: 64 } };
+      }
+
+      // Call the AI chat function
+      try {
+        const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+        if (!LOVABLE_API_KEY) {
+          return { type: 4, data: { content: '❌ AI service is not configured.', flags: 64 } };
+        }
+
+        const systemPrompt = `You are a helpful AI assistant for ULT LUA PROTECTS platform. You specialize in:
+
+1. **Roblox Lua Scripting**: Help users write, debug, and optimize Roblox scripts
+2. **Web Development**: Assist with HTML, CSS, JavaScript for building websites
+3. **Key Systems**: Explain how key systems work and security best practices
+4. **Code Review**: Analyze code and provide constructive feedback
+
+Guidelines:
+- Provide clear, concise code examples
+- Explain complex concepts in simple terms
+- Always consider security and best practices
+- Be friendly and encouraging
+- Keep responses under 1800 characters for Discord
+
+When helping with Roblox scripts, consider game performance and security.
+When building websites, focus on clean, modern, responsive design.`;
+
+        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: message }
+            ],
+            max_tokens: 1000,
+          }),
+        });
+
+        if (!aiResponse.ok) {
+          const errorText = await aiResponse.text();
+          console.error('AI API error:', aiResponse.status, errorText);
+          
+          if (aiResponse.status === 429) {
+            return { type: 4, data: { content: '⏳ AI is busy. Please try again in a moment.', flags: 64 } };
+          }
+          
+          return { type: 4, data: { content: '❌ AI service temporarily unavailable.', flags: 64 } };
+        }
+
+        const aiData = await aiResponse.json();
+        let aiContent = aiData.choices[0]?.message?.content || 'No response generated.';
+        
+        // Truncate if too long for Discord
+        if (aiContent.length > 1900) {
+          aiContent = aiContent.substring(0, 1897) + '...';
+        }
+
+        return { 
+          type: 4, 
+          data: { 
+            content: `🤖 **AI Assistant:**\n\n${aiContent}`, 
+            flags: 0 
+          } 
+        };
+      } catch (error) {
+        console.error('AI chat error:', error);
+        return { type: 4, data: { content: '❌ Failed to get AI response. Please try again.', flags: 64 } };
+      }
+    }
+
     case 'help': {
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord from account\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system (DMs you the file)\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script (upload file)\n\n**Pastebin:**\n\`/paste\` - Create a paste (upload file, DMs raw URL)\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle paste protection (use paste name)\n\`/whitelist\` - Add user ID to paste whitelist\n\`/blacklist\` - Add user ID to paste blacklist`, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord from account\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system (DMs you the file)\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script (upload file)\n\n**Pastebin:**\n\`/paste\` - Create a paste (upload file, DMs raw URL)\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle paste protection (use paste name)\n\`/whitelist\` - Add user ID to paste whitelist\n\`/blacklist\` - Add user ID to paste blacklist\n\n**AI:**\n\`/ai\` - Chat with AI assistant (enabled:True/False, message:"your question")`, 
           flags: 0 
         }
       };

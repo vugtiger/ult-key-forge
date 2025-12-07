@@ -96,6 +96,14 @@ const commands = [
     description: "View your profile and stats"
   },
   {
+    name: "ai",
+    description: "Chat with the AI assistant",
+    options: [
+      { name: "enabled", description: "Enable or disable AI (True/False)", type: 5, required: true },
+      { name: "message", description: "Your message/question for the AI", type: 3, required: false }
+    ]
+  },
+  {
     name: "help",
     description: "Show all available commands"
   }
