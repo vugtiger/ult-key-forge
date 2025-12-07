@@ -23,6 +23,10 @@ const commands = [
     ]
   },
   {
+    name: "logout",
+    description: "Unlink your Discord from your account"
+  },
+  {
     name: "keysystemgen",
     description: "Generate a key system (DMs you the file)",
     options: [
@@ -40,7 +44,7 @@ const commands = [
     description: "Save a script to your account",
     options: [
       { name: "name", description: "Script name", type: 3, required: true },
-      { name: "file", description: "Script file to upload", type: 11, required: true } // 11 = ATTACHMENT
+      { name: "file", description: "Script file to upload", type: 11, required: true }
     ]
   },
   {
@@ -52,7 +56,7 @@ const commands = [
     description: "Create a paste (DMs you the raw URL)",
     options: [
       { name: "name", description: "Paste title", type: 3, required: true },
-      { name: "file", description: "File to paste", type: 11, required: true } // 11 = ATTACHMENT
+      { name: "file", description: "File to paste", type: 11, required: true }
     ]
   },
   {
@@ -63,17 +67,29 @@ const commands = [
     name: "scriptprotection",
     description: "Toggle protection on a paste",
     options: [
-      { name: "paste", description: "Paste slug (from /mypastes)", type: 3, required: true },
-      { name: "enabled", description: "Enable or disable protection", type: 5, required: true } // 5 = BOOLEAN
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable protection", type: 5, required: true }
     ]
   },
   {
     name: "whitelist",
     description: "Add a Roblox user ID to paste whitelist",
     options: [
-      { name: "paste", description: "Paste slug (from /mypastes)", type: 3, required: true },
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
       { name: "userid", description: "Roblox user ID to whitelist", type: 3, required: true }
     ]
+  },
+  {
+    name: "blacklist",
+    description: "Add a Roblox user ID to paste blacklist",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "userid", description: "Roblox user ID to blacklist", type: 3, required: true }
+    ]
+  },
+  {
+    name: "factoryreset",
+    description: "Wipe all your data (key systems, scripts, pastes) - account stays"
   },
   {
     name: "profile",

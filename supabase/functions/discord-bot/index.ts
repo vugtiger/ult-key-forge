@@ -69,6 +69,16 @@ const asciiChars: Record<string, string[]> = {
   'Y': ['██╗   ██╗', '╚██╗ ██╔╝', ' ╚████╔╝ ', '  ╚██╔╝  ', '   ██║   ', '   ╚═╝   '],
   'Z': ['███████╗', '╚══███╔╝', '  ███╔╝ ', ' ███╔╝  ', '███████╗', '╚══════╝'],
   ' ': ['   ', '   ', '   ', '   ', '   ', '   '],
+  '0': ['██████╗ ', '██╔═████╗', '██║██╔██║', '████╔╝██║', '╚██████╔╝', ' ╚═════╝ '],
+  '1': ['██╗', '██║', '██║', '██║', '██║', '╚═╝'],
+  '2': ['██████╗ ', '╚════██╗', ' █████╔╝', '██╔═══╝ ', '███████╗', '╚══════╝'],
+  '3': ['██████╗ ', '╚════██╗', ' █████╔╝', ' ╚═══██╗', '██████╔╝', '╚═════╝ '],
+  '4': ['██╗  ██╗', '██║  ██║', '███████║', '╚════██║', '     ██║', '     ╚═╝'],
+  '5': ['███████╗', '██╔════╝', '███████╗', '╚════██║', '███████║', '╚══════╝'],
+  '6': ['██████╗ ', '██╔════╝ ', '███████╗', '██╔═══██╗', '╚██████╔╝', ' ╚═════╝ '],
+  '7': ['███████╗', '╚════██║', '    ██╔╝', '   ██╔╝ ', '   ██║  ', '   ╚═╝  '],
+  '8': ['██████╗ ', '██╔══██╗', '╚█████╔╝', '██╔══██╗', '╚█████╔╝', ' ╚════╝ '],
+  '9': ['██████╗ ', '██╔═══██╗', '╚██████║', ' ╚═══██║', ' █████╔╝', ' ╚════╝ '],
 };
 
 function convertToAsciiArt(text: string): string {
@@ -93,6 +103,257 @@ function generateRandomKey(): string {
 function generateSlug(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+// Generate the full key system Lua code (matching website exactly)
+function generateFullKeySystemCode(name: string, keys: string[], themeColor: string): string {
+  const asciiText = convertToAsciiArt(name);
+  const keysString = keys.map(key => `"${key}"`).join(', ');
+  
+  return `-- // ULT LUA PROTECTS KEY SYSTEM \\ --
+
+--[[
+  HOW THE KEY-USER ID TRACKING WORKS:
+  
+  SCENARIO 1: First Time User Uses a Key
+  - User enters a valid key that hasn't been used
+  - System saves: usedKeysData["keyValue"] = "userId"
+  - Result: ACCESS GRANTED
+  
+  SCENARIO 2: Same User Uses Key Again
+  - User enters a key they previously used
+  - System checks: Key owner matches current user
+  - Result: ACCESS GRANTED (same owner can reuse their key)
+  
+  SCENARIO 3: Different User Tries to Use Already-Used Key
+  - User tries to enter a key someone else claimed
+  - System checks: Key owner doesn't match current user
+  - Result: ACCESS DENIED (different user can't use someone else's key)
+  
+  HOW TO MANUALLY ASSIGN KEYS TO SPECIFIC USER IDS:
+  Replace: local usedKeysData = {}
+  With: local usedKeysData = {
+    ["${keys[0] || 'KEY1'}"] = "123456789",  -- Pre-assign to specific user
+  }
+]]--
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local TextService = game:GetService("TextService")
+local HttpService = game:GetService("HttpService")
+
+local plr = Players.LocalPlayer
+local gui = Instance.new("ScreenGui", plr:WaitForChild("PlayerGui"))
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 999999999
+
+-- Valid keys (5 characters each)
+local VALID_KEYS = {${keysString}}
+
+-- Storage for used keys (key -> userId mapping)
+local usedKeysData = {}
+local DATA_KEY = "UltLuaUsedKeys_${name.replace(/\s+/g, '_')}"
+
+-- Load used keys from DataStore
+local function loadUsedKeys()
+    local success, data = pcall(function()
+        return HttpService:JSONDecode(game:GetService("DataStoreService"):GetDataStore(DATA_KEY):GetAsync("keys") or "{}")
+    end)
+    if success then
+        usedKeysData = data
+    end
+end
+
+-- Save used keys to DataStore
+local function saveUsedKeys()
+    pcall(function()
+        game:GetService("DataStoreService"):GetDataStore(DATA_KEY):SetAsync("keys", HttpService:JSONEncode(usedKeysData))
+    end)
+end
+
+loadUsedKeys()
+
+-- Window
+local win = Instance.new("Frame", gui)
+win.Size = UDim2.new(0, 680, 0, 290)
+win.Position = UDim2.new(0.5, -340, 0.5, -145)
+win.BackgroundColor3 = Color3.fromRGB(20,20,20)
+win.BackgroundTransparency = 0.25
+win.BorderSizePixel = 0
+win.ClipsDescendants = true
+
+local outline = Instance.new("UIStroke", win)
+outline.Thickness = 2
+outline.Color = Color3.fromRGB(${themeColor})
+local glow = Instance.new("UIStroke", win)
+glow.Thickness = 6
+glow.Transparency = 0.65
+glow.Color = Color3.fromRGB(${themeColor})
+
+-- Logo + flicker
+local logo = Instance.new("TextLabel", win)
+logo.Size = UDim2.new(1,0,0,125)
+logo.Position = UDim2.new(0,0,0,10)
+logo.BackgroundTransparency = 1
+logo.TextColor3 = Color3.fromRGB(${themeColor})
+logo.TextTransparency = 1
+logo.Font = Enum.Font.Code
+logo.TextSize = 18
+logo.Text = [[
+${asciiText}
+]]
+
+task.spawn(function()
+    task.wait(0.3)
+    for i = 1, 30 do
+        logo.TextTransparency = math.random(20,80)/100
+        task.wait(0.04)
+    end
+    TweenService:Create(logo, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+end)
+
+-- Fixed prefix
+local prefix = Instance.new("TextLabel", win)
+prefix.Size = UDim2.new(1,-60,0,50)
+prefix.Position = UDim2.new(0,30,0,200)
+prefix.BackgroundTransparency = 1
+prefix.Text = "Enter your key > "
+prefix.TextColor3 = Color3.fromRGB(${themeColor})
+prefix.Font = Enum.Font.Code
+prefix.TextSize = 28
+prefix.TextXAlignment = Enum.TextXAlignment.Left
+prefix.TextTransparency = 1
+
+-- Real TextBox
+local input = Instance.new("TextBox", win)
+input.Size = UDim2.new(1,-60,0,50)
+input.Position = UDim2.new(0,30,0,200)
+input.BackgroundTransparency = 1
+input.Text = ""
+input.TextColor3 = Color3.fromRGB(${themeColor})
+input.Font = Enum.Font.Code
+input.TextSize = 28
+input.TextXAlignment = Enum.TextXAlignment.Left
+input.ClearTextOnFocus = false
+
+-- Position input after prefix
+local prefixWidth = 0
+task.spawn(function()
+    task.wait()
+    prefixWidth = TextService:GetTextSize(prefix.Text, 28, Enum.Font.Code, Vector2.new(10000,10000)).X
+    input.Position = UDim2.new(0, 30 + prefixWidth, 0, 200)
+    input.Size = UDim2.new(1, -90 - prefixWidth, 0, 50)
+end)
+
+-- Fade + load
+local function fadeAndDestroy(msg, color, load)
+    input.TextEditable = false
+    input.Text = msg
+    input.TextColor3 = color
+
+    TweenService:Create(win, TweenInfo.new(0.9), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(prefix, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
+    TweenService:Create(input, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
+    TweenService:Create(logo, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
+    TweenService:Create(outline, TweenInfo.new(0.9), {Transparency = 1}):Play()
+    TweenService:Create(glow, TweenInfo.new(0.9), {Transparency = 1}):Play()
+
+    task.wait(1)
+    if load then
+        -- REPLACE WITH YOUR SCRIPT URL
+        loadstring(game:HttpGet("https://pastebin.com/raw/YOUR_SCRIPT_HERE"))()
+    end
+    gui:Destroy()
+end
+
+input.FocusLost:Connect(function(enter)
+    if not enter then return end
+    
+    local userId = tostring(plr.UserId)
+    local enteredKey = input.Text
+    
+    -- STEP 1: Check if the entered key exists in VALID_KEYS array
+    local isValidKey = false
+    for _, key in ipairs(VALID_KEYS) do
+        if key == enteredKey then
+            isValidKey = true
+            break
+        end
+    end
+    
+    if not isValidKey then
+        fadeAndDestroy("Wrong Key! Access Denied", Color3.fromRGB(255,0,0), false)
+        return
+    end
+    
+    -- STEP 2: Check if this key has been used before
+    if usedKeysData[enteredKey] then
+        -- Key has been used before, check WHO used it
+        if usedKeysData[enteredKey] == userId then
+            -- Same user who originally used the key - ALLOW
+            fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), true)
+        else
+            -- Different user trying to use an already-claimed key - DENY
+            fadeAndDestroy("Key Already Used! Access Denied", Color3.fromRGB(255,0,0), false)
+        end
+        return
+    end
+    
+    -- STEP 3: Key is valid and hasn't been used - claim it for this user
+    usedKeysData[enteredKey] = userId
+    saveUsedKeys()
+    fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), true)
+end)
+
+-- FIXED DRAGGING (no more sticking)
+local dragging = false
+local dragStart, startPos
+
+local function startDrag(inputObj)
+    dragging = true
+    dragStart = inputObj.Position
+    startPos = win.Position
+end
+
+local function stopDrag()
+    dragging = false
+end
+
+local lastClickTime = 0
+win.InputBegan:Connect(function(inputObj)
+    if inputObj.UserInputType == Enum.UserInputType.MouseButton1 then
+        local now = tick()
+        if now - lastClickTime < 0.35 then
+            fadeAndDestroy("Closed.", Color3.fromRGB(200,200,200), false)
+            return
+        end
+        lastClickTime = now
+        startDrag(inputObj)
+    end
+end)
+
+win.InputEnded:Connect(function(inputObj)
+    if inputObj.UserInputType == Enum.UserInputType.MouseButton1 then
+        stopDrag()
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(inputObj)
+    if dragging and inputObj.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = inputObj.Position - dragStart
+        win.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- Fade in
+TweenService:Create(win, TweenInfo.new(0.7), {BackgroundTransparency = 0.25}):Play()
+TweenService:Create(prefix, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
+TweenService:Create(input, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
+`;
 }
 
 // Send DM to user
@@ -248,6 +509,21 @@ async function handleCommand(interaction: any) {
       return { type: 4, data: { content: `✅ Logged in and Discord linked! Check your DMs.`, flags: 64 } };
     }
 
+    case 'logout': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ You are not logged in.', flags: 64 } };
+      }
+
+      // Unlink Discord from profile
+      await supabase
+        .from('profiles')
+        .update({ discord_user_id: null, discord_username: null })
+        .eq('id', user.userId);
+
+      return { type: 4, data: { content: `✅ Successfully logged out! Your Discord is now unlinked from your account.`, flags: 64 } };
+    }
+
     case 'keysystemgen': {
       const user = await getUser();
       if (!user) {
@@ -265,40 +541,8 @@ async function handleCommand(interaction: any) {
       const keys = Array.from({ length: numKeys }, () => generateRandomKey());
       const asciiText = convertToAsciiArt(name);
       
-      // Generate full Lua code
-      const luaCode = `-- ULT LUA PROTECTS KEY SYSTEM
--- Name: ${name}
--- Keys: ${numKeys}
--- Theme: RGB(${color})
-
-local VALID_KEYS = {
-${keys.map(key => `    "${key}"`).join(',\n')}
-}
-
-local function checkKey(inputKey)
-    for _, key in ipairs(VALID_KEYS) do
-        if key == inputKey then
-            return true
-        end
-    end
-    return false
-end
-
--- ASCII Art Title
-local ascii = [[
-${asciiText}
-]]
-
-print(ascii)
-print("Enter your key:")
-local userKey = io.read()
-
-if checkKey(userKey) then
-    print("✅ Key Valid! Access Granted.")
-else
-    print("❌ Invalid Key!")
-end
-`;
+      // Generate the FULL Lua code (matching website exactly)
+      const luaCode = generateFullKeySystemCode(name, keys, color);
 
       // Save to database
       await supabase.from('key_systems').insert({
@@ -320,7 +564,7 @@ end
       await sendDM(
         discordUserId,
         `✅ **Key System Generated!**\n\n**Name:** ${name}\n**Keys:** ${numKeys}\n**Theme:** RGB(${color})\n\nYour key system file is attached below!`,
-        [{ name: `${name.replace(/\s+/g, '_')}_keysystem.lua`, content: luaCode }]
+        [{ name: `${name.replace(/\s+/g, '_')}_KeySystem.lua`, content: luaCode }]
       );
 
       return { type: 4, data: { content: `✅ Key system **${name}** generated! Check your DMs for the file.`, flags: 64 } };
@@ -402,7 +646,8 @@ end
         return { type: 4, data: { content: `❌ Failed to create paste: ${error.message}`, flags: 64 } };
       }
 
-      const rawUrl = `https://iyfvpnjrghsownkpazec.supabase.co/functions/v1/get-paste/${paste.slug}`;
+      // Fixed URL format to match website
+      const rawUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/get-paste?slug=${paste.slug}`;
 
       await sendDM(discordUserId, `✅ **Paste Created!**\n\n**Title:** ${title}\n**Raw URL:** ${rawUrl}\n\nYou can manage it in the Pastebin tab on the website.`);
 
@@ -415,27 +660,38 @@ end
         return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
       }
 
-      const pasteSlug = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
       const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
 
-      if (!pasteSlug) {
-        return { type: 4, data: { content: '❌ Please select a paste.', flags: 64 } };
+      if (!pasteName) {
+        return { type: 4, data: { content: '❌ Please provide the paste name.', flags: 64 } };
+      }
+
+      // Find paste by title (name) instead of slug
+      const { data: paste } = await supabase
+        .from('pastes')
+        .select('id, title, slug')
+        .eq('user_id', user.userId)
+        .ilike('title', pasteName)
+        .maybeSingle();
+
+      if (!paste) {
+        return { type: 4, data: { content: `❌ Paste "${pasteName}" not found. Use \`/mypastes\` to see your pastes.`, flags: 64 } };
       }
 
       // Update protection status
       const { error } = await supabase
         .from('pastes')
         .update({ protection_enabled: enabled })
-        .eq('slug', pasteSlug)
-        .eq('user_id', user.userId);
+        .eq('id', paste.id);
 
       if (error) {
         return { type: 4, data: { content: `❌ Failed to update: ${error.message}`, flags: 64 } };
       }
 
-      await sendDM(discordUserId, `✅ **Protection Updated!**\n\n**Paste:** ${pasteSlug}\n**Protection:** ${enabled ? 'Enabled' : 'Disabled'}`);
+      await sendDM(discordUserId, `✅ **Protection Updated!**\n\n**Paste:** ${paste.title || 'Untitled'}\n**Protection:** ${enabled ? 'Enabled' : 'Disabled'}`);
 
-      return { type: 4, data: { content: `✅ Protection ${enabled ? 'enabled' : 'disabled'} for paste! Check your DMs.`, flags: 64 } };
+      return { type: 4, data: { content: `✅ Protection ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**! Check your DMs.`, flags: 64 } };
     }
 
     case 'whitelist': {
@@ -444,24 +700,31 @@ end
         return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
       }
 
-      const pasteSlug = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
       const robloxUserId = data.options?.find((o: any) => o.name === 'userid')?.value;
 
-      if (!pasteSlug || !robloxUserId) {
-        return { type: 4, data: { content: '❌ Please provide both paste and user ID.', flags: 64 } };
+      if (!pasteName || !robloxUserId) {
+        return { type: 4, data: { content: '❌ Please provide both paste name and user ID.', flags: 64 } };
       }
 
-      // Get paste ID from slug
+      // Find paste by title (name) instead of slug
       const { data: paste } = await supabase
         .from('pastes')
-        .select('id')
-        .eq('slug', pasteSlug)
+        .select('id, title')
         .eq('user_id', user.userId)
+        .ilike('title', pasteName)
         .maybeSingle();
 
       if (!paste) {
-        return { type: 4, data: { content: '❌ Paste not found or you don\'t own it.', flags: 64 } };
+        return { type: 4, data: { content: `❌ Paste "${pasteName}" not found. Use \`/mypastes\` to see your pastes.`, flags: 64 } };
       }
+
+      // Remove existing entry if any
+      await supabase
+        .from('paste_access_control')
+        .delete()
+        .eq('paste_id', paste.id)
+        .eq('roblox_user_id', robloxUserId);
 
       // Add to whitelist
       const { error } = await supabase
@@ -473,15 +736,90 @@ end
         });
 
       if (error) {
-        if (error.code === '23505') {
-          return { type: 4, data: { content: '❌ User ID already whitelisted for this paste.', flags: 64 } };
-        }
         return { type: 4, data: { content: `❌ Failed to whitelist: ${error.message}`, flags: 64 } };
       }
 
-      await sendDM(discordUserId, `✅ **User Whitelisted!**\n\n**Paste:** ${pasteSlug}\n**User ID:** ${robloxUserId}`);
+      await sendDM(discordUserId, `✅ **User Whitelisted!**\n\n**Paste:** ${paste.title || 'Untitled'}\n**User ID:** ${robloxUserId}`);
 
-      return { type: 4, data: { content: `✅ User ID **${robloxUserId}** whitelisted! Check your DMs.`, flags: 64 } };
+      return { type: 4, data: { content: `✅ User ID **${robloxUserId}** whitelisted for paste **${paste.title || 'Untitled'}**! Check your DMs.`, flags: 64 } };
+    }
+
+    case 'blacklist': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const robloxUserId = data.options?.find((o: any) => o.name === 'userid')?.value;
+
+      if (!pasteName || !robloxUserId) {
+        return { type: 4, data: { content: '❌ Please provide both paste name and user ID.', flags: 64 } };
+      }
+
+      // Find paste by title (name)
+      const { data: paste } = await supabase
+        .from('pastes')
+        .select('id, title')
+        .eq('user_id', user.userId)
+        .ilike('title', pasteName)
+        .maybeSingle();
+
+      if (!paste) {
+        return { type: 4, data: { content: `❌ Paste "${pasteName}" not found. Use \`/mypastes\` to see your pastes.`, flags: 64 } };
+      }
+
+      // Remove existing entry if any
+      await supabase
+        .from('paste_access_control')
+        .delete()
+        .eq('paste_id', paste.id)
+        .eq('roblox_user_id', robloxUserId);
+
+      // Add to blacklist
+      const { error } = await supabase
+        .from('paste_access_control')
+        .insert({
+          paste_id: paste.id,
+          roblox_user_id: robloxUserId,
+          access_type: 'blacklist'
+        });
+
+      if (error) {
+        return { type: 4, data: { content: `❌ Failed to blacklist: ${error.message}`, flags: 64 } };
+      }
+
+      await sendDM(discordUserId, `✅ **User Blacklisted!**\n\n**Paste:** ${paste.title || 'Untitled'}\n**User ID:** ${robloxUserId}`);
+
+      return { type: 4, data: { content: `✅ User ID **${robloxUserId}** blacklisted from paste **${paste.title || 'Untitled'}**! Check your DMs.`, flags: 64 } };
+    }
+
+    case 'factoryreset': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      // Get paste IDs first, then delete access control entries
+      const { data: userPastes } = await supabase
+        .from('pastes')
+        .select('id')
+        .eq('user_id', user.userId);
+      
+      if (userPastes && userPastes.length > 0) {
+        const pasteIds = userPastes.map(p => p.id);
+        await supabase.from('paste_access_control').delete().in('paste_id', pasteIds);
+      }
+      
+      // Delete all user data from all tables
+      await supabase.from('pastes').delete().eq('user_id', user.userId);
+      await supabase.from('key_systems').delete().eq('user_id', user.userId);
+      await supabase.from('saved_scripts').delete().eq('user_id', user.userId);
+      await supabase.from('user_activity').delete().eq('user_id', user.userId);
+
+      await sendDM(discordUserId, `✅ **Factory Reset Complete!**\n\nAll your data has been wiped:\n- Key Systems\n- Saved Scripts\n- Pastes\n- Activity History\n\nYour account still exists, you can start fresh!`);
+
+      return { type: 4, data: { content: `✅ Factory reset complete! All your data has been wiped. Check your DMs.`, flags: 64 } };
     }
 
     case 'mypastes': {
@@ -502,10 +840,10 @@ end
       }
 
       const list = pastes.map((p, i) => 
-        `${i + 1}. **${p.title || 'Untitled'}** (\`${p.slug}\`) - Protection: ${p.protection_enabled ? '✅' : '❌'}`
+        `${i + 1}. **${p.title || 'Untitled'}** - Protection: ${p.protection_enabled ? '✅' : '❌'}`
       ).join('\n');
 
-      return { type: 4, data: { content: `📝 **Your Pastes:**\n\n${list}`, flags: 64 } };
+      return { type: 4, data: { content: `📝 **Your Pastes:**\n\n${list}\n\n*Use paste name with /scriptprotection, /whitelist, /blacklist commands*`, flags: 64 } };
     }
 
     case 'mykeys': {
@@ -598,7 +936,7 @@ end
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/profile\` - View your profile\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system (DMs you the file)\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script (upload file)\n\n**Pastebin:**\n\`/paste\` - Create a paste (upload file, DMs raw URL)\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle paste protection\n\`/whitelist\` - Add user ID to paste whitelist`, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord from account\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system (DMs you the file)\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script (upload file)\n\n**Pastebin:**\n\`/paste\` - Create a paste (upload file, DMs raw URL)\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle paste protection (use paste name)\n\`/whitelist\` - Add user ID to paste whitelist\n\`/blacklist\` - Add user ID to paste blacklist`, 
           flags: 0 
         }
       };
