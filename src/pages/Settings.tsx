@@ -8,6 +8,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Save, RotateCcw, Sparkles, Type } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import TwoFactorAuth from "@/components/TwoFactorAuth";
+import SessionManager from "@/components/SessionManager";
+import AccountInfo from "@/components/AccountInfo";
 
 const Settings = () => {
   const [themeColor, setThemeColor] = useState("255, 255, 255");
@@ -165,8 +168,17 @@ const Settings = () => {
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">Settings</h1>
-          <p className="text-muted-foreground">Customize your text color and style</p>
+          <p className="text-muted-foreground">Manage your account and preferences</p>
         </div>
+
+        {/* Account Info */}
+        <AccountInfo />
+
+        {/* 2FA Section */}
+        <TwoFactorAuth />
+
+        {/* Session Manager */}
+        <SessionManager />
         
         {/* Text Color Card */}
         <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl">
