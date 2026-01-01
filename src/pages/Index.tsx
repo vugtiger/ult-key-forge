@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { ArrowRight, Key, Shield, Database, Bot, Palette, Save, Zap, Code, MessageSquare, ExternalLink } from "lucide-react";
 import KeySystemPreview from "@/components/KeySystemPreview";
 import AIAssistantDemo from "@/components/AIAssistantDemo";
+import ReviewsSection from "@/components/ReviewsSection";
+import LastUpdatedBadge from "@/components/LastUpdatedBadge";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -39,10 +41,13 @@ const Index = () => {
       <div className="relative z-10">
         {/* Navigation */}
         <nav className="container mx-auto px-4 py-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-foreground">ULT LUA PROTECTS</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-bold text-foreground">ULT LUA PROTECTS</h2>
+            <LastUpdatedBadge />
+          </div>
           <div className="flex items-center gap-4">
             <a
-              href="https://discord.gg/qzYj6JY956"
+              href="https://discord.gg/hPywsq3yqw"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-2 bg-card/50 border border-border rounded-lg hover:bg-card/80 transition-colors cyber-glow"
@@ -139,6 +144,9 @@ const Index = () => {
             <AIAssistantDemo />
           </section>
 
+          {/* Reviews Section */}
+          <ReviewsSection />
+
           {/* About Section */}
           <section className="max-w-4xl mx-auto mb-24 text-center">
             <h2 className="text-4xl font-bold mb-6">About ULT LUA PROTECTS</h2>
@@ -211,7 +219,7 @@ const Index = () => {
                   Create Free Account
                 </Button>
                 <a
-                  href="https://discord.gg/qzYj6JY956"
+                  href="https://discord.gg/hPywsq3yqw"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

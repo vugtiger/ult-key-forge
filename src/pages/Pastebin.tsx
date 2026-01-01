@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock } from "lucide-react";
+import WhitelistTimeManager from "@/components/WhitelistTimeManager";
 
 interface Paste {
   id: string;
@@ -26,6 +28,8 @@ interface AccessEntry {
   paste_id: string;
   roblox_user_id: string;
   access_type: 'whitelist' | 'blacklist';
+  expires_at: string | null;
+  is_eternal: boolean;
   created_at: string;
 }
 
@@ -244,7 +248,9 @@ const Pastebin = () => {
         .insert({
           paste_id: selectedPasteId,
           roblox_user_id: robloxUserId.trim(),
-          access_type: accessType
+          access_type: accessType,
+          is_eternal: false,
+          expires_at: null
         });
 
       if (error) throw error;
@@ -373,7 +379,7 @@ const Pastebin = () => {
           </CardContent>
         </Card>
 
-        {/* Script Protection Section */}
+        {/* Script Protection Section with Tabs */}
         <Card className={`border-border/50 backdrop-blur-sm transition-opacity ${pastes.length === 0 ? 'opacity-50 pointer-events-none' : 'bg-card/50'}`}>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -402,122 +408,147 @@ const Pastebin = () => {
               </Select>
             </div>
 
-            {/* Protection Toggle */}
             {selectedPaste && (
-              <div className="flex items-center justify-between p-3 rounded-lg bg-background/30 border border-border/30">
-                <div className="flex items-center gap-2">
-                  {selectedPaste.protection_enabled ? (
-                    <Lock className="h-4 w-4 text-primary" />
-                  ) : (
-                    <Unlock className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <span className="text-sm">
-                    {selectedPaste.protection_enabled ? "Protection Enabled" : "Protection Disabled"}
-                  </span>
-                </div>
-                <Switch
-                  checked={selectedPaste.protection_enabled}
-                  onCheckedChange={(checked) => toggleProtection(selectedPaste.id, checked)}
-                />
-              </div>
-            )}
+              <Tabs defaultValue="access" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="access">Access Control</TabsTrigger>
+                  <TabsTrigger value="time">
+                    <Clock className="h-4 w-4 mr-1" />
+                    Whitelist Time
+                  </TabsTrigger>
+                </TabsList>
 
-            {/* User ID Input */}
-            {selectedPaste && (
-              <div className="space-y-2">
-                <Label>Roblox User ID</Label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Enter Roblox User ID (e.g., 123456789)"
-                    value={robloxUserId}
-                    onChange={(e) => setRobloxUserId(e.target.value)}
-                    className="bg-background/50 flex-1"
+                <TabsContent value="access" className="space-y-4">
+                  {/* Protection Toggle */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-background/30 border border-border/30">
+                    <div className="flex items-center gap-2">
+                      {selectedPaste.protection_enabled ? (
+                        <Lock className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Unlock className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <span className="text-sm">
+                        {selectedPaste.protection_enabled ? "Protection Enabled" : "Protection Disabled"}
+                      </span>
+                    </div>
+                    <Switch
+                      checked={selectedPaste.protection_enabled}
+                      onCheckedChange={(checked) => toggleProtection(selectedPaste.id, checked)}
+                    />
+                  </div>
+
+                  {/* User ID Input */}
+                  <div className="space-y-2">
+                    <Label>Roblox User ID</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter Roblox User ID (e.g., 123456789)"
+                        value={robloxUserId}
+                        onChange={(e) => setRobloxUserId(e.target.value)}
+                        className="bg-background/50 flex-1"
+                      />
+                      <Button 
+                        variant="outline" 
+                        onClick={() => addAccessEntry('whitelist')}
+                        className="shrink-0"
+                      >
+                        <UserPlus className="h-4 w-4 mr-1" />
+                        Whitelist
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => addAccessEntry('blacklist')}
+                        className="shrink-0 text-destructive border-destructive/50 hover:bg-destructive/10"
+                      >
+                        <UserMinus className="h-4 w-4 mr-1" />
+                        Blacklist
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Whitelist/Blacklist Display */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {/* Whitelist */}
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1 text-green-400">
+                        <UserPlus className="h-4 w-4" />
+                        Whitelist ({whitelistEntries.length})
+                      </Label>
+                      <div className="p-3 rounded-lg bg-background/30 border border-green-500/20 min-h-[120px] max-h-[200px] overflow-y-auto">
+                        {loadingAccess ? (
+                          <p className="text-xs text-muted-foreground">Loading...</p>
+                        ) : whitelistEntries.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No users whitelisted</p>
+                        ) : (
+                          <div className="space-y-1">
+                            {whitelistEntries.map((entry) => (
+                              <div key={entry.id} className="flex items-center justify-between text-sm bg-background/50 p-2 rounded">
+                                <div className="flex flex-col">
+                                  <span className="font-mono">{entry.roblox_user_id}</span>
+                                  {entry.is_eternal && (
+                                    <span className="text-xs text-green-400">Eternal</span>
+                                  )}
+                                  {entry.expires_at && !entry.is_eternal && (
+                                    <span className="text-xs text-muted-foreground">
+                                      Expires: {new Date(entry.expires_at).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => removeAccessEntry(entry.id)}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Blacklist */}
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1 text-red-400">
+                        <UserMinus className="h-4 w-4" />
+                        Blacklist ({blacklistEntries.length})
+                      </Label>
+                      <div className="p-3 rounded-lg bg-background/30 border border-red-500/20 min-h-[120px] max-h-[200px] overflow-y-auto">
+                        {loadingAccess ? (
+                          <p className="text-xs text-muted-foreground">Loading...</p>
+                        ) : blacklistEntries.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No users blacklisted</p>
+                        ) : (
+                          <div className="space-y-1">
+                            {blacklistEntries.map((entry) => (
+                              <div key={entry.id} className="flex items-center justify-between text-sm bg-background/50 p-2 rounded">
+                                <span className="font-mono">{entry.roblox_user_id}</span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => removeAccessEntry(entry.id)}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="time">
+                  <WhitelistTimeManager 
+                    pasteId={selectedPasteId} 
+                    onUpdate={() => fetchAccessEntries(selectedPasteId)} 
                   />
-                  <Button 
-                    variant="outline" 
-                    onClick={() => addAccessEntry('whitelist')}
-                    className="shrink-0"
-                  >
-                    <UserPlus className="h-4 w-4 mr-1" />
-                    Whitelist
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => addAccessEntry('blacklist')}
-                    className="shrink-0 text-destructive border-destructive/50 hover:bg-destructive/10"
-                  >
-                    <UserMinus className="h-4 w-4 mr-1" />
-                    Blacklist
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Whitelist/Blacklist Display */}
-            {selectedPaste && (
-              <div className="grid gap-4 md:grid-cols-2">
-                {/* Whitelist */}
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-1 text-green-400">
-                    <UserPlus className="h-4 w-4" />
-                    Whitelist ({whitelistEntries.length})
-                  </Label>
-                  <div className="p-3 rounded-lg bg-background/30 border border-green-500/20 min-h-[120px] max-h-[200px] overflow-y-auto">
-                    {loadingAccess ? (
-                      <p className="text-xs text-muted-foreground">Loading...</p>
-                    ) : whitelistEntries.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No users whitelisted</p>
-                    ) : (
-                      <div className="space-y-1">
-                        {whitelistEntries.map((entry) => (
-                          <div key={entry.id} className="flex items-center justify-between text-sm bg-background/50 p-2 rounded">
-                            <span className="font-mono">{entry.roblox_user_id}</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => removeAccessEntry(entry.id)}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Blacklist */}
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-1 text-red-400">
-                    <UserMinus className="h-4 w-4" />
-                    Blacklist ({blacklistEntries.length})
-                  </Label>
-                  <div className="p-3 rounded-lg bg-background/30 border border-red-500/20 min-h-[120px] max-h-[200px] overflow-y-auto">
-                    {loadingAccess ? (
-                      <p className="text-xs text-muted-foreground">Loading...</p>
-                    ) : blacklistEntries.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No users blacklisted</p>
-                    ) : (
-                      <div className="space-y-1">
-                        {blacklistEntries.map((entry) => (
-                          <div key={entry.id} className="flex items-center justify-between text-sm bg-background/50 p-2 rounded">
-                            <span className="font-mono">{entry.roblox_user_id}</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => removeAccessEntry(entry.id)}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+                </TabsContent>
+              </Tabs>
             )}
           </CardContent>
         </Card>

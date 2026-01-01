@@ -14,6 +14,82 @@ export type Database = {
   }
   public: {
     Tables: {
+      control_panel_keys: {
+        Row: {
+          created_at: string
+          id: string
+          key_value: string
+          panel_id: string
+          redeemed_at: string | null
+          redeemed_by_discord_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key_value: string
+          panel_id: string
+          redeemed_at?: string | null
+          redeemed_by_discord_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key_value?: string
+          panel_id?: string
+          redeemed_at?: string | null
+          redeemed_by_discord_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_panel_keys_panel_id_fkey"
+            columns: ["panel_id"]
+            isOneToOne: false
+            referencedRelation: "control_panels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      control_panels: {
+        Row: {
+          created_at: string
+          discord_channel_id: string | null
+          discord_message_id: string | null
+          discord_role_id: string | null
+          id: string
+          name: string
+          paste_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          discord_channel_id?: string | null
+          discord_message_id?: string | null
+          discord_role_id?: string | null
+          id?: string
+          name: string
+          paste_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          discord_channel_id?: string | null
+          discord_message_id?: string | null
+          discord_role_id?: string | null
+          id?: string
+          name?: string
+          paste_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_panels_paste_id_fkey"
+            columns: ["paste_id"]
+            isOneToOne: false
+            referencedRelation: "pastes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       key_systems: {
         Row: {
           ascii_text: string
@@ -51,27 +127,62 @@ export type Database = {
         Row: {
           access_type: string
           created_at: string
+          expires_at: string | null
           id: string
+          is_eternal: boolean | null
           paste_id: string
           roblox_user_id: string
         }
         Insert: {
           access_type: string
           created_at?: string
+          expires_at?: string | null
           id?: string
+          is_eternal?: boolean | null
           paste_id: string
           roblox_user_id: string
         }
         Update: {
           access_type?: string
           created_at?: string
+          expires_at?: string | null
           id?: string
+          is_eternal?: boolean | null
           paste_id?: string
           roblox_user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "paste_access_control_paste_id_fkey"
+            columns: ["paste_id"]
+            isOneToOne: false
+            referencedRelation: "pastes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      paste_executions: {
+        Row: {
+          executed_at: string
+          id: string
+          paste_id: string
+          roblox_user_id: string
+        }
+        Insert: {
+          executed_at?: string
+          id?: string
+          paste_id: string
+          roblox_user_id: string
+        }
+        Update: {
+          executed_at?: string
+          id?: string
+          paste_id?: string
+          roblox_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paste_executions_paste_id_fkey"
             columns: ["paste_id"]
             isOneToOne: false
             referencedRelation: "pastes"
@@ -148,6 +259,36 @@ export type Database = {
         }
         Relationships: []
       }
+      reviews: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_fake: boolean | null
+          stars: number
+          user_id: string | null
+          username: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_fake?: boolean | null
+          stars: number
+          user_id?: string | null
+          username: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_fake?: boolean | null
+          stars?: number
+          user_id?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
       saved_scripts: {
         Row: {
           created_at: string | null
@@ -174,6 +315,51 @@ export type Database = {
           name?: string
           script_content?: string
           updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      site_info: {
+        Row: {
+          id: string
+          last_updated: string
+          version: string | null
+        }
+        Insert: {
+          id?: string
+          last_updated?: string
+          version?: string | null
+        }
+        Update: {
+          id?: string
+          last_updated?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
+      user_2fa: {
+        Row: {
+          created_at: string
+          enabled: boolean | null
+          id: string
+          secret: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean | null
+          id?: string
+          secret: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean | null
+          id?: string
+          secret?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -246,6 +432,36 @@ export type Database = {
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: string | null
+          last_active: string
+          session_token: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          last_active?: string
+          session_token: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          last_active?: string
+          session_token?: string
+          user_agent?: string | null
           user_id?: string
         }
         Relationships: []
