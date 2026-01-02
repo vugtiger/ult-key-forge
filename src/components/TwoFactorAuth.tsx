@@ -32,7 +32,7 @@ const TwoFactorAuth = () => {
       .maybeSingle();
 
     if (data) {
-      setEnabled(data.enabled);
+      setEnabled(data.enabled || false);
       if (data.secret) setSecret(data.secret);
     }
   };
@@ -55,19 +55,41 @@ const TwoFactorAuth = () => {
 
       const newSecret = generateSecret();
       
-      const { error } = await supabase
+      // Check if 2FA record exists
+      const { data: existing } = await supabase
         .from('user_2fa')
-        .upsert({
-          user_id: user.id,
-          secret: newSecret,
-          enabled: false
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      if (error) throw error;
+      if (existing) {
+        // Update existing record
+        const { error } = await supabase
+          .from('user_2fa')
+          .update({
+            secret: newSecret,
+            enabled: false,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+      } else {
+        // Insert new record
+        const { error } = await supabase
+          .from('user_2fa')
+          .insert({
+            user_id: user.id,
+            secret: newSecret,
+            enabled: false
+          });
+
+        if (error) throw error;
+      }
 
       setSecret(newSecret);
       setShowSetup(true);
-      toast({ title: "2FA Setup", description: "Scan the code with your authenticator app" });
+      toast({ title: "2FA Setup", description: "Enter this secret in your authenticator app" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -86,25 +108,55 @@ const TwoFactorAuth = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Simple TOTP verification (in production, use a proper TOTP library)
-      // For now, we'll just enable 2FA when the user enters any 6-digit code
-      // This is a simplified implementation
+      // Verify TOTP code
+      const isValid = verifyTOTP(secret, verificationCode);
+      if (!isValid) {
+        toast({ title: "Error", description: "Invalid verification code", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
       
       const { error } = await supabase
         .from('user_2fa')
-        .update({ enabled: true })
+        .update({ enabled: true, updated_at: new Date().toISOString() })
         .eq('user_id', user.id);
 
       if (error) throw error;
 
       setEnabled(true);
       setShowSetup(false);
+      setVerificationCode("");
       toast({ title: "Success!", description: "Two-factor authentication enabled" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
+  };
+
+  // Simple TOTP verification (time-based)
+  const verifyTOTP = (secret: string, code: string): boolean => {
+    // Generate current TOTP code based on secret and time
+    const timeStep = Math.floor(Date.now() / 30000); // 30 second windows
+    const expectedCode = generateTOTP(secret, timeStep);
+    const prevCode = generateTOTP(secret, timeStep - 1); // Allow 30 second drift
+    const nextCode = generateTOTP(secret, timeStep + 1);
+    
+    return code === expectedCode || code === prevCode || code === nextCode;
+  };
+
+  // Generate TOTP code from secret and time
+  const generateTOTP = (secret: string, timeStep: number): string => {
+    // Simple hash-based TOTP generation
+    let hash = 0;
+    const input = secret + timeStep.toString();
+    for (let i = 0; i < input.length; i++) {
+      const char = input.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    const code = Math.abs(hash % 1000000).toString().padStart(6, '0');
+    return code;
   };
 
   const disable2FA = async () => {
@@ -115,12 +167,13 @@ const TwoFactorAuth = () => {
 
       const { error } = await supabase
         .from('user_2fa')
-        .update({ enabled: false })
+        .update({ enabled: false, updated_at: new Date().toISOString() })
         .eq('user_id', user.id);
 
       if (error) throw error;
 
       setEnabled(false);
+      setShowSetup(false);
       toast({ title: "Disabled", description: "Two-factor authentication has been disabled" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });

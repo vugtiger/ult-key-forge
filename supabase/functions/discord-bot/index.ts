@@ -1021,11 +1021,135 @@ When building websites, focus on clean, modern, responsive design.`;
       }
     }
 
+    case 'setwhitelisttime': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const robloxUserId = data.options?.find((o: any) => o.name === 'userid')?.value;
+      const eternal = data.options?.find((o: any) => o.name === 'eternal')?.value || false;
+      const hours = data.options?.find((o: any) => o.name === 'hours')?.value || 0;
+      const days = data.options?.find((o: any) => o.name === 'days')?.value || 0;
+
+      if (!pasteName || !robloxUserId) {
+        return { type: 4, data: { content: '❌ Please provide both paste name and user ID.', flags: 64 } };
+      }
+
+      // Find paste by title
+      const { data: paste } = await supabase
+        .from('pastes')
+        .select('id, title')
+        .eq('user_id', user.userId)
+        .ilike('title', pasteName)
+        .maybeSingle();
+
+      if (!paste) {
+        return { type: 4, data: { content: `❌ Paste "${pasteName}" not found. Use \`/mypastes\` to see your pastes.`, flags: 64 } };
+      }
+
+      // Find the whitelist entry
+      const { data: entry } = await supabase
+        .from('paste_access_control')
+        .select('id')
+        .eq('paste_id', paste.id)
+        .eq('roblox_user_id', robloxUserId)
+        .eq('access_type', 'whitelist')
+        .maybeSingle();
+
+      if (!entry) {
+        return { type: 4, data: { content: `❌ User ID "${robloxUserId}" is not whitelisted on this paste.`, flags: 64 } };
+      }
+
+      // Calculate expiration
+      let expiresAt = null;
+      if (!eternal && (hours > 0 || days > 0)) {
+        const now = new Date();
+        now.setHours(now.getHours() + hours);
+        now.setDate(now.getDate() + days);
+        expiresAt = now.toISOString();
+      }
+
+      // Update the entry
+      const { error } = await supabase
+        .from('paste_access_control')
+        .update({ 
+          expires_at: expiresAt,
+          is_eternal: eternal
+        })
+        .eq('id', entry.id);
+
+      if (error) {
+        return { type: 4, data: { content: `❌ Failed to update: ${error.message}`, flags: 64 } };
+      }
+
+      const timeMsg = eternal ? 'Eternal (never expires)' : 
+        expiresAt ? `Expires: ${new Date(expiresAt).toLocaleString()}` : 'No expiration set';
+
+      await sendDM(discordUserId, `✅ **Whitelist Time Updated!**\n\n**Paste:** ${paste.title || 'Untitled'}\n**User ID:** ${robloxUserId}\n**Status:** ${timeMsg}`);
+
+      return { type: 4, data: { content: `✅ Updated whitelist time for user **${robloxUserId}**! ${timeMsg}`, flags: 64 } };
+    }
+
+    case 'stats': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+
+      if (!pasteName) {
+        return { type: 4, data: { content: '❌ Please provide a paste name.', flags: 64 } };
+      }
+
+      // Find paste by title
+      const { data: paste } = await supabase
+        .from('pastes')
+        .select('id, title')
+        .eq('user_id', user.userId)
+        .ilike('title', pasteName)
+        .maybeSingle();
+
+      if (!paste) {
+        return { type: 4, data: { content: `❌ Paste "${pasteName}" not found. Use \`/mypastes\` to see your pastes.`, flags: 64 } };
+      }
+
+      // Get execution count
+      const { count: execCount } = await supabase
+        .from('paste_executions')
+        .select('*', { count: 'exact', head: true })
+        .eq('paste_id', paste.id);
+
+      // Get whitelist count
+      const { count: whitelistCount } = await supabase
+        .from('paste_access_control')
+        .select('*', { count: 'exact', head: true })
+        .eq('paste_id', paste.id)
+        .eq('access_type', 'whitelist');
+
+      // Get blacklist count
+      const { count: blacklistCount } = await supabase
+        .from('paste_access_control')
+        .select('*', { count: 'exact', head: true })
+        .eq('paste_id', paste.id)
+        .eq('access_type', 'blacklist');
+
+      return { 
+        type: 4, 
+        data: { 
+          content: `📊 **Stats for "${paste.title || 'Untitled'}"**\n\n🚀 Executions: ${execCount || 0}\n✅ Whitelisted: ${whitelistCount || 0}\n❌ Blacklisted: ${blacklistCount || 0}`, 
+          flags: 64 
+        } 
+      };
+    }
+
     case 'help': {
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord from account\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system (DMs you the file)\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script (upload file)\n\n**Pastebin:**\n\`/paste\` - Create a paste (upload file, DMs raw URL)\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle paste protection (use paste name)\n\`/whitelist\` - Add user ID to paste whitelist\n\`/blacklist\` - Add user ID to paste blacklist\n\n**AI:**\n\`/ai\` - Chat with AI assistant (enabled:True/False, message:"your question")`, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord from account\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle paste protection\n\`/whitelist\` - Add user ID to whitelist\n\`/blacklist\` - Add user ID to blacklist\n\`/setwhitelisttime\` - Set expiration for whitelisted user\n\`/stats\` - View paste execution stats\n\n**AI:**\n\`/ai\` - Chat with AI assistant`, 
           flags: 0 
         }
       };
