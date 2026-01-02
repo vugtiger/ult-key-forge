@@ -214,11 +214,77 @@ checkAccess()`;
     // Check access control with expiration
     const { data: accessEntries } = await supabase
       .from('paste_access_control')
-      .select('access_type, expires_at, is_eternal')
+      .select('id, access_type, expires_at, is_eternal')
       .eq('paste_id', paste.id)
       .eq('roblox_user_id', uid);
 
     const now = new Date().toISOString();
+
+    // Auto-cleanup expired entries
+    const expiredEntries = accessEntries?.filter(e => {
+      if (e.is_eternal) return false;
+      if (!e.expires_at) return false;
+      return e.expires_at <= now;
+    });
+
+    if (expiredEntries && expiredEntries.length > 0) {
+      // Delete expired entries
+      await supabase
+        .from('paste_access_control')
+        .delete()
+        .in('id', expiredEntries.map(e => e.id));
+      
+      // Re-fetch entries after cleanup
+      const { data: freshEntries } = await supabase
+        .from('paste_access_control')
+        .select('access_type, expires_at, is_eternal')
+        .eq('paste_id', paste.id)
+        .eq('roblox_user_id', uid);
+      
+      // Continue with fresh entries
+      const blacklisted = freshEntries?.find(e => {
+        if (e.access_type !== 'blacklist') return false;
+        if (e.is_eternal) return true;
+        if (!e.expires_at) return true;
+        return e.expires_at > now;
+      });
+
+      if (blacklisted) {
+        return new Response('--KICKED:You are blacklisted from this script.', {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+
+      const whitelisted = freshEntries?.find(e => {
+        if (e.access_type !== 'whitelist') return false;
+        if (e.is_eternal) return true;
+        if (!e.expires_at) return true;
+        return e.expires_at > now;
+      });
+
+      if (!whitelisted) {
+        return new Response('--KICKED:Your whitelist access has expired.', {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+
+      // Track execution
+      await supabase.from('paste_executions').insert({
+        paste_id: paste.id,
+        roblox_user_id: uid
+      });
+
+      return new Response(paste.content, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+      });
+    }
 
     // Check for blacklist first (highest priority)
     const blacklisted = accessEntries?.find(e => {
