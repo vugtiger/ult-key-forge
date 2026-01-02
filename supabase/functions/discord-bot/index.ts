@@ -1145,11 +1145,196 @@ When building websites, focus on clean, modern, responsive design.`;
       };
     }
 
+    case 'panel': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const panelName = data.options?.find((o: any) => o.name === 'name')?.value;
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const roleId = data.options?.find((o: any) => o.name === 'role')?.value;
+      const channelId = interaction.channel_id;
+
+      if (!panelName || !pasteName || !roleId) {
+        return { type: 4, data: { content: '❌ Please provide panel name, paste, and role.', flags: 64 } };
+      }
+
+      // Find paste by title
+      const { data: paste } = await supabase
+        .from('pastes')
+        .select('id, title, slug')
+        .eq('user_id', user.userId)
+        .ilike('title', pasteName)
+        .maybeSingle();
+
+      if (!paste) {
+        return { type: 4, data: { content: `❌ Paste "${pasteName}" not found. Use \`/mypastes\` to see your pastes.`, flags: 64 } };
+      }
+
+      // Create the control panel in database
+      const { data: panel, error } = await supabase
+        .from('control_panels')
+        .insert({
+          user_id: user.userId,
+          name: panelName,
+          paste_id: paste.id,
+          discord_role_id: roleId,
+          discord_channel_id: channelId
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('Panel creation error:', error);
+        return { type: 4, data: { content: `❌ Failed to create panel: ${error.message}`, flags: 64 } };
+      }
+
+      // Send the control panel message with buttons
+      const panelEmbed = {
+        title: `🎮 ${panelName}`,
+        description: `This control panel is for the project: **${panelName}**\n\nIf you're a buyer, click on the buttons below to redeem your key, get the script or get your role.`,
+        color: 0x5865F2,
+        footer: { text: 'ULT LUA PROTECTS • Control Panel' }
+      };
+
+      const panelButtons = {
+        type: 1,
+        components: [
+          {
+            type: 2,
+            style: 1,
+            label: '🔑 Redeem Key',
+            custom_id: `redeem_key:${panel.id}`
+          },
+          {
+            type: 2,
+            style: 2,
+            label: '📜 Get Script',
+            custom_id: `get_script:${panel.id}`
+          },
+          {
+            type: 2,
+            style: 3,
+            label: '🎭 Get Role',
+            custom_id: `get_role:${panel.id}`
+          }
+        ]
+      };
+
+      // Send the panel message
+      const msgResponse = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          embeds: [panelEmbed],
+          components: [panelButtons]
+        })
+      });
+
+      const msgData = await msgResponse.json();
+
+      // Save the message ID
+      await supabase
+        .from('control_panels')
+        .update({ discord_message_id: msgData.id })
+        .eq('id', panel.id);
+
+      return { type: 4, data: { content: `✅ Control panel **${panelName}** created! Use \`/genkeys panel:${panelName} amount:10\` to generate keys.`, flags: 64 } };
+    }
+
+    case 'genkeys': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const panelName = data.options?.find((o: any) => o.name === 'panel')?.value;
+      const amount = data.options?.find((o: any) => o.name === 'amount')?.value || 10;
+
+      if (!panelName) {
+        return { type: 4, data: { content: '❌ Please provide a panel name.', flags: 64 } };
+      }
+
+      // Find panel by name
+      const { data: panel } = await supabase
+        .from('control_panels')
+        .select('id, name')
+        .eq('user_id', user.userId)
+        .ilike('name', panelName)
+        .maybeSingle();
+
+      if (!panel) {
+        return { type: 4, data: { content: `❌ Panel "${panelName}" not found. Use \`/mypanels\` to see your panels.`, flags: 64 } };
+      }
+
+      // Generate keys
+      const keys: string[] = [];
+      for (let i = 0; i < amount; i++) {
+        const key = `${generateRandomKey()}-${generateRandomKey()}-${generateRandomKey()}`;
+        keys.push(key);
+      }
+
+      // Insert keys into database
+      const keyInserts = keys.map(k => ({
+        panel_id: panel.id,
+        key_value: k
+      }));
+
+      const { error } = await supabase
+        .from('control_panel_keys')
+        .insert(keyInserts);
+
+      if (error) {
+        console.error('Key generation error:', error);
+        return { type: 4, data: { content: `❌ Failed to generate keys: ${error.message}`, flags: 64 } };
+      }
+
+      // Create file content
+      const fileContent = `# Keys for ${panel.name}\n# Generated: ${new Date().toISOString()}\n# Total: ${amount}\n\n${keys.join('\n')}`;
+
+      // DM the user with the keys file
+      await sendDM(
+        discordUserId,
+        `✅ **Keys Generated!**\n\n**Panel:** ${panel.name}\n**Amount:** ${amount}\n\nYour keys are attached below. Share these with your buyers!`,
+        [{ name: `${panel.name.replace(/\s+/g, '_')}_keys.txt`, content: fileContent }]
+      );
+
+      return { type: 4, data: { content: `✅ Generated **${amount}** keys for panel **${panel.name}**! Check your DMs for the file.`, flags: 64 } };
+    }
+
+    case 'mypanels': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const { data: panels } = await supabase
+        .from('control_panels')
+        .select('name, created_at')
+        .eq('user_id', user.userId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (!panels || panels.length === 0) {
+        return { type: 4, data: { content: '📭 No control panels found. Use `/panel` to create one!', flags: 64 } };
+      }
+
+      const list = panels.map((p, i) => 
+        `${i + 1}. **${p.name}**`
+      ).join('\n');
+
+      return { type: 4, data: { content: `🎮 **Your Control Panels:**\n\n${list}\n\n*Use panel name with /genkeys command*`, flags: 64 } };
+    }
+
     case 'help': {
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord from account\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle paste protection\n\`/whitelist\` - Add user ID to whitelist\n\`/blacklist\` - Add user ID to blacklist\n\`/setwhitelisttime\` - Set expiration for whitelisted user\n\`/stats\` - View paste execution stats\n\n**AI:**\n\`/ai\` - Chat with AI assistant`, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle protection\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/setwhitelisttime\` - Set expiration\n\`/stats\` - View stats\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/genkeys\` - Generate keys\n\`/mypanels\` - View panels\n\n**AI:**\n\`/ai\` - Chat with AI`, 
           flags: 0 
         }
       };
@@ -1158,6 +1343,223 @@ When building websites, focus on clean, modern, responsive design.`;
     default:
       return { type: 4, data: { content: '❓ Unknown command. Use `/help` to see available commands.', flags: 64 } };
   }
+}
+
+// Handle button interactions
+async function handleButton(interaction: any) {
+  const customId = interaction.data.custom_id;
+  const discordUserId = interaction.member?.user?.id || interaction.user?.id;
+  const guildId = interaction.guild_id;
+  
+  const supabase = getSupabaseClient();
+  
+  console.log(`Button clicked: ${customId} by ${discordUserId}`);
+  
+  const [action, panelId] = customId.split(':');
+  
+  if (!panelId) {
+    return { type: 4, data: { content: '❌ Invalid button.', flags: 64 } };
+  }
+  
+  // Get panel info
+  const { data: panel } = await supabase
+    .from('control_panels')
+    .select('id, name, paste_id, discord_role_id, user_id')
+    .eq('id', panelId)
+    .single();
+  
+  if (!panel) {
+    return { type: 4, data: { content: '❌ Control panel not found.', flags: 64 } };
+  }
+  
+  // Check if user has redeemed a key for this panel
+  const { data: redeemedKey } = await supabase
+    .from('control_panel_keys')
+    .select('id')
+    .eq('panel_id', panelId)
+    .eq('redeemed_by_discord_id', discordUserId)
+    .maybeSingle();
+  
+  const isWhitelisted = !!redeemedKey;
+  
+  switch (action) {
+    case 'redeem_key': {
+      // Return a modal for key input
+      return {
+        type: 9,
+        data: {
+          custom_id: `redeem_modal:${panelId}`,
+          title: '🔑 Redeem Your Key',
+          components: [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 4,
+                  custom_id: 'key_input',
+                  label: 'Enter your key',
+                  style: 1,
+                  placeholder: 'XXXXX-XXXXX-XXXXX',
+                  required: true,
+                  min_length: 17,
+                  max_length: 17
+                }
+              ]
+            }
+          ]
+        }
+      };
+    }
+    
+    case 'get_script': {
+      if (!isWhitelisted) {
+        return { type: 4, data: { content: '❌ You must redeem a key first to access the script.', flags: 64 } };
+      }
+      
+      // Get the paste
+      const { data: paste } = await supabase
+        .from('pastes')
+        .select('slug')
+        .eq('id', panel.paste_id)
+        .single();
+      
+      if (!paste) {
+        return { type: 4, data: { content: '❌ Script not found.', flags: 64 } };
+      }
+      
+      const rawUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/get-paste?slug=${paste.slug}`;
+      const loadstring = `loadstring(game:HttpGet("${rawUrl}"))()`;
+      
+      // DM the user the script - ephemeral so only they can see
+      return { 
+        type: 4, 
+        data: { 
+          content: `📜 **Here is your script:**\n\n\`\`\`lua\n${loadstring}\n\`\`\`\n\n*This message will disappear when you close it. Copy the script now!*`, 
+          flags: 64 
+        } 
+      };
+    }
+    
+    case 'get_role': {
+      if (!isWhitelisted) {
+        return { type: 4, data: { content: '❌ You must redeem a key first to get the role.', flags: 64 } };
+      }
+      
+      // Check if user already has the role
+      const memberRoles = interaction.member?.roles || [];
+      if (memberRoles.includes(panel.discord_role_id)) {
+        return { type: 4, data: { content: '✅ You already have the assigned role!', flags: 64 } };
+      }
+      
+      // Assign the role
+      try {
+        const roleResponse = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}/roles/${panel.discord_role_id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!roleResponse.ok) {
+          console.error('Failed to assign role:', await roleResponse.text());
+          return { type: 4, data: { content: '❌ Failed to assign role. The bot may not have permission.', flags: 64 } };
+        }
+        
+        return { type: 4, data: { content: `✅ You have been given the <@&${panel.discord_role_id}> role!`, flags: 64 } };
+      } catch (error) {
+        console.error('Role assignment error:', error);
+        return { type: 4, data: { content: '❌ Failed to assign role.', flags: 64 } };
+      }
+    }
+    
+    default:
+      return { type: 4, data: { content: '❌ Unknown action.', flags: 64 } };
+  }
+}
+
+// Handle modal submissions
+async function handleModal(interaction: any) {
+  const customId = interaction.data.custom_id;
+  const discordUserId = interaction.member?.user?.id || interaction.user?.id;
+  const guildId = interaction.guild_id;
+  
+  const supabase = getSupabaseClient();
+  
+  const [action, panelId] = customId.split(':');
+  
+  if (action === 'redeem_modal') {
+    const keyInput = interaction.data.components?.[0]?.components?.[0]?.value;
+    
+    if (!keyInput) {
+      return { type: 4, data: { content: '❌ Please enter a key.', flags: 64 } };
+    }
+    
+    // Check if key exists and is not redeemed
+    const { data: key } = await supabase
+      .from('control_panel_keys')
+      .select('id, redeemed_by_discord_id')
+      .eq('panel_id', panelId)
+      .eq('key_value', keyInput.trim())
+      .maybeSingle();
+    
+    if (!key) {
+      return { type: 4, data: { content: '❌ Invalid key. Please check and try again.', flags: 64 } };
+    }
+    
+    if (key.redeemed_by_discord_id) {
+      if (key.redeemed_by_discord_id === discordUserId) {
+        return { type: 4, data: { content: '✅ You have already redeemed this key!', flags: 64 } };
+      }
+      return { type: 4, data: { content: '❌ This key has already been redeemed by someone else.', flags: 64 } };
+    }
+    
+    // Redeem the key
+    const { error } = await supabase
+      .from('control_panel_keys')
+      .update({ 
+        redeemed_by_discord_id: discordUserId,
+        redeemed_at: new Date().toISOString()
+      })
+      .eq('id', key.id);
+    
+    if (error) {
+      console.error('Key redemption error:', error);
+      return { type: 4, data: { content: '❌ Failed to redeem key.', flags: 64 } };
+    }
+    
+    // Get panel to assign role
+    const { data: panel } = await supabase
+      .from('control_panels')
+      .select('discord_role_id')
+      .eq('id', panelId)
+      .single();
+    
+    // Assign the role automatically
+    if (panel?.discord_role_id) {
+      try {
+        await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}/roles/${panel.discord_role_id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      } catch (error) {
+        console.error('Auto role assignment failed:', error);
+      }
+    }
+    
+    return { 
+      type: 4, 
+      data: { 
+        content: `✅ **Key Redeemed Successfully!**\n\nYou now have access to:\n• 📜 Get Script\n• 🎭 Get Role\n\nClick the buttons on the control panel to use them!`, 
+        flags: 64 
+      } 
+    };
+  }
+  
+  return { type: 4, data: { content: '❌ Unknown modal.', flags: 64 } };
 }
 
 serve(async (req) => {
@@ -1174,7 +1576,7 @@ serve(async (req) => {
   }
 
   const interaction = JSON.parse(body);
-  console.log("Interaction received:", interaction.type, interaction.data?.name);
+  console.log("Interaction received:", interaction.type, interaction.data?.name || interaction.data?.custom_id);
 
   // Handle PING (type 1)
   if (interaction.type === 1) {
@@ -1195,6 +1597,42 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         type: 4,
         data: { content: "❌ An error occurred processing your command.", flags: 64 }
+      }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+  }
+
+  // Handle button interactions (type 3)
+  if (interaction.type === 3) {
+    try {
+      const response = await handleButton(interaction);
+      return new Response(JSON.stringify(response), {
+        headers: { "Content-Type": "application/json" }
+      });
+    } catch (error) {
+      console.error("Button error:", error);
+      return new Response(JSON.stringify({
+        type: 4,
+        data: { content: "❌ An error occurred.", flags: 64 }
+      }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+  }
+
+  // Handle modal submissions (type 5)
+  if (interaction.type === 5) {
+    try {
+      const response = await handleModal(interaction);
+      return new Response(JSON.stringify(response), {
+        headers: { "Content-Type": "application/json" }
+      });
+    } catch (error) {
+      console.error("Modal error:", error);
+      return new Response(JSON.stringify({
+        type: 4,
+        data: { content: "❌ An error occurred.", flags: 64 }
       }), {
         headers: { "Content-Type": "application/json" }
       });

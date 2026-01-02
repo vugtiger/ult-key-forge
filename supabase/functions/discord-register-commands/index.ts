@@ -122,6 +122,27 @@ const commands = [
     ]
   },
   {
+    name: "panel",
+    description: "Create a control panel for your paste",
+    options: [
+      { name: "name", description: "Control panel name", type: 3, required: true },
+      { name: "paste", description: "Paste name/title to link", type: 3, required: true },
+      { name: "role", description: "Role ID to assign to buyers", type: 8, required: true }
+    ]
+  },
+  {
+    name: "genkeys",
+    description: "Generate keys for a control panel (DMs you the file)",
+    options: [
+      { name: "panel", description: "Control panel name", type: 3, required: true },
+      { name: "amount", description: "Number of keys to generate (1-100)", type: 4, required: true, min_value: 1, max_value: 100 }
+    ]
+  },
+  {
+    name: "mypanels",
+    description: "View your control panels"
+  },
+  {
     name: "help",
     description: "Show all available commands"
   }
