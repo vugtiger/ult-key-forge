@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +13,7 @@ interface Review {
   stars: number;
   is_fake: boolean;
   created_at: string;
+  offsetY?: number;
 }
 
 const fakeReviewTemplates = [
@@ -51,16 +52,17 @@ const ReviewsSection = () => {
   const [selectedStars, setSelectedStars] = useState(5);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchReviews();
     checkAuth();
     
-    // Add fake reviews periodically
+    // Add fake reviews faster (every 8 seconds)
     const interval = setInterval(() => {
       addFakeReview();
-    }, 25000);
+    }, 8000);
 
     return () => clearInterval(interval);
   }, []);
@@ -78,7 +80,7 @@ const ReviewsSection = () => {
       .limit(20);
 
     if (!error && data) {
-      setReviews(data as Review[]);
+      setReviews(data.map((r, i) => ({ ...r as Review, offsetY: 0 })));
     }
   };
 
@@ -86,21 +88,21 @@ const ReviewsSection = () => {
     const template = fakeReviewTemplates[Math.floor(Math.random() * fakeReviewTemplates.length)];
     const username = fakeUsernames[Math.floor(Math.random() * fakeUsernames.length)] + Math.floor(Math.random() * 1000);
     
-    // Weight towards good reviews (80% good, 20% bad)
-    const shouldBeGood = Math.random() < 0.8;
+    // Weight towards good reviews (85% good, 15% bad)
+    const shouldBeGood = Math.random() < 0.85;
     const adjustedStars = shouldBeGood ? (Math.random() < 0.7 ? 5 : 4) : template.stars;
-    const adjustedContent = shouldBeGood ? template.content : template.content;
 
     const newFakeReview: Review = {
       id: crypto.randomUUID(),
       username,
-      content: adjustedContent,
+      content: template.content,
       stars: adjustedStars,
       is_fake: true,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      offsetY: 0
     };
 
-    setReviews(prev => [newFakeReview, ...prev.slice(0, 19)]);
+    setReviews(prev => [newFakeReview, ...prev.slice(0, 11)]);
   };
 
   const submitReview = async () => {
@@ -186,32 +188,62 @@ const ReviewsSection = () => {
         </Card>
       )}
 
-      {/* Reviews Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {reviews.map((review, index) => (
-          <Card
-            key={review.id}
-            className="p-4 cyber-border bg-card/50 backdrop-blur-xl animate-fade-in"
-            style={{ animationDelay: `${index * 50}ms` }}
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                <User className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium truncate">{review.username}</span>
-                  {renderStars(review.stars)}
+      {/* 3D Carousel Reviews */}
+      <div 
+        ref={containerRef}
+        className="relative h-[500px] overflow-hidden perspective-1000"
+        style={{ perspective: '1000px' }}
+      >
+        <div className="absolute inset-0 flex flex-col items-center">
+          {reviews.slice(0, 6).map((review, index) => {
+            const yOffset = index * 90;
+            const zOffset = -index * 50;
+            const opacity = 1 - (index * 0.15);
+            const scale = 1 - (index * 0.05);
+            
+            return (
+              <Card
+                key={review.id}
+                className="absolute w-full max-w-2xl p-4 cyber-border bg-card/80 backdrop-blur-xl transition-all duration-1000 ease-out"
+                style={{
+                  transform: `translateY(${yOffset}px) translateZ(${zOffset}px) scale(${scale})`,
+                  opacity: Math.max(0, opacity),
+                  animation: index === 0 ? 'slideDown 0.8s ease-out' : undefined,
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <User className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium truncate">{review.username}</span>
+                      {renderStars(review.stars)}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{review.content}</p>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground mt-2">{review.content}</p>
-                <p className="text-xs text-muted-foreground/50 mt-2">
-                  {new Date(review.created_at).toLocaleDateString()}
-                </p>
-              </div>
-            </div>
-          </Card>
-        ))}
+              </Card>
+            );
+          })}
+        </div>
+        
+        {/* Gradient overlays for 3D effect */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none z-10" />
       </div>
+
+      <style>{`
+        @keyframes slideDown {
+          from {
+            transform: translateY(-100px) translateZ(0) scale(1.1);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0) translateZ(0) scale(1);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </section>
   );
 };
