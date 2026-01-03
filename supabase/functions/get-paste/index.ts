@@ -25,6 +25,17 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+// XOR-encrypt plaintext into a hex string (client-decryptable; prevents casual "print the code" dumps)
+function xorToHex(plain: string, key: string): string {
+  const enc = new TextEncoder();
+  const data = enc.encode(plain);
+  const k = enc.encode(key);
+  for (let i = 0; i < data.length; i++) data[i] = data[i] ^ k[i % k.length];
+  let hex = '';
+  for (let i = 0; i < data.length; i++) hex += data[i].toString(16).padStart(2, '0');
+  return hex;
+}
+
 // Generate loader script for protected pastes
 function generateLoader(slug: string, baseUrl: string): string {
   return `--[[ULT LUA PROTECTION]]
@@ -38,12 +49,46 @@ local ts = tostring(os.time())
 
 local url = "${baseUrl}?slug=${slug}&uid=" .. userId .. "&ts=" .. ts
 
+local function hexToBytes(hex)
+  local out = table.create(math.floor(#hex / 2))
+  local j = 1
+  for i = 1, #hex, 2 do
+    out[j] = tonumber(hex:sub(i, i + 1), 16) or 0
+    j += 1
+  end
+  return out
+end
+
+local function xorBytes(bytes, key)
+  local out = table.create(#bytes)
+  local klen = #key
+  for i = 1, #bytes do
+    out[i] = bit32.bxor(bytes[i], key[((i - 1) % klen) + 1])
+  end
+  return out
+end
+
+local function bytesToString(bytes)
+  local chars = table.create(#bytes)
+  for i = 1, #bytes do
+    chars[i] = string.char(bytes[i])
+  end
+  return table.concat(chars)
+end
+
+local keyStr = "${slug}:" .. userId .. ":ULTv1"
+local keyBytes = {}
+for i = 1, #keyStr do
+  keyBytes[i] = string.byte(keyStr, i)
+end
+
 local success, result = pcall(function()
   return game:HttpGet(url)
 end)
 
 if success and result then
-  local fn, err = loadstring(result)
+  local decrypted = bytesToString(xorBytes(hexToBytes(result), keyBytes))
+  local fn, err = loadstring(decrypted)
   if fn then
     fn()
   else
@@ -59,6 +104,7 @@ end
 function generateKick(reason: string): string {
   return `game:GetService("Players").LocalPlayer:Kick("${reason}")`;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -203,8 +249,11 @@ Deno.serve(async (req) => {
 
     console.log(`Access granted: ${uid} for paste: ${paste.id}`);
 
-    // Return the actual code
-    return new Response(paste.content, {
+    // Return encrypted payload (hex). Loader decrypts client-side.
+    const key = `${slug}:${uid}:ULTv1`;
+    const encrypted = xorToHex(paste.content, key);
+
+    return new Response(encrypted, {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
     });
