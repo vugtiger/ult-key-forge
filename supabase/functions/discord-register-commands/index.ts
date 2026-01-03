@@ -94,6 +94,7 @@ const commands = [
       { name: "paste", description: "Paste name/title", type: 3, required: true },
       { name: "userid", description: "Roblox user ID", type: 3, required: true },
       { name: "eternal", description: "Set to eternal (never expires)", type: 5, required: false },
+      { name: "minutes", description: "Minutes until expiration", type: 4, required: false },
       { name: "hours", description: "Hours until expiration", type: 4, required: false },
       { name: "days", description: "Days until expiration", type: 4, required: false }
     ]
