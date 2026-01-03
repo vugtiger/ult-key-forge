@@ -25,7 +25,14 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-// XOR-encrypt plaintext into a hex string (client-decryptable; prevents casual "print the code" dumps)
+// Generate cryptographically random token
+function generateToken(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// XOR-encrypt plaintext into a hex string
 function xorToHex(plain: string, key: string): string {
   const enc = new TextEncoder();
   const data = enc.encode(plain);
@@ -36,9 +43,9 @@ function xorToHex(plain: string, key: string): string {
   return hex;
 }
 
-// Generate loader script for protected pastes
-function generateLoader(slug: string, baseUrl: string): string {
-  return `--[[ULT LUA PROTECTION]]
+// Generate loader script with embedded one-time token
+function generateLoader(slug: string, baseUrl: string, token: string): string {
+  return `--[[ULT LUA PROTECTION v2]]
 local player = game:GetService("Players").LocalPlayer
 if not player then
   player = game:GetService("Players").PlayerAdded:Wait()
@@ -46,56 +53,57 @@ end
 
 local userId = tostring(player.UserId)
 local ts = tostring(os.time())
+local tk = "${token}"
 
-local url = "${baseUrl}?slug=${slug}&uid=" .. userId .. "&ts=" .. ts
+local url = "${baseUrl}?slug=${slug}&uid=" .. userId .. "&ts=" .. ts .. "&tk=" .. tk
 
-local function hexToBytes(hex)
-  local out = table.create(math.floor(#hex / 2))
+local function hb(h)
+  local o = table.create(math.floor(#h / 2))
   local j = 1
-  for i = 1, #hex, 2 do
-    out[j] = tonumber(hex:sub(i, i + 1), 16) or 0
+  for i = 1, #h, 2 do
+    o[j] = tonumber(h:sub(i, i + 1), 16) or 0
     j += 1
   end
-  return out
+  return o
 end
 
-local function xorBytes(bytes, key)
-  local out = table.create(#bytes)
-  local klen = #key
-  for i = 1, #bytes do
-    out[i] = bit32.bxor(bytes[i], key[((i - 1) % klen) + 1])
+local function xb(b, k)
+  local o = table.create(#b)
+  local kl = #k
+  for i = 1, #b do
+    o[i] = bit32.bxor(b[i], k[((i - 1) % kl) + 1])
   end
-  return out
+  return o
 end
 
-local function bytesToString(bytes)
-  local chars = table.create(#bytes)
-  for i = 1, #bytes do
-    chars[i] = string.char(bytes[i])
+local function bs(b)
+  local c = table.create(#b)
+  for i = 1, #b do
+    c[i] = string.char(b[i])
   end
-  return table.concat(chars)
+  return table.concat(c)
 end
 
-local keyStr = "${slug}:" .. userId .. ":ULTv1"
-local keyBytes = {}
-for i = 1, #keyStr do
-  keyBytes[i] = string.byte(keyStr, i)
+local ks = "${slug}:" .. tk .. ":ULTv2"
+local kb = {}
+for i = 1, #ks do
+  kb[i] = string.byte(ks, i)
 end
 
-local success, result = pcall(function()
+local s, r = pcall(function()
   return game:HttpGet(url)
 end)
 
-if success and result then
-  local decrypted = bytesToString(xorBytes(hexToBytes(result), keyBytes))
-  local fn, err = loadstring(decrypted)
-  if fn then
-    fn()
+if s and r then
+  local d = bs(xb(hb(r), kb))
+  local f, e = loadstring(d)
+  if f then
+    f()
   else
-    warn("Load error: " .. tostring(err))
+    warn("E:" .. tostring(e))
   end
 else
-  warn("Failed to fetch script")
+  warn("Network error")
 end
 `;
 }
@@ -104,7 +112,6 @@ end
 function generateKick(reason: string): string {
   return `game:GetService("Players").LocalPlayer:Kick("${reason}")`;
 }
-
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -116,6 +123,7 @@ Deno.serve(async (req) => {
     const slug = url.searchParams.get('slug');
     const uid = url.searchParams.get('uid');
     const ts = url.searchParams.get('ts');
+    const tk = url.searchParams.get('tk'); // One-time token
 
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                      req.headers.get('cf-connecting-ip') || 
@@ -140,6 +148,15 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Cleanup old tokens periodically (1% chance per request)
+    if (Math.random() < 0.01) {
+      try {
+        await supabase.rpc('cleanup_expired_tokens');
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+
     // Fetch the paste
     const { data: paste, error } = await supabase
       .from('pastes')
@@ -156,7 +173,6 @@ Deno.serve(async (req) => {
 
     // If protection is disabled, return content directly
     if (!paste.protection_enabled) {
-      // Log execution if uid provided
       if (uid && /^\d+$/.test(uid)) {
         await supabase.from('paste_executions').insert({
           paste_id: paste.id,
@@ -171,10 +187,23 @@ Deno.serve(async (req) => {
     }
 
     // Protection is enabled - check for auth params
-    if (!uid || !ts) {
-      // Return the loader script
+    if (!uid || !ts || !tk) {
+      // Generate a new one-time token
+      const newToken = generateToken();
+      
+      // Store token in database
+      await supabase.from('paste_execution_tokens').insert({
+        paste_id: paste.id,
+        roblox_user_id: '0', // Will be validated on actual request
+        token: newToken,
+        expires_at: new Date(Date.now() + 30000).toISOString() // 30 second expiry
+      });
+
+      // Return the loader script with embedded token
       const baseUrl = supabaseUrl + '/functions/v1/get-paste';
-      const loader = generateLoader(slug, baseUrl);
+      const loader = generateLoader(slug, baseUrl, newToken);
+      
+      console.log(`Generated loader with token for paste: ${paste.id}`);
       
       return new Response(loader, {
         status: 200,
@@ -200,7 +229,56 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check whitelist
+    // Validate one-time token
+    const { data: tokenData, error: tokenError } = await supabase
+      .from('paste_execution_tokens')
+      .select('*')
+      .eq('token', tk)
+      .eq('paste_id', paste.id)
+      .maybeSingle();
+
+    if (tokenError || !tokenData) {
+      console.log(`Invalid token: ${tk}`);
+      return new Response(generateKick('Invalid token'), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+
+    // Check if token already used
+    if (tokenData.used_at) {
+      console.log(`Token already used: ${tk}`);
+      return new Response(generateKick('Token already used'), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+
+    // Check if token expired
+    if (new Date(tokenData.expires_at) < new Date()) {
+      console.log(`Token expired: ${tk}`);
+      return new Response(generateKick('Token expired'), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+
+    // Mark token as used IMMEDIATELY (before any other checks)
+    const { error: updateError } = await supabase
+      .from('paste_execution_tokens')
+      .update({ used_at: new Date().toISOString(), roblox_user_id: uid })
+      .eq('id', tokenData.id)
+      .is('used_at', null); // Only update if not already used (race condition protection)
+
+    if (updateError) {
+      console.log(`Failed to mark token as used: ${updateError.message}`);
+      return new Response(generateKick('Token error'), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+
+    // Now check whitelist
     const { data: accessList } = await supabase
       .from('paste_access_control')
       .select('*')
@@ -249,8 +327,8 @@ Deno.serve(async (req) => {
 
     console.log(`Access granted: ${uid} for paste: ${paste.id}`);
 
-    // Return encrypted payload (hex). Loader decrypts client-side.
-    const key = `${slug}:${uid}:ULTv1`;
+    // Return encrypted payload using TOKEN as part of the key (unpredictable!)
+    const key = `${slug}:${tk}:ULTv2`;
     const encrypted = xorToHex(paste.content, key);
 
     return new Response(encrypted, {
