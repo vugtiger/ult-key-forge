@@ -108,9 +108,16 @@ end
 `;
 }
 
-// Generate kick script
-function generateKick(reason: string): string {
+// Generate kick script (plain - for initial loader response)
+function generateKickPlain(reason: string): string {
   return `game:GetService("Players").LocalPlayer:Kick("${reason}")`;
+}
+
+// Generate encrypted kick script (for token-validated requests)
+function generateKickEncrypted(reason: string, slug: string, token: string): string {
+  const kickScript = `game:GetService("Players").LocalPlayer:Kick("${reason}")`;
+  const key = `${slug}:${token}:ULTv2`;
+  return xorToHex(kickScript, key);
 }
 
 Deno.serve(async (req) => {
@@ -129,9 +136,9 @@ Deno.serve(async (req) => {
                      req.headers.get('cf-connecting-ip') || 
                      'unknown';
 
-    // Rate limiting
+    // Rate limiting (before we have slug/token, return plain kick)
     if (!checkRateLimit(clientIp)) {
-      return new Response(generateKick('Too many requests'), { 
+      return new Response(generateKickPlain('Too many requests'), { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
@@ -213,7 +220,7 @@ Deno.serve(async (req) => {
 
     // Validate user ID format
     if (!/^\d+$/.test(uid)) {
-      return new Response(generateKick('Invalid user ID'), {
+      return new Response(generateKickEncrypted('Invalid user ID', slug, tk), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
@@ -223,7 +230,7 @@ Deno.serve(async (req) => {
     const timestamp = parseInt(ts);
     const now = Math.floor(Date.now() / 1000);
     if (isNaN(timestamp) || Math.abs(now - timestamp) > 300) {
-      return new Response(generateKick('Request expired'), {
+      return new Response(generateKickEncrypted('Request expired', slug, tk), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
@@ -239,7 +246,7 @@ Deno.serve(async (req) => {
 
     if (tokenError || !tokenData) {
       console.log(`Invalid token: ${tk}`);
-      return new Response(generateKick('Invalid token'), {
+      return new Response(generateKickEncrypted('Invalid token', slug, tk), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
@@ -248,7 +255,7 @@ Deno.serve(async (req) => {
     // Check if token already used
     if (tokenData.used_at) {
       console.log(`Token already used: ${tk}`);
-      return new Response(generateKick('Token already used'), {
+      return new Response(generateKickEncrypted('Token already used', slug, tk), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
@@ -257,7 +264,7 @@ Deno.serve(async (req) => {
     // Check if token expired
     if (new Date(tokenData.expires_at) < new Date()) {
       console.log(`Token expired: ${tk}`);
-      return new Response(generateKick('Token expired'), {
+      return new Response(generateKickEncrypted('Token expired', slug, tk), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
@@ -272,7 +279,7 @@ Deno.serve(async (req) => {
 
     if (updateError) {
       console.log(`Failed to mark token as used: ${updateError.message}`);
-      return new Response(generateKick('Token error'), {
+      return new Response(generateKickEncrypted('Token error', slug, tk), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
@@ -297,7 +304,7 @@ Deno.serve(async (req) => {
 
     if (isBlacklisted) {
       console.log(`Blacklisted user: ${uid}`);
-      return new Response(generateKick('You are blacklisted'), {
+      return new Response(generateKickEncrypted('You are blacklisted', slug, tk), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
@@ -313,7 +320,7 @@ Deno.serve(async (req) => {
 
     if (!isWhitelisted) {
       console.log(`Not whitelisted: ${uid}`);
-      return new Response(generateKick('Not whitelisted'), {
+      return new Response(generateKickEncrypted('Not whitelisted', slug, tk), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });

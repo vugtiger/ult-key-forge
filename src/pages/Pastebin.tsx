@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock } from "lucide-react";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
+import luaLogo from "@/assets/lua-logo.png";
 
 interface Paste {
   id: string;
@@ -300,9 +301,12 @@ const Pastebin = () => {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold">Pastebin</h1>
-          <p className="text-muted-foreground">Upload and share your Lua scripts with raw links</p>
+        <div className="flex items-center gap-4">
+          <img src={luaLogo} alt="Lua Logo" className="h-12 w-12 object-contain" />
+          <div>
+            <h1 className="text-2xl font-bold">Pastebin</h1>
+            <p className="text-muted-foreground">Upload and share your Lua scripts with raw links</p>
+          </div>
         </div>
 
         {/* Create New Paste */}
