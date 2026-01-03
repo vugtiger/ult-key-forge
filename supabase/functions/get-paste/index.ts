@@ -126,10 +126,6 @@ Deno.serve(async (req) => {
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 
--- Anti-tamper: disable print/warn interception
-local _G_backup = {}
-for k,v in pairs(_G) do _G_backup[k] = v end
-
 local function secureExecute()
     local player = Players.LocalPlayer
     if not player then
@@ -160,16 +156,12 @@ local function secureExecute()
             local reason = result:match("--KICKED:(.+)")
             player:Kick(reason or "Access Denied")
         else
-            -- Secure execution: immediately execute without storing in variable
+            -- Secure execution: load and execute immediately
             local fn, err = loadstring(result)
-            result = nil -- Clear the source
-            collectgarbage("collect")
+            result = nil -- Clear the source immediately
             if fn then
-                -- Execute in protected environment
-                setfenv(fn, setmetatable({}, {__index = _G_backup}))
                 local execSuccess, execErr = pcall(fn)
-                fn = nil
-                collectgarbage("collect")
+                fn = nil -- Clear the function reference
                 if not execSuccess then
                     warn("Execution Error: " .. tostring(execErr))
                 end
@@ -182,7 +174,7 @@ local function secureExecute()
     end
 end
 
--- Run immediately and clear
+-- Run immediately
 task.spawn(secureExecute)`;
       
       return new Response(loaderScript, {
