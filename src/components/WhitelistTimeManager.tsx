@@ -85,26 +85,28 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
       const now = new Date().toISOString();
       
       // Delete expired entries from database
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('paste_access_control')
         .delete()
         .eq('paste_id', pasteId)
         .eq('access_type', 'whitelist')
         .eq('is_eternal', false)
         .not('expires_at', 'is', null)
-        .lt('expires_at', now);
+        .lt('expires_at', now)
+        .select();
       
-      if (!error) {
+      // Only refresh if entries were actually deleted
+      if (!error && data && data.length > 0) {
         fetchEntries();
         onUpdate();
       }
     };
 
-    checkAndRemoveExpired();
+    // Only run on interval, not immediately (to prevent loop)
     const interval = setInterval(checkAndRemoveExpired, 10000);
     
     return () => clearInterval(interval);
-  }, [pasteId, enabled, fetchEntries, onUpdate]);
+  }, [pasteId, enabled]); // Removed fetchEntries and onUpdate from deps to prevent loops
 
   const setExpiration = async (entryId: string, expiresAt: string | null, isEternal: boolean) => {
     try {
