@@ -27,6 +27,17 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+function kickScript(reason: string) {
+  const safeReason = reason.replace(/\r?\n/g, " ").trim().slice(0, 180);
+  const luaReason = JSON.stringify(safeReason);
+  return `--KICKED:${safeReason}
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+if player then
+  player:Kick(${luaReason})
+end`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -170,44 +181,44 @@ checkAccess()`;
 
     // Validate uid format
     if (!/^\d+$/.test(uid)) {
-      return new Response('--KICKED:Invalid User ID format', {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      return new Response(kickScript('Invalid User ID format'), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain; charset=utf-8' }
       });
     }
 
     // Verify signature and timestamp to prevent replay attacks
-    if (sig && ts) {
-      const timestamp = parseInt(ts);
-      const now = Math.floor(Date.now() / 1000);
-      
-      // Signature expires after 30 seconds
-      if (Math.abs(now - timestamp) > 30) {
-        return new Response('--KICKED:Request expired. Please try again.', {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-        });
-      }
-      
-      // Verify the client-side signature matches
-      const verifyData = uid + ":" + ts + ":" + slug;
-      let hash = 0;
-      for (let i = 0; i < verifyData.length; i++) {
-        hash = (hash * 31 + verifyData.charCodeAt(i)) % 2147483647;
-      }
-      const expectedSig = hash.toString();
-      
-      if (sig !== expectedSig) {
-        return new Response('--KICKED:Invalid signature. Access denied.', {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-        });
-      }
-    } else {
-      // No signature provided - this is a direct URL access attempt (bypass attempt)
-      return new Response('--KICKED:Direct access not allowed. Use the loader script.', {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+    if (!sig || !ts) {
+      // Direct URL access attempt (bypass attempt)
+      return new Response(kickScript('Direct access not allowed. Use the loader script.'), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain; charset=utf-8' }
+      });
+    }
+
+    const timestamp = parseInt(ts);
+    const nowSec = Math.floor(Date.now() / 1000);
+
+    // Signature expires after 30 seconds
+    if (Number.isNaN(timestamp) || Math.abs(nowSec - timestamp) > 30) {
+      return new Response(kickScript('Request expired. Please try again.'), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain; charset=utf-8' }
+      });
+    }
+
+    // Verify the client-side signature matches
+    const verifyData = uid + ":" + ts + ":" + slug;
+    let hash = 0;
+    for (let i = 0; i < verifyData.length; i++) {
+      hash = (hash * 31 + verifyData.charCodeAt(i)) % 2147483647;
+    }
+    const expectedSig = hash.toString();
+
+    if (sig !== expectedSig) {
+      return new Response(kickScript('Invalid signature. Access denied.'), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain; charset=utf-8' }
       });
     }
 
@@ -249,74 +260,74 @@ checkAccess()`;
         return e.expires_at > now;
       });
 
-      if (blacklisted) {
-        return new Response('--KICKED:You are blacklisted from this script.', {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-        });
-      }
+       if (blacklisted) {
+         return new Response(kickScript('You are blacklisted from this script.'), {
+           status: 200,
+           headers: { ...corsHeaders, 'Content-Type': 'text/plain; charset=utf-8' }
+         });
+       }
+ 
+       const whitelisted = freshEntries?.find(e => {
+         if (e.access_type !== 'whitelist') return false;
+         if (e.is_eternal) return true;
+         if (!e.expires_at) return true;
+         return e.expires_at > now;
+       });
+ 
+       if (!whitelisted) {
+         return new Response(kickScript('Your whitelist access has expired.'), {
+           status: 200,
+           headers: { ...corsHeaders, 'Content-Type': 'text/plain; charset=utf-8' }
+         });
+       }
 
-      const whitelisted = freshEntries?.find(e => {
-        if (e.access_type !== 'whitelist') return false;
-        if (e.is_eternal) return true;
-        if (!e.expires_at) return true;
-        return e.expires_at > now;
-      });
+       // Track execution
+       await supabase.from('paste_executions').insert({
+         paste_id: paste.id,
+         roblox_user_id: uid
+       });
 
-      if (!whitelisted) {
-        return new Response('--KICKED:Your whitelist access has expired.', {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-        });
-      }
+       return new Response(paste.content, {
+         status: 200,
+         headers: {
+           ...corsHeaders,
+           'Content-Type': 'text/plain; charset=utf-8',
+           'Cache-Control': 'no-cache, no-store, must-revalidate',
+         },
+       });
+     }
 
-      // Track execution
-      await supabase.from('paste_executions').insert({
-        paste_id: paste.id,
-        roblox_user_id: uid
-      });
+     // Check for blacklist first (highest priority)
+     const blacklisted = accessEntries?.find(e => {
+       if (e.access_type !== 'blacklist') return false;
+       // Check if not expired
+       if (e.is_eternal) return true;
+       if (!e.expires_at) return true;
+       return e.expires_at > now;
+     });
 
-      return new Response(paste.content, {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-        },
-      });
-    }
+     if (blacklisted) {
+       return new Response(kickScript('You are blacklisted from this script.'), {
+         status: 200,
+         headers: { ...corsHeaders, 'Content-Type': 'text/plain; charset=utf-8' }
+       });
+     }
 
-    // Check for blacklist first (highest priority)
-    const blacklisted = accessEntries?.find(e => {
-      if (e.access_type !== 'blacklist') return false;
-      // Check if not expired
-      if (e.is_eternal) return true;
-      if (!e.expires_at) return true;
-      return e.expires_at > now;
-    });
+     // Check for valid whitelist entry
+     const whitelisted = accessEntries?.find(e => {
+       if (e.access_type !== 'whitelist') return false;
+       // Check if not expired
+       if (e.is_eternal) return true;
+       if (!e.expires_at) return true;
+       return e.expires_at > now;
+     });
 
-    if (blacklisted) {
-      return new Response('--KICKED:You are blacklisted from this script.', {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
-    }
-
-    // Check for valid whitelist entry
-    const whitelisted = accessEntries?.find(e => {
-      if (e.access_type !== 'whitelist') return false;
-      // Check if not expired
-      if (e.is_eternal) return true;
-      if (!e.expires_at) return true;
-      return e.expires_at > now;
-    });
-
-    if (!whitelisted) {
-      return new Response('--KICKED:You are not whitelisted for this script.', {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
-    }
+     if (!whitelisted) {
+       return new Response(kickScript('You are not whitelisted for this script.'), {
+         status: 200,
+         headers: { ...corsHeaders, 'Content-Type': 'text/plain; charset=utf-8' }
+       });
+     }
 
     // Track execution
     await supabase.from('paste_executions').insert({
