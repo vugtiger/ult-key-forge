@@ -23,10 +23,37 @@ interface WhitelistTimeManagerProps {
 }
 
 const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) => {
-  const [enabled, setEnabled] = useState(false);
+  const storageKey = pasteId ? `whitelist-time-enabled:${pasteId}` : "whitelist-time-enabled";
+  const [enabled, setEnabled] = useState<boolean>(() => {
+    if (!pasteId) return false;
+    try {
+      return localStorage.getItem(storageKey) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [entries, setEntries] = useState<AccessEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  // Persist "Enable Time Management" per paste so it doesn't flip off on re-mounts.
+  useEffect(() => {
+    if (!pasteId) return;
+    try {
+      setEnabled(localStorage.getItem(storageKey) === "1");
+    } catch {
+      // ignore
+    }
+  }, [pasteId, storageKey]);
+
+  useEffect(() => {
+    if (!pasteId) return;
+    try {
+      localStorage.setItem(storageKey, enabled ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }, [pasteId, enabled, storageKey]);
 
   const fetchEntries = useCallback(async () => {
     if (!pasteId) return;
@@ -147,7 +174,15 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
           </div>
           <Switch
             checked={enabled}
-            onCheckedChange={setEnabled}
+            onCheckedChange={(checked) => {
+              setEnabled(checked);
+              if (!pasteId) return;
+              try {
+                localStorage.setItem(storageKey, checked ? "1" : "0");
+              } catch {
+                // ignore
+              }
+            }}
           />
         </div>
 
