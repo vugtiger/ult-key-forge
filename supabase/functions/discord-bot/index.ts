@@ -1192,13 +1192,15 @@ When building websites, focus on clean, modern, responsive design.`;
         return { type: 4, data: { content: `❌ Failed to create panel: ${error.message}`, flags: 64 } };
       }
 
-      // Send the control panel message with buttons
+      console.log(`Panel created with ID: ${panel.id}, sending embed to channel ${channelId}`);
+
+      // Build the control panel embed to match the Luarmor style
       const panelEmbed = {
         title: `${panelName} Control Panel`,
         description: `This control panel is for the project: **${panelName}**\nIf you're a buyer, click on the buttons below to redeem your key, get the script or get your role.`,
-        color: 0x2B5B3C,
+        color: 0x2B5B3C, // Dark green
         footer: { 
-          text: `Sent by ${discordUsername} | ${new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })} ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+          text: `Sent by ${discordUsername} | ${new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })} ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`
         }
       };
 
@@ -1229,7 +1231,7 @@ When building websites, focus on clean, modern, responsive design.`;
         ]
       };
 
-      // Send the panel message
+      // Send the panel message to the channel
       const msgResponse = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
         method: 'POST',
         headers: {
@@ -1243,6 +1245,13 @@ When building websites, focus on clean, modern, responsive design.`;
       });
 
       const msgData = await msgResponse.json();
+      console.log('Panel message response:', JSON.stringify(msgData));
+
+      if (!msgResponse.ok) {
+        console.error('Failed to send panel message:', msgData);
+        // Still return success since the panel was created in DB
+        return { type: 4, data: { content: `⚠️ Panel **${panelName}** created, but couldn't send embed. Error: ${msgData.message || 'Unknown error'}. Bot may lack permissions.`, flags: 64 } };
+      }
 
       // Save the message ID
       await supabase
