@@ -5,21 +5,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Rate limiting map: IP -> { count, resetTime }
+// Simple rate limiting
 const rateLimits = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 20;
-const RATE_WINDOW = 60000;
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const limit = rateLimits.get(ip);
   
   if (!limit || now > limit.resetTime) {
-    rateLimits.set(ip, { count: 1, resetTime: now + RATE_WINDOW });
+    rateLimits.set(ip, { count: 1, resetTime: now + 60000 });
     return true;
   }
   
-  if (limit.count >= RATE_LIMIT) {
+  if (limit.count >= 30) {
     return false;
   }
   
@@ -27,81 +25,39 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-function kickScript(reason: string) {
-  const safeReason = reason.replace(/\r?\n/g, " ").trim().slice(0, 180);
-  const luaReason = JSON.stringify(safeReason);
-  return `game:GetService("Players").LocalPlayer:Kick(${luaReason})`;
+// Generate loader script for protected pastes
+function generateLoader(slug: string, baseUrl: string): string {
+  return `--[[ULT LUA PROTECTION]]
+local player = game:GetService("Players").LocalPlayer
+if not player then
+  player = game:GetService("Players").PlayerAdded:Wait()
+end
+
+local userId = tostring(player.UserId)
+local ts = tostring(os.time())
+
+local url = "${baseUrl}?slug=${slug}&uid=" .. userId .. "&ts=" .. ts
+
+local success, result = pcall(function()
+  return game:HttpGet(url)
+end)
+
+if success and result then
+  local fn, err = loadstring(result)
+  if fn then
+    fn()
+  else
+    warn("Load error: " .. tostring(err))
+  end
+else
+  warn("Failed to fetch script")
+end
+`;
 }
 
-// Simple XOR obfuscation that works reliably
-function obfuscateCode(code: string, userId: string, timestamp: number): string {
-  const key = (parseInt(userId) ^ timestamp) % 256;
-  const bytes: number[] = [];
-  
-  for (let i = 0; i < code.length; i++) {
-    bytes.push(code.charCodeAt(i) ^ ((key + i) % 256));
-  }
-  
-  const execToken = Math.random().toString(36).substring(2, 10);
-  
-  return `--[[Protected by ULT LUA]]
-local _${execToken} = function()
-  local _e = {${bytes.join(',')}}
-  local _k = ${key}
-  local _r = ""
-  for i = 1, #_e do
-    _r = _r .. string.char(bit32.bxor(_e[i], (_k + i - 1) % 256))
-  end
-  local _f = loadstring(_r)
-  _e = nil
-  _r = nil
-  if _f then
-    return _f()
-  end
-end
-_${execToken}()`;
-}
-
-// Generate secure loader for protected pastes
-function generateSecureLoader(slug: string, baseUrl: string): string {
-  const token = Math.random().toString(36).substring(2, 10);
-  
-  return `--[[ULT LUA PROTECTS]]
-local _${token} = function()
-  local Players = game:GetService("Players")
-  local player = Players.LocalPlayer
-  if not player then
-    player = Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
-    player = Players.LocalPlayer
-  end
-  
-  local userId = tostring(player.UserId)
-  local timestamp = tostring(os.time())
-  
-  -- Generate simple signature: userId:timestamp:slug
-  local sigData = userId .. ":" .. timestamp .. ":" .. "${slug}"
-  local hash = 0
-  for i = 1, #sigData do
-    hash = (hash * 31 + string.byte(sigData, i)) % 2147483647
-  end
-  local sig = tostring(hash)
-  
-  -- Build URL with auth params
-  local url = "${baseUrl}?slug=${slug}&uid=" .. userId .. "&ts=" .. timestamp .. "&sig=" .. sig
-  
-  -- Fetch protected code
-  local success, result = pcall(function()
-    return game:HttpGet(url)
-  end)
-  
-  if success and result then
-    local fn = loadstring(result)
-    if fn then
-      pcall(fn)
-    end
-  end
-end
-_${token}()`;
+// Generate kick script
+function generateKick(reason: string): string {
+  return `game:GetService("Players").LocalPlayer:Kick("${reason}")`;
 }
 
 Deno.serve(async (req) => {
@@ -113,57 +69,48 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const slug = url.searchParams.get('slug');
     const uid = url.searchParams.get('uid');
-    const sig = url.searchParams.get('sig');
     const ts = url.searchParams.get('ts');
-    
+
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                      req.headers.get('cf-connecting-ip') || 
                      'unknown';
 
-    if (!slug) {
-      return new Response('Missing slug', {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
-    }
-
+    // Rate limiting
     if (!checkRateLimit(clientIp)) {
-      console.log(`Rate limit exceeded for IP: ${clientIp}`);
-      return new Response(kickScript('Too many requests. Please slow down.'), {
-        status: 200,
+      return new Response(generateKick('Too many requests'), { 
+        status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    if (!slug) {
+      return new Response('Missing slug', { 
+        status: 400, 
+        headers: corsHeaders 
+      });
+    }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Fetch the paste
     const { data: paste, error } = await supabase
       .from('pastes')
-      .select('id, content, protection_enabled, user_id')
+      .select('*')
       .eq('slug', slug)
-      .maybeSingle();
+      .single();
 
-    if (error) {
-      console.error('Database error:', error);
-      return new Response('Server error', {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+    if (error || !paste) {
+      return new Response('Paste not found', { 
+        status: 404, 
+        headers: corsHeaders 
       });
     }
 
-    if (!paste) {
-      return new Response('Script not found', {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
-    }
-
-    // No protection - return content directly
+    // If protection is disabled, return content directly
     if (!paste.protection_enabled) {
+      // Log execution if uid provided
       if (uid && /^\d+$/.test(uid)) {
         await supabase.from('paste_executions').insert({
           paste_id: paste.id,
@@ -173,125 +120,82 @@ Deno.serve(async (req) => {
       
       return new Response(paste.content, {
         status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-        },
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
 
-    // === PROTECTION ENABLED ===
-    
-    // Stage 1: No UID - return loader script
-    if (!uid) {
-      const baseUrl = Deno.env.get('SUPABASE_URL') + '/functions/v1/get-paste';
-      const loader = generateSecureLoader(slug, baseUrl);
+    // Protection is enabled - check for auth params
+    if (!uid || !ts) {
+      // Return the loader script
+      const baseUrl = supabaseUrl + '/functions/v1/get-paste';
+      const loader = generateLoader(slug, baseUrl);
       
       return new Response(loader, {
         status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-        },
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
 
-    // Stage 2: Verify credentials
+    // Validate user ID format
     if (!/^\d+$/.test(uid)) {
-      return new Response(kickScript('Invalid user ID.'), {
+      return new Response(generateKick('Invalid user ID'), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
 
-    if (!sig || !ts) {
-      return new Response(kickScript('Missing authentication.'), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
-    }
-
-    // Verify timestamp (60 second window)
+    // Verify timestamp (5 minute window)
     const timestamp = parseInt(ts);
-    const nowSec = Math.floor(Date.now() / 1000);
-    if (Number.isNaN(timestamp) || Math.abs(nowSec - timestamp) > 60) {
-      return new Response(kickScript('Request expired.'), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
-    }
-
-    // Verify signature - must match: userId:timestamp:slug
-    const sigData = uid + ":" + ts + ":" + slug;
-    let hash = 0;
-    for (let i = 0; i < sigData.length; i++) {
-      hash = (hash * 31 + sigData.charCodeAt(i)) % 2147483647;
-    }
-    const expectedSig = hash.toString();
-
-    if (sig !== expectedSig) {
-      console.log(`Signature mismatch for UID: ${uid}, expected: ${expectedSig}, got: ${sig}`);
-      return new Response(kickScript('Authentication failed.'), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
-    }
-
-    // Check access control
-    const now = new Date().toISOString();
-    
-    // Clean up expired entries
-    await supabase
-      .from('paste_access_control')
-      .delete()
-      .eq('paste_id', paste.id)
-      .eq('roblox_user_id', uid)
-      .eq('is_eternal', false)
-      .not('expires_at', 'is', null)
-      .lt('expires_at', now);
-
-    // Get current entries
-    const { data: entries } = await supabase
-      .from('paste_access_control')
-      .select('access_type, expires_at, is_eternal')
-      .eq('paste_id', paste.id)
-      .eq('roblox_user_id', uid);
-
-    // Check blacklist
-    const blacklisted = entries?.find(e => {
-      if (e.access_type !== 'blacklist') return false;
-      if (e.is_eternal) return true;
-      if (!e.expires_at) return true;
-      return e.expires_at > now;
-    });
-
-    if (blacklisted) {
-      console.log(`Blacklisted user: ${uid}`);
-      return new Response(kickScript('You are blacklisted from this script.'), {
+    const now = Math.floor(Date.now() / 1000);
+    if (isNaN(timestamp) || Math.abs(now - timestamp) > 300) {
+      return new Response(generateKick('Request expired'), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
 
     // Check whitelist
-    const whitelisted = entries?.find(e => {
-      if (e.access_type !== 'whitelist') return false;
-      if (e.is_eternal) return true;
-      if (!e.expires_at) return true;
-      return e.expires_at > now;
+    const { data: accessList } = await supabase
+      .from('paste_access_control')
+      .select('*')
+      .eq('paste_id', paste.id)
+      .eq('roblox_user_id', uid);
+
+    const nowDate = new Date().toISOString();
+
+    // Check for blacklist first
+    const isBlacklisted = accessList?.some(entry => {
+      if (entry.access_type !== 'blacklist') return false;
+      if (entry.is_eternal) return true;
+      if (!entry.expires_at) return true;
+      return entry.expires_at > nowDate;
     });
 
-    if (!whitelisted) {
-      console.log(`Not whitelisted: ${uid}`);
-      return new Response(kickScript('You are not whitelisted for this script.'), {
+    if (isBlacklisted) {
+      console.log(`Blacklisted user: ${uid}`);
+      return new Response(generateKick('You are blacklisted'), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
 
-    // Track execution
+    // Check for whitelist
+    const isWhitelisted = accessList?.some(entry => {
+      if (entry.access_type !== 'whitelist') return false;
+      if (entry.is_eternal) return true;
+      if (!entry.expires_at) return true;
+      return entry.expires_at > nowDate;
+    });
+
+    if (!isWhitelisted) {
+      console.log(`Not whitelisted: ${uid}`);
+      return new Response(generateKick('Not whitelisted'), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+
+    // Log execution
     await supabase.from('paste_executions').insert({
       paste_id: paste.id,
       roblox_user_id: uid
@@ -299,23 +203,17 @@ Deno.serve(async (req) => {
 
     console.log(`Access granted: ${uid} for paste: ${paste.id}`);
 
-    // Return obfuscated code
-    const protectedCode = obfuscateCode(paste.content, uid, timestamp);
-    
-    return new Response(protectedCode, {
+    // Return the actual code
+    return new Response(paste.content, {
       status: 200,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-      },
+      headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
     });
 
-  } catch (error) {
-    console.error('Error:', error);
-    return new Response('Server error', {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+  } catch (err) {
+    console.error('Error:', err);
+    return new Response('Server error', { 
+      status: 500, 
+      headers: corsHeaders 
     });
   }
 });
