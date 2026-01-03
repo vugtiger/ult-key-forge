@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocked_ips: {
+        Row: {
+          blocked_at: string
+          blocked_by: string
+          id: string
+          ip_address: string
+          user_id: string
+        }
+        Insert: {
+          blocked_at?: string
+          blocked_by: string
+          id?: string
+          ip_address: string
+          user_id: string
+        }
+        Update: {
+          blocked_at?: string
+          blocked_by?: string
+          id?: string
+          ip_address?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       control_panel_keys: {
         Row: {
           created_at: string

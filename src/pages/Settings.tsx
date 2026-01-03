@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Save, RotateCcw, Sparkles, Type } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
-import TwoFactorAuth from "@/components/TwoFactorAuth";
+
 import SessionManager from "@/components/SessionManager";
 import AccountInfo from "@/components/AccountInfo";
 
@@ -174,8 +174,6 @@ const Settings = () => {
         {/* Account Info */}
         <AccountInfo />
 
-        {/* 2FA Section */}
-        <TwoFactorAuth />
 
         {/* Session Manager */}
         <SessionManager />
