@@ -63,7 +63,7 @@ _${execToken}()`;
 }
 
 // Generate secure loader for protected pastes
-function generateSecureLoader(slug: string, baseUrl: string, pasteId: string): string {
+function generateSecureLoader(slug: string, baseUrl: string): string {
   const token = Math.random().toString(36).substring(2, 10);
   
   return `--[[ULT LUA PROTECTS]]
@@ -77,11 +77,9 @@ local _${token} = function()
   
   local userId = tostring(player.UserId)
   local timestamp = tostring(os.time())
-  local placeId = tostring(game.PlaceId)
-  local jobId = tostring(game.JobId):sub(1, 8)
   
-  -- Generate signature
-  local sigData = userId .. ":" .. timestamp .. ":" .. "${slug}" .. ":" .. placeId
+  -- Generate simple signature: userId:timestamp:slug
+  local sigData = userId .. ":" .. timestamp .. ":" .. "${slug}"
   local hash = 0
   for i = 1, #sigData do
     hash = (hash * 31 + string.byte(sigData, i)) % 2147483647
@@ -89,7 +87,7 @@ local _${token} = function()
   local sig = tostring(hash)
   
   -- Build URL with auth params
-  local url = "${baseUrl}?slug=${slug}&uid=" .. userId .. "&ts=" .. timestamp .. "&sig=" .. sig .. "&pid=${pasteId}"
+  local url = "${baseUrl}?slug=${slug}&uid=" .. userId .. "&ts=" .. timestamp .. "&sig=" .. sig
   
   -- Fetch protected code
   local success, result = pcall(function()
@@ -117,7 +115,6 @@ Deno.serve(async (req) => {
     const uid = url.searchParams.get('uid');
     const sig = url.searchParams.get('sig');
     const ts = url.searchParams.get('ts');
-    const pasteIdParam = url.searchParams.get('pid');
     
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                      req.headers.get('cf-connecting-ip') || 
@@ -189,7 +186,7 @@ Deno.serve(async (req) => {
     // Stage 1: No UID - return loader script
     if (!uid) {
       const baseUrl = Deno.env.get('SUPABASE_URL') + '/functions/v1/get-paste';
-      const loader = generateSecureLoader(slug, baseUrl, paste.id);
+      const loader = generateSecureLoader(slug, baseUrl);
       
       return new Response(loader, {
         status: 200,
@@ -226,22 +223,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify signature (must match client-side generation)
-    const sigData = uid + ":" + ts + ":" + slug + ":" + (url.searchParams.get('pid') || '');
+    // Verify signature - must match: userId:timestamp:slug
+    const sigData = uid + ":" + ts + ":" + slug;
     let hash = 0;
     for (let i = 0; i < sigData.length; i++) {
       hash = (hash * 31 + sigData.charCodeAt(i)) % 2147483647;
     }
-    
-    // Also try with placeId in signature for backwards compat
-    const sigDataAlt = uid + ":" + ts + ":" + slug + ":" + "";
-    let hashAlt = 0;
-    for (let i = 0; i < sigDataAlt.length; i++) {
-      hashAlt = (hashAlt * 31 + sigDataAlt.charCodeAt(i)) % 2147483647;
-    }
+    const expectedSig = hash.toString();
 
-    if (sig !== hash.toString() && sig !== hashAlt.toString()) {
-      console.log(`Signature mismatch for UID: ${uid}, expected: ${hash} or ${hashAlt}, got: ${sig}`);
+    if (sig !== expectedSig) {
+      console.log(`Signature mismatch for UID: ${uid}, expected: ${expectedSig}, got: ${sig}`);
       return new Response(kickScript('Authentication failed.'), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
