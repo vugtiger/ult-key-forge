@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, Infinity, Trash2, Calendar } from "lucide-react";
@@ -29,13 +28,29 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  const fetchEntries = useCallback(async () => {
+    if (!pasteId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('paste_access_control')
+      .select('*')
+      .eq('paste_id', pasteId)
+      .eq('access_type', 'whitelist')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setEntries(data as AccessEntry[]);
+    }
+    setLoading(false);
+  }, [pasteId]);
+
   useEffect(() => {
     if (pasteId) {
       fetchEntries();
     }
-  }, [pasteId]);
+  }, [pasteId, fetchEntries]);
 
-  // Auto-check for expired entries every 10 seconds
+  // Auto-check for expired entries every 10 seconds when enabled
   useEffect(() => {
     if (!pasteId || !enabled) return;
     
@@ -53,36 +68,16 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
         .lt('expires_at', now);
       
       if (!error) {
-        // Refresh the list if any were deleted
         fetchEntries();
         onUpdate();
       }
     };
 
-    // Check immediately and then every 10 seconds
     checkAndRemoveExpired();
     const interval = setInterval(checkAndRemoveExpired, 10000);
     
     return () => clearInterval(interval);
-  }, [pasteId, enabled]);
-
-  const fetchEntries = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('paste_access_control')
-      .select('*')
-      .eq('paste_id', pasteId)
-      .eq('access_type', 'whitelist')
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setEntries(data as AccessEntry[]);
-      // Check if any entry has expiration enabled
-      const hasExpiration = data.some((e: any) => e.expires_at || e.is_eternal);
-      setEnabled(hasExpiration);
-    }
-    setLoading(false);
-  };
+  }, [pasteId, enabled, fetchEntries, onUpdate]);
 
   const setExpiration = async (entryId: string, expiresAt: string | null, isEternal: boolean) => {
     try {

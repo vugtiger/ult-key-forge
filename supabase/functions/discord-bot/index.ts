@@ -1194,10 +1194,12 @@ When building websites, focus on clean, modern, responsive design.`;
 
       // Send the control panel message with buttons
       const panelEmbed = {
-        title: `🎮 ${panelName}`,
-        description: `This control panel is for the project: **${panelName}**\n\nIf you're a buyer, click on the buttons below to redeem your key, get the script or get your role.`,
-        color: 0x5865F2,
-        footer: { text: 'ULT LUA PROTECTS • Control Panel' }
+        title: `${panelName} Control Panel`,
+        description: `This control panel is for the project: **${panelName}**\nIf you're a buyer, click on the buttons below to redeem your key, get the script or get your role.`,
+        color: 0x2B5B3C,
+        footer: { 
+          text: `Sent by ${discordUsername} | ${new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })} ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+        }
       };
 
       const panelButtons = {
@@ -1205,20 +1207,23 @@ When building websites, focus on clean, modern, responsive design.`;
         components: [
           {
             type: 2,
-            style: 1,
-            label: '🔑 Redeem Key',
+            style: 3, // Success (Green)
+            label: 'Redeem Key',
+            emoji: { name: '🔑' },
             custom_id: `redeem_key:${panel.id}`
           },
           {
             type: 2,
-            style: 2,
-            label: '📜 Get Script',
+            style: 1, // Primary (Blue)
+            label: 'Get Script',
+            emoji: { name: '📜' },
             custom_id: `get_script:${panel.id}`
           },
           {
             type: 2,
-            style: 3,
-            label: '🎭 Get Role',
+            style: 1, // Primary (Blue)
+            label: 'Get Role',
+            emoji: { name: '🎭' },
             custom_id: `get_role:${panel.id}`
           }
         ]

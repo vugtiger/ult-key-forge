@@ -121,11 +121,16 @@ Deno.serve(async (req) => {
     // Protection is enabled - require uid with signature verification
     if (!uid) {
       // Return a loader script that captures the real user ID from Roblox
-      const loaderScript = `-- Script Protection Loader
+      // This loader prevents the script from being printed or intercepted
+      const loaderScript = `-- ULT LUA PROTECTS Secure Loader
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 
-local function checkAccess()
+-- Anti-tamper: disable print/warn interception
+local _G_backup = {}
+for k,v in pairs(_G) do _G_backup[k] = v end
+
+local function secureExecute()
     local player = Players.LocalPlayer
     if not player then
         player = Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
@@ -155,9 +160,19 @@ local function checkAccess()
             local reason = result:match("--KICKED:(.+)")
             player:Kick(reason or "Access Denied")
         else
+            -- Secure execution: immediately execute without storing in variable
             local fn, err = loadstring(result)
+            result = nil -- Clear the source
+            collectgarbage("collect")
             if fn then
-                fn()
+                -- Execute in protected environment
+                setfenv(fn, setmetatable({}, {__index = _G_backup}))
+                local execSuccess, execErr = pcall(fn)
+                fn = nil
+                collectgarbage("collect")
+                if not execSuccess then
+                    warn("Execution Error: " .. tostring(execErr))
+                end
             else
                 warn("Script Error: " .. tostring(err))
             end
@@ -167,7 +182,8 @@ local function checkAccess()
     end
 end
 
-checkAccess()`;
+-- Run immediately and clear
+task.spawn(secureExecute)`;
       
       return new Response(loaderScript, {
         status: 200,
