@@ -310,17 +310,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check for whitelist
-    const isWhitelisted = accessList?.some(entry => {
-      if (entry.access_type !== 'whitelist') return false;
-      if (entry.is_eternal) return true;
-      if (!entry.expires_at) return true;
-      return entry.expires_at > nowDate;
-    });
-
-    if (!isWhitelisted) {
+    // Check for whitelist - first check if user has any whitelist entry
+    const whitelistEntry = accessList?.find(entry => entry.access_type === 'whitelist');
+    
+    if (!whitelistEntry) {
       console.log(`Not whitelisted: ${uid}`);
       return new Response(generateKickEncrypted('Not whitelisted', slug, tk), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+
+    // Check if whitelist entry is valid (eternal or not expired)
+    const isValidWhitelist = whitelistEntry.is_eternal || 
+      !whitelistEntry.expires_at || 
+      whitelistEntry.expires_at > nowDate;
+
+    if (!isValidWhitelist) {
+      console.log(`Whitelist time expired: ${uid}`);
+      return new Response(generateKickEncrypted('Your whitelist time has expired', slug, tk), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
