@@ -42,6 +42,25 @@ serve(async (req) => {
     }
     
     if (action === 'login') {
+      // First, check if this IP is blocked for this user
+      const { data: blockedIp } = await supabase
+        .from('blocked_ips')
+        .select('id')
+        .eq('user_id', user_id)
+        .eq('ip_address', ip)
+        .single();
+
+      if (blockedIp) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          allowed: false,
+          blocked: true,
+          message: 'This device has been blocked from this account' 
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
       // Check if IP matches any registered IP for this user
       const { data: userIps, error: fetchError } = await supabase
         .from('user_ips')
