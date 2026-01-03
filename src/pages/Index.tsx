@@ -8,6 +8,7 @@ import KeySystemPreview from "@/components/KeySystemPreview";
 import AIAssistantDemo from "@/components/AIAssistantDemo";
 import ReviewsSection from "@/components/ReviewsSection";
 import LastUpdatedBadge from "@/components/LastUpdatedBadge";
+import luaLogo from "@/assets/lua-logo.png";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -42,6 +43,7 @@ const Index = () => {
         {/* Navigation */}
         <nav className="container mx-auto px-4 py-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <img src={luaLogo} alt="Lua Logo" className="h-10 w-10 object-contain" />
             <h2 className="text-2xl font-bold text-foreground">ULT LUA PROTECTS</h2>
             <LastUpdatedBadge />
           </div>
