@@ -161,6 +161,44 @@ export type Database = {
           },
         ]
       }
+      paste_execution_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          paste_id: string
+          roblox_user_id: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          paste_id: string
+          roblox_user_id: string
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          paste_id?: string
+          roblox_user_id?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paste_execution_tokens_paste_id_fkey"
+            columns: ["paste_id"]
+            isOneToOne: false
+            referencedRelation: "pastes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       paste_executions: {
         Row: {
           executed_at: string
@@ -501,6 +539,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_tokens: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
