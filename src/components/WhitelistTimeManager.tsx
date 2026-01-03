@@ -35,6 +35,37 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
     }
   }, [pasteId]);
 
+  // Auto-check for expired entries every 10 seconds
+  useEffect(() => {
+    if (!pasteId || !enabled) return;
+    
+    const checkAndRemoveExpired = async () => {
+      const now = new Date().toISOString();
+      
+      // Delete expired entries from database
+      const { error } = await supabase
+        .from('paste_access_control')
+        .delete()
+        .eq('paste_id', pasteId)
+        .eq('access_type', 'whitelist')
+        .eq('is_eternal', false)
+        .not('expires_at', 'is', null)
+        .lt('expires_at', now);
+      
+      if (!error) {
+        // Refresh the list if any were deleted
+        fetchEntries();
+        onUpdate();
+      }
+    };
+
+    // Check immediately and then every 10 seconds
+    checkAndRemoveExpired();
+    const interval = setInterval(checkAndRemoveExpired, 10000);
+    
+    return () => clearInterval(interval);
+  }, [pasteId, enabled]);
+
   const fetchEntries = async () => {
     setLoading(true);
     const { data, error } = await supabase

@@ -1030,6 +1030,7 @@ When building websites, focus on clean, modern, responsive design.`;
       const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
       const robloxUserId = data.options?.find((o: any) => o.name === 'userid')?.value;
       const eternal = data.options?.find((o: any) => o.name === 'eternal')?.value || false;
+      const minutes = data.options?.find((o: any) => o.name === 'minutes')?.value || 0;
       const hours = data.options?.find((o: any) => o.name === 'hours')?.value || 0;
       const days = data.options?.find((o: any) => o.name === 'days')?.value || 0;
 
@@ -1064,8 +1065,9 @@ When building websites, focus on clean, modern, responsive design.`;
 
       // Calculate expiration
       let expiresAt = null;
-      if (!eternal && (hours > 0 || days > 0)) {
+      if (!eternal && (minutes > 0 || hours > 0 || days > 0)) {
         const now = new Date();
+        now.setMinutes(now.getMinutes() + minutes);
         now.setHours(now.getHours() + hours);
         now.setDate(now.getDate() + days);
         expiresAt = now.toISOString();
