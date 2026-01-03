@@ -77,36 +77,16 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
     }
   }, [pasteId, fetchEntries]);
 
-  // Auto-check for expired entries every 10 seconds when enabled
+  // Refresh entries periodically when enabled (no auto-delete)
   useEffect(() => {
     if (!pasteId || !enabled) return;
     
-    const checkAndRemoveExpired = async () => {
-      const now = new Date().toISOString();
-      
-      // Delete expired entries from database
-      const { data, error } = await supabase
-        .from('paste_access_control')
-        .delete()
-        .eq('paste_id', pasteId)
-        .eq('access_type', 'whitelist')
-        .eq('is_eternal', false)
-        .not('expires_at', 'is', null)
-        .lt('expires_at', now)
-        .select();
-      
-      // Only refresh if entries were actually deleted
-      if (!error && data && data.length > 0) {
-        fetchEntries();
-        onUpdate();
-      }
-    };
-
-    // Only run on interval, not immediately (to prevent loop)
-    const interval = setInterval(checkAndRemoveExpired, 10000);
+    const interval = setInterval(() => {
+      fetchEntries();
+    }, 10000);
     
     return () => clearInterval(interval);
-  }, [pasteId, enabled]); // Removed fetchEntries and onUpdate from deps to prevent loops
+  }, [pasteId, enabled]);
 
   const setExpiration = async (entryId: string, expiresAt: string | null, isEternal: boolean) => {
     try {
