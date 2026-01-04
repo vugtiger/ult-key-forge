@@ -12,6 +12,7 @@ import Pastebin from "./pages/Pastebin";
 import AIAssistant from "./pages/AIAssistant";
 import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
+import DiscordBot from "./pages/DiscordBot";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/discord-bot" element={<DiscordBot />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
