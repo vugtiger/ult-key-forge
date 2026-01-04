@@ -41,27 +41,33 @@ export type Database = {
       control_panel_keys: {
         Row: {
           created_at: string
+          expires_at: string | null
           id: string
           key_value: string
           panel_id: string
           redeemed_at: string | null
           redeemed_by_discord_id: string | null
+          roblox_user_id: string | null
         }
         Insert: {
           created_at?: string
+          expires_at?: string | null
           id?: string
           key_value: string
           panel_id: string
           redeemed_at?: string | null
           redeemed_by_discord_id?: string | null
+          roblox_user_id?: string | null
         }
         Update: {
           created_at?: string
+          expires_at?: string | null
           id?: string
           key_value?: string
           panel_id?: string
           redeemed_at?: string | null
           redeemed_by_discord_id?: string | null
+          roblox_user_id?: string | null
         }
         Relationships: [
           {
