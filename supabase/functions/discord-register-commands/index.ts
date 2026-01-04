@@ -147,6 +147,23 @@ const commands = [
     description: "View your control panels"
   },
   {
+    name: "consoleblacklist",
+    description: "Blacklist a Discord user from using a control panel",
+    options: [
+      { name: "panel", description: "Control panel name", type: 3, required: true },
+      { name: "user", description: "Discord user to blacklist", type: 6, required: true },
+      { name: "reason", description: "Reason for blacklisting", type: 3, required: false }
+    ]
+  },
+  {
+    name: "forceexpire",
+    description: "Force expire a user's access to a control panel",
+    options: [
+      { name: "panel", description: "Control panel name", type: 3, required: true },
+      { name: "user", description: "Discord user to force expire", type: 6, required: true }
+    ]
+  },
+  {
     name: "help",
     description: "Show all available commands"
   }

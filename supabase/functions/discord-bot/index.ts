@@ -1371,10 +1371,128 @@ When building websites, focus on clean, modern, responsive design.`;
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle protection\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/setwhitelisttime\` - Set expiration\n\`/stats\` - View stats\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/genkeys\` - Generate keys\n\`/mypanels\` - View panels\n\n**AI:**\n\`/ai\` - Chat with AI`, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle protection\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/setwhitelisttime\` - Set expiration\n\`/stats\` - View stats\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/genkeys\` - Generate keys (with expiration)\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist user from panel\n\`/forceexpire\` - Force expire user access\n\n**AI:**\n\`/ai\` - Chat with AI`, 
           flags: 0 
         }
       };
+    }
+
+    case 'consoleblacklist': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const panelName = data.options?.find((o: any) => o.name === 'panel')?.value;
+      const targetUserId = data.options?.find((o: any) => o.name === 'user')?.value;
+      const reason = data.options?.find((o: any) => o.name === 'reason')?.value || 'No reason provided';
+
+      if (!panelName || !targetUserId) {
+        return { type: 4, data: { content: '❌ Please provide panel name and user.', flags: 64 } };
+      }
+
+      // Find panel by name
+      const { data: panel } = await supabase
+        .from('control_panels')
+        .select('id, name')
+        .eq('user_id', user.userId)
+        .ilike('name', panelName)
+        .maybeSingle();
+
+      if (!panel) {
+        return { type: 4, data: { content: `❌ Panel "${panelName}" not found. Use \`/mypanels\` to see your panels.`, flags: 64 } };
+      }
+
+      // Add to blacklist
+      const { error } = await supabase
+        .from('console_blacklist')
+        .upsert({
+          panel_id: panel.id,
+          discord_user_id: targetUserId,
+          blacklisted_by: discordUserId,
+          reason
+        }, { onConflict: 'panel_id,discord_user_id' });
+
+      if (error) {
+        console.error('Blacklist error:', error);
+        return { type: 4, data: { content: `❌ Failed to blacklist user: ${error.message}`, flags: 64 } };
+      }
+
+      return { type: 4, data: { content: `✅ User <@${targetUserId}> has been blacklisted from panel **${panel.name}**.\n**Reason:** ${reason}`, flags: 64 } };
+    }
+
+    case 'forceexpire': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const panelName = data.options?.find((o: any) => o.name === 'panel')?.value;
+      const targetUserId = data.options?.find((o: any) => o.name === 'user')?.value;
+
+      if (!panelName || !targetUserId) {
+        return { type: 4, data: { content: '❌ Please provide panel name and user.', flags: 64 } };
+      }
+
+      // Find panel by name
+      const { data: panel } = await supabase
+        .from('control_panels')
+        .select('id, name, paste_id, discord_role_id')
+        .eq('user_id', user.userId)
+        .ilike('name', panelName)
+        .maybeSingle();
+
+      if (!panel) {
+        return { type: 4, data: { content: `❌ Panel "${panelName}" not found. Use \`/mypanels\` to see your panels.`, flags: 64 } };
+      }
+
+      // Get all keys redeemed by this user for this panel
+      const { data: userKeys } = await supabase
+        .from('control_panel_keys')
+        .select('id, roblox_user_id')
+        .eq('panel_id', panel.id)
+        .eq('redeemed_by_discord_id', targetUserId);
+
+      if (!userKeys || userKeys.length === 0) {
+        return { type: 4, data: { content: `❌ User <@${targetUserId}> has not redeemed any keys for this panel.`, flags: 64 } };
+      }
+
+      // Force expire all keys by setting expires_at to now
+      await supabase
+        .from('control_panel_keys')
+        .update({ expires_at: new Date().toISOString() })
+        .eq('panel_id', panel.id)
+        .eq('redeemed_by_discord_id', targetUserId);
+
+      // Remove from whitelist if paste is connected
+      if (panel.paste_id) {
+        const robloxUserIds = userKeys.map(k => k.roblox_user_id).filter(Boolean);
+        for (const robloxUserId of robloxUserIds) {
+          await supabase
+            .from('paste_access_control')
+            .delete()
+            .eq('paste_id', panel.paste_id)
+            .eq('roblox_user_id', robloxUserId)
+            .eq('access_type', 'whitelist');
+        }
+      }
+
+      // Try to remove role from user
+      if (panel.discord_role_id && interaction.guild_id) {
+        try {
+          await fetch(`https://discord.com/api/v10/guilds/${interaction.guild_id}/members/${targetUserId}/roles/${panel.discord_role_id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+              'Content-Type': 'application/json'
+            }
+          });
+        } catch (error) {
+          console.error('Failed to remove role:', error);
+        }
+      }
+
+      return { type: 4, data: { content: `✅ User <@${targetUserId}> has been force expired from panel **${panel.name}**.\n\n• All their keys are now expired\n• Roblox User IDs removed from whitelist\n• Discord role removed`, flags: 64 } };
     }
 
     default:
@@ -1408,12 +1526,24 @@ async function handleButton(interaction: any) {
   if (!panel) {
     return { type: 4, data: { content: '❌ Control panel not found.', flags: 64 } };
   }
+
+  // Check if user is blacklisted from this panel
+  const { data: blacklistEntry } = await supabase
+    .from('console_blacklist')
+    .select('id, reason')
+    .eq('panel_id', panelId)
+    .eq('discord_user_id', discordUserId)
+    .maybeSingle();
+
+  if (blacklistEntry) {
+    return { type: 4, data: { content: `🚫 **You are blacklisted from this control panel.**\n\n**Reason:** ${blacklistEntry.reason || 'No reason provided'}`, flags: 64 } };
+  }
   
   // Check if user has redeemed ANY valid key for this panel
   // First check for permanent keys (no expiration)
   const { data: permanentKey } = await supabase
     .from('control_panel_keys')
-    .select('id')
+    .select('id, roblox_user_id')
     .eq('panel_id', panelId)
     .eq('redeemed_by_discord_id', discordUserId)
     .is('expires_at', null)
@@ -1423,7 +1553,7 @@ async function handleButton(interaction: any) {
   // Then check for non-expired keys
   const { data: validKey } = await supabase
     .from('control_panel_keys')
-    .select('id, expires_at')
+    .select('id, expires_at, roblox_user_id')
     .eq('panel_id', panelId)
     .eq('redeemed_by_discord_id', discordUserId)
     .not('expires_at', 'is', null)
@@ -1436,10 +1566,11 @@ async function handleButton(interaction: any) {
   
   // Check if they have any redeemed keys at all (to determine if expired)
   let keyExpired = false;
+  let expiredRobloxUserId: string | null = null;
   if (!isWhitelisted) {
     const { data: anyKey } = await supabase
       .from('control_panel_keys')
-      .select('id')
+      .select('id, roblox_user_id')
       .eq('panel_id', panelId)
       .eq('redeemed_by_discord_id', discordUserId)
       .limit(1)
@@ -1447,6 +1578,33 @@ async function handleButton(interaction: any) {
     
     // If they have a key but aren't whitelisted, it means all their keys expired
     keyExpired = !!anyKey;
+    expiredRobloxUserId = anyKey?.roblox_user_id || null;
+
+    // If key expired, remove their role and whitelist entry
+    if (keyExpired && panel.discord_role_id && guildId) {
+      // Remove the role
+      try {
+        await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}/roles/${panel.discord_role_id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      } catch (error) {
+        console.error('Failed to remove expired role:', error);
+      }
+
+      // Remove whitelist entry if paste is connected
+      if (panel.paste_id && expiredRobloxUserId) {
+        await supabase
+          .from('paste_access_control')
+          .delete()
+          .eq('paste_id', panel.paste_id)
+          .eq('roblox_user_id', expiredRobloxUserId)
+          .eq('access_type', 'whitelist');
+      }
+    }
   }
   
   switch (action) {
@@ -1592,6 +1750,18 @@ async function handleModal(interaction: any) {
     if (!/^\d+$/.test(robloxUserId.trim())) {
       return { type: 4, data: { content: '❌ Invalid Roblox User ID. Please enter only numbers.', flags: 64 } };
     }
+
+    // Check if user is blacklisted from this panel
+    const { data: blacklistEntry } = await supabase
+      .from('console_blacklist')
+      .select('id, reason')
+      .eq('panel_id', panelId)
+      .eq('discord_user_id', discordUserId)
+      .maybeSingle();
+
+    if (blacklistEntry) {
+      return { type: 4, data: { content: `🚫 **You are blacklisted from this control panel.**\n\n**Reason:** ${blacklistEntry.reason || 'No reason provided'}`, flags: 64 } };
+    }
     
     // Check if key exists and is not redeemed
     const { data: key } = await supabase
@@ -1696,9 +1866,23 @@ async function handleModal(interaction: any) {
       }
     }
 
-    const expirationMsg = key.expires_at 
-      ? `\n⏰ **Expires:** ${new Date(key.expires_at).toLocaleString()}`
-      : '';
+    // Format expiration with proper date/time display
+    let expirationMsg = '';
+    if (key.expires_at) {
+      const expiresDate = new Date(key.expires_at);
+      const formattedDate = expiresDate.toLocaleDateString('en-US', { 
+        month: 'numeric', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+      const formattedTime = expiresDate.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        second: '2-digit',
+        hour12: true 
+      });
+      expirationMsg = `\n⏰ **Expires:** ${formattedDate}, ${formattedTime}`;
+    }
     
     return { 
       type: 4, 

@@ -38,6 +38,41 @@ export type Database = {
         }
         Relationships: []
       }
+      console_blacklist: {
+        Row: {
+          blacklisted_at: string
+          blacklisted_by: string
+          discord_user_id: string
+          id: string
+          panel_id: string
+          reason: string | null
+        }
+        Insert: {
+          blacklisted_at?: string
+          blacklisted_by: string
+          discord_user_id: string
+          id?: string
+          panel_id: string
+          reason?: string | null
+        }
+        Update: {
+          blacklisted_at?: string
+          blacklisted_by?: string
+          discord_user_id?: string
+          id?: string
+          panel_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "console_blacklist_panel_id_fkey"
+            columns: ["panel_id"]
+            isOneToOne: false
+            referencedRelation: "control_panels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       control_panel_keys: {
         Row: {
           created_at: string
