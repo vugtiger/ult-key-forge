@@ -136,7 +136,10 @@ const commands = [
     description: "Generate keys for a control panel (DMs you the file)",
     options: [
       { name: "panel", description: "Control panel name", type: 3, required: true },
-      { name: "amount", description: "Number of keys to generate (1-100)", type: 4, required: true, min_value: 1, max_value: 100 }
+      { name: "amount", description: "Number of keys to generate (1-100)", type: 4, required: true, min_value: 1, max_value: 100 },
+      { name: "minutes", description: "Minutes until key expires", type: 4, required: false, min_value: 1 },
+      { name: "hours", description: "Hours until key expires", type: 4, required: false, min_value: 1 },
+      { name: "days", description: "Days until key expires", type: 4, required: false, min_value: 1 }
     ]
   },
   {

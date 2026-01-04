@@ -1261,6 +1261,9 @@ When building websites, focus on clean, modern, responsive design.`;
 
       const panelName = data.options?.find((o: any) => o.name === 'panel')?.value;
       const amount = data.options?.find((o: any) => o.name === 'amount')?.value || 10;
+      const minutes = data.options?.find((o: any) => o.name === 'minutes')?.value;
+      const hours = data.options?.find((o: any) => o.name === 'hours')?.value;
+      const days = data.options?.find((o: any) => o.name === 'days')?.value;
 
       if (!panelName) {
         return { type: 4, data: { content: '❌ Please provide a panel name.', flags: 64 } };
@@ -1278,6 +1281,32 @@ When building websites, focus on clean, modern, responsive design.`;
         return { type: 4, data: { content: `❌ Panel "${panelName}" not found. Use \`/mypanels\` to see your panels.`, flags: 64 } };
       }
 
+      // Calculate expiration time if any time is specified
+      let expiresAt: string | null = null;
+      let expirationText = "Permanent";
+      
+      if (minutes || hours || days) {
+        const now = new Date();
+        let totalMs = 0;
+        const parts: string[] = [];
+        
+        if (days) {
+          totalMs += days * 24 * 60 * 60 * 1000;
+          parts.push(`${days}d`);
+        }
+        if (hours) {
+          totalMs += hours * 60 * 60 * 1000;
+          parts.push(`${hours}h`);
+        }
+        if (minutes) {
+          totalMs += minutes * 60 * 1000;
+          parts.push(`${minutes}m`);
+        }
+        
+        expiresAt = new Date(now.getTime() + totalMs).toISOString();
+        expirationText = parts.join(' ');
+      }
+
       // Generate keys
       const keys: string[] = [];
       for (let i = 0; i < amount; i++) {
@@ -1285,10 +1314,11 @@ When building websites, focus on clean, modern, responsive design.`;
         keys.push(key);
       }
 
-      // Insert keys into database
+      // Insert keys into database with expiration
       const keyInserts = keys.map(k => ({
         panel_id: panel.id,
-        key_value: k
+        key_value: k,
+        expires_at: expiresAt
       }));
 
       const { error } = await supabase
@@ -1301,16 +1331,16 @@ When building websites, focus on clean, modern, responsive design.`;
       }
 
       // Create file content
-      const fileContent = `# Keys for ${panel.name}\n# Generated: ${new Date().toISOString()}\n# Total: ${amount}\n\n${keys.join('\n')}`;
+      const fileContent = `# Keys for ${panel.name}\n# Generated: ${new Date().toISOString()}\n# Expiration: ${expirationText}\n# Total: ${amount}\n\n${keys.join('\n')}`;
 
       // DM the user with the keys file
       await sendDM(
         discordUserId,
-        `✅ **Keys Generated!**\n\n**Panel:** ${panel.name}\n**Amount:** ${amount}\n\nYour keys are attached below. Share these with your buyers!`,
+        `✅ **Keys Generated!**\n\n**Panel:** ${panel.name}\n**Amount:** ${amount}\n**Expiration:** ${expirationText}\n\nYour keys are attached below. Share these with your buyers!`,
         [{ name: `${panel.name.replace(/\s+/g, '_')}_keys.txt`, content: fileContent }]
       );
 
-      return { type: 4, data: { content: `✅ Generated **${amount}** keys for panel **${panel.name}**! Check your DMs for the file.`, flags: 64 } };
+      return { type: 4, data: { content: `✅ Generated **${amount}** keys for panel **${panel.name}**! Expiration: **${expirationText}**. Check your DMs for the file.`, flags: 64 } };
     }
 
     case 'mypanels': {
@@ -1391,7 +1421,7 @@ async function handleButton(interaction: any) {
   
   switch (action) {
     case 'redeem_key': {
-      // Return a modal for key input
+      // Return a modal for key input with Roblox User ID
       return {
         type: 9,
         data: {
@@ -1410,6 +1440,21 @@ async function handleButton(interaction: any) {
                   required: true,
                   min_length: 17,
                   max_length: 17
+                }
+              ]
+            },
+            {
+              type: 1,
+              components: [
+                {
+                  type: 4,
+                  custom_id: 'roblox_userid',
+                  label: 'Enter your Roblox User ID',
+                  style: 1,
+                  placeholder: '123456789',
+                  required: true,
+                  min_length: 1,
+                  max_length: 20
                 }
               ]
             }
@@ -1497,21 +1542,36 @@ async function handleModal(interaction: any) {
   
   if (action === 'redeem_modal') {
     const keyInput = interaction.data.components?.[0]?.components?.[0]?.value;
+    const robloxUserId = interaction.data.components?.[1]?.components?.[0]?.value;
     
     if (!keyInput) {
       return { type: 4, data: { content: '❌ Please enter a key.', flags: 64 } };
     }
     
+    if (!robloxUserId) {
+      return { type: 4, data: { content: '❌ Please enter your Roblox User ID.', flags: 64 } };
+    }
+
+    // Validate Roblox user ID is numeric
+    if (!/^\d+$/.test(robloxUserId.trim())) {
+      return { type: 4, data: { content: '❌ Invalid Roblox User ID. Please enter only numbers.', flags: 64 } };
+    }
+    
     // Check if key exists and is not redeemed
     const { data: key } = await supabase
       .from('control_panel_keys')
-      .select('id, redeemed_by_discord_id')
+      .select('id, redeemed_by_discord_id, expires_at')
       .eq('panel_id', panelId)
       .eq('key_value', keyInput.trim())
       .maybeSingle();
     
     if (!key) {
       return { type: 4, data: { content: '❌ Invalid key. Please check and try again.', flags: 64 } };
+    }
+
+    // Check if key has expired
+    if (key.expires_at && new Date(key.expires_at) < new Date()) {
+      return { type: 4, data: { content: '❌ This key has expired.', flags: 64 } };
     }
     
     if (key.redeemed_by_discord_id) {
@@ -1521,12 +1581,24 @@ async function handleModal(interaction: any) {
       return { type: 4, data: { content: '❌ This key has already been redeemed by someone else.', flags: 64 } };
     }
     
-    // Redeem the key
+    // Get panel to get paste_id
+    const { data: panel } = await supabase
+      .from('control_panels')
+      .select('discord_role_id, paste_id')
+      .eq('id', panelId)
+      .single();
+
+    if (!panel) {
+      return { type: 4, data: { content: '❌ Control panel not found.', flags: 64 } };
+    }
+
+    // Redeem the key and save Roblox user ID
     const { error } = await supabase
       .from('control_panel_keys')
       .update({ 
         redeemed_by_discord_id: discordUserId,
-        redeemed_at: new Date().toISOString()
+        redeemed_at: new Date().toISOString(),
+        roblox_user_id: robloxUserId.trim()
       })
       .eq('id', key.id);
     
@@ -1534,13 +1606,44 @@ async function handleModal(interaction: any) {
       console.error('Key redemption error:', error);
       return { type: 4, data: { content: '❌ Failed to redeem key.', flags: 64 } };
     }
-    
-    // Get panel to assign role
-    const { data: panel } = await supabase
-      .from('control_panels')
-      .select('discord_role_id')
-      .eq('id', panelId)
-      .single();
+
+    // Add Roblox user ID to paste whitelist if paste is connected
+    if (panel.paste_id) {
+      // Calculate whitelist expiration based on key expiration
+      const whitelistExpiresAt = key.expires_at || null;
+      const isEternal = !key.expires_at;
+
+      // Check if user is already whitelisted
+      const { data: existingAccess } = await supabase
+        .from('paste_access_control')
+        .select('id')
+        .eq('paste_id', panel.paste_id)
+        .eq('roblox_user_id', robloxUserId.trim())
+        .eq('access_type', 'whitelist')
+        .maybeSingle();
+
+      if (existingAccess) {
+        // Update existing whitelist entry
+        await supabase
+          .from('paste_access_control')
+          .update({
+            expires_at: whitelistExpiresAt,
+            is_eternal: isEternal
+          })
+          .eq('id', existingAccess.id);
+      } else {
+        // Add new whitelist entry
+        await supabase
+          .from('paste_access_control')
+          .insert({
+            paste_id: panel.paste_id,
+            roblox_user_id: robloxUserId.trim(),
+            access_type: 'whitelist',
+            expires_at: whitelistExpiresAt,
+            is_eternal: isEternal
+          });
+      }
+    }
     
     // Assign the role automatically
     if (panel?.discord_role_id) {
@@ -1556,11 +1659,15 @@ async function handleModal(interaction: any) {
         console.error('Auto role assignment failed:', error);
       }
     }
+
+    const expirationMsg = key.expires_at 
+      ? `\n⏰ **Expires:** ${new Date(key.expires_at).toLocaleString()}`
+      : '';
     
     return { 
       type: 4, 
       data: { 
-        content: `✅ **Key Redeemed Successfully!**\n\nYou now have access to:\n• 📜 Get Script\n• 🎭 Get Role\n\nClick the buttons on the control panel to use them!`, 
+        content: `✅ **Key Redeemed Successfully!**\n\n🎮 **Roblox User ID:** ${robloxUserId} has been whitelisted!${expirationMsg}\n\nYou now have access to:\n• 📜 Get Script\n• 🎭 Get Role\n\nClick the buttons on the control panel to use them!`, 
         flags: 64 
       } 
     };
