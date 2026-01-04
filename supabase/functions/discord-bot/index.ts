@@ -1412,12 +1412,21 @@ async function handleButton(interaction: any) {
   // Check if user has redeemed a key for this panel
   const { data: redeemedKey } = await supabase
     .from('control_panel_keys')
-    .select('id')
+    .select('id, expires_at')
     .eq('panel_id', panelId)
     .eq('redeemed_by_discord_id', discordUserId)
     .maybeSingle();
   
-  const isWhitelisted = !!redeemedKey;
+  // Check if key is valid and not expired
+  let isWhitelisted = !!redeemedKey;
+  let keyExpired = false;
+  
+  if (redeemedKey && redeemedKey.expires_at) {
+    if (new Date(redeemedKey.expires_at) < new Date()) {
+      isWhitelisted = false;
+      keyExpired = true;
+    }
+  }
   
   switch (action) {
     case 'redeem_key': {
@@ -1465,6 +1474,9 @@ async function handleButton(interaction: any) {
     
     case 'get_script': {
       if (!isWhitelisted) {
+        if (keyExpired) {
+          return { type: 4, data: { content: '❌ Your key has expired. Please redeem a new key to access the script.', flags: 64 } };
+        }
         return { type: 4, data: { content: '❌ You must redeem a key first to access the script.', flags: 64 } };
       }
       
@@ -1494,6 +1506,9 @@ async function handleButton(interaction: any) {
     
     case 'get_role': {
       if (!isWhitelisted) {
+        if (keyExpired) {
+          return { type: 4, data: { content: '❌ Your key has expired. Please redeem a new key to get the role.', flags: 64 } };
+        }
         return { type: 4, data: { content: '❌ You must redeem a key first to get the role.', flags: 64 } };
       }
       
