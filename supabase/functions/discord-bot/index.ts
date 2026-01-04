@@ -1409,23 +1409,44 @@ async function handleButton(interaction: any) {
     return { type: 4, data: { content: '❌ Control panel not found.', flags: 64 } };
   }
   
-  // Check if user has redeemed a key for this panel
-  const { data: redeemedKey } = await supabase
+  // Check if user has redeemed ANY valid key for this panel
+  // First check for permanent keys (no expiration)
+  const { data: permanentKey } = await supabase
+    .from('control_panel_keys')
+    .select('id')
+    .eq('panel_id', panelId)
+    .eq('redeemed_by_discord_id', discordUserId)
+    .is('expires_at', null)
+    .limit(1)
+    .maybeSingle();
+  
+  // Then check for non-expired keys
+  const { data: validKey } = await supabase
     .from('control_panel_keys')
     .select('id, expires_at')
     .eq('panel_id', panelId)
     .eq('redeemed_by_discord_id', discordUserId)
+    .not('expires_at', 'is', null)
+    .gte('expires_at', new Date().toISOString())
+    .limit(1)
     .maybeSingle();
   
-  // Check if key is valid and not expired
-  let isWhitelisted = !!redeemedKey;
-  let keyExpired = false;
+  // User is whitelisted if they have a permanent key OR a valid non-expired key
+  const isWhitelisted = !!permanentKey || !!validKey;
   
-  if (redeemedKey && redeemedKey.expires_at) {
-    if (new Date(redeemedKey.expires_at) < new Date()) {
-      isWhitelisted = false;
-      keyExpired = true;
-    }
+  // Check if they have any redeemed keys at all (to determine if expired)
+  let keyExpired = false;
+  if (!isWhitelisted) {
+    const { data: anyKey } = await supabase
+      .from('control_panel_keys')
+      .select('id')
+      .eq('panel_id', panelId)
+      .eq('redeemed_by_discord_id', discordUserId)
+      .limit(1)
+      .maybeSingle();
+    
+    // If they have a key but aren't whitelisted, it means all their keys expired
+    keyExpired = !!anyKey;
   }
   
   switch (action) {
