@@ -295,30 +295,36 @@ export type Database = {
       }
       pastes: {
         Row: {
+          background_protection: boolean | null
           content: string
           created_at: string
           id: string
           protection_enabled: boolean
+          public_protection: boolean | null
           slug: string
           title: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          background_protection?: boolean | null
           content: string
           created_at?: string
           id?: string
           protection_enabled?: boolean
+          public_protection?: boolean | null
           slug: string
           title?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          background_protection?: boolean | null
           content?: string
           created_at?: string
           id?: string
           protection_enabled?: boolean
+          public_protection?: boolean | null
           slug?: string
           title?: string | null
           updated_at?: string

@@ -2,10 +2,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw } from "lucide-react";
+import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Eye, Globe, Sparkles } from "lucide-react";
 
 const DiscordBot = () => {
-  const inviteUrl = "https://discord.com/oauth2/authorize?client_id=1407376197771595816";
+  const inviteUrl = "https://discord.com/oauth2/authorize?client_id=1407376197771595816&permissions=8&integration_type=0&scope=bot";
 
   const features = [
     {
@@ -26,7 +26,8 @@ const DiscordBot = () => {
     {
       icon: <Shield className="w-5 h-5" />,
       title: "Control Panels",
-      description: "Create interactive buyer panels with key redemption and role assignment"
+      description: "Create interactive buyer panels with key redemption and role assignment",
+      isNew: false
     },
     {
       icon: <Clock className="w-5 h-5" />,
@@ -35,13 +36,33 @@ const DiscordBot = () => {
     },
     {
       icon: <Ban className="w-5 h-5" />,
-      title: "Blacklist Users",
-      description: "Block specific Discord users from using your control panels"
+      title: "Console Blacklist",
+      description: "Block specific Discord users from using your control panels",
+      isNew: false
     },
     {
       icon: <RefreshCw className="w-5 h-5" />,
       title: "Force Expire",
-      description: "Manually expire user access and remove them from whitelists"
+      description: "Manually expire user access and remove them from whitelists",
+      isNew: false
+    },
+    {
+      icon: <Eye className="w-5 h-5" />,
+      title: "Background Protection",
+      description: "Hide code from browser viewers with a protected page",
+      isNew: true
+    },
+    {
+      icon: <Globe className="w-5 h-5" />,
+      title: "Public Protection",
+      description: "Free-for-all execution without whitelist, blacklist still works",
+      isNew: true
+    },
+    {
+      icon: <Sparkles className="w-5 h-5" />,
+      title: "Enhanced Security",
+      description: "Advanced bypass detection and token obfuscation",
+      isNew: true
     },
     {
       icon: <Zap className="w-5 h-5" />,
@@ -95,6 +116,10 @@ const DiscordBot = () => {
               <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
               Bot Online
             </Badge>
+            <Badge variant="outline" className="px-4 py-2 text-sm border-primary/50 bg-primary/10">
+              <Sparkles className="w-3 h-3 mr-1" />
+              New Features
+            </Badge>
           </div>
 
           {/* Invite Button */}
@@ -123,7 +148,12 @@ const DiscordBot = () => {
                     {feature.icon}
                   </div>
                   <div>
-                    <h3 className="font-semibold mb-1">{feature.title}</h3>
+                    <h3 className="font-semibold mb-1 flex items-center gap-2">
+                      {feature.title}
+                      {feature.isNew && (
+                        <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-primary">NEW</Badge>
+                      )}
+                    </h3>
                     <p className="text-sm text-muted-foreground">{feature.description}</p>
                   </div>
                 </div>

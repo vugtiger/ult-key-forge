@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -35,8 +35,11 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
   const [entries, setEntries] = useState<AccessEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  
+  // Track pending datetime values to prevent refresh issues
+  const pendingUpdates = useRef<Map<string, string>>(new Map());
 
-  // Persist "Enable Time Management" per paste so it doesn't flip off on re-mounts.
+  // Persist "Enable Time Management" per paste
   useEffect(() => {
     if (!pasteId) return;
     try {
@@ -57,6 +60,10 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
 
   const fetchEntries = useCallback(async () => {
     if (!pasteId) return;
+    
+    // Don't refresh if there are pending updates
+    if (pendingUpdates.current.size > 0) return;
+    
     setLoading(true);
     const { data, error } = await supabase
       .from('paste_access_control')
@@ -77,19 +84,14 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
     }
   }, [pasteId, fetchEntries]);
 
-  // Refresh entries periodically when enabled (no auto-delete)
-  useEffect(() => {
-    if (!pasteId || !enabled) return;
-    
-    const interval = setInterval(() => {
-      fetchEntries();
-    }, 10000);
-    
-    return () => clearInterval(interval);
-  }, [pasteId, enabled]);
+  // Removed auto-refresh to prevent interrupting user input
+  // Users can manually refresh by toggling the switch off/on
 
   const setExpiration = async (entryId: string, expiresAt: string | null, isEternal: boolean) => {
     try {
+      // Clear pending update
+      pendingUpdates.current.delete(entryId);
+      
       const { error } = await supabase
         .from('paste_access_control')
         .update({ 
@@ -113,15 +115,25 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
 
   const handleDateTimeChange = (entryId: string, value: string) => {
     if (value) {
-      setExpiration(entryId, new Date(value).toISOString(), false);
+      // Mark as pending to prevent refresh
+      pendingUpdates.current.set(entryId, value);
+      
+      // Delay the update to allow user to finish input
+      setTimeout(() => {
+        if (pendingUpdates.current.get(entryId) === value) {
+          setExpiration(entryId, new Date(value).toISOString(), false);
+        }
+      }, 500);
     }
   };
 
   const setEternal = (entryId: string) => {
+    pendingUpdates.current.delete(entryId);
     setExpiration(entryId, null, true);
   };
 
   const removeExpiration = (entryId: string) => {
+    pendingUpdates.current.delete(entryId);
     setExpiration(entryId, null, false);
   };
 
@@ -131,13 +143,35 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
     const date = new Date(entry.expires_at);
     const now = new Date();
     if (date < now) return "Expired";
-    return date.toLocaleString();
+    // Use explicit formatting for consistency
+    return date.toLocaleString('en-US', {
+      month: 'numeric',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
   };
 
   const isExpired = (entry: AccessEntry) => {
     if (entry.is_eternal) return false;
     if (!entry.expires_at) return false;
     return new Date(entry.expires_at) < new Date();
+  };
+
+  // Convert ISO date to local datetime-local input format
+  const getLocalDateTimeValue = (entry: AccessEntry) => {
+    if (!entry.expires_at || entry.is_eternal) return '';
+    const date = new Date(entry.expires_at);
+    // Format for datetime-local input
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
   return (
@@ -158,11 +192,8 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
             checked={enabled}
             onCheckedChange={(checked) => {
               setEnabled(checked);
-              if (!pasteId) return;
-              try {
-                localStorage.setItem(storageKey, checked ? "1" : "0");
-              } catch {
-                // ignore
+              if (checked) {
+                fetchEntries(); // Refresh when enabling
               }
             }}
           />
@@ -170,6 +201,17 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
 
         {enabled && (
           <div className="space-y-3">
+            <div className="flex justify-end">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={fetchEntries}
+                className="text-xs"
+              >
+                Refresh List
+              </Button>
+            </div>
+            
             {loading ? (
               <p className="text-sm text-muted-foreground">Loading...</p>
             ) : entries.length === 0 ? (
@@ -190,6 +232,7 @@ const WhitelistTimeManager = ({ pasteId, onUpdate }: WhitelistTimeManagerProps) 
                     <Input
                       type="datetime-local"
                       className="flex-1 min-w-[200px] text-xs bg-background/50"
+                      defaultValue={getLocalDateTimeValue(entry)}
                       onChange={(e) => handleDateTimeChange(entry.id, e.target.value)}
                     />
                     <Button
