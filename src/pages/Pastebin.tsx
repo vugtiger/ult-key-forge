@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Eye, Globe } from "lucide-react";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
 import luaLogo from "@/assets/lua-logo.png";
 
@@ -22,6 +23,8 @@ interface Paste {
   created_at: string;
   updated_at: string;
   protection_enabled: boolean;
+  background_protection?: boolean;
+  public_protection?: boolean;
 }
 
 interface AccessEntry {
@@ -221,6 +224,48 @@ const Pastebin = () => {
     }
   };
 
+  const toggleBackgroundProtection = async (pasteId: string, enabled: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('pastes')
+        .update({ background_protection: enabled })
+        .eq('id', pasteId);
+
+      if (error) throw error;
+
+      toast({ 
+        title: enabled ? "Background Protection Enabled" : "Background Protection Disabled",
+        description: enabled 
+          ? "Browser viewers will see a protected page instead of code" 
+          : "Code will be visible to everyone in browsers"
+      });
+      fetchPastes();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const togglePublicProtection = async (pasteId: string, enabled: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('pastes')
+        .update({ public_protection: enabled })
+        .eq('id', pasteId);
+
+      if (error) throw error;
+
+      toast({ 
+        title: enabled ? "Public Protection Enabled" : "Public Protection Disabled",
+        description: enabled 
+          ? "Anyone can execute (no whitelist needed), but blacklist still works" 
+          : "Standard whitelist protection restored"
+      });
+      fetchPastes();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
   const addAccessEntry = async (accessType: 'whitelist' | 'blacklist') => {
     if (!selectedPasteId) {
       toast({ title: "Error", description: "Please select a paste first", variant: "destructive" });
@@ -236,14 +281,12 @@ const Pastebin = () => {
     }
 
     try {
-      // Remove any existing entry for this user (could be on whitelist/blacklist)
       await supabase
         .from('paste_access_control')
         .delete()
         .eq('paste_id', selectedPasteId)
         .eq('roblox_user_id', robloxUserId.trim());
 
-      // Add new entry
       const { error } = await supabase
         .from('paste_access_control')
         .insert({
@@ -414,8 +457,13 @@ const Pastebin = () => {
 
             {selectedPaste && (
               <Tabs defaultValue="access" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="access">Access Control</TabsTrigger>
+                  <TabsTrigger value="options">
+                    <Shield className="h-4 w-4 mr-1" />
+                    Options
+                    <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">NEW</Badge>
+                  </TabsTrigger>
                   <TabsTrigger value="time">
                     <Clock className="h-4 w-4 mr-1" />
                     Whitelist Time
@@ -546,6 +594,60 @@ const Pastebin = () => {
                   </div>
                 </TabsContent>
 
+                <TabsContent value="options" className="space-y-4">
+                  {/* Background Protection */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Eye className="h-5 w-5 text-primary" />
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2">
+                            Background Protection
+                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Hides code from browser viewers with a protected page
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={selectedPaste.background_protection || false}
+                        onCheckedChange={(checked) => toggleBackgroundProtection(selectedPaste.id, checked)}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                      When enabled, anyone viewing the raw URL in a browser will see a "Not authorized" page. 
+                      The script still works normally with loadstring() in Roblox.
+                    </p>
+                  </div>
+
+                  {/* Public Protection */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Globe className="h-5 w-5 text-primary" />
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2">
+                            Protection Without Whitelist
+                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Free-for-all with encryption, blacklist still works
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={selectedPaste.public_protection || false}
+                        onCheckedChange={(checked) => togglePublicProtection(selectedPaste.id, checked)}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                      When enabled, anyone can execute the script without being whitelisted. 
+                      The script is still encrypted and blacklisted users are still blocked.
+                    </p>
+                  </div>
+                </TabsContent>
+
                 <TabsContent value="time">
                   <WhitelistTimeManager 
                     pasteId={selectedPasteId} 
@@ -574,12 +676,18 @@ const Pastebin = () => {
                     <CardContent className="pt-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-medium truncate">
                               {paste.title || "Untitled"}
                             </h3>
                             {paste.protection_enabled && (
                               <Lock className="h-3 w-3 text-primary" />
+                            )}
+                            {paste.background_protection && (
+                              <Badge variant="outline" className="text-[10px]">BG</Badge>
+                            )}
+                            {paste.public_protection && (
+                              <Badge variant="outline" className="text-[10px]">PUBLIC</Badge>
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground">
