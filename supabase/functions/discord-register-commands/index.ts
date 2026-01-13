@@ -164,6 +164,30 @@ const commands = [
     ]
   },
   {
+    name: "backgroundprotection",
+    description: "Toggle background protection on a paste (hides code in browser)",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable background protection", type: 5, required: true }
+    ]
+  },
+  {
+    name: "publicprotection",
+    description: "Toggle public protection (no whitelist required, but still encrypted)",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable public protection", type: 5, required: true }
+    ]
+  },
+  {
+    name: "unblacklist",
+    description: "Remove a Discord user from control panel blacklist",
+    options: [
+      { name: "panel", description: "Control panel name", type: 3, required: true },
+      { name: "user", description: "Discord user to unblacklist", type: 6, required: true }
+    ]
+  },
+  {
     name: "help",
     description: "Show all available commands"
   }

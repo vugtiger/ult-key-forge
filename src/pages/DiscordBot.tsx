@@ -72,29 +72,32 @@ const DiscordBot = () => {
   ];
 
   const commands = [
-    { name: "/register", description: "Create a new ULT LUA PROTECTS account" },
-    { name: "/login", description: "Link your existing account to Discord" },
-    { name: "/logout", description: "Unlink your Discord from your account" },
-    { name: "/keysystemgen", description: "Generate a key system (DMs you the file)" },
-    { name: "/mykeys", description: "View your generated key systems" },
-    { name: "/savescript", description: "Save a script to your account" },
-    { name: "/scripts", description: "View your saved scripts" },
-    { name: "/paste", description: "Create a paste (DMs you the raw URL)" },
-    { name: "/mypastes", description: "View your pastes" },
-    { name: "/scriptprotection", description: "Toggle protection on a paste" },
-    { name: "/whitelist", description: "Add a Roblox user ID to paste whitelist" },
-    { name: "/blacklist", description: "Add a Roblox user ID to paste blacklist" },
-    { name: "/setwhitelisttime", description: "Set expiration time for a whitelisted user" },
-    { name: "/stats", description: "View paste execution statistics" },
-    { name: "/panel", description: "Create a control panel for your paste" },
-    { name: "/genkeys", description: "Generate keys for a control panel with optional expiration" },
-    { name: "/mypanels", description: "View your control panels" },
-    { name: "/consoleblacklist", description: "Blacklist a Discord user from a control panel" },
-    { name: "/forceexpire", description: "Force expire a user's access to a control panel" },
-    { name: "/ai", description: "Chat with the AI assistant" },
-    { name: "/profile", description: "View your profile and stats" },
-    { name: "/factoryreset", description: "Wipe all your data (account stays)" },
-    { name: "/help", description: "Show all available commands" }
+    { name: "/register", description: "Create a new ULT LUA PROTECTS account", isNew: false },
+    { name: "/login", description: "Link your existing account to Discord", isNew: false },
+    { name: "/logout", description: "Unlink your Discord from your account", isNew: false },
+    { name: "/keysystemgen", description: "Generate a key system (DMs you the file)", isNew: false },
+    { name: "/mykeys", description: "View your generated key systems", isNew: false },
+    { name: "/savescript", description: "Save a script to your account", isNew: false },
+    { name: "/scripts", description: "View your saved scripts", isNew: false },
+    { name: "/paste", description: "Create a paste (DMs you the raw URL)", isNew: false },
+    { name: "/mypastes", description: "View your pastes", isNew: false },
+    { name: "/scriptprotection", description: "Toggle protection on a paste", isNew: false },
+    { name: "/backgroundprotection", description: "Hide code from browser with protected page", isNew: true },
+    { name: "/publicprotection", description: "Protection without whitelist requirement", isNew: true },
+    { name: "/whitelist", description: "Add a Roblox user ID to paste whitelist", isNew: false },
+    { name: "/blacklist", description: "Add a Roblox user ID to paste blacklist", isNew: false },
+    { name: "/setwhitelisttime", description: "Set expiration time for a whitelisted user", isNew: false },
+    { name: "/stats", description: "View paste execution statistics", isNew: false },
+    { name: "/panel", description: "Create a control panel for your paste", isNew: false },
+    { name: "/genkeys", description: "Generate keys for a control panel with optional expiration", isNew: false },
+    { name: "/mypanels", description: "View your control panels", isNew: false },
+    { name: "/consoleblacklist", description: "Blacklist a Discord user from a control panel", isNew: false },
+    { name: "/unblacklist", description: "Remove a user from control panel blacklist", isNew: true },
+    { name: "/forceexpire", description: "Force expire a user's access to a control panel", isNew: false },
+    { name: "/ai", description: "Chat with the AI assistant", isNew: false },
+    { name: "/profile", description: "View your profile and stats", isNew: false },
+    { name: "/factoryreset", description: "Wipe all your data (account stays)", isNew: false },
+    { name: "/help", description: "Show all available commands", isNew: false }
   ];
 
   return (
@@ -265,7 +268,10 @@ const DiscordBot = () => {
                 <code className="px-2 py-1 bg-primary/20 text-primary rounded font-mono text-sm shrink-0">
                   {cmd.name}
                 </code>
-                <span className="text-sm text-muted-foreground">{cmd.description}</span>
+                <span className="text-sm text-muted-foreground flex-1">{cmd.description}</span>
+                {cmd.isNew && (
+                  <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-primary shrink-0">NEW</Badge>
+                )}
               </div>
             ))}
           </div>
