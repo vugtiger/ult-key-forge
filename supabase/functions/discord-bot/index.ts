@@ -1371,10 +1371,124 @@ When building websites, focus on clean, modern, responsive design.`;
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle protection\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/setwhitelisttime\` - Set expiration\n\`/stats\` - View stats\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/genkeys\` - Generate keys (with expiration)\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist user from panel\n\`/forceexpire\` - Force expire user access\n\n**AI:**\n\`/ai\` - Chat with AI`, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle protection\n\`/backgroundprotection\` - 🆕 Hide code in browser\n\`/publicprotection\` - 🆕 Protection without whitelist\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/setwhitelisttime\` - Set expiration\n\`/stats\` - View stats\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/genkeys\` - Generate keys (with expiration)\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist user from panel\n\`/unblacklist\` - 🆕 Remove from blacklist\n\`/forceexpire\` - Force expire user access\n\n**AI:**\n\`/ai\` - Chat with AI`, 
           flags: 0 
         }
       };
+    }
+
+    case 'backgroundprotection': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
+
+      if (!pasteName) {
+        return { type: 4, data: { content: '❌ Please provide the paste name.', flags: 64 } };
+      }
+
+      const { data: paste } = await supabase
+        .from('pastes')
+        .select('id, title')
+        .eq('user_id', user.userId)
+        .ilike('title', pasteName)
+        .maybeSingle();
+
+      if (!paste) {
+        return { type: 4, data: { content: `❌ Paste "${pasteName}" not found. Use \`/mypastes\` to see your pastes.`, flags: 64 } };
+      }
+
+      const { error } = await supabase
+        .from('pastes')
+        .update({ background_protection: enabled })
+        .eq('id', paste.id);
+
+      if (error) {
+        return { type: 4, data: { content: `❌ Failed to update: ${error.message}`, flags: 64 } };
+      }
+
+      await sendDM(discordUserId, `✅ **Background Protection Updated!**\n\n**Paste:** ${paste.title || 'Untitled'}\n**Background Protection:** ${enabled ? 'Enabled' : 'Disabled'}\n\n${enabled ? '🛡️ Code will now be hidden when viewed in a browser. Loadstring still works!' : '📄 Code is now visible in browser.'}`);
+
+      return { type: 4, data: { content: `✅ Background protection ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**! Check your DMs.`, flags: 64 } };
+    }
+
+    case 'publicprotection': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
+
+      if (!pasteName) {
+        return { type: 4, data: { content: '❌ Please provide the paste name.', flags: 64 } };
+      }
+
+      const { data: paste } = await supabase
+        .from('pastes')
+        .select('id, title')
+        .eq('user_id', user.userId)
+        .ilike('title', pasteName)
+        .maybeSingle();
+
+      if (!paste) {
+        return { type: 4, data: { content: `❌ Paste "${pasteName}" not found. Use \`/mypastes\` to see your pastes.`, flags: 64 } };
+      }
+
+      const { error } = await supabase
+        .from('pastes')
+        .update({ public_protection: enabled })
+        .eq('id', paste.id);
+
+      if (error) {
+        return { type: 4, data: { content: `❌ Failed to update: ${error.message}`, flags: 64 } };
+      }
+
+      await sendDM(discordUserId, `✅ **Public Protection Updated!**\n\n**Paste:** ${paste.title || 'Untitled'}\n**Public Protection:** ${enabled ? 'Enabled' : 'Disabled'}\n\n${enabled ? '🔓 Anyone can execute this script (no whitelist needed), but it is still encrypted. Blacklist still works!' : '🔒 Standard protection mode - whitelist required.'}`);
+
+      return { type: 4, data: { content: `✅ Public protection ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**! Check your DMs.`, flags: 64 } };
+    }
+
+    case 'unblacklist': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const panelName = data.options?.find((o: any) => o.name === 'panel')?.value;
+      const targetUserId = data.options?.find((o: any) => o.name === 'user')?.value;
+
+      if (!panelName || !targetUserId) {
+        return { type: 4, data: { content: '❌ Please provide panel name and user.', flags: 64 } };
+      }
+
+      const { data: panel } = await supabase
+        .from('control_panels')
+        .select('id, name')
+        .eq('user_id', user.userId)
+        .ilike('name', panelName)
+        .maybeSingle();
+
+      if (!panel) {
+        return { type: 4, data: { content: `❌ Panel "${panelName}" not found. Use \`/mypanels\` to see your panels.`, flags: 64 } };
+      }
+
+      const { error } = await supabase
+        .from('console_blacklist')
+        .delete()
+        .eq('panel_id', panel.id)
+        .eq('discord_user_id', targetUserId);
+
+      if (error) {
+        console.error('Unblacklist error:', error);
+        return { type: 4, data: { content: `❌ Failed to unblacklist user: ${error.message}`, flags: 64 } };
+      }
+
+      return { type: 4, data: { content: `✅ User <@${targetUserId}> has been removed from the blacklist for panel **${panel.name}**.`, flags: 64 } };
     }
 
     case 'consoleblacklist': {

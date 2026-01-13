@@ -22,12 +22,21 @@ const Index = () => {
   }, [navigate]);
 
   const features = [
-    { icon: Key, title: "Key System Generator", description: "Generate custom key systems with unlimited keys, custom colors, and ASCII art branding." },
-    { icon: Shield, title: "User-Locked Keys", description: "Each key is locked to a single Roblox user ID for maximum security." },
-    { icon: Database, title: "Script Storage", description: "Save and manage your Roblox scripts in one secure location." },
-    { icon: Bot, title: "AI Assistant", description: "Get help generating Roblox scripts and even build websites with AI." },
-    { icon: Palette, title: "Theme Customization", description: "Fully customize the UI text colors to match your brand." },
-    { icon: Save, title: "Cloud Backup", description: "All your data is securely stored and accessible anywhere." },
+    { icon: Key, title: "Key System Generator", description: "Generate custom key systems with unlimited keys, custom colors, and ASCII art branding.", isNew: false },
+    { icon: Shield, title: "User-Locked Keys", description: "Each key is locked to a single Roblox user ID for maximum security.", isNew: false },
+    { icon: Database, title: "Script Storage", description: "Save and manage your Roblox scripts in one secure location.", isNew: false },
+    { icon: Bot, title: "AI Assistant", description: "Get help generating Roblox scripts and even build websites with AI.", isNew: false },
+    { icon: Palette, title: "Theme Customization", description: "Fully customize the UI text colors to match your brand.", isNew: false },
+    { icon: Save, title: "Cloud Backup", description: "All your data is securely stored and accessible anywhere.", isNew: false },
+  ];
+
+  const newFeatures = [
+    { icon: Shield, title: "Background Protection", description: "Hide your code from browser view while still allowing loadstring execution.", isNew: true },
+    { icon: Zap, title: "Public Protection", description: "Encrypted protection without whitelist - anyone can execute but code stays safe.", isNew: true },
+    { icon: Bot, title: "Discord Control Panels", description: "Create control panels with key redemption, role assignment, and script delivery.", isNew: true },
+    { icon: Key, title: "Expiring Keys", description: "Generate keys with custom expiration times - minutes, hours, or days.", isNew: true },
+    { icon: Shield, title: "Console Blacklist", description: "Blacklist users from control panels and force expire their access.", isNew: true },
+    { icon: Database, title: "Whitelist Time Management", description: "Set precise expiration times for whitelisted users.", isNew: true },
   ];
 
   return (
@@ -114,8 +123,34 @@ const Index = () => {
               {features.map((feature, index) => (
                 <Card
                   key={index}
-                  className="p-6 cyber-border bg-card/50 backdrop-blur-xl hover:bg-card/70 transition-all group"
+                  className="p-6 cyber-border bg-card/50 backdrop-blur-xl hover:bg-card/70 transition-all group relative"
                 >
+                  <feature.icon className="w-12 h-12 mb-4 text-foreground group-hover:scale-110 transition-transform" />
+                  <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                  <p className="text-muted-foreground">{feature.description}</p>
+                </Card>
+              ))}
+            </div>
+          </section>
+
+          {/* New Features Section */}
+          <section className="max-w-6xl mx-auto mb-24">
+            <h2 className="text-4xl font-bold text-center mb-4">
+              What's New 🆕
+            </h2>
+            <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
+              Latest features and improvements to the platform
+            </p>
+            
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {newFeatures.map((feature, index) => (
+                <Card
+                  key={index}
+                  className="p-6 cyber-border bg-card/50 backdrop-blur-xl hover:bg-card/70 transition-all group relative overflow-hidden"
+                >
+                  <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-full">
+                    NEW
+                  </div>
                   <feature.icon className="w-12 h-12 mb-4 text-foreground group-hover:scale-110 transition-transform" />
                   <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
                   <p className="text-muted-foreground">{feature.description}</p>
