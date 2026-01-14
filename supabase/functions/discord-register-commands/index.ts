@@ -164,14 +164,6 @@ const commands = [
     ]
   },
   {
-    name: "backgroundprotection",
-    description: "Toggle background protection on a paste (hides code in browser)",
-    options: [
-      { name: "paste", description: "Paste name/title", type: 3, required: true },
-      { name: "enabled", description: "Enable or disable background protection", type: 5, required: true }
-    ]
-  },
-  {
     name: "publicprotection",
     description: "Toggle public protection (no whitelist required, but still encrypted)",
     options: [

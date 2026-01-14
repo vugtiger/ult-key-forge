@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Eye, Globe } from "lucide-react";
+import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe } from "lucide-react";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
 import luaLogo from "@/assets/lua-logo.png";
 
@@ -23,7 +23,6 @@ interface Paste {
   created_at: string;
   updated_at: string;
   protection_enabled: boolean;
-  background_protection?: boolean;
   public_protection?: boolean;
 }
 
@@ -224,26 +223,6 @@ const Pastebin = () => {
     }
   };
 
-  const toggleBackgroundProtection = async (pasteId: string, enabled: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('pastes')
-        .update({ background_protection: enabled })
-        .eq('id', pasteId);
-
-      if (error) throw error;
-
-      toast({ 
-        title: enabled ? "Background Protection Enabled" : "Background Protection Disabled",
-        description: enabled 
-          ? "Browser viewers will see a protected page instead of code" 
-          : "Code will be visible to everyone in browsers"
-      });
-      fetchPastes();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
 
   const togglePublicProtection = async (pasteId: string, enabled: boolean) => {
     try {
@@ -595,32 +574,6 @@ const Pastebin = () => {
                 </TabsContent>
 
                 <TabsContent value="options" className="space-y-4">
-                  {/* Background Protection */}
-                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Eye className="h-5 w-5 text-primary" />
-                        <div>
-                          <h4 className="font-medium flex items-center gap-2">
-                            Background Protection
-                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
-                          </h4>
-                          <p className="text-xs text-muted-foreground">
-                            Hides code from browser viewers with a protected page
-                          </p>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={selectedPaste.background_protection || false}
-                        onCheckedChange={(checked) => toggleBackgroundProtection(selectedPaste.id, checked)}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
-                      When enabled, anyone viewing the raw URL in a browser will see a "Not authorized" page. 
-                      The script still works normally with loadstring() in Roblox.
-                    </p>
-                  </div>
-
                   {/* Public Protection */}
                   <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
                     <div className="flex items-center justify-between">
@@ -682,9 +635,6 @@ const Pastebin = () => {
                             </h3>
                             {paste.protection_enabled && (
                               <Lock className="h-3 w-3 text-primary" />
-                            )}
-                            {paste.background_protection && (
-                              <Badge variant="outline" className="text-[10px]">BG</Badge>
                             )}
                             {paste.public_protection && (
                               <Badge variant="outline" className="text-[10px]">PUBLIC</Badge>
