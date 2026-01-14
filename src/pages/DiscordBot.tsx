@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Eye, Globe, Sparkles } from "lucide-react";
+import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Globe, Sparkles } from "lucide-react";
 
 const DiscordBot = () => {
   const inviteUrl = "https://discord.com/oauth2/authorize?client_id=1407376197771595816&permissions=8&integration_type=0&scope=bot";
@@ -47,12 +47,6 @@ const DiscordBot = () => {
       isNew: false
     },
     {
-      icon: <Eye className="w-5 h-5" />,
-      title: "Background Protection",
-      description: "Hide code from browser viewers with a protected page",
-      isNew: true
-    },
-    {
       icon: <Globe className="w-5 h-5" />,
       title: "Public Protection",
       description: "Free-for-all execution without whitelist, blacklist still works",
@@ -82,7 +76,6 @@ const DiscordBot = () => {
     { name: "/paste", description: "Create a paste (DMs you the raw URL)", isNew: false },
     { name: "/mypastes", description: "View your pastes", isNew: false },
     { name: "/scriptprotection", description: "Toggle protection on a paste", isNew: false },
-    { name: "/backgroundprotection", description: "Hide code from browser with protected page", isNew: true },
     { name: "/publicprotection", description: "Protection without whitelist requirement", isNew: true },
     { name: "/whitelist", description: "Add a Roblox user ID to paste whitelist", isNew: false },
     { name: "/blacklist", description: "Add a Roblox user ID to paste blacklist", isNew: false },
