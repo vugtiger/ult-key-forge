@@ -298,6 +298,7 @@ export type Database = {
           background_protection: boolean | null
           content: string
           created_at: string
+          hide_code: boolean | null
           id: string
           protection_enabled: boolean
           public_protection: boolean | null
@@ -310,6 +311,7 @@ export type Database = {
           background_protection?: boolean | null
           content: string
           created_at?: string
+          hide_code?: boolean | null
           id?: string
           protection_enabled?: boolean
           public_protection?: boolean | null
@@ -322,6 +324,7 @@ export type Database = {
           background_protection?: boolean | null
           content?: string
           created_at?: string
+          hide_code?: boolean | null
           id?: string
           protection_enabled?: boolean
           public_protection?: boolean | null

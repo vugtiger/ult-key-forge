@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, Key, Shield, Database, Bot, Palette, Save, Zap, Code, MessageSquare, ExternalLink } from "lucide-react";
+import { ArrowRight, Key, Shield, Database, Bot, Palette, Save, Zap, Code, MessageSquare, ExternalLink, Sparkles, EyeOff, Clock } from "lucide-react";
 import KeySystemPreview from "@/components/KeySystemPreview";
 import AIAssistantDemo from "@/components/AIAssistantDemo";
 import ReviewsSection from "@/components/ReviewsSection";
@@ -31,12 +31,12 @@ const Index = () => {
   ];
 
   const newFeatures = [
-    { icon: Shield, title: "Background Protection", description: "Hide your code from browser view while still allowing loadstring execution.", isNew: true },
+    { icon: EyeOff, title: "Hide Code", description: "Hide your code from the raw URL - shows blank but loadstring still works.", isNew: true },
     { icon: Zap, title: "Public Protection", description: "Encrypted protection without whitelist - anyone can execute but code stays safe.", isNew: true },
     { icon: Bot, title: "Discord Control Panels", description: "Create control panels with key redemption, role assignment, and script delivery.", isNew: true },
     { icon: Key, title: "Expiring Keys", description: "Generate keys with custom expiration times - minutes, hours, or days.", isNew: true },
     { icon: Shield, title: "Console Blacklist", description: "Blacklist users from control panels and force expire their access.", isNew: true },
-    { icon: Database, title: "Whitelist Time Management", description: "Set precise expiration times for whitelisted users.", isNew: true },
+    { icon: Clock, title: "Whitelist Time Management", description: "Set precise expiration times for whitelisted users.", isNew: true },
   ];
 
   return (
@@ -135,8 +135,9 @@ const Index = () => {
 
           {/* New Features Section */}
           <section className="max-w-6xl mx-auto mb-24">
-            <h2 className="text-4xl font-bold text-center mb-4">
-              What's New 🆕
+            <h2 className="text-4xl font-bold text-center mb-4 flex items-center justify-center gap-3">
+              What's New
+              <Sparkles className="w-8 h-8 text-primary" />
             </h2>
             <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
               Latest features and improvements to the platform
@@ -148,7 +149,8 @@ const Index = () => {
                   key={index}
                   className="p-6 cyber-border bg-card/50 backdrop-blur-xl hover:bg-card/70 transition-all group relative overflow-hidden"
                 >
-                  <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-full">
+                  <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
                     NEW
                   </div>
                   <feature.icon className="w-12 h-12 mb-4 text-foreground group-hover:scale-110 transition-transform" />

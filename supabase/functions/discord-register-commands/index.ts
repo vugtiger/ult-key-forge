@@ -6,6 +6,7 @@ const corsHeaders = {
 };
 
 const commands = [
+  // Account Commands
   {
     name: "register",
     description: "Create a new ULT LUA PROTECTS account",
@@ -27,6 +28,16 @@ const commands = [
     description: "Unlink your Discord from your account"
   },
   {
+    name: "profile",
+    description: "View your profile and stats"
+  },
+  {
+    name: "factoryreset",
+    description: "Wipe all your data (key systems, scripts, pastes) - account stays"
+  },
+
+  // Key System Commands
+  {
     name: "keysystemgen",
     description: "Generate a key system (DMs you the file)",
     options: [
@@ -39,6 +50,8 @@ const commands = [
     name: "mykeys",
     description: "View your generated key systems"
   },
+
+  // Script Commands
   {
     name: "savescript",
     description: "Save a script to your account",
@@ -51,6 +64,8 @@ const commands = [
     name: "scripts",
     description: "View your saved scripts"
   },
+
+  // Pastebin Commands
   {
     name: "paste",
     description: "Create a paste (DMs you the raw URL)",
@@ -69,6 +84,22 @@ const commands = [
     options: [
       { name: "paste", description: "Paste name/title", type: 3, required: true },
       { name: "enabled", description: "Enable or disable protection", type: 5, required: true }
+    ]
+  },
+  {
+    name: "publicprotection",
+    description: "Toggle public protection (no whitelist required, but still encrypted)",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable public protection", type: 5, required: true }
+    ]
+  },
+  {
+    name: "hidecode",
+    description: "Hide code from raw URL (shows blank but loadstring still works)",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable hide code", type: 5, required: true }
     ]
   },
   {
@@ -106,22 +137,8 @@ const commands = [
       { name: "paste", description: "Paste name/title", type: 3, required: true }
     ]
   },
-  {
-    name: "factoryreset",
-    description: "Wipe all your data (key systems, scripts, pastes) - account stays"
-  },
-  {
-    name: "profile",
-    description: "View your profile and stats"
-  },
-  {
-    name: "ai",
-    description: "Chat with the AI assistant",
-    options: [
-      { name: "enabled", description: "Enable or disable AI (True/False)", type: 5, required: true },
-      { name: "message", description: "Your message/question for the AI", type: 3, required: false }
-    ]
-  },
+
+  // Control Panel Commands
   {
     name: "panel",
     description: "Create a control panel for your paste",
@@ -156,22 +173,6 @@ const commands = [
     ]
   },
   {
-    name: "forceexpire",
-    description: "Force expire a user's access to a control panel",
-    options: [
-      { name: "panel", description: "Control panel name", type: 3, required: true },
-      { name: "user", description: "Discord user to force expire", type: 6, required: true }
-    ]
-  },
-  {
-    name: "publicprotection",
-    description: "Toggle public protection (no whitelist required, but still encrypted)",
-    options: [
-      { name: "paste", description: "Paste name/title", type: 3, required: true },
-      { name: "enabled", description: "Enable or disable public protection", type: 5, required: true }
-    ]
-  },
-  {
     name: "unblacklist",
     description: "Remove a Discord user from control panel blacklist",
     options: [
@@ -179,6 +180,26 @@ const commands = [
       { name: "user", description: "Discord user to unblacklist", type: 6, required: true }
     ]
   },
+  {
+    name: "forceexpire",
+    description: "Force expire a user's access to a control panel",
+    options: [
+      { name: "panel", description: "Control panel name", type: 3, required: true },
+      { name: "user", description: "Discord user to force expire", type: 6, required: true }
+    ]
+  },
+
+  // AI Command
+  {
+    name: "ai",
+    description: "Chat with the AI assistant",
+    options: [
+      { name: "enabled", description: "Enable or disable AI (True/False)", type: 5, required: true },
+      { name: "message", description: "Your message/question for the AI", type: 3, required: false }
+    ]
+  },
+
+  // Help Command
   {
     name: "help",
     description: "Show all available commands"

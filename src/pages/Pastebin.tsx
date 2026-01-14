@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe } from "lucide-react";
+import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe, EyeOff } from "lucide-react";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
 import luaLogo from "@/assets/lua-logo.png";
 
@@ -24,6 +24,7 @@ interface Paste {
   updated_at: string;
   protection_enabled: boolean;
   public_protection?: boolean;
+  hide_code?: boolean;
 }
 
 interface AccessEntry {
@@ -223,7 +224,6 @@ const Pastebin = () => {
     }
   };
 
-
   const togglePublicProtection = async (pasteId: string, enabled: boolean) => {
     try {
       const { error } = await supabase
@@ -238,6 +238,27 @@ const Pastebin = () => {
         description: enabled 
           ? "Anyone can execute (no whitelist needed), but blacklist still works" 
           : "Standard whitelist protection restored"
+      });
+      fetchPastes();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const toggleHideCode = async (pasteId: string, enabled: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('pastes')
+        .update({ hide_code: enabled })
+        .eq('id', pasteId);
+
+      if (error) throw error;
+
+      toast({ 
+        title: enabled ? "Hide Code Enabled" : "Hide Code Disabled",
+        description: enabled 
+          ? "Raw URL shows blank but loadstring execution still works" 
+          : "Code is visible in raw URL again"
       });
       fetchPastes();
     } catch (error: any) {
@@ -441,7 +462,6 @@ const Pastebin = () => {
                   <TabsTrigger value="options">
                     <Shield className="h-4 w-4 mr-1" />
                     Options
-                    <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">NEW</Badge>
                   </TabsTrigger>
                   <TabsTrigger value="time">
                     <Clock className="h-4 w-4 mr-1" />
@@ -574,15 +594,41 @@ const Pastebin = () => {
                 </TabsContent>
 
                 <TabsContent value="options" className="space-y-4">
+                  {/* Hide Code */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <EyeOff className="h-5 w-5 text-primary" />
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2">
+                            Hide Code
+                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Raw URL shows blank but loadstring execution works
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={selectedPaste.hide_code || false}
+                        onCheckedChange={(checked) => toggleHideCode(selectedPaste.id, checked)}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                      When enabled, visiting the raw URL in a browser shows nothing (blank page). 
+                      But when executed via loadstring in Roblox, the script loads normally.
+                      Everything works the same way - just the code is hidden from view.
+                    </p>
+                  </div>
+
                   {/* Public Protection */}
                   <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Globe className="h-5 w-5 text-primary" />
                         <div>
-                          <h4 className="font-medium flex items-center gap-2">
+                          <h4 className="font-medium">
                             Protection Without Whitelist
-                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
                           </h4>
                           <p className="text-xs text-muted-foreground">
                             Free-for-all with encryption, blacklist still works
@@ -638,6 +684,9 @@ const Pastebin = () => {
                             )}
                             {paste.public_protection && (
                               <Badge variant="outline" className="text-[10px]">PUBLIC</Badge>
+                            )}
+                            {paste.hide_code && (
+                              <Badge variant="outline" className="text-[10px]">HIDDEN</Badge>
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground">
