@@ -405,25 +405,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check for background protection - show protected viewer for browser requests
+    // Check for background protection - show protected viewer for ALL non-Roblox requests
     // This prevents anyone from viewing the source code in a browser
-    if (paste.background_protection && !isRobloxRequest && !uid && !tk) {
-      // Check Accept header to see if this is a browser request
-      const acceptHeader = req.headers.get('accept') || '';
-      const isBrowserRequest = acceptHeader.includes('text/html');
-      
-      if (isBrowserRequest) {
-        return new Response(generateProtectedViewer(), {
-          status: 200,
-          headers: { 
-            ...corsHeaders, 
-            'Content-Type': 'text/html',
-            'X-Content-Type-Options': 'nosniff',
-            'X-Frame-Options': 'DENY',
-            'Cache-Control': 'no-store, no-cache, must-revalidate'
-          }
-        });
-      }
+    if (paste.background_protection && !isRobloxRequest) {
+      // For any browser/non-Roblox request, show the protected viewer
+      return new Response(generateProtectedViewer(), {
+        status: 200,
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'text/html; charset=utf-8',
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'DENY',
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
+        }
+      });
     }
 
     // If protection is disabled, return content directly
