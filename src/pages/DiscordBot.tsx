@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Globe, Sparkles } from "lucide-react";
+import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Globe, Sparkles, EyeOff } from "lucide-react";
 
 const DiscordBot = () => {
   const inviteUrl = "https://discord.com/oauth2/authorize?client_id=1407376197771595816&permissions=8&integration_type=0&scope=bot";
@@ -26,8 +26,7 @@ const DiscordBot = () => {
     {
       icon: <Shield className="w-5 h-5" />,
       title: "Control Panels",
-      description: "Create interactive buyer panels with key redemption and role assignment",
-      isNew: false
+      description: "Create interactive buyer panels with key redemption and role assignment"
     },
     {
       icon: <Clock className="w-5 h-5" />,
@@ -37,25 +36,22 @@ const DiscordBot = () => {
     {
       icon: <Ban className="w-5 h-5" />,
       title: "Console Blacklist",
-      description: "Block specific Discord users from using your control panels",
-      isNew: false
+      description: "Block specific Discord users from using your control panels"
     },
     {
       icon: <RefreshCw className="w-5 h-5" />,
       title: "Force Expire",
-      description: "Manually expire user access and remove them from whitelists",
-      isNew: false
+      description: "Manually expire user access and remove them from whitelists"
     },
     {
       icon: <Globe className="w-5 h-5" />,
       title: "Public Protection",
-      description: "Free-for-all execution without whitelist, blacklist still works",
-      isNew: true
+      description: "Free-for-all execution without whitelist, blacklist still works"
     },
     {
-      icon: <Sparkles className="w-5 h-5" />,
-      title: "Enhanced Security",
-      description: "Advanced bypass detection and token obfuscation",
+      icon: <EyeOff className="w-5 h-5" />,
+      title: "Hide Code",
+      description: "Hide code from raw URL - shows blank but loadstring works",
       isNew: true
     },
     {
@@ -66,32 +62,47 @@ const DiscordBot = () => {
   ];
 
   const commands = [
-    { name: "/register", description: "Create a new ULT LUA PROTECTS account", isNew: false },
-    { name: "/login", description: "Link your existing account to Discord", isNew: false },
-    { name: "/logout", description: "Unlink your Discord from your account", isNew: false },
-    { name: "/keysystemgen", description: "Generate a key system (DMs you the file)", isNew: false },
-    { name: "/mykeys", description: "View your generated key systems", isNew: false },
-    { name: "/savescript", description: "Save a script to your account", isNew: false },
-    { name: "/scripts", description: "View your saved scripts", isNew: false },
-    { name: "/paste", description: "Create a paste (DMs you the raw URL)", isNew: false },
-    { name: "/mypastes", description: "View your pastes", isNew: false },
-    { name: "/scriptprotection", description: "Toggle protection on a paste", isNew: false },
-    { name: "/publicprotection", description: "Protection without whitelist requirement", isNew: true },
-    { name: "/whitelist", description: "Add a Roblox user ID to paste whitelist", isNew: false },
-    { name: "/blacklist", description: "Add a Roblox user ID to paste blacklist", isNew: false },
-    { name: "/setwhitelisttime", description: "Set expiration time for a whitelisted user", isNew: false },
-    { name: "/stats", description: "View paste execution statistics", isNew: false },
-    { name: "/panel", description: "Create a control panel for your paste", isNew: false },
-    { name: "/genkeys", description: "Generate keys for a control panel with optional expiration", isNew: false },
-    { name: "/mypanels", description: "View your control panels", isNew: false },
-    { name: "/consoleblacklist", description: "Blacklist a Discord user from a control panel", isNew: false },
-    { name: "/unblacklist", description: "Remove a user from control panel blacklist", isNew: true },
-    { name: "/forceexpire", description: "Force expire a user's access to a control panel", isNew: false },
-    { name: "/ai", description: "Chat with the AI assistant", isNew: false },
-    { name: "/profile", description: "View your profile and stats", isNew: false },
-    { name: "/factoryreset", description: "Wipe all your data (account stays)", isNew: false },
-    { name: "/help", description: "Show all available commands", isNew: false }
+    // Account Commands
+    { name: "/register", description: "Create a new account", category: "Account" },
+    { name: "/login", description: "Link existing account to Discord", category: "Account" },
+    { name: "/logout", description: "Unlink Discord from account", category: "Account" },
+    { name: "/profile", description: "View your profile and stats", category: "Account" },
+    { name: "/factoryreset", description: "Wipe all data (account stays)", category: "Account" },
+    
+    // Key System Commands
+    { name: "/keysystemgen", description: "Generate a key system", category: "Key Systems" },
+    { name: "/mykeys", description: "View your key systems", category: "Key Systems" },
+    
+    // Script Commands
+    { name: "/savescript", description: "Save a script to account", category: "Scripts" },
+    { name: "/scripts", description: "View saved scripts", category: "Scripts" },
+    
+    // Pastebin Commands
+    { name: "/paste", description: "Create a paste", category: "Pastebin" },
+    { name: "/mypastes", description: "View your pastes", category: "Pastebin" },
+    { name: "/scriptprotection", description: "Toggle protection on paste", category: "Pastebin" },
+    { name: "/publicprotection", description: "Protection without whitelist", category: "Pastebin" },
+    { name: "/hidecode", description: "Hide code from raw URL", category: "Pastebin", isNew: true },
+    { name: "/whitelist", description: "Add user to whitelist", category: "Pastebin" },
+    { name: "/blacklist", description: "Add user to blacklist", category: "Pastebin" },
+    { name: "/setwhitelisttime", description: "Set whitelist expiration", category: "Pastebin" },
+    { name: "/stats", description: "View paste statistics", category: "Pastebin" },
+    
+    // Control Panel Commands
+    { name: "/panel", description: "Create control panel", category: "Control Panels" },
+    { name: "/genkeys", description: "Generate keys with expiration", category: "Control Panels" },
+    { name: "/mypanels", description: "View your panels", category: "Control Panels" },
+    { name: "/consoleblacklist", description: "Blacklist from panel", category: "Control Panels" },
+    { name: "/unblacklist", description: "Remove from blacklist", category: "Control Panels" },
+    { name: "/forceexpire", description: "Force expire access", category: "Control Panels" },
+    
+    // Other Commands
+    { name: "/ai", description: "Chat with AI assistant", category: "AI" },
+    { name: "/help", description: "Show all commands", category: "Help" }
   ];
+
+  // Group commands by category
+  const categories = Array.from(new Set(commands.map(c => c.category)));
 
   return (
     <DashboardLayout>
@@ -136,7 +147,7 @@ const DiscordBot = () => {
             <Zap className="w-6 h-6 text-primary" />
             Features
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {features.map((feature, index) => (
               <Card key={index} className="p-4 cyber-border bg-card/50 backdrop-blur-xl hover:bg-card/70 transition-colors">
                 <div className="flex items-start gap-3">
@@ -249,22 +260,31 @@ const DiscordBot = () => {
           </div>
         </Card>
 
-        {/* Commands List */}
+        {/* Commands List by Category */}
         <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl">
           <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
             <Command className="w-6 h-6 text-primary" />
             All Commands
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {commands.map((cmd, index) => (
-              <div key={index} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                <code className="px-2 py-1 bg-primary/20 text-primary rounded font-mono text-sm shrink-0">
-                  {cmd.name}
-                </code>
-                <span className="text-sm text-muted-foreground flex-1">{cmd.description}</span>
-                {cmd.isNew && (
-                  <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-primary shrink-0">NEW</Badge>
-                )}
+          <div className="space-y-6">
+            {categories.map((category) => (
+              <div key={category}>
+                <h3 className="text-lg font-semibold mb-3 text-primary">{category}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {commands
+                    .filter(cmd => cmd.category === category)
+                    .map((cmd, index) => (
+                      <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                        <code className="px-2 py-1 bg-primary/20 text-primary rounded font-mono text-sm shrink-0">
+                          {cmd.name}
+                        </code>
+                        <span className="text-sm text-muted-foreground flex-1">{cmd.description}</span>
+                        {cmd.isNew && (
+                          <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-primary shrink-0">NEW</Badge>
+                        )}
+                      </div>
+                    ))}
+                </div>
               </div>
             ))}
           </div>

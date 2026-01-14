@@ -1371,20 +1371,48 @@ When building websites, focus on clean, modern, responsive design.`;
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle protection\n\`/publicprotection\` - 🆕 Protection without whitelist\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/setwhitelisttime\` - Set expiration\n\`/stats\` - View stats\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/genkeys\` - Generate keys (with expiration)\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist user from panel\n\`/unblacklist\` - 🆕 Remove from blacklist\n\`/forceexpire\` - Force expire user access\n\n**AI:**\n\`/ai\` - Chat with AI`, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle protection\n\`/publicprotection\` - Protection without whitelist\n\`/hidecode\` - Hide code from raw URL\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/setwhitelisttime\` - Set expiration\n\`/stats\` - View stats\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/genkeys\` - Generate keys (with expiration)\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist user from panel\n\`/unblacklist\` - Remove from blacklist\n\`/forceexpire\` - Force expire user access\n\n**AI:**\n\`/ai\` - Chat with AI`, 
           flags: 0 
         }
       };
     }
 
-    case 'backgroundprotection': {
-      return { 
-        type: 4, 
-        data: { 
-          content: '⚠️ Background protection has been removed from ULT LUA PROTECTS.', 
-          flags: 64 
-        } 
-      };
+    case 'hidecode': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
+
+      if (!pasteName) {
+        return { type: 4, data: { content: '❌ Please provide the paste name.', flags: 64 } };
+      }
+
+      const { data: paste } = await supabase
+        .from('pastes')
+        .select('id, title')
+        .eq('user_id', user.userId)
+        .ilike('title', pasteName)
+        .maybeSingle();
+
+      if (!paste) {
+        return { type: 4, data: { content: `❌ Paste "${pasteName}" not found. Use \`/mypastes\` to see your pastes.`, flags: 64 } };
+      }
+
+      const { error } = await supabase
+        .from('pastes')
+        .update({ hide_code: enabled })
+        .eq('id', paste.id);
+
+      if (error) {
+        return { type: 4, data: { content: `❌ Failed to update: ${error.message}`, flags: 64 } };
+      }
+
+      await sendDM(discordUserId, `✅ **Hide Code Updated!**\n\n**Paste:** ${paste.title || 'Untitled'}\n**Hide Code:** ${enabled ? 'Enabled' : 'Disabled'}\n\n${enabled ? '👁️‍🗨️ Raw URL now shows blank, but loadstring execution still works!' : '👁️ Code is now visible in raw URL again.'}`);
+
+      return { type: 4, data: { content: `✅ Hide code ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**! Check your DMs.`, flags: 64 } };
     }
 
     case 'publicprotection': {
@@ -1952,28 +1980,31 @@ async function handleModal(interaction: any) {
       }
     }
 
-    // Format expiration with proper date/time display
-    let expirationMsg = '';
+    // Format status message - simplified to avoid time confusion
+    let statusMsg = '';
     if (key.expires_at) {
+      // Calculate duration from now until expiration
       const expiresDate = new Date(key.expires_at);
-      const formattedDate = expiresDate.toLocaleDateString('en-US', { 
-        month: 'numeric', 
-        day: 'numeric', 
-        year: 'numeric' 
-      });
-      const formattedTime = expiresDate.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit', 
-        second: '2-digit',
-        hour12: true 
-      });
-      expirationMsg = `\n⏰ **Expires:** ${formattedDate}, ${formattedTime}`;
+      const now = new Date();
+      const diffMs = expiresDate.getTime() - now.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      
+      let durationParts: string[] = [];
+      if (diffDays > 0) durationParts.push(`${diffDays}d`);
+      if (diffHours > 0) durationParts.push(`${diffHours}h`);
+      if (diffMinutes > 0) durationParts.push(`${diffMinutes}m`);
+      
+      statusMsg = `\n📋 **Status:** Temporary Key (${durationParts.join(' ') || '< 1m'})`;
+    } else {
+      statusMsg = '\n📋 **Status:** Eternal Key - Never Expires';
     }
     
     return { 
       type: 4, 
       data: { 
-        content: `✅ **Key Redeemed Successfully!**\n\n🎮 **Roblox User ID:** ${robloxUserId} has been whitelisted!${expirationMsg}\n\nYou now have access to:\n• 📜 Get Script\n• 🎭 Get Role\n\nClick the buttons on the control panel to use them!`, 
+        content: `✅ **Key Redeemed Successfully!**\n\n🎮 **Roblox User ID:** ${robloxUserId} has been whitelisted!${statusMsg}\n\nYou now have access to:\n• 📜 Get Script\n• 🎭 Get Role\n\nClick the buttons on the control panel to use them!`, 
         flags: 64 
       } 
     };

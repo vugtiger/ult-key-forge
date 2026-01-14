@@ -270,6 +270,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // If hide_code is enabled and this is a browser request without auth params, return empty
+    if (paste.hide_code && !uid && !tk) {
+      // Check if this looks like a browser request (not Roblox)
+      if (!isRobloxRequest) {
+        // Return empty response - code is hidden from browsers
+        return new Response('', {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+    }
 
     // If protection is disabled, return content directly
     if (!paste.protection_enabled && !paste.public_protection) {
@@ -506,9 +517,9 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
     });
 
-  } catch (err) {
-    console.error('Error:', err);
-    return new Response('Server error', { 
+  } catch (error) {
+    console.error('Error:', error);
+    return new Response('Internal error', { 
       status: 500, 
       headers: corsHeaders 
     });
