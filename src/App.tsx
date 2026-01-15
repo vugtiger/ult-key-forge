@@ -13,6 +13,7 @@ import AIAssistant from "./pages/AIAssistant";
 import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
 import DiscordBot from "./pages/DiscordBot";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/settings" element={<Settings />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/discord-bot" element={<DiscordBot />} />
+          <Route path="/install" element={<Install />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
