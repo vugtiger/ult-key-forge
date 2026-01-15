@@ -270,34 +270,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // If hide_code is enabled and this is a browser request without auth params, return themed blank page
+    // If hide_code is enabled and this is a browser request without auth params, return empty
     if (paste.hide_code && !uid && !tk) {
       // Check if this looks like a browser request (not Roblox)
       if (!isRobloxRequest) {
-        // Return themed dark page - code is hidden from browsers
-        const hiddenPage = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ULT LUA</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background-color: hsl(0, 0%, 3%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    }
-  </style>
-</head>
-<body></body>
-</html>`;
-        return new Response(hiddenPage, {
+        // Return empty response - code is hidden from browsers
+        return new Response('', {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
         });
       }
     }
