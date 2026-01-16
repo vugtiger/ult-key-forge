@@ -14,6 +14,11 @@ import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
 import DiscordBot from "./pages/DiscordBot";
 import Install from "./pages/Install";
+import Analytics from "./pages/Analytics";
+import Affiliate from "./pages/Affiliate";
+import ApiDocs from "./pages/ApiDocs";
+import Changelog from "./pages/Changelog";
+import Premium from "./pages/Premium";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +41,11 @@ const App = () => (
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/discord-bot" element={<DiscordBot />} />
           <Route path="/install" element={<Install />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/affiliate" element={<Affiliate />} />
+          <Route path="/api-docs" element={<ApiDocs />} />
+          <Route path="/changelog" element={<Changelog />} />
+          <Route path="/premium" element={<Premium />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
