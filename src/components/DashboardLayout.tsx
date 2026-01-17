@@ -16,7 +16,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, Users, Code, History, Crown } from "lucide-react";
+import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 
@@ -27,10 +27,7 @@ const navigationItems = [
   { title: "AI Assistant", url: "/ai-assistant", icon: Bot },
   { title: "Discord Bot", url: "/discord-bot", icon: MessageSquare },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
-  { title: "Affiliate", url: "/affiliate", icon: Users },
-  { title: "API Docs", url: "/api-docs", icon: Code },
   { title: "Changelog", url: "/changelog", icon: History },
-  { title: "Premium", url: "/premium", icon: Crown },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
