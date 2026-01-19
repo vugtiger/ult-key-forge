@@ -63,10 +63,10 @@ const ReviewsSection = () => {
     fetchReviews();
     checkAuth();
     
-    // Add fake reviews faster (every 3 seconds)
+    // Add fake reviews fast (every 1.5 seconds)
     const interval = setInterval(() => {
       addFakeReview();
-    }, 3000);
+    }, 1500);
 
     return () => clearInterval(interval);
   }, []);
