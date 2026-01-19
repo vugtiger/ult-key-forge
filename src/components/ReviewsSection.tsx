@@ -40,10 +40,14 @@ const fakeReviewTemplates = [
 ];
 
 const fakeUsernames = [
-  "ScriptMaster", "RobloxDev99", "LuaCoder", "GameHacker2k", "CoolScripter",
-  "DevKing", "CodeWizard", "ScriptLord", "RbxPro", "LuaMaster",
-  "GameDev123", "ScriptGuru", "ProCoder", "RobloxExpert", "LuaWizard",
-  "CodeMaster", "ScriptKing", "DevPro", "GameScripter", "RbxDev"
+  "alex_gaming", "mike_dev", "sarah_codes", "jake92", "emma_rbx",
+  "tyler_scripts", "mia_lua", "ethan_pro", "olivia_dev", "noah_games",
+  "ava_coder", "liam_2k5", "sophia_rbx", "mason_dev", "isabella_lua",
+  "lucas_gamer", "amelia_codes", "henry_script", "charlotte_dev", "ben_gaming",
+  "lily_coder", "jack_rbx", "zoey_dev", "ryan_lua", "chloe_scripts",
+  "daniel_pro", "grace_games", "matthew_dev", "hannah_rbx", "andrew_lua",
+  "natalie_codes", "josh_gaming", "victoria_dev", "chris_rbx", "jessica_lua",
+  "kevin_scripts", "ashley_pro", "brandon_dev", "taylor_rbx", "justin_games"
 ];
 
 const ReviewsSection = () => {
@@ -59,10 +63,10 @@ const ReviewsSection = () => {
     fetchReviews();
     checkAuth();
     
-    // Add fake reviews faster (every 8 seconds)
+    // Add fake reviews faster (every 3 seconds)
     const interval = setInterval(() => {
       addFakeReview();
-    }, 8000);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, []);
@@ -86,7 +90,10 @@ const ReviewsSection = () => {
 
   const addFakeReview = async () => {
     const template = fakeReviewTemplates[Math.floor(Math.random() * fakeReviewTemplates.length)];
-    const username = fakeUsernames[Math.floor(Math.random() * fakeUsernames.length)] + Math.floor(Math.random() * 1000);
+    const baseUsername = fakeUsernames[Math.floor(Math.random() * fakeUsernames.length)];
+    // Sometimes add a small number suffix (more realistic)
+    const suffix = Math.random() > 0.6 ? '' : Math.floor(Math.random() * 99).toString();
+    const username = baseUsername + suffix;
     
     // Weight towards good reviews (85% good, 15% bad)
     const shouldBeGood = Math.random() < 0.85;
