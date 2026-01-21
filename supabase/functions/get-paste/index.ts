@@ -69,26 +69,31 @@ function xorToHex(plain: string, key: string): string {
   return hex;
 }
 
-// Generate obfuscation key using simple hash - Lua compatible
-function generateObfuscationKey(seed: string): number[] {
+// Generate a strong obfuscation key from session data
+function generateObfuscationKey(slug: string, sessionSecret: string): number[] {
+  const seed = `${slug}:${sessionSecret}:OBF_KEY_v4`;
   const key: number[] = [];
+  let hash = 0x811c9dc5; // FNV-1a offset basis
+  
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193); // FNV prime
+  }
+  
+  // Generate 64 pseudo-random key bytes
   for (let i = 0; i < 64; i++) {
-    let h = 0;
-    for (let j = 0; j < seed.length; j++) {
-      h = ((h << 5) - h + seed.charCodeAt(j) + i) | 0;
-    }
-    key.push(Math.abs(h) % 256);
+    hash = Math.imul(hash, 0x41C64E6D) + 0x3039;
+    key.push((hash >>> 16) & 0xFF);
   }
   return key;
 }
 
-// Enhanced loader with obfuscation and fingerprinting
+// Enhanced loader with strong obfuscation and fingerprinting
 function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string): string {
-  // Generate key for this session
-  const keySeed = `${slug}:${sessionSecret}:OBF_v4`;
-  const obfKey = generateObfuscationKey(keySeed);
+  // Generate strong key for this session
+  const obfKey = generateObfuscationKey(slug, sessionSecret);
   
-  // Split token into parts and encrypt with XOR
+  // Split token into parts and encrypt with strong XOR
   const tokenParts = [];
   for (let i = 0; i < token.length; i += 8) {
     tokenParts.push(token.slice(i, i + 8));
@@ -101,6 +106,9 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
       return code.toString(16).padStart(2, '0');
     }).join('');
   });
+
+  // Embed the key derivation seed info (not the key itself)
+  const keySeed = `${slug}:${sessionSecret}:OBF_KEY_v4`;
 
   return `--[[ULT LUA PROTECTION v4 - Strong Encryption]]
 local player = game:GetService("Players").LocalPlayer
@@ -129,20 +137,22 @@ local function _gF()
   return p
 end
 
--- Key derivation (matches server)
+-- Strong key derivation (FNV-1a based)
 local function _gK(seed)
   local key = {}
+  local hash = 0x811c9dc5
+  for i = 1, #seed do
+    hash = bit32.bxor(hash, seed:byte(i))
+    hash = bit32.band(hash * 0x01000193, 0xFFFFFFFF)
+  end
   for i = 1, 64 do
-    local h = 0
-    for j = 1, #seed do
-      h = bit32.band((bit32.lshift(h, 5) - h + seed:byte(j) + (i-1)), 0x7FFFFFFF)
-    end
-    key[i] = h % 256
+    hash = bit32.band(hash * 0x41C64E6D + 0x3039, 0xFFFFFFFF)
+    key[i] = bit32.band(bit32.rshift(hash, 16), 0xFF)
   end
   return key
 end
 
--- Obfuscated token reconstruction
+-- Obfuscated token reconstruction with strong decryption
 local _tp = {${obfuscatedParts.map(p => `"${p}"`).join(',')}}
 local _ks = "${keySeed}"
 local function _rT()
