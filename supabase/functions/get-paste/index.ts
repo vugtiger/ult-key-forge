@@ -69,48 +69,23 @@ function xorToHex(plain: string, key: string): string {
   return hex;
 }
 
-// Generate a strong obfuscation key from session data
-function generateObfuscationKey(slug: string, sessionSecret: string): number[] {
-  const seed = `${slug}:${sessionSecret}:OBF_KEY_v4`;
-  const key: number[] = [];
-  let hash = 0x811c9dc5; // FNV-1a offset basis
-  
-  for (let i = 0; i < seed.length; i++) {
-    hash ^= seed.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193); // FNV prime
-  }
-  
-  // Generate 64 pseudo-random key bytes
-  for (let i = 0; i < 64; i++) {
-    hash = Math.imul(hash, 0x41C64E6D) + 0x3039;
-    key.push((hash >>> 16) & 0xFF);
-  }
-  return key;
-}
-
-// Enhanced loader with strong obfuscation and fingerprinting
+// Enhanced loader with obfuscated token and fingerprinting
 function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string): string {
-  // Generate strong key for this session
-  const obfKey = generateObfuscationKey(slug, sessionSecret);
-  
-  // Split token into parts and encrypt with strong XOR
+  // Split token into parts and embed with obfuscation
   const tokenParts = [];
   for (let i = 0; i < token.length; i += 8) {
     tokenParts.push(token.slice(i, i + 8));
   }
   
-  const obfuscatedParts = tokenParts.map((part, partIdx) => {
-    return Array.from(part).map((c, charIdx) => {
-      const keyIdx = (partIdx * 8 + charIdx) % obfKey.length;
-      const code = c.charCodeAt(0) ^ obfKey[keyIdx];
+  const obfuscatedParts = tokenParts.map((part, i) => {
+    // XOR each char with position for obfuscation
+    return Array.from(part).map((c, j) => {
+      const code = c.charCodeAt(0) ^ ((i + j) % 16);
       return code.toString(16).padStart(2, '0');
     }).join('');
   });
 
-  // Embed the key derivation seed info (not the key itself)
-  const keySeed = `${slug}:${sessionSecret}:OBF_KEY_v4`;
-
-  return `--[[ULT LUA PROTECTION v4 - Strong Encryption]]
+  return `--[[ULT LUA PROTECTION v3 - Enhanced Security]]
 local player = game:GetService("Players").LocalPlayer
 if not player then
   player = game:GetService("Players").PlayerAdded:Wait()
@@ -137,34 +112,15 @@ local function _gF()
   return p
 end
 
--- Strong key derivation (FNV-1a based)
-local function _gK(seed)
-  local key = {}
-  local hash = 0x811c9dc5
-  for i = 1, #seed do
-    hash = bit32.bxor(hash, seed:byte(i))
-    hash = bit32.band(hash * 0x01000193, 0xFFFFFFFF)
-  end
-  for i = 1, 64 do
-    hash = bit32.band(hash * 0x41C64E6D + 0x3039, 0xFFFFFFFF)
-    key[i] = bit32.band(bit32.rshift(hash, 16), 0xFF)
-  end
-  return key
-end
-
--- Obfuscated token reconstruction with strong decryption
+-- Obfuscated token reconstruction
 local _tp = {${obfuscatedParts.map(p => `"${p}"`).join(',')}}
-local _ks = "${keySeed}"
 local function _rT()
-  local key = _gK(_ks)
   local r = ""
-  local idx = 1
   for i,p in ipairs(_tp) do
     local d = ""
     for j=1,#p,2 do
       local c = tonumber(p:sub(j,j+1),16)
-      c = bit32.bxor(c, key[idx])
-      idx = (idx % 64) + 1
+      c = bit32.bxor(c, ((i-1) + math.floor((j-1)/2)) % 16)
       d = d .. string.char(c)
     end
     r = r .. d
