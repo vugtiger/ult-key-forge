@@ -1,5 +1,5 @@
-// Advanced Multi-Layer Lua Obfuscator
-// Implements multiple protection techniques for maximum code obfuscation
+// Advanced Multi-Layer Lua/Luau Obfuscator for Roblox
+// Generates valid, executable obfuscated code
 
 interface ObfuscationOptions {
   stringEncryption: boolean;
@@ -13,205 +13,308 @@ interface ObfuscationOptions {
   encryptionStrength: 'standard' | 'strong' | 'maximum';
 }
 
-// Generate random string for variable names
-const generateRandomName = (length: number = 8): string => {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_';
-  const startChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_';
-  let result = startChars[Math.floor(Math.random() * startChars.length)];
-  for (let i = 1; i < length; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)];
+// Character sets for variable name generation
+const CHARS_LOWER = 'abcdefghijklmnopqrstuvwxyz';
+const CHARS_UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const CHARS_NUM = '0123456789';
+const CHARS_ALL = CHARS_LOWER + CHARS_UPPER + '_';
+const CHARS_START = CHARS_LOWER + CHARS_UPPER + '_';
+
+// Generate confusing variable names
+const generateVarName = (length: number = 12): string => {
+  const prefixes = ['Il', 'lI', 'O0', '0O', 'I1', '1I', 'l1', '1l'];
+  let result = prefixes[Math.floor(Math.random() * prefixes.length)];
+  for (let i = 0; i < length; i++) {
+    // Mix confusing characters: l, I, 1, O, 0
+    const confusing = 'lI1O0lIlI1';
+    result += confusing[Math.floor(Math.random() * confusing.length)];
+  }
+  return '_' + result;
+};
+
+// Generate unique identifier
+const generateUID = (): string => {
+  return '_' + Math.random().toString(36).substring(2, 10);
+};
+
+// Lua/Luau reserved keywords
+const LUA_KEYWORDS = new Set([
+  'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function',
+  'goto', 'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return',
+  'then', 'true', 'until', 'while', 'self', 'continue'
+]);
+
+// Roblox/Lua built-ins that shouldn't be renamed
+const BUILTINS = new Set([
+  'print', 'pairs', 'ipairs', 'next', 'type', 'tostring', 'tonumber',
+  'error', 'assert', 'pcall', 'xpcall', 'select', 'unpack', 'rawget',
+  'rawset', 'setmetatable', 'getmetatable', 'require', 'loadstring',
+  'load', 'loadfile', 'dofile', 'collectgarbage', 'string', 'table',
+  'math', 'bit32', 'os', 'io', 'debug', 'coroutine', 'package', 'utf8',
+  '_G', '_VERSION', 'arg', 'game', 'workspace', 'script', 'wait', 'task',
+  'spawn', 'delay', 'tick', 'time', 'warn', 'Instance', 'Vector3',
+  'Vector2', 'CFrame', 'Color3', 'UDim2', 'UDim', 'Enum', 'Ray', 'typeof',
+  'Region3', 'TweenInfo', 'NumberSequence', 'ColorSequence', 'Random',
+  'NumberRange', 'Rect', 'BrickColor', 'PhysicalProperties', 'Axes',
+  'Faces', 'PathWaypoint', 'DockWidgetPluginGuiInfo', 'RaycastParams',
+  'OverlapParams', 'TweenService', 'RunService', 'Players', 'Lighting',
+  'ReplicatedStorage', 'ServerStorage', 'ServerScriptService', 'StarterGui',
+  'StarterPlayer', 'StarterPack', 'Teams', 'SoundService', 'Chat',
+  'LocalizationService', 'TestService', 'Debris', 'HttpService',
+  'MarketplaceService', 'UserInputService', 'ContextActionService',
+  'GuiService', 'HapticService', 'VRService', 'AssetService', 'BadgeService',
+  'CollectionService', 'ContentProvider', 'DataStoreService', 'GroupService',
+  'InsertService', 'KeyframeSequenceProvider', 'MemoryStoreService',
+  'MessagingService', 'PathfindingService', 'PhysicsService', 'PolicyService',
+  'ProximityPromptService', 'ReplicatedFirst', 'SocialService', 'TextService',
+  'TeleportService', 'VoiceChatService', 'getfenv', 'setfenv', 'rawequal',
+  'rawlen', 'getrawmetatable', 'setrawmetatable', 'newproxy', 'gcinfo',
+  'bit', 'syn', 'hookfunction', 'hookmetamethod', 'getnamecallmethod',
+  'setnamecallmethod', 'getgenv', 'getrenv', 'getsenv', 'getmenv',
+  'getcallingscript', 'checkcaller', 'islclosure', 'iscclosure',
+  'writefile', 'readfile', 'appendfile', 'loadfile', 'listfiles',
+  'isfile', 'isfolder', 'makefolder', 'delfolder', 'delfile'
+]);
+
+// XOR function that works in Luau (without bit32)
+const generateXorFunction = (funcName: string): string => {
+  return `local ${funcName}=function(a,b)local p,c=1,0;while a>0 or b>0 do local ra,rb=a%2,b%2;if ra~=rb then c=c+p end;a,b,p=math.floor(a/2),math.floor(b/2),p*2 end;return c end`;
+};
+
+// Generate string decryption function
+const generateDecryptor = (xorFunc: string, decryptFunc: string, key: number): string => {
+  return `local ${decryptFunc}=function(t)local s=""for i=1,#t do s=s..string.char(${xorFunc}(t[i],(${key}+i-1)%256))end return s end`;
+};
+
+// Encrypt a string using XOR
+const encryptString = (str: string, key: number): number[] => {
+  const result: number[] = [];
+  for (let i = 0; i < str.length; i++) {
+    const charCode = str.charCodeAt(i);
+    const encrypted = charCode ^ ((key + i) % 256);
+    result.push(encrypted);
   }
   return result;
 };
 
-// Generate random hex-like variable name
-const generateHexName = (): string => {
-  const prefix = ['_', 'L_', 'v_', 'f_', 'x_'][Math.floor(Math.random() * 5)];
-  const hex = Math.random().toString(16).substring(2, 10).toUpperCase();
-  return prefix + hex;
-};
-
-// XOR encryption for strings
-const xorEncrypt = (str: string, key: number): number[] => {
-  const encrypted: number[] = [];
-  for (let i = 0; i < str.length; i++) {
-    encrypted.push(str.charCodeAt(i) ^ ((key + i) % 256));
-  }
-  return encrypted;
-};
-
-// Generate decryption function
-const generateDecryptor = (key: number, funcName: string): string => {
-  return `local ${funcName}=(function(a,b)local c=""for d=1,#a do c=c..string.char(bit32.bxor(a[d],(b+d-1)%256))end return c end)`;
-};
-
-// Generate anti-tamper check
+// Generate anti-debug/anti-tamper code
 const generateAntiTamper = (): string => {
-  const checkVar = generateHexName();
-  const funcVar = generateHexName();
-  return `local ${checkVar}=(function()local ${funcVar}=0;for i=1,1000 do ${funcVar}=${funcVar}+math.random()end;return ${funcVar}>0 end)();if not ${checkVar} then return end;`;
+  const v1 = generateVarName();
+  const v2 = generateVarName();
+  return `local ${v1}=function()local ${v2}=0 for i=1,100 do ${v2}=${v2}+1 end return ${v2}==100 end if not ${v1}()then return end`;
 };
 
-// Generate opaque predicate (always true/false but looks complex)
-const generateOpaquePredicate = (shouldBeTrue: boolean): string => {
-  const x = generateHexName();
-  const y = generateHexName();
-  if (shouldBeTrue) {
-    const patterns = [
-      `((${x}*${x}+1)>0)`,
-      `((${x}%2==0)or(${x}%2==1))`,
-      `(type("")=="string")`,
-      `((${x}+1)~=${x})`,
-      `(math.abs(${y})>=0)`,
-    ];
-    return patterns[Math.floor(Math.random() * patterns.length)];
-  } else {
-    const patterns = [
-      `(type(0)=="string")`,
-      `((${x}+1)==${x})`,
-      `(math.abs(${y})<0)`,
-    ];
-    return patterns[Math.floor(Math.random() * patterns.length)];
-  }
+// Generate environment check (Roblox-specific)
+const generateEnvCheck = (): string => {
+  const v = generateVarName();
+  return `local ${v}=game and workspace and script if not ${v} then return end`;
 };
 
-// Generate junk code that does nothing but looks real
+// Generate junk code that looks real but does nothing useful
 const generateJunkCode = (): string => {
-  const junkPatterns = [
+  const patterns = [
     () => {
-      const v1 = generateHexName();
-      const v2 = generateHexName();
-      return `local ${v1}=${Math.floor(Math.random() * 1000)};local ${v2}=${v1}*${Math.floor(Math.random() * 100)};${v2}=${v2}+${v1};`;
+      const v1 = generateVarName();
+      const v2 = generateVarName();
+      const n1 = Math.floor(Math.random() * 1000);
+      const n2 = Math.floor(Math.random() * 100) + 1;
+      return `local ${v1}=${n1} local ${v2}=${v1}*${n2}+${v1}`;
     },
     () => {
-      const v = generateHexName();
-      return `local ${v}={};for _=${Math.floor(Math.random() * 10)},${Math.floor(Math.random() * 5) + 10} do ${v}[#${v}+1]=math.random()end;`;
+      const v = generateVarName();
+      const vals = [Math.random().toFixed(4), Math.random().toFixed(4), Math.random().toFixed(4)];
+      return `local ${v}={${vals.join(',')}}`;
     },
     () => {
-      const v = generateHexName();
-      const tbl = generateHexName();
-      return `local ${tbl}={${Math.random()},${Math.random()},${Math.random()}};local ${v}=${tbl}[math.random(1,3)];`;
+      const f = generateVarName();
+      const p = generateVarName();
+      return `local ${f}=function(${p})return ${p} end`;
     },
     () => {
-      const f = generateHexName();
-      return `local ${f}=function(...)local a={...}return#a end;${f}(${Math.random()},${Math.random()});`;
+      const v = generateVarName();
+      return `local ${v}=math.random()*math.pi`;
     },
+    () => {
+      const v = generateVarName();
+      const n = Math.floor(Math.random() * 50) + 10;
+      return `local ${v}=string.rep("",${n})`;
+    }
   ];
-  return junkPatterns[Math.floor(Math.random() * junkPatterns.length)]();
+  return patterns[Math.floor(Math.random() * patterns.length)]();
 };
 
-// Generate dead code block
-const generateDeadCodeBlock = (): string => {
-  const condition = generateOpaquePredicate(false);
-  const v1 = generateHexName();
-  const v2 = generateHexName();
-  return `if ${condition} then local ${v1}="${generateRandomName(16)}";local ${v2}=function()return ${v1}end;print(${v2}())end;`;
+// Generate dead code block (code that never executes)
+const generateDeadCode = (): string => {
+  const v1 = generateVarName();
+  const v2 = generateVarName();
+  const impossibleConditions = [
+    'type(1)=="string"',
+    'math.pi<0',
+    'false',
+    '1>2',
+    'nil',
+  ];
+  const cond = impossibleConditions[Math.floor(Math.random() * impossibleConditions.length)];
+  return `if ${cond} then local ${v1}="${generateUID()}" local ${v2}=${v1} end`;
 };
 
-// Generate proxy function wrapper
-const generateProxyFunction = (originalCall: string, proxyName: string): string => {
-  const argNames = [generateHexName(), generateHexName(), generateHexName()];
-  return `local ${proxyName}=(function(${argNames[0]},${argNames[1]},${argNames[2]})return ${originalCall}(${argNames[0]},${argNames[1]},${argNames[2]})end)`;
+// Generate opaque predicate (always true but looks complex)
+const generateOpaquePredicate = (): string => {
+  const patterns = [
+    '(1+1==2)',
+    '(type("")=="string")',
+    '(math.abs(-1)==1)',
+    '(#""==0)',
+    '(not not true)',
+    '(nil==nil)',
+    '(1~=2)',
+  ];
+  return patterns[Math.floor(Math.random() * patterns.length)];
 };
 
-// Control flow flattening - converts linear code to state machine
-const flattenControlFlow = (codeBlock: string): string => {
-  const stateVar = generateHexName();
-  const jumpTable = generateHexName();
-  
-  // This is a simplified version - real CFG would parse AST
-  const wrappedCode = `
-local ${stateVar}=1
-local ${jumpTable}={
-  [1]=function()
-    ${codeBlock}
-    ${stateVar}=0
-  end
-}
-while ${stateVar}~=0 do
-  if ${jumpTable}[${stateVar}] then
-    ${jumpTable}[${stateVar}]()
-  else
-    ${stateVar}=0
-  end
-end`;
-  return wrappedCode;
-};
-
-// Encrypt all strings in code
-const encryptStrings = (code: string, decryptorName: string, key: number): string => {
-  // Match string literals (simplified - doesn't handle all edge cases)
-  const stringRegex = /"([^"\\]|\\.)*"|'([^'\\]|\\.)*'/g;
-  
-  return code.replace(stringRegex, (match) => {
-    const content = match.slice(1, -1); // Remove quotes
-    if (content.length === 0) return match;
-    
-    const encrypted = xorEncrypt(content, key);
-    return `${decryptorName}({${encrypted.join(',')}},${key})`;
-  });
-};
-
-// Mangle variable names
+// Mangle variable names in code
 const mangleVariables = (code: string): { code: string; mapping: Map<string, string> } => {
   const mapping = new Map<string, string>();
-  const luaKeywords = new Set([
-    'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function',
-    'goto', 'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return',
-    'then', 'true', 'until', 'while', 'self'
-  ]);
   
-  const builtins = new Set([
-    'print', 'pairs', 'ipairs', 'next', 'type', 'tostring', 'tonumber',
-    'error', 'assert', 'pcall', 'xpcall', 'select', 'unpack', 'rawget',
-    'rawset', 'setmetatable', 'getmetatable', 'require', 'loadstring',
-    'load', 'loadfile', 'dofile', 'collectgarbage', 'string', 'table',
-    'math', 'bit32', 'os', 'io', 'debug', 'coroutine', 'package',
-    '_G', '_VERSION', 'arg', 'game', 'workspace', 'script', 'wait',
-    'spawn', 'delay', 'tick', 'time', 'warn', 'Instance', 'Vector3',
-    'Vector2', 'CFrame', 'Color3', 'UDim2', 'UDim', 'Enum', 'Ray',
-    'Region3', 'TweenInfo', 'NumberSequence', 'ColorSequence', 'typeof'
-  ]);
-
   // Find local variable declarations
   const localVarRegex = /\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
   let match;
   
   while ((match = localVarRegex.exec(code)) !== null) {
     const varName = match[1];
-    if (!luaKeywords.has(varName) && !builtins.has(varName) && !mapping.has(varName)) {
-      mapping.set(varName, generateHexName());
+    if (!LUA_KEYWORDS.has(varName) && !BUILTINS.has(varName) && !mapping.has(varName)) {
+      mapping.set(varName, generateVarName());
     }
   }
   
   // Find function declarations
-  const funcRegex = /\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g;
-  while ((match = funcRegex.exec(code)) !== null) {
+  const funcDeclRegex = /\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g;
+  while ((match = funcDeclRegex.exec(code)) !== null) {
     const funcName = match[1];
-    if (!luaKeywords.has(funcName) && !builtins.has(funcName) && !mapping.has(funcName)) {
-      mapping.set(funcName, generateHexName());
+    if (!LUA_KEYWORDS.has(funcName) && !BUILTINS.has(funcName) && !mapping.has(funcName)) {
+      mapping.set(funcName, generateVarName());
     }
   }
 
   // Find function parameters
-  const paramRegex = /function\s*[a-zA-Z_][a-zA-Z0-9_]*?\s*\(([^)]*)\)/g;
-  while ((match = paramRegex.exec(code)) !== null) {
-    const params = match[1].split(',').map(p => p.trim()).filter(p => p);
+  const funcParamRegex = /function\s*(?:[a-zA-Z_][a-zA-Z0-9_]*)?\s*\(([^)]*)\)/g;
+  while ((match = funcParamRegex.exec(code)) !== null) {
+    const params = match[1].split(',').map(p => p.trim()).filter(p => p && /^[a-zA-Z_]/.test(p));
     params.forEach(param => {
-      if (!luaKeywords.has(param) && !builtins.has(param) && !mapping.has(param)) {
-        mapping.set(param, generateHexName());
+      // Handle "..." vararg
+      if (param === '...') return;
+      const paramName = param.split(':')[0].trim(); // Handle typed params
+      if (!LUA_KEYWORDS.has(paramName) && !BUILTINS.has(paramName) && !mapping.has(paramName)) {
+        mapping.set(paramName, generateVarName());
       }
     });
   }
   
-  // Replace all occurrences
+  // Replace all occurrences (whole word match)
   let mangledCode = code;
-  mapping.forEach((newName, oldName) => {
-    const regex = new RegExp(`\\b${oldName}\\b`, 'g');
+  // Sort by length descending to avoid partial replacements
+  const sortedEntries = Array.from(mapping.entries()).sort((a, b) => b[0].length - a[0].length);
+  
+  for (const [oldName, newName] of sortedEntries) {
+    const regex = new RegExp(`\\b${oldName}\\b(?![.:\\[])`, 'g');
     mangledCode = mangledCode.replace(regex, newName);
-  });
+  }
   
   return { code: mangledCode, mapping };
+};
+
+// Encrypt all string literals
+const encryptStrings = (code: string, decryptFunc: string, key: number): string => {
+  // Match double-quoted strings (handling escapes)
+  const stringRegex = /"((?:[^"\\]|\\.)*)"/g;
+  
+  let result = code;
+  const matches: { full: string; content: string; encrypted: string }[] = [];
+  
+  let match;
+  while ((match = stringRegex.exec(code)) !== null) {
+    const fullMatch = match[0];
+    const content = match[1];
+    
+    // Skip empty strings
+    if (content.length === 0) continue;
+    
+    // Unescape the string content for encryption
+    let unescaped = '';
+    try {
+      unescaped = content
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r')
+        .replace(/\\t/g, '\t')
+        .replace(/\\\\/g, '\\')
+        .replace(/\\"/g, '"');
+    } catch {
+      unescaped = content;
+    }
+    
+    const encrypted = encryptString(unescaped, key);
+    const replacement = `${decryptFunc}({${encrypted.join(',')}})`;
+    
+    matches.push({ full: fullMatch, content, encrypted: replacement });
+  }
+  
+  // Also match single-quoted strings
+  const singleQuoteRegex = /'((?:[^'\\]|\\.)*)'/g;
+  while ((match = singleQuoteRegex.exec(code)) !== null) {
+    const fullMatch = match[0];
+    const content = match[1];
+    
+    if (content.length === 0) continue;
+    
+    let unescaped = '';
+    try {
+      unescaped = content
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r')
+        .replace(/\\t/g, '\t')
+        .replace(/\\\\/g, '\\')
+        .replace(/\\'/g, "'");
+    } catch {
+      unescaped = content;
+    }
+    
+    const encrypted = encryptString(unescaped, key);
+    const replacement = `${decryptFunc}({${encrypted.join(',')}})`;
+    
+    matches.push({ full: fullMatch, content, encrypted: replacement });
+  }
+  
+  // Replace all matches
+  for (const { full, encrypted } of matches) {
+    result = result.replace(full, encrypted);
+  }
+  
+  return result;
+};
+
+// Wrap code in control flow obfuscation
+const wrapControlFlow = (code: string): string => {
+  const stateVar = generateVarName();
+  const funcTable = generateVarName();
+  
+  return `local ${stateVar}=1 local ${funcTable}={[1]=function()${code} ${stateVar}=0 end}while ${stateVar}~=0 do if ${funcTable}[${stateVar}]then ${funcTable}[${stateVar}]()else ${stateVar}=0 end end`;
+};
+
+// Number obfuscation - replace numbers with expressions
+const obfuscateNumbers = (code: string): string => {
+  // Replace simple integers with expressions
+  return code.replace(/\b(\d+)\b/g, (match, num) => {
+    const n = parseInt(num);
+    if (n === 0) return '(1-1)';
+    if (n === 1) return '(2-1)';
+    if (n === 2) return '(1+1)';
+    if (n < 10) {
+      const a = Math.floor(Math.random() * 100) + n;
+      const b = a - n;
+      return `(${a}-${b})`;
+    }
+    return match;
+  });
 };
 
 // Main obfuscation function
@@ -229,93 +332,97 @@ export const obfuscateLua = (
     encryptionStrength: 'maximum',
   }
 ): string => {
-  let obfuscatedCode = sourceCode;
-  const headerParts: string[] = [];
+  // Clean up the source code
+  let code = sourceCode.trim();
   
-  // Determine iteration counts based on strength
+  // Skip if empty
+  if (!code) return '';
+  
+  const headerParts: string[] = [];
   const strengthMultiplier = 
     options.encryptionStrength === 'maximum' ? 3 :
     options.encryptionStrength === 'strong' ? 2 : 1;
   
-  // Add anti-tamper protection
+  // Add anti-tamper checks
   if (options.antiTamper) {
+    headerParts.push(generateEnvCheck());
     headerParts.push(generateAntiTamper());
   }
   
-  // String encryption
+  // String encryption setup
+  let xorFuncName = '';
+  let decryptFuncName = '';
+  let encryptionKey = 0;
+  
   if (options.stringEncryption) {
-    const decryptorName = generateHexName();
-    const key = Math.floor(Math.random() * 200) + 50;
-    headerParts.push(generateDecryptor(key, decryptorName));
+    xorFuncName = generateVarName();
+    decryptFuncName = generateVarName();
+    encryptionKey = Math.floor(Math.random() * 200) + 50;
     
-    for (let i = 0; i < strengthMultiplier; i++) {
-      const newKey = Math.floor(Math.random() * 200) + 50;
-      const newDecryptor = generateHexName();
-      headerParts.push(generateDecryptor(newKey, newDecryptor));
+    headerParts.push(generateXorFunction(xorFuncName));
+    headerParts.push(generateDecryptor(xorFuncName, decryptFuncName, encryptionKey));
+  }
+  
+  // Inject dead code at the beginning
+  if (options.deadCodeInjection) {
+    const count = 3 * strengthMultiplier;
+    for (let i = 0; i < count; i++) {
+      headerParts.push(generateDeadCode());
     }
-    
-    obfuscatedCode = encryptStrings(obfuscatedCode, decryptorName, key);
   }
   
   // Variable mangling
   if (options.variableMangling) {
-    const result = mangleVariables(obfuscatedCode);
-    obfuscatedCode = result.code;
+    const result = mangleVariables(code);
+    code = result.code;
+  }
+  
+  // String encryption
+  if (options.stringEncryption) {
+    code = encryptStrings(code, decryptFuncName, encryptionKey);
   }
   
   // Inject junk code throughout
   if (options.junkCode) {
-    const lines = obfuscatedCode.split('\n');
+    const lines = code.split('\n');
     const newLines: string[] = [];
     
     for (let i = 0; i < lines.length; i++) {
-      if (Math.random() < 0.3 * strengthMultiplier) {
+      // Inject junk before some lines
+      if (Math.random() < 0.25 * strengthMultiplier) {
         newLines.push(generateJunkCode());
       }
       newLines.push(lines[i]);
+      // Inject dead code after some lines
+      if (Math.random() < 0.15 * strengthMultiplier) {
+        newLines.push(generateDeadCode());
+      }
     }
-    obfuscatedCode = newLines.join('\n');
+    code = newLines.join(' ');
   }
   
-  // Dead code injection
-  if (options.deadCodeInjection) {
-    const deadCodeCount = 5 * strengthMultiplier;
-    let deadCodeBlocks = '';
-    for (let i = 0; i < deadCodeCount; i++) {
-      deadCodeBlocks += generateDeadCodeBlock();
-    }
-    obfuscatedCode = deadCodeBlocks + obfuscatedCode;
-  }
-  
-  // Opaque predicates - wrap code sections
+  // Wrap with opaque predicate
   if (options.opaquePredicates) {
-    const predicate = generateOpaquePredicate(true);
-    const wrapperVar = generateHexName();
-    obfuscatedCode = `local ${wrapperVar}=${Math.floor(Math.random() * 1000)};if ${predicate.replace(/\bx\b/g, wrapperVar).replace(/\by\b/g, wrapperVar)} then\n${obfuscatedCode}\nend`;
+    const pred = generateOpaquePredicate();
+    code = `if ${pred} then ${code} end`;
   }
   
   // Control flow flattening
   if (options.controlFlowFlattening) {
-    obfuscatedCode = flattenControlFlow(obfuscatedCode);
+    code = wrapControlFlow(code);
   }
   
-  // Combine header and code
-  const fullCode = [
-    '-- Protected by ULT LUA Advanced Obfuscator',
-    '-- Deobfuscation is prohibited and will result in code failure',
-    `-- Generated: ${new Date().toISOString()}`,
-    '',
-    ...headerParts,
-    '',
-    obfuscatedCode
-  ].join('\n');
+  // Combine header and main code
+  const allCode = [...headerParts, code].join(' ');
   
-  // Final minification pass
-  return fullCode
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0 && !line.startsWith('--'))
-    .join(' ');
+  // Final cleanup - remove extra whitespace and compress
+  const finalCode = allCode
+    .replace(/\s+/g, ' ')
+    .replace(/\s*([{}()=,;<>+\-*/%])\s*/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  return finalCode;
 };
 
 export type { ObfuscationOptions };
