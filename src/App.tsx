@@ -17,7 +17,7 @@ import DiscordBot from "./pages/DiscordBot";
 import Install from "./pages/Install";
 import Analytics from "./pages/Analytics";
 import Changelog from "./pages/Changelog";
-import ScriptSettings from "./pages/ScriptSettings";
+import Obfuscation from "./pages/Obfuscation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,7 +43,7 @@ const App = () => (
           <Route path="/install" element={<Install />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/changelog" element={<Changelog />} />
-          <Route path="/script-settings" element={<ScriptSettings />} />
+          <Route path="/obfuscation" element={<Obfuscation />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

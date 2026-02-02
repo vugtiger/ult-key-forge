@@ -256,50 +256,6 @@ export type Database = {
           },
         ]
       }
-      paste_access_logs: {
-        Row: {
-          access_type: string
-          created_at: string
-          id: string
-          ip_address: string
-          is_active: boolean | null
-          last_seen_at: string
-          paste_id: string
-          roblox_user_id: string | null
-          user_agent: string | null
-        }
-        Insert: {
-          access_type?: string
-          created_at?: string
-          id?: string
-          ip_address: string
-          is_active?: boolean | null
-          last_seen_at?: string
-          paste_id: string
-          roblox_user_id?: string | null
-          user_agent?: string | null
-        }
-        Update: {
-          access_type?: string
-          created_at?: string
-          id?: string
-          ip_address?: string
-          is_active?: boolean | null
-          last_seen_at?: string
-          paste_id?: string
-          roblox_user_id?: string | null
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "paste_access_logs_paste_id_fkey"
-            columns: ["paste_id"]
-            isOneToOne: false
-            referencedRelation: "pastes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       paste_execution_tokens: {
         Row: {
           created_at: string
@@ -367,44 +323,11 @@ export type Database = {
           },
         ]
       }
-      paste_game_bindings: {
-        Row: {
-          created_at: string
-          game_id: string
-          game_name: string | null
-          id: string
-          paste_id: string
-        }
-        Insert: {
-          created_at?: string
-          game_id: string
-          game_name?: string | null
-          id?: string
-          paste_id: string
-        }
-        Update: {
-          created_at?: string
-          game_id?: string
-          game_name?: string | null
-          id?: string
-          paste_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "paste_game_bindings_paste_id_fkey"
-            columns: ["paste_id"]
-            isOneToOne: false
-            referencedRelation: "pastes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       pastes: {
         Row: {
           background_protection: boolean | null
           content: string
           created_at: string
-          game_restriction_enabled: boolean | null
           hide_code: boolean | null
           id: string
           protection_enabled: boolean
@@ -418,7 +341,6 @@ export type Database = {
           background_protection?: boolean | null
           content: string
           created_at?: string
-          game_restriction_enabled?: boolean | null
           hide_code?: boolean | null
           id?: string
           protection_enabled?: boolean
@@ -432,7 +354,6 @@ export type Database = {
           background_protection?: boolean | null
           content?: string
           created_at?: string
-          game_restriction_enabled?: boolean | null
           hide_code?: boolean | null
           id?: string
           protection_enabled?: boolean
