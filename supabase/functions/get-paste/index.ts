@@ -270,52 +270,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Log access for monitoring (both browser and executor)
-    const logAccess = async (robloxUserId: string | null, accessType: string) => {
-      try {
-        // Check if we have a recent log from this IP for this paste
-        const { data: existingLog } = await supabase
-          .from('paste_access_logs')
-          .select('id, last_seen_at, roblox_user_id')
-          .eq('paste_id', paste.id)
-          .eq('ip_address', clientIp)
-          .single();
-
-        if (existingLog) {
-          // Update existing log
-          await supabase
-            .from('paste_access_logs')
-            .update({ 
-              last_seen_at: new Date().toISOString(),
-              is_active: true,
-              roblox_user_id: robloxUserId || (existingLog as any).roblox_user_id,
-              access_type: accessType
-            })
-            .eq('id', (existingLog as any).id);
-        } else {
-          // Insert new log
-          await supabase
-            .from('paste_access_logs')
-            .insert({
-              paste_id: paste.id,
-              ip_address: clientIp,
-              roblox_user_id: robloxUserId,
-              user_agent: userAgent,
-              access_type: accessType,
-              is_active: true
-            });
-        }
-      } catch (logError) {
-        console.error('Failed to log access:', logError);
-      }
-    };
-
     // If hide_code is enabled and this is a browser request without auth params, return empty
     if (paste.hide_code && !uid && !tk) {
       // Check if this looks like a browser request (not Roblox)
       if (!isRobloxRequest) {
-        // Log browser access attempt
-        await logAccess(null, 'browser');
         // Return empty response - code is hidden from browsers
         return new Response('', {
           status: 200,
@@ -326,30 +284,7 @@ Deno.serve(async (req) => {
 
     // If protection is disabled, return content directly
     if (!paste.protection_enabled && !paste.public_protection) {
-      // Check game restriction if enabled
-      if (paste.game_restriction_enabled && gid && pid) {
-        const { data: gameBindings } = await supabase
-          .from('paste_game_bindings')
-          .select('game_id')
-          .eq('paste_id', paste.id);
-
-        if (gameBindings && gameBindings.length > 0) {
-          // Check if current game/place is in the allowed list
-          const allowedGameIds = gameBindings.map(b => b.game_id);
-          const isAllowed = allowedGameIds.includes(gid) || allowedGameIds.includes(pid);
-
-          if (!isAllowed) {
-            console.log(`Game restriction blocked: gid=${gid}, pid=${pid}, allowed=${allowedGameIds.join(',')}`);
-            return new Response(generateKickPlain('This script is not supported on this game'), {
-              status: 200,
-              headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-            });
-          }
-        }
-      }
-
       if (uid && /^\d+$/.test(uid)) {
-        await logAccess(uid, 'execution');
         await supabase.from('paste_executions').insert({
           paste_id: paste.id,
           roblox_user_id: uid
@@ -364,9 +299,6 @@ Deno.serve(async (req) => {
 
     // Protection is enabled - check for auth params
     if (!uid || !ts || !tk) {
-      // Log browser/initial access
-      await logAccess(null, isRobloxRequest ? 'execution' : 'browser');
-      
       // Generate a new one-time token with session binding
       const newToken = generateToken();
       const sessionSecret = generateSessionSecret(clientIp, Date.now());
@@ -475,27 +407,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check game restriction for protected pastes
-    if (paste.game_restriction_enabled && gid && pid) {
-      const { data: gameBindings } = await supabase
-        .from('paste_game_bindings')
-        .select('game_id')
-        .eq('paste_id', paste.id);
-
-      if (gameBindings && gameBindings.length > 0) {
-        const allowedGameIds = gameBindings.map(b => b.game_id);
-        const isAllowed = allowedGameIds.includes(gid) || allowedGameIds.includes(pid);
-
-        if (!isAllowed) {
-          console.log(`Game restriction blocked: gid=${gid}, pid=${pid}, allowed=${allowedGameIds.join(',')}`);
-          return new Response(generateKickEncrypted('This script is not supported on this game', slug, tk, uid), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-          });
-        }
-      }
-    }
-
     // For public protection - skip whitelist check but still check blacklist
     if (paste.public_protection) {
       // Check blacklist only
@@ -522,8 +433,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Log execution and access
-      await logAccess(uid, 'execution');
+      // Log execution
       await supabase.from('paste_executions').insert({
         paste_id: paste.id,
         roblox_user_id: uid
@@ -590,8 +500,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Log execution and access
-    await logAccess(uid, 'execution');
+    // Log execution
     await supabase.from('paste_executions').insert({
       paste_id: paste.id,
       roblox_user_id: uid
