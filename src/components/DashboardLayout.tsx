@@ -16,15 +16,15 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Lock } from "lucide-react";
+import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 
 const navigationItems = [
   { title: "Key System Gen", url: "/dashboard", icon: Zap },
-  { title: "Obfuscation", url: "/obfuscation", icon: Lock },
   { title: "Script Storage", url: "/scripts", icon: Save },
   { title: "Pastebin", url: "/pastebin", icon: FileCode },
+  { title: "Script Settings", url: "/script-settings", icon: Eye },
   { title: "AI Assistant", url: "/ai-assistant", icon: Bot },
   { title: "Discord Bot", url: "/discord-bot", icon: MessageSquare },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
