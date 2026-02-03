@@ -260,10 +260,6 @@ export type Database = {
         Row: {
           access_type: string
           created_at: string
-          discord_avatar: string | null
-          discord_created_at: string | null
-          discord_user_id: string | null
-          discord_username: string | null
           id: string
           ip_address: string
           is_active: boolean | null
@@ -275,10 +271,6 @@ export type Database = {
         Insert: {
           access_type?: string
           created_at?: string
-          discord_avatar?: string | null
-          discord_created_at?: string | null
-          discord_user_id?: string | null
-          discord_username?: string | null
           id?: string
           ip_address: string
           is_active?: boolean | null
@@ -290,10 +282,6 @@ export type Database = {
         Update: {
           access_type?: string
           created_at?: string
-          discord_avatar?: string | null
-          discord_created_at?: string | null
-          discord_user_id?: string | null
-          discord_username?: string | null
           id?: string
           ip_address?: string
           is_active?: boolean | null

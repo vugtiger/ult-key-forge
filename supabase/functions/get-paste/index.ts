@@ -272,60 +272,9 @@ Deno.serve(async (req) => {
 
     // Log access for monitoring (both browser and executor)
     // NOTE: guarded by per-paste toggle + de-duped to avoid flooding.
-    // Also fetches linked Discord info from key redemptions.
     const logAccess = async (robloxUserId: string | null, accessType: string) => {
       try {
         if (paste.ip_tracking_enabled === false) return;
-
-        // Try to find Discord info from existing key redemptions if we have a Roblox user ID
-        let discordInfo: { 
-          discord_user_id: string | null; 
-          discord_username: string | null; 
-          discord_avatar: string | null; 
-          discord_created_at: string | null;
-        } = { 
-          discord_user_id: null, 
-          discord_username: null, 
-          discord_avatar: null, 
-          discord_created_at: null 
-        };
-
-        if (robloxUserId) {
-          // Look up Discord info from control_panel_keys where this Roblox user redeemed a key
-          const { data: keyData } = await supabase
-            .from('control_panel_keys')
-            .select('redeemed_by_discord_id')
-            .eq('roblox_user_id', robloxUserId)
-            .not('redeemed_by_discord_id', 'is', null)
-            .limit(1)
-            .maybeSingle();
-
-          if (keyData?.redeemed_by_discord_id) {
-            discordInfo.discord_user_id = keyData.redeemed_by_discord_id;
-
-            // Fetch Discord user info from Discord API
-            const discordBotToken = Deno.env.get('DISCORD_BOT_TOKEN');
-            if (discordBotToken) {
-              try {
-                const discordRes = await fetch(
-                  `https://discord.com/api/v10/users/${keyData.redeemed_by_discord_id}`,
-                  { headers: { Authorization: `Bot ${discordBotToken}` } }
-                );
-                if (discordRes.ok) {
-                  const discordUser = await discordRes.json();
-                  discordInfo.discord_username = discordUser.username;
-                  discordInfo.discord_avatar = discordUser.avatar;
-                  // Calculate account creation date from Discord snowflake ID
-                  const snowflake = BigInt(keyData.redeemed_by_discord_id);
-                  const timestamp = Number((snowflake >> 22n) + 1420070400000n);
-                  discordInfo.discord_created_at = new Date(timestamp).toISOString();
-                }
-              } catch (discordErr) {
-                console.error('Failed to fetch Discord user:', discordErr);
-              }
-            }
-          }
-        }
 
         // Find existing log for this exact "identity" so we don't create duplicates.
         let q = supabase
@@ -347,7 +296,6 @@ Deno.serve(async (req) => {
               last_seen_at: nowIso,
               is_active: true,
               user_agent: userAgent,
-              ...discordInfo,
             })
             .eq('id', existingLog.id);
         } else {
@@ -361,7 +309,6 @@ Deno.serve(async (req) => {
               access_type: accessType,
               is_active: true,
               last_seen_at: nowIso,
-              ...discordInfo,
             });
         }
       } catch (logError) {
