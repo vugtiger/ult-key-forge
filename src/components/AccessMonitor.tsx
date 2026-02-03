@@ -1,34 +1,21 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Eye, Radio, Clock, User, Globe, Shield } from "lucide-react";
-
-interface Paste {
-  id: string;
-  title: string | null;
-  slug: string;
-}
-
-interface AccessLog {
-  id: string;
-  paste_id: string;
-  ip_address: string;
-  roblox_user_id: string | null;
-  user_agent: string | null;
-  access_type: string;
-  is_active: boolean;
-  last_seen_at: string;
-  created_at: string;
-}
+import { Switch } from "@/components/ui/switch";
+import { Shield, Eye, Radio } from "lucide-react";
+import AccessLogRow from "@/components/access-monitor/AccessLogRow";
+import type { AccessLog, PasteOption } from "@/components/access-monitor/types";
+import { groupForDisplay, mergeAccessLog } from "@/components/access-monitor/utils";
 
 const AccessMonitor = () => {
-  const [pastes, setPastes] = useState<Paste[]>([]);
+  const [pastes, setPastes] = useState<PasteOption[]>([]);
   const [selectedPasteId, setSelectedPasteId] = useState<string>("");
   const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPastes();
@@ -51,11 +38,9 @@ const AccessMonitor = () => {
           },
           (payload) => {
             if (payload.eventType === 'INSERT') {
-              setAccessLogs(prev => [payload.new as AccessLog, ...prev]);
+              setAccessLogs((prev) => mergeAccessLog(prev, payload.new as AccessLog));
             } else if (payload.eventType === 'UPDATE') {
-              setAccessLogs(prev => 
-                prev.map(log => log.id === (payload.new as AccessLog).id ? payload.new as AccessLog : log)
-              );
+              setAccessLogs((prev) => mergeAccessLog(prev, payload.new as AccessLog));
             }
           }
         )
@@ -73,7 +58,7 @@ const AccessMonitor = () => {
 
     const { data, error } = await supabase
       .from('pastes')
-      .select('id, title, slug')
+      .select('id, title, slug, ip_tracking_enabled')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
@@ -101,32 +86,38 @@ const AccessMonitor = () => {
     setLoading(false);
   };
 
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
+  const selectedPaste = useMemo(
+    () => pastes.find((p) => p.id === selectedPasteId) || null,
+    [pastes, selectedPasteId],
+  );
 
-    if (seconds < 60) return "Just now";
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
+  const displayLogs = useMemo(() => groupForDisplay(accessLogs), [accessLogs]);
+
+  const toggleIpTracking = async (enabled: boolean) => {
+    if (!selectedPasteId) return;
+    const { error } = await supabase
+      .from('pastes')
+      .update({ ip_tracking_enabled: enabled })
+      .eq('id', selectedPasteId);
+
+    if (!error) {
+      setPastes((prev) => prev.map((p) => (p.id === selectedPasteId ? { ...p, ip_tracking_enabled: enabled } : p)));
+    }
   };
 
-  const isActiveNow = (lastSeen: string) => {
-    const date = new Date(lastSeen);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    return diff < 60000; // Active if seen in last minute
-  };
-
-  const isBrowserRequest = (userAgent: string | null) => {
-    if (!userAgent) return false;
-    const ua = userAgent.toLowerCase();
-    return !ua.includes('roblox') && !ua.includes('httpservice');
+  const deleteLog = async (log: AccessLog) => {
+    setDeletingId(log.id);
+    try {
+      const { error } = await supabase
+        .from('paste_access_logs')
+        .delete()
+        .eq('id', log.id);
+      if (!error) {
+        setAccessLogs((prev) => prev.filter((l) => l.id !== log.id));
+      }
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -155,6 +146,24 @@ const AccessMonitor = () => {
           </Select>
         </div>
 
+        {/* IP Tracking Toggle */}
+        {selectedPaste && (
+          <div className="flex items-center justify-between p-3 rounded-lg bg-background/30 border border-border/30">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">
+                IP Tracking {selectedPaste.ip_tracking_enabled === false ? "Disabled" : "Enabled"}
+              </span>
+              <Badge variant="outline" className="text-[10px]">
+                per-paste
+              </Badge>
+            </div>
+            <Switch
+              checked={selectedPaste.ip_tracking_enabled !== false}
+              onCheckedChange={toggleIpTracking}
+            />
+          </div>
+        )}
+
         {/* Access Logs */}
         {selectedPasteId && (
           <div className="space-y-2">
@@ -163,9 +172,9 @@ const AccessMonitor = () => {
                 <Radio className="h-4 w-4 text-primary animate-pulse" />
                 Live Access Feed
               </h4>
-              <Badge variant="outline" className="text-xs">
-                {accessLogs.length} records
-              </Badge>
+               <Badge variant="outline" className="text-xs">
+                 {displayLogs.length} shown
+               </Badge>
             </div>
 
             <ScrollArea className="h-[400px] rounded-lg border border-border/30 bg-background/30">
@@ -173,7 +182,7 @@ const AccessMonitor = () => {
                 <div className="p-4 text-center text-muted-foreground">
                   Loading access logs...
                 </div>
-              ) : accessLogs.length === 0 ? (
+               ) : displayLogs.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
                   <Shield className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p>No access logs yet</p>
@@ -181,87 +190,33 @@ const AccessMonitor = () => {
                 </div>
               ) : (
                 <div className="p-2 space-y-2">
-                  {accessLogs.map((log) => {
-                    const active = isActiveNow(log.last_seen_at);
-                    const fromBrowser = isBrowserRequest(log.user_agent);
-                    
-                    return (
-                      <div
-                        key={log.id}
-                        className={`p-3 rounded-lg border transition-all ${
-                          active 
-                            ? 'border-primary/50 bg-primary/10 shadow-lg shadow-primary/20' 
-                            : 'border-border/30 bg-background/50'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            {/* Status indicator */}
-                            <div className="relative">
-                              <div className={`h-3 w-3 rounded-full ${
-                                fromBrowser ? 'bg-destructive' : 'bg-green-500'
-                              }`} />
-                              {active && (
-                                <div className={`absolute inset-0 h-3 w-3 rounded-full animate-ping ${
-                                  fromBrowser ? 'bg-destructive' : 'bg-green-500'
-                                }`} />
-                              )}
-                            </div>
-                            
-                            <div className="space-y-1">
-                              {/* IP Address */}
-                              <div className="flex items-center gap-2">
-                                <Globe className="h-3 w-3 text-muted-foreground" />
-                                <span className="font-mono text-sm font-medium">
-                                  {log.ip_address}
-                                </span>
-                                {fromBrowser && (
-                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                    BROWSER
-                                  </Badge>
-                                )}
-                              </div>
-                              
-                              {/* Roblox User ID */}
-                              {log.roblox_user_id && (
-                                <div className="flex items-center gap-2">
-                                  <User className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-xs text-muted-foreground">
-                                    Roblox ID: {log.roblox_user_id}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* Timestamp */}
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {formatTime(log.last_seen_at)}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                   {displayLogs.map((log) => (
+                     <AccessLogRow
+                       key={log.id}
+                       log={log}
+                       deleting={deletingId === log.id}
+                       onDelete={deleteLog}
+                     />
+                   ))}
                 </div>
               )}
             </ScrollArea>
 
             {/* Legend */}
-            <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t border-border/30">
-              <div className="flex items-center gap-1.5">
-                <div className="h-2 w-2 rounded-full bg-green-500" />
-                <span>Roblox Executor</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-2 w-2 rounded-full bg-destructive" />
-                <span>Browser Access</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                <span>Active Now</span>
-              </div>
-            </div>
+             <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t border-border/30">
+               <div className="flex items-center gap-1.5">
+                 <div className="h-2 w-2 rounded-full bg-primary" />
+                 <span>Executor (active)</span>
+               </div>
+               <div className="flex items-center gap-1.5">
+                 <div className="h-2 w-2 rounded-full bg-destructive" />
+                 <span>Browser (active)</span>
+               </div>
+               <div className="flex items-center gap-1.5">
+                 <div className="h-2 w-2 rounded-full bg-muted-foreground" />
+                 <span>Offline</span>
+               </div>
+             </div>
           </div>
         )}
       </CardContent>

@@ -271,29 +271,34 @@ Deno.serve(async (req) => {
     }
 
     // Log access for monitoring (both browser and executor)
+    // NOTE: guarded by per-paste toggle + de-duped to avoid flooding.
     const logAccess = async (robloxUserId: string | null, accessType: string) => {
       try {
-        // Check if we have a recent log from this IP for this paste
-        const { data: existingLog } = await supabase
+        if (paste.ip_tracking_enabled === false) return;
+
+        // Find existing log for this exact "identity" so we don't create duplicates.
+        let q = supabase
           .from('paste_access_logs')
-          .select('id, last_seen_at, roblox_user_id')
+          .select('id')
           .eq('paste_id', paste.id)
           .eq('ip_address', clientIp)
-          .single();
+          .eq('access_type', accessType);
 
-        if (existingLog) {
-          // Update existing log
+        q = robloxUserId ? q.eq('roblox_user_id', robloxUserId) : q.is('roblox_user_id', null);
+
+        const { data: existingLog } = await q.maybeSingle();
+
+        const nowIso = new Date().toISOString();
+        if (existingLog?.id) {
           await supabase
             .from('paste_access_logs')
-            .update({ 
-              last_seen_at: new Date().toISOString(),
+            .update({
+              last_seen_at: nowIso,
               is_active: true,
-              roblox_user_id: robloxUserId || (existingLog as any).roblox_user_id,
-              access_type: accessType
+              user_agent: userAgent,
             })
-            .eq('id', (existingLog as any).id);
+            .eq('id', existingLog.id);
         } else {
-          // Insert new log
           await supabase
             .from('paste_access_logs')
             .insert({
@@ -302,7 +307,8 @@ Deno.serve(async (req) => {
               roblox_user_id: robloxUserId,
               user_agent: userAgent,
               access_type: accessType,
-              is_active: true
+              is_active: true,
+              last_seen_at: nowIso,
             });
         }
       } catch (logError) {
@@ -364,8 +370,10 @@ Deno.serve(async (req) => {
 
     // Protection is enabled - check for auth params
     if (!uid || !ts || !tk) {
-      // Log browser/initial access
-      await logAccess(null, isRobloxRequest ? 'execution' : 'browser');
+      // Only log browser hits here. Executor requests should log once we have a real Roblox user id.
+      if (!isRobloxRequest) {
+        await logAccess(null, 'browser');
+      }
       
       // Generate a new one-time token with session binding
       const newToken = generateToken();

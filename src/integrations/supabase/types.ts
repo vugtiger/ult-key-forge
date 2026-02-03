@@ -407,6 +407,7 @@ export type Database = {
           game_restriction_enabled: boolean | null
           hide_code: boolean | null
           id: string
+          ip_tracking_enabled: boolean
           protection_enabled: boolean
           public_protection: boolean | null
           slug: string
@@ -421,6 +422,7 @@ export type Database = {
           game_restriction_enabled?: boolean | null
           hide_code?: boolean | null
           id?: string
+          ip_tracking_enabled?: boolean
           protection_enabled?: boolean
           public_protection?: boolean | null
           slug: string
@@ -435,6 +437,7 @@ export type Database = {
           game_restriction_enabled?: boolean | null
           hide_code?: boolean | null
           id?: string
+          ip_tracking_enabled?: boolean
           protection_enabled?: boolean
           public_protection?: boolean | null
           slug?: string
