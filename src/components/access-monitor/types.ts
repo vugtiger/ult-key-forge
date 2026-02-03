@@ -15,4 +15,8 @@ export interface AccessLog {
   is_active: boolean | null;
   last_seen_at: string;
   created_at: string;
+  discord_user_id: string | null;
+  discord_username: string | null;
+  discord_avatar: string | null;
+  discord_created_at: string | null;
 }
