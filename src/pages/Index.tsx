@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, Key, Shield, Database, Bot, Palette, Save, Zap, Code, MessageSquare, ExternalLink, Sparkles, EyeOff, Clock } from "lucide-react";
+import { ArrowRight, Key, Shield, Database, Bot, Palette, Save, Zap, Code, MessageSquare, ExternalLink, Sparkles, EyeOff, Clock, Eye } from "lucide-react";
 import KeySystemPreview from "@/components/KeySystemPreview";
 import AIAssistantDemo from "@/components/AIAssistantDemo";
 import ReviewsSection from "@/components/ReviewsSection";
 import LastUpdatedBadge from "@/components/LastUpdatedBadge";
+import UsersWorldwideGlobe from "@/components/UsersWorldwideGlobe";
 import luaLogo from "@/assets/lua-logo.png";
 
 const Index = () => {
@@ -31,6 +32,7 @@ const Index = () => {
   ];
 
   const newFeatures = [
+    { icon: Eye, title: "Hawk Discord Tracking", description: "Scan your Discord server members and identify them when they view your pastes.", isNew: true },
     { icon: EyeOff, title: "Hide Code", description: "Hide your code from the raw URL - shows blank but loadstring still works.", isNew: true },
     { icon: Zap, title: "Public Protection", description: "Encrypted protection without whitelist - anyone can execute but code stays safe.", isNew: true },
     { icon: Bot, title: "Discord Control Panels", description: "Create control panels with key redemption, role assignment, and script delivery.", isNew: true },
@@ -183,8 +185,13 @@ const Index = () => {
             <AIAssistantDemo />
           </section>
 
-          {/* Reviews Section */}
-          <ReviewsSection />
+          {/* Reviews Section + Globe Side by Side */}
+          <section className="max-w-6xl mx-auto mb-24">
+            <div className="grid lg:grid-cols-2 gap-12 items-start">
+              <ReviewsSection />
+              <UsersWorldwideGlobe />
+            </div>
+          </section>
 
           {/* About Section */}
           <section className="max-w-4xl mx-auto mb-24 text-center">
