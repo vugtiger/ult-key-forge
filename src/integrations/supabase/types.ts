@@ -185,66 +185,6 @@ export type Database = {
           },
         ]
       }
-      discord_hawk_settings: {
-        Row: {
-          created_at: string
-          enabled: boolean
-          guild_id: string
-          id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          enabled?: boolean
-          guild_id: string
-          id?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          enabled?: boolean
-          guild_id?: string
-          id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      discord_hawk_users: {
-        Row: {
-          discord_avatar: string | null
-          discord_created_at: string | null
-          discord_user_id: string
-          discord_username: string | null
-          guild_id: string
-          id: string
-          is_active: boolean
-          scanned_at: string
-          user_id: string
-        }
-        Insert: {
-          discord_avatar?: string | null
-          discord_created_at?: string | null
-          discord_user_id: string
-          discord_username?: string | null
-          guild_id: string
-          id?: string
-          is_active?: boolean
-          scanned_at?: string
-          user_id: string
-        }
-        Update: {
-          discord_avatar?: string | null
-          discord_created_at?: string | null
-          discord_user_id?: string
-          discord_username?: string | null
-          guild_id?: string
-          id?: string
-          is_active?: boolean
-          scanned_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       key_systems: {
         Row: {
           ascii_text: string

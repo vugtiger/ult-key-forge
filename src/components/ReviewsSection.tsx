@@ -167,13 +167,11 @@ const ReviewsSection = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl md:text-4xl font-bold">User Reviews</h2>
-        <p className="text-muted-foreground mt-2">
-          See what our users are saying about ULT LUA Protects
-        </p>
-      </div>
+    <section className="max-w-6xl mx-auto mb-24">
+      <h2 className="text-4xl font-bold text-center mb-4">User Reviews</h2>
+      <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
+        See what our users are saying about ULT LUA Protects
+      </p>
 
       {/* Submit Review Form */}
       {isLoggedIn && (
@@ -253,7 +251,7 @@ const ReviewsSection = () => {
           }
         }
       `}</style>
-    </div>
+    </section>
   );
 };
 

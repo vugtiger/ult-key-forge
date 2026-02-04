@@ -272,7 +272,7 @@ Deno.serve(async (req) => {
 
     // Log access for monitoring (both browser and executor)
     // NOTE: guarded by per-paste toggle + de-duped to avoid flooding.
-    // Also fetches linked Discord info from key redemptions OR hawk system.
+    // Also fetches linked Discord info from key redemptions.
     const logAccess = async (robloxUserId: string | null, accessType: string) => {
       try {
         if (paste.ip_tracking_enabled === false) return;
@@ -322,51 +322,6 @@ Deno.serve(async (req) => {
                 }
               } catch (discordErr) {
                 console.error('Failed to fetch Discord user:', discordErr);
-              }
-            }
-          }
-        }
-
-        // If no Discord info from key redemption, check hawk system for browser requests
-        // The hawk system tracks Discord users by their IP when they visit from browser
-        if (!discordInfo.discord_user_id && accessType === 'browser') {
-          // Get the paste owner to check their hawk data
-          const { data: pasteOwnerProfile } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('id', paste.user_id)
-            .single();
-
-          if (pasteOwnerProfile) {
-            // Check if any hawk user's IP matches (we'll match by checking active hawk sessions)
-            // For now, look up hawk users and try to match based on recent activity
-            const { data: hawkUsers } = await supabase
-              .from('discord_hawk_users')
-              .select('discord_user_id, discord_username, discord_avatar, discord_created_at')
-              .eq('user_id', paste.user_id)
-              .eq('is_active', true);
-
-            // If we have hawk users, we'll use the most recent one that matches
-            // In practice, you'd want to correlate this with some session/fingerprint
-            // For now, if there are hawk users and this is a browser request, 
-            // we check existing access logs for this IP to see if there's a linked Discord
-            if (hawkUsers && hawkUsers.length > 0) {
-              // Check if there's an existing log with Discord info for this IP
-              const { data: existingWithDiscord } = await supabase
-                .from('paste_access_logs')
-                .select('discord_user_id, discord_username, discord_avatar, discord_created_at')
-                .eq('ip_address', clientIp)
-                .not('discord_user_id', 'is', null)
-                .limit(1)
-                .maybeSingle();
-
-              if (existingWithDiscord?.discord_user_id) {
-                discordInfo = {
-                  discord_user_id: existingWithDiscord.discord_user_id,
-                  discord_username: existingWithDiscord.discord_username,
-                  discord_avatar: existingWithDiscord.discord_avatar,
-                  discord_created_at: existingWithDiscord.discord_created_at,
-                };
               }
             }
           }
