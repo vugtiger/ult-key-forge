@@ -1371,10 +1371,131 @@ When building websites, focus on clean, modern, responsive design.`;
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle protection\n\`/publicprotection\` - Protection without whitelist\n\`/hidecode\` - Hide code from raw URL\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/setwhitelisttime\` - Set expiration\n\`/stats\` - View stats\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/genkeys\` - Generate keys (with expiration)\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist user from panel\n\`/unblacklist\` - Remove from blacklist\n\`/forceexpire\` - Force expire user access\n\n**AI:**\n\`/ai\` - Chat with AI`, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle protection\n\`/publicprotection\` - Protection without whitelist\n\`/hidecode\` - Hide code from raw URL\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/setwhitelisttime\` - Set expiration\n\`/stats\` - View stats\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/genkeys\` - Generate keys (with expiration)\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist user from panel\n\`/unblacklist\` - Remove from blacklist\n\`/forceexpire\` - Force expire user access\n\n**Hawk System:**\n\`/userhawk\` - Enable hawk mode (scan all server members)\n\`/unuserhawk\` - Disable hawk mode\n\n**AI:**\n\`/ai\` - Chat with AI`, 
           flags: 0 
         }
       };
+    }
+
+    case 'userhawk': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const guildId = interaction.guild_id;
+      if (!guildId) {
+        return { type: 4, data: { content: '❌ This command must be used in a server.', flags: 64 } };
+      }
+
+      // Check if hawk mode is already enabled
+      const { data: existing } = await supabase
+        .from('discord_hawk_settings')
+        .select('id, enabled')
+        .eq('user_id', user.userId)
+        .eq('guild_id', guildId)
+        .maybeSingle();
+
+      if (existing?.enabled) {
+        return { type: 4, data: { content: '🦅 Hawk mode is already enabled for this server!', flags: 64 } };
+      }
+
+      // Enable or create hawk settings
+      if (existing) {
+        await supabase
+          .from('discord_hawk_settings')
+          .update({ enabled: true })
+          .eq('id', existing.id);
+      } else {
+        await supabase
+          .from('discord_hawk_settings')
+          .insert({ user_id: user.userId, guild_id: guildId, enabled: true });
+      }
+
+      // Fetch all server members and store them
+      try {
+        let after = '';
+        let totalScanned = 0;
+        
+        while (true) {
+          const url = `https://discord.com/api/v10/guilds/${guildId}/members?limit=1000${after ? `&after=${after}` : ''}`;
+          const res = await fetch(url, {
+            headers: { 'Authorization': `Bot ${DISCORD_BOT_TOKEN}` }
+          });
+
+          if (!res.ok) {
+            console.error('Failed to fetch guild members:', await res.text());
+            break;
+          }
+
+          const members = await res.json();
+          if (members.length === 0) break;
+
+          // Store each member
+          for (const member of members) {
+            if (member.user?.bot) continue; // Skip bots
+
+            const discordUserId = member.user?.id;
+            const discordUsername = member.user?.username;
+            const discordAvatar = member.user?.avatar;
+
+            // Calculate account creation date from Discord snowflake
+            const snowflake = BigInt(discordUserId);
+            const timestamp = Number((snowflake >> 22n) + 1420070400000n);
+            const discordCreatedAt = new Date(timestamp).toISOString();
+
+            await supabase
+              .from('discord_hawk_users')
+              .upsert({
+                user_id: user.userId,
+                guild_id: guildId,
+                discord_user_id: discordUserId,
+                discord_username: discordUsername,
+                discord_avatar: discordAvatar,
+                discord_created_at: discordCreatedAt,
+                scanned_at: new Date().toISOString(),
+                is_active: true
+              }, { onConflict: 'user_id,guild_id,discord_user_id' });
+
+            totalScanned++;
+          }
+
+          after = members[members.length - 1].user?.id;
+          if (members.length < 1000) break;
+        }
+
+        await sendDM(discordUserId, `🦅 **Hawk Mode Enabled!**\n\n**Server ID:** ${guildId}\n**Members Scanned:** ${totalScanned}\n\nAll server members are now being tracked. Their Discord info will appear when they view your pastes in their browser.\n\n⚠️ Users who leave the server will still be tracked!`);
+
+        return { type: 4, data: { content: `🦅 **Hawk Mode Enabled!**\n\nScanned **${totalScanned}** members in this server. Their Discord info will now show in your Access Monitor when they view your pastes!\n\nCheck your DMs for details.`, flags: 64 } };
+      } catch (error) {
+        console.error('Hawk scan error:', error);
+        return { type: 4, data: { content: '❌ Failed to scan server members. Make sure the bot has the "Server Members Intent" enabled.', flags: 64 } };
+      }
+    }
+
+    case 'unuserhawk': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const guildId = interaction.guild_id;
+      if (!guildId) {
+        return { type: 4, data: { content: '❌ This command must be used in a server.', flags: 64 } };
+      }
+
+      // Disable hawk mode (but keep the data!)
+      const { error } = await supabase
+        .from('discord_hawk_settings')
+        .update({ enabled: false })
+        .eq('user_id', user.userId)
+        .eq('guild_id', guildId);
+
+      if (error) {
+        return { type: 4, data: { content: '❌ Failed to disable hawk mode.', flags: 64 } };
+      }
+
+      return { type: 4, data: { content: '🦅 **Hawk Mode Disabled!**\n\nNew members will no longer be tracked. Existing tracked members are still in the database and will be identified if they view your pastes.', flags: 64 } };
     }
 
     case 'hidecode': {

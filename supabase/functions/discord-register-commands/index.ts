@@ -203,6 +203,18 @@ const commands = [
   {
     name: "help",
     description: "Show all available commands"
+  },
+
+  // Hawk System Commands
+  {
+    name: "userhawk",
+    description: "Enable hawk mode - scans and tracks all server members for Discord identification",
+    options: []
+  },
+  {
+    name: "unuserhawk",
+    description: "Disable hawk mode for this server",
+    options: []
   }
 ];
 
