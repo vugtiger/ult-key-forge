@@ -22,6 +22,11 @@ export const isActiveNow = (lastSeen: string) => {
   return diff < 60_000; // Active if seen in last minute
 };
 
+export const formatDiscordDate = (dateStr: string) => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
 export const isBrowserRequest = (userAgent: string | null) => {
   if (!userAgent) return false;
   const ua = userAgent.toLowerCase();
