@@ -8,6 +8,7 @@ import KeySystemPreview from "@/components/KeySystemPreview";
 import AIAssistantDemo from "@/components/AIAssistantDemo";
 import ReviewsSection from "@/components/ReviewsSection";
 import LastUpdatedBadge from "@/components/LastUpdatedBadge";
+import GlobeVisualization from "@/components/GlobeVisualization";
 import luaLogo from "@/assets/lua-logo.png";
 
 const Index = () => {
@@ -183,8 +184,15 @@ const Index = () => {
             <AIAssistantDemo />
           </section>
 
-          {/* Reviews Section */}
-          <ReviewsSection />
+          {/* Reviews Section with Globe */}
+          <section className="max-w-7xl mx-auto mb-24">
+            <div className="grid lg:grid-cols-[1fr_380px] gap-8 items-start">
+              <ReviewsSection />
+              <div className="hidden lg:block sticky top-8">
+                <GlobeVisualization />
+              </div>
+            </div>
+          </section>
 
           {/* About Section */}
           <section className="max-w-4xl mx-auto mb-24 text-center">
