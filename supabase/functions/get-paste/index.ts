@@ -367,9 +367,29 @@ function generateKickEncrypted(reason: string, slug: string, token: string, uid:
   return xorToHex(kickScript, key);
 }
 
-// Build redirect URL to the backend heartbeat page
-function buildHeartbeatRedirectUrl(supabaseUrl: string, slug: string, logId: string): string {
-  return `${supabaseUrl}/functions/v1/hb?slug=${encodeURIComponent(slug)}&id=${encodeURIComponent(logId)}&t=${Date.now()}`;
+function getAppBaseUrl(req: Request): string {
+  const origin = req.headers.get('origin') ?? '';
+  const referer = req.headers.get('referer') ?? '';
+
+  for (const candidate of [origin, referer]) {
+    if (!candidate) continue;
+    try {
+      const u = new URL(candidate);
+      // Only trust app domains (not the backend functions domain)
+      if (u.hostname.endsWith('lovable.app')) {
+        return `${u.protocol}//${u.host}`;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Fallback for direct navigation to the backend URL
+  return 'https://ultluacodeprotectsyourcode.lovable.app';
+}
+
+function buildHeartbeatRedirectUrl(appBaseUrl: string, slug: string, logId: string): string {
+  return `${appBaseUrl}/hb?slug=${encodeURIComponent(slug)}&id=${encodeURIComponent(logId)}&t=${Date.now()}`;
 }
 
 
@@ -429,6 +449,8 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const appBaseUrl = getAppBaseUrl(req);
+
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -622,11 +644,11 @@ Deno.serve(async (req) => {
         console.log(`[get-paste] hide_code: blanking browser request slug=${slug} ip=${clientIp}`);
         const logId = await logAccess(null, 'browser');
 
-        // Redirect to backend heartbeat page
+        // Redirect to app heartbeat page (real HTML/JS)
         if (logId) {
           return new Response(null, {
             status: 302,
-            headers: { ...corsHeaders, Location: buildHeartbeatRedirectUrl(supabaseUrl, slugStr, logId) },
+            headers: { ...corsHeaders, Location: buildHeartbeatRedirectUrl(appBaseUrl, slugStr, logId) },
           });
         }
 
@@ -681,11 +703,11 @@ Deno.serve(async (req) => {
       if (isLikelyBrowser && !isRobloxRequest) {
         const logId = await logAccess(null, 'browser');
 
-        // Redirect to backend heartbeat page
+        // Redirect to app heartbeat page (real HTML/JS)
         if (logId) {
           return new Response(null, {
             status: 302,
-            headers: { ...corsHeaders, Location: buildHeartbeatRedirectUrl(supabaseUrl, slugStr, logId) },
+            headers: { ...corsHeaders, Location: buildHeartbeatRedirectUrl(appBaseUrl, slugStr, logId) },
           });
         }
 
