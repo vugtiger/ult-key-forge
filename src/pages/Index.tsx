@@ -58,6 +58,7 @@ const Index = () => {
             <LastUpdatedBadge />
           </div>
           <div className="flex items-center gap-4">
+            <GoogleTranslate />
             <a
               href="https://discord.gg/hPywsq3yqw"
               target="_blank"
