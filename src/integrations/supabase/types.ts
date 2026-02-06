@@ -185,6 +185,123 @@ export type Database = {
           },
         ]
       }
+      discord_hawk_settings: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          guild_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          guild_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          guild_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      discord_hawk_users: {
+        Row: {
+          discord_avatar: string | null
+          discord_created_at: string | null
+          discord_user_id: string
+          discord_username: string | null
+          guild_id: string
+          id: string
+          is_active: boolean
+          scanned_at: string
+          user_id: string
+        }
+        Insert: {
+          discord_avatar?: string | null
+          discord_created_at?: string | null
+          discord_user_id: string
+          discord_username?: string | null
+          guild_id: string
+          id?: string
+          is_active?: boolean
+          scanned_at?: string
+          user_id: string
+        }
+        Update: {
+          discord_avatar?: string | null
+          discord_created_at?: string | null
+          discord_user_id?: string
+          discord_username?: string | null
+          guild_id?: string
+          id?: string
+          is_active?: boolean
+          scanned_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      discord_oauth_sessions: {
+        Row: {
+          created_at: string
+          discord_avatar: string | null
+          discord_created_at: string | null
+          discord_user_id: string
+          discord_username: string | null
+          expires_at: string
+          id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          discord_avatar?: string | null
+          discord_created_at?: string | null
+          discord_user_id: string
+          discord_username?: string | null
+          expires_at?: string
+          id?: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          discord_avatar?: string | null
+          discord_created_at?: string | null
+          discord_user_id?: string
+          discord_username?: string | null
+          expires_at?: string
+          id?: string
+          token?: string
+        }
+        Relationships: []
+      }
+      discord_oauth_states: {
+        Row: {
+          created_at: string
+          id: string
+          slug: string
+          state: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          slug: string
+          state: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          slug?: string
+          state?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       key_systems: {
         Row: {
           ascii_text: string
@@ -260,6 +377,10 @@ export type Database = {
         Row: {
           access_type: string
           created_at: string
+          discord_avatar: string | null
+          discord_created_at: string | null
+          discord_user_id: string | null
+          discord_username: string | null
           id: string
           ip_address: string
           is_active: boolean | null
@@ -271,6 +392,10 @@ export type Database = {
         Insert: {
           access_type?: string
           created_at?: string
+          discord_avatar?: string | null
+          discord_created_at?: string | null
+          discord_user_id?: string | null
+          discord_username?: string | null
           id?: string
           ip_address: string
           is_active?: boolean | null
@@ -282,6 +407,10 @@ export type Database = {
         Update: {
           access_type?: string
           created_at?: string
+          discord_avatar?: string | null
+          discord_created_at?: string | null
+          discord_user_id?: string | null
+          discord_username?: string | null
           id?: string
           ip_address?: string
           is_active?: boolean | null
@@ -456,6 +585,8 @@ export type Database = {
           discord_username: string | null
           id: string
           is_banned: boolean | null
+          preferred_language: string | null
+          tutorial_completed: boolean | null
           updated_at: string | null
           username: string | null
         }
@@ -467,6 +598,8 @@ export type Database = {
           discord_username?: string | null
           id: string
           is_banned?: boolean | null
+          preferred_language?: string | null
+          tutorial_completed?: boolean | null
           updated_at?: string | null
           username?: string | null
         }
@@ -478,6 +611,8 @@ export type Database = {
           discord_username?: string | null
           id?: string
           is_banned?: boolean | null
+          preferred_language?: string | null
+          tutorial_completed?: boolean | null
           updated_at?: string | null
           username?: string | null
         }
@@ -859,6 +994,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_discord_oauth: { Args: never; Returns: undefined }
       cleanup_expired_tokens: { Args: never; Returns: undefined }
       has_role: {
         Args: {

@@ -3,6 +3,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  // Prevent Roblox/executor HTTP caching from causing stale loader/token behavior
+  'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+  Pragma: 'no-cache',
+  Expires: '0',
 };
 
 // Enhanced rate limiting with IP tracking
@@ -173,6 +177,11 @@ end)
 
 if s and r then
   if r:sub(1,2) == "--" then
+    -- Some executors cache HTTP responses. If we got another loader back, run it to refresh tokens.
+    local rf, re = loadstring(r)
+    if rf then
+      return rf()
+    end
     warn("Protection error")
     return
   end
@@ -269,6 +278,27 @@ Deno.serve(async (req) => {
         headers: corsHeaders 
       });
     }
+
+    const slugStr = slug;
+    const baseUrl = supabaseUrl + '/functions/v1/get-paste';
+    const textHeaders = { ...corsHeaders, 'Content-Type': 'text/plain' };
+
+    const respondWithFreshLoader = async () => {
+      const newToken = generateToken();
+      const sessionSecret = generateSessionSecret(clientIp, Date.now());
+
+      // Store token in database
+      await supabase.from('paste_execution_tokens').insert({
+        paste_id: paste.id,
+        roblox_user_id: '0',
+        token: newToken,
+        expires_at: new Date(Date.now() + 30000).toISOString()
+      });
+
+      const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret);
+      console.log(`Refreshed loader for paste: ${paste.id} from IP: ${clientIp}`);
+      return new Response(loader, { status: 200, headers: textHeaders });
+    };
 
     // Log access for monitoring (both browser and executor)
     // NOTE: guarded by per-paste toggle + de-duped to avoid flooding.
@@ -388,14 +418,13 @@ Deno.serve(async (req) => {
       });
 
       // Return the loader script with obfuscated token
-      const baseUrl = supabaseUrl + '/functions/v1/get-paste';
-      const loader = generateLoader(slug, baseUrl, newToken, sessionSecret);
+      const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret);
       
       console.log(`Generated secure loader for paste: ${paste.id} from IP: ${clientIp}`);
       
       return new Response(loader, {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        headers: textHeaders
       });
     }
 
@@ -413,10 +442,7 @@ Deno.serve(async (req) => {
     const now = Math.floor(Date.now() / 1000);
     if (isNaN(timestamp) || Math.abs(now - timestamp) > 180) {
       console.log(`Expired request: ts=${ts}, now=${now}, diff=${Math.abs(now - timestamp)}`);
-      return new Response(generateKickEncrypted('Request expired', slug, tk, uid), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
+      return await respondWithFreshLoader();
     }
 
     // Detect bypass attempts - check for suspicious patterns
@@ -441,10 +467,7 @@ Deno.serve(async (req) => {
 
     if (tokenError || !tokenData) {
       console.log(`Invalid token: ${tk} from IP: ${clientIp}`);
-      return new Response(generateKickEncrypted('Invalid token', slug, tk, uid), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
+      return await respondWithFreshLoader();
     }
 
     // Check if token already used
@@ -453,19 +476,13 @@ Deno.serve(async (req) => {
       // Add strike for token reuse attempt
       const strikes = (suspiciousIps.get(clientIp)?.strikes || 0) + 1;
       suspiciousIps.set(clientIp, { strikes, lastStrike: Date.now() });
-      return new Response(generateKickEncrypted('Token already used', slug, tk, uid), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
+      return await respondWithFreshLoader();
     }
 
     // Check if token expired
     if (new Date(tokenData.expires_at) < new Date()) {
       console.log(`Token expired: ${tk}`);
-      return new Response(generateKickEncrypted('Token expired', slug, tk, uid), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
+      return await respondWithFreshLoader();
     }
 
     // Mark token as used IMMEDIATELY (before any other checks)
@@ -477,10 +494,7 @@ Deno.serve(async (req) => {
 
     if (updateError) {
       console.log(`Failed to mark token as used: ${updateError.message}`);
-      return new Response(generateKickEncrypted('Token error', slug, tk, uid), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
+      return await respondWithFreshLoader();
     }
 
     // Check game restriction for protected pastes
@@ -515,11 +529,14 @@ Deno.serve(async (req) => {
         .eq('access_type', 'blacklist')
         .maybeSingle();
 
-      const nowDate = new Date().toISOString();
-      const isBlacklisted = blacklistEntry && (
-        blacklistEntry.is_eternal || 
-        !blacklistEntry.expires_at || 
-        blacklistEntry.expires_at > nowDate
+      const nowMs = Date.now();
+      const expiresAtMs = blacklistEntry?.expires_at ? Date.parse(blacklistEntry.expires_at) : null;
+      const expiresValid = typeof expiresAtMs === "number" && Number.isFinite(expiresAtMs);
+
+      const isBlacklisted = !!blacklistEntry && (
+        blacklistEntry.is_eternal ||
+        !blacklistEntry.expires_at ||
+        (expiresValid && (expiresAtMs as number) > nowMs)
       );
 
       if (isBlacklisted) {
@@ -556,14 +573,16 @@ Deno.serve(async (req) => {
       .eq('paste_id', paste.id)
       .eq('roblox_user_id', uid);
 
-    const nowDate = new Date().toISOString();
+    const nowMs = Date.now();
 
     // Check for blacklist first
-    const isBlacklisted = accessList?.some(entry => {
+    const isBlacklisted = accessList?.some((entry) => {
       if (entry.access_type !== 'blacklist') return false;
       if (entry.is_eternal) return true;
       if (!entry.expires_at) return true;
-      return entry.expires_at > nowDate;
+
+      const expiresAtMs = Date.parse(entry.expires_at);
+      return Number.isFinite(expiresAtMs) && expiresAtMs > nowMs;
     });
 
     if (isBlacklisted) {
@@ -585,10 +604,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if whitelist entry is valid
-    const isValidWhitelist = whitelistEntry.is_eternal || 
-      !whitelistEntry.expires_at || 
-      whitelistEntry.expires_at > nowDate;
+    const whitelistExpiresAtMs = whitelistEntry.expires_at
+      ? Date.parse(whitelistEntry.expires_at)
+      : null;
+
+    const isValidWhitelist =
+      whitelistEntry.is_eternal ||
+      !whitelistEntry.expires_at ||
+      (whitelistExpiresAtMs !== null &&
+        Number.isFinite(whitelistExpiresAtMs) &&
+        whitelistExpiresAtMs > nowMs);
 
     if (!isValidWhitelist) {
       console.log(`Whitelist time expired: ${uid}`);
