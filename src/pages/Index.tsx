@@ -8,7 +8,6 @@ import KeySystemPreview from "@/components/KeySystemPreview";
 import AIAssistantDemo from "@/components/AIAssistantDemo";
 import ReviewsSection from "@/components/ReviewsSection";
 import LastUpdatedBadge from "@/components/LastUpdatedBadge";
-import GoogleTranslate from "@/components/GoogleTranslate";
 import luaLogo from "@/assets/lua-logo.png";
 
 const Index = () => {
@@ -58,7 +57,6 @@ const Index = () => {
             <LastUpdatedBadge />
           </div>
           <div className="flex items-center gap-4">
-            <GoogleTranslate />
             <a
               href="https://discord.gg/hPywsq3yqw"
               target="_blank"
@@ -186,9 +184,7 @@ const Index = () => {
           </section>
 
           {/* Reviews Section */}
-          <section className="max-w-6xl mx-auto mb-24">
-            <ReviewsSection />
-          </section>
+          <ReviewsSection />
 
           {/* About Section */}
           <section className="max-w-4xl mx-auto mb-24 text-center">

@@ -46,28 +46,6 @@ function generateToken(): string {
   return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function parseCookies(cookieHeader: string | null) {
-  const out: Record<string, string> = {};
-  if (!cookieHeader) return out;
-  for (const part of cookieHeader.split(';')) {
-    const idx = part.indexOf('=');
-    if (idx === -1) continue;
-    const k = part.slice(0, idx).trim();
-    const v = part.slice(idx + 1).trim();
-    if (!k) continue;
-    out[k] = decodeURIComponent(v);
-  }
-  return out;
-}
-
-function detectRobloxRequest(req: Request, userAgent: string): boolean {
-  // Browsers send Origin; Roblox executors generally do not.
-  if (req.headers.get('origin')) return false;
-  if (!userAgent) return true; // safest for executors that send no UA
-  const ua = userAgent.toLowerCase();
-  return ua.includes('roblox') || ua.includes('httpservice');
-}
-
 // Generate a session-bound secret for additional validation
 function generateSessionSecret(ip: string, timestamp: number): string {
   const data = `${ip}:${timestamp}:ULT_SESSION_v3`;
@@ -246,7 +224,9 @@ Deno.serve(async (req) => {
     const userAgent = req.headers.get('user-agent') || '';
     
     // Detect non-Roblox requests with auth params (bypass attempt)
-    const isRobloxRequest = detectRobloxRequest(req, userAgent);
+    const isRobloxRequest = userAgent.toLowerCase().includes('roblox') || 
+                            userAgent.includes('HttpService');
+    
     // Rate limiting
     if (!checkRateLimit(clientIp)) {
       console.log(`Rate limited: ${clientIp}`);
@@ -290,111 +270,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Log access for monitoring (both browser and executor)
-    // NOTE: guarded by per-paste toggle + de-duped to avoid flooding.
-    // Also fetches linked Discord info from key redemptions.
-    const logAccess = async (robloxUserId: string | null, accessType: string) => {
-      try {
-        if (paste.ip_tracking_enabled === false) return;
-
-        // Try to find Discord info from existing key redemptions if we have a Roblox user ID
-        let discordInfo: { 
-          discord_user_id: string | null; 
-          discord_username: string | null; 
-          discord_avatar: string | null; 
-          discord_created_at: string | null;
-        } = { 
-          discord_user_id: null, 
-          discord_username: null, 
-          discord_avatar: null, 
-          discord_created_at: null 
-        };
-
-        if (robloxUserId) {
-          // Look up Discord info from control_panel_keys where this Roblox user redeemed a key
-          const { data: keyData } = await supabase
-            .from('control_panel_keys')
-            .select('redeemed_by_discord_id')
-            .eq('roblox_user_id', robloxUserId)
-            .not('redeemed_by_discord_id', 'is', null)
-            .limit(1)
-            .maybeSingle();
-
-          if (keyData?.redeemed_by_discord_id) {
-            discordInfo.discord_user_id = keyData.redeemed_by_discord_id;
-
-            // Fetch Discord user info from Discord API
-            const discordBotToken = Deno.env.get('DISCORD_BOT_TOKEN');
-            if (discordBotToken) {
-              try {
-                const discordRes = await fetch(
-                  `https://discord.com/api/v10/users/${keyData.redeemed_by_discord_id}`,
-                  { headers: { Authorization: `Bot ${discordBotToken}` } }
-                );
-                if (discordRes.ok) {
-                  const discordUser = await discordRes.json();
-                  discordInfo.discord_username = discordUser.username;
-                  discordInfo.discord_avatar = discordUser.avatar;
-                  // Calculate account creation date from Discord snowflake ID
-                  const snowflake = BigInt(keyData.redeemed_by_discord_id);
-                  const timestamp = Number((snowflake >> 22n) + 1420070400000n);
-                  discordInfo.discord_created_at = new Date(timestamp).toISOString();
-                }
-              } catch (discordErr) {
-                console.error('Failed to fetch Discord user:', discordErr);
-              }
-            }
-          }
-        }
-
-        // Find existing log for this exact "identity" so we don't create duplicates.
-        let q = supabase
-          .from('paste_access_logs')
-          .select('id')
-          .eq('paste_id', paste.id)
-          .eq('ip_address', clientIp)
-          .eq('access_type', accessType);
-
-        q = robloxUserId ? q.eq('roblox_user_id', robloxUserId) : q.is('roblox_user_id', null);
-
-        const { data: existingLog } = await q.maybeSingle();
-
-        const nowIso = new Date().toISOString();
-        if (existingLog?.id) {
-          await supabase
-            .from('paste_access_logs')
-            .update({
-              last_seen_at: nowIso,
-              is_active: true,
-              user_agent: userAgent,
-              ...discordInfo,
-            })
-            .eq('id', existingLog.id);
-        } else {
-          await supabase
-            .from('paste_access_logs')
-            .insert({
-              paste_id: paste.id,
-              ip_address: clientIp,
-              roblox_user_id: robloxUserId,
-              user_agent: userAgent,
-              access_type: accessType,
-              is_active: true,
-              last_seen_at: nowIso,
-              ...discordInfo,
-            });
-        }
-      } catch (logError) {
-        console.error('Failed to log access:', logError);
-      }
-    };
-
     // If hide_code is enabled and this is a browser request without auth params, return empty
     if (paste.hide_code && !uid && !tk) {
       // Check if this looks like a browser request (not Roblox)
       if (!isRobloxRequest) {
-        // Log browser access attempt
-        await logAccess(null, 'browser');
         // Return empty response - code is hidden from browsers
         return new Response('', {
           status: 200,
@@ -403,115 +282,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Discord OAuth gating: If ip_tracking_enabled and browser request, require Discord auth
-    if (paste.ip_tracking_enabled && !isRobloxRequest && !uid && !tk) {
-      // Check for existing Discord session cookie
-      const cookies = parseCookies(req.headers.get('cookie'));
-      const dscToken = cookies['dsc'];
-
-      let discordSession = null;
-      if (dscToken) {
-        const { data: session } = await supabase
-          .from('discord_oauth_sessions')
-          .select('*')
-          .eq('token', dscToken)
-          .gt('expires_at', new Date().toISOString())
-          .maybeSingle();
-        discordSession = session;
-      }
-
-      if (!discordSession) {
-        // No valid session - redirect to Discord OAuth
-        const discordClientId = Deno.env.get('DISCORD_APPLICATION_ID');
-        if (!discordClientId) {
-          console.error('DISCORD_APPLICATION_ID not configured');
-          return new Response('OAuth not configured', {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-          });
-        }
-
-        // Generate and store state
-        const state = generateToken();
-        await supabase.from('discord_oauth_states').insert({
-          state,
-          slug
-        });
-
-        const redirectUri = encodeURIComponent(`${supabaseUrl}/functions/v1/discord-oauth-callback`);
-        const scopes = encodeURIComponent('identify');
-        const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes}&state=${state}`;
-
-        return new Response(null, {
-          status: 302,
-          headers: {
-            ...corsHeaders,
-            'Location': discordAuthUrl
-          }
-        });
-      }
-
-      // Valid Discord session - log with Discord info and continue
-      await supabase.from('paste_access_logs').upsert({
-        paste_id: paste.id,
-        ip_address: clientIp,
-        roblox_user_id: null,
-        user_agent: userAgent,
-        access_type: 'browser',
-        is_active: true,
-        last_seen_at: new Date().toISOString(),
-        discord_user_id: discordSession.discord_user_id,
-        discord_username: discordSession.discord_username,
-        discord_avatar: discordSession.discord_avatar,
-        discord_created_at: discordSession.discord_created_at
-      }, {
-        onConflict: 'paste_id,ip_address,access_type',
-        ignoreDuplicates: false
-      });
-
-      // If hide_code is on, return empty even after auth (browser shouldn't see code)
-      if (paste.hide_code) {
-        return new Response('', {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-        });
-      }
-
-      // Otherwise show the raw content to authenticated browser (no protection)
-      if (!paste.protection_enabled && !paste.public_protection) {
-        return new Response(paste.content, {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-        });
-      }
-    }
-
     // If protection is disabled, return content directly
     if (!paste.protection_enabled && !paste.public_protection) {
-      // Check game restriction if enabled
-      if (paste.game_restriction_enabled && gid && pid) {
-        const { data: gameBindings } = await supabase
-          .from('paste_game_bindings')
-          .select('game_id')
-          .eq('paste_id', paste.id);
-
-        if (gameBindings && gameBindings.length > 0) {
-          // Check if current game/place is in the allowed list
-          const allowedGameIds = gameBindings.map(b => b.game_id);
-          const isAllowed = allowedGameIds.includes(gid) || allowedGameIds.includes(pid);
-
-          if (!isAllowed) {
-            console.log(`Game restriction blocked: gid=${gid}, pid=${pid}, allowed=${allowedGameIds.join(',')}`);
-            return new Response(generateKickPlain('This script is not supported on this game'), {
-              status: 200,
-              headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-            });
-          }
-        }
-      }
-
       if (uid && /^\d+$/.test(uid)) {
-        await logAccess(uid, 'execution');
         await supabase.from('paste_executions').insert({
           paste_id: paste.id,
           roblox_user_id: uid
@@ -526,11 +299,6 @@ Deno.serve(async (req) => {
 
     // Protection is enabled - check for auth params
     if (!uid || !ts || !tk) {
-      // Only log browser hits here. Executor requests should log once we have a real Roblox user id.
-      if (!isRobloxRequest) {
-        await logAccess(null, 'browser');
-      }
-      
       // Generate a new one-time token with session binding
       const newToken = generateToken();
       const sessionSecret = generateSessionSecret(clientIp, Date.now());
@@ -639,27 +407,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check game restriction for protected pastes
-    if (paste.game_restriction_enabled && gid && pid) {
-      const { data: gameBindings } = await supabase
-        .from('paste_game_bindings')
-        .select('game_id')
-        .eq('paste_id', paste.id);
-
-      if (gameBindings && gameBindings.length > 0) {
-        const allowedGameIds = gameBindings.map(b => b.game_id);
-        const isAllowed = allowedGameIds.includes(gid) || allowedGameIds.includes(pid);
-
-        if (!isAllowed) {
-          console.log(`Game restriction blocked: gid=${gid}, pid=${pid}, allowed=${allowedGameIds.join(',')}`);
-          return new Response(generateKickEncrypted('This script is not supported on this game', slug, tk, uid), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-          });
-        }
-      }
-    }
-
     // For public protection - skip whitelist check but still check blacklist
     if (paste.public_protection) {
       // Check blacklist only
@@ -686,8 +433,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Log execution and access
-      await logAccess(uid, 'execution');
+      // Log execution
       await supabase.from('paste_executions').insert({
         paste_id: paste.id,
         roblox_user_id: uid
@@ -754,8 +500,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Log execution and access
-    await logAccess(uid, 'execution');
+    // Log execution
     await supabase.from('paste_executions').insert({
       paste_id: paste.id,
       roblox_user_id: uid

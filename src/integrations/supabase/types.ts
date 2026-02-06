@@ -185,123 +185,6 @@ export type Database = {
           },
         ]
       }
-      discord_hawk_settings: {
-        Row: {
-          created_at: string
-          enabled: boolean
-          guild_id: string
-          id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          enabled?: boolean
-          guild_id: string
-          id?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          enabled?: boolean
-          guild_id?: string
-          id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      discord_hawk_users: {
-        Row: {
-          discord_avatar: string | null
-          discord_created_at: string | null
-          discord_user_id: string
-          discord_username: string | null
-          guild_id: string
-          id: string
-          is_active: boolean
-          scanned_at: string
-          user_id: string
-        }
-        Insert: {
-          discord_avatar?: string | null
-          discord_created_at?: string | null
-          discord_user_id: string
-          discord_username?: string | null
-          guild_id: string
-          id?: string
-          is_active?: boolean
-          scanned_at?: string
-          user_id: string
-        }
-        Update: {
-          discord_avatar?: string | null
-          discord_created_at?: string | null
-          discord_user_id?: string
-          discord_username?: string | null
-          guild_id?: string
-          id?: string
-          is_active?: boolean
-          scanned_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      discord_oauth_sessions: {
-        Row: {
-          created_at: string
-          discord_avatar: string | null
-          discord_created_at: string | null
-          discord_user_id: string
-          discord_username: string | null
-          expires_at: string
-          id: string
-          token: string
-        }
-        Insert: {
-          created_at?: string
-          discord_avatar?: string | null
-          discord_created_at?: string | null
-          discord_user_id: string
-          discord_username?: string | null
-          expires_at?: string
-          id?: string
-          token: string
-        }
-        Update: {
-          created_at?: string
-          discord_avatar?: string | null
-          discord_created_at?: string | null
-          discord_user_id?: string
-          discord_username?: string | null
-          expires_at?: string
-          id?: string
-          token?: string
-        }
-        Relationships: []
-      }
-      discord_oauth_states: {
-        Row: {
-          created_at: string
-          id: string
-          slug: string
-          state: string
-          used_at: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          slug: string
-          state: string
-          used_at?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          slug?: string
-          state?: string
-          used_at?: string | null
-        }
-        Relationships: []
-      }
       key_systems: {
         Row: {
           ascii_text: string
@@ -366,62 +249,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "paste_access_control_paste_id_fkey"
-            columns: ["paste_id"]
-            isOneToOne: false
-            referencedRelation: "pastes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      paste_access_logs: {
-        Row: {
-          access_type: string
-          created_at: string
-          discord_avatar: string | null
-          discord_created_at: string | null
-          discord_user_id: string | null
-          discord_username: string | null
-          id: string
-          ip_address: string
-          is_active: boolean | null
-          last_seen_at: string
-          paste_id: string
-          roblox_user_id: string | null
-          user_agent: string | null
-        }
-        Insert: {
-          access_type?: string
-          created_at?: string
-          discord_avatar?: string | null
-          discord_created_at?: string | null
-          discord_user_id?: string | null
-          discord_username?: string | null
-          id?: string
-          ip_address: string
-          is_active?: boolean | null
-          last_seen_at?: string
-          paste_id: string
-          roblox_user_id?: string | null
-          user_agent?: string | null
-        }
-        Update: {
-          access_type?: string
-          created_at?: string
-          discord_avatar?: string | null
-          discord_created_at?: string | null
-          discord_user_id?: string | null
-          discord_username?: string | null
-          id?: string
-          ip_address?: string
-          is_active?: boolean | null
-          last_seen_at?: string
-          paste_id?: string
-          roblox_user_id?: string | null
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "paste_access_logs_paste_id_fkey"
             columns: ["paste_id"]
             isOneToOne: false
             referencedRelation: "pastes"
@@ -496,47 +323,13 @@ export type Database = {
           },
         ]
       }
-      paste_game_bindings: {
-        Row: {
-          created_at: string
-          game_id: string
-          game_name: string | null
-          id: string
-          paste_id: string
-        }
-        Insert: {
-          created_at?: string
-          game_id: string
-          game_name?: string | null
-          id?: string
-          paste_id: string
-        }
-        Update: {
-          created_at?: string
-          game_id?: string
-          game_name?: string | null
-          id?: string
-          paste_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "paste_game_bindings_paste_id_fkey"
-            columns: ["paste_id"]
-            isOneToOne: false
-            referencedRelation: "pastes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       pastes: {
         Row: {
           background_protection: boolean | null
           content: string
           created_at: string
-          game_restriction_enabled: boolean | null
           hide_code: boolean | null
           id: string
-          ip_tracking_enabled: boolean
           protection_enabled: boolean
           public_protection: boolean | null
           slug: string
@@ -548,10 +341,8 @@ export type Database = {
           background_protection?: boolean | null
           content: string
           created_at?: string
-          game_restriction_enabled?: boolean | null
           hide_code?: boolean | null
           id?: string
-          ip_tracking_enabled?: boolean
           protection_enabled?: boolean
           public_protection?: boolean | null
           slug: string
@@ -563,10 +354,8 @@ export type Database = {
           background_protection?: boolean | null
           content?: string
           created_at?: string
-          game_restriction_enabled?: boolean | null
           hide_code?: boolean | null
           id?: string
-          ip_tracking_enabled?: boolean
           protection_enabled?: boolean
           public_protection?: boolean | null
           slug?: string
@@ -585,8 +374,6 @@ export type Database = {
           discord_username: string | null
           id: string
           is_banned: boolean | null
-          preferred_language: string | null
-          tutorial_completed: boolean | null
           updated_at: string | null
           username: string | null
         }
@@ -598,8 +385,6 @@ export type Database = {
           discord_username?: string | null
           id: string
           is_banned?: boolean | null
-          preferred_language?: string | null
-          tutorial_completed?: boolean | null
           updated_at?: string | null
           username?: string | null
         }
@@ -611,8 +396,6 @@ export type Database = {
           discord_username?: string | null
           id?: string
           is_banned?: boolean | null
-          preferred_language?: string | null
-          tutorial_completed?: boolean | null
           updated_at?: string | null
           username?: string | null
         }
@@ -994,7 +777,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cleanup_expired_discord_oauth: { Args: never; Returns: undefined }
       cleanup_expired_tokens: { Args: never; Returns: undefined }
       has_role: {
         Args: {
