@@ -184,9 +184,7 @@ const Index = () => {
           </section>
 
           {/* Reviews Section */}
-          <section className="max-w-6xl mx-auto mb-24">
-            <ReviewsSection />
-          </section>
+          <ReviewsSection />
 
           {/* About Section */}
           <section className="max-w-4xl mx-auto mb-24 text-center">

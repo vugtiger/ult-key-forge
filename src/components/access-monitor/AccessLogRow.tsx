@@ -1,10 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Clock, Globe, Trash2, User, MessageCircle, Calendar, ExternalLink } from "lucide-react";
+import { Clock, Globe, Trash2, User } from "lucide-react";
 import type { AccessLog } from "./types";
-import { formatTime, isActiveNow, isBrowserRequest, formatDiscordDate } from "./utils";
+import { formatTime, isActiveNow, isBrowserRequest } from "./utils";
 
 type Props = {
   log: AccessLog;
@@ -25,10 +23,6 @@ export default function AccessLogRow({ log, onDelete, deleting }: Props) {
       ? "border-destructive/50 bg-destructive/10 shadow-lg shadow-destructive/20"
       : "border-primary/50 bg-primary/10 shadow-lg shadow-primary/20"
     : "border-border/30 bg-background/50";
-
-  const discordAvatarUrl = log.discord_user_id && log.discord_avatar
-    ? `https://cdn.discordapp.com/avatars/${log.discord_user_id}/${log.discord_avatar}.png?size=128`
-    : null;
 
   return (
     <div key={log.id} className={`p-3 rounded-lg border transition-all ${cardClass}`}>
@@ -60,62 +54,6 @@ export default function AccessLogRow({ log, onDelete, deleting }: Props) {
                 <User className="h-3 w-3 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Roblox ID: {log.roblox_user_id}</span>
               </div>
-            )}
-
-            {/* Discord Info */}
-            {log.discord_user_id && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                    <Avatar className="h-5 w-5">
-                      {discordAvatarUrl && <AvatarImage src={discordAvatarUrl} alt={log.discord_username || "Discord"} />}
-                      <AvatarFallback className="text-[8px] bg-[#5865F2]">
-                        <MessageCircle className="h-3 w-3 text-white" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs text-[#5865F2] font-medium">
-                      {log.discord_username || log.discord_user_id}
-                    </span>
-                    <Badge className="text-[8px] px-1 py-0 bg-[#5865F2]/20 text-[#5865F2] border-[#5865F2]/30">
-                      DISCORD
-                    </Badge>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72 p-0" align="start">
-                  <div className="bg-gradient-to-b from-[#5865F2] to-[#5865F2]/80 h-16 rounded-t-lg" />
-                  <div className="px-4 pb-4">
-                    <div className="flex items-end gap-3 -mt-8">
-                      <Avatar className="h-16 w-16 border-4 border-background">
-                        {discordAvatarUrl && <AvatarImage src={discordAvatarUrl} alt={log.discord_username || "Discord"} />}
-                        <AvatarFallback className="bg-[#5865F2] text-white">
-                          <MessageCircle className="h-6 w-6" />
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                    <div className="mt-3 space-y-2">
-                      <div>
-                        <h4 className="font-bold text-foreground">{log.discord_username || "Unknown"}</h4>
-                        <p className="text-xs text-muted-foreground font-mono">{log.discord_user_id}</p>
-                      </div>
-                      {log.discord_created_at && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <span>Created {formatDiscordDate(log.discord_created_at)}</span>
-                        </div>
-                      )}
-                      <a
-                        href={`https://discord.com/users/${log.discord_user_id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-[#5865F2] hover:underline mt-2"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        View Discord Profile
-                      </a>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
             )}
           </div>
         </div>

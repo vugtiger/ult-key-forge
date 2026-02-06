@@ -272,60 +272,9 @@ Deno.serve(async (req) => {
 
     // Log access for monitoring (both browser and executor)
     // NOTE: guarded by per-paste toggle + de-duped to avoid flooding.
-    // Also fetches linked Discord info from key redemptions.
     const logAccess = async (robloxUserId: string | null, accessType: string) => {
       try {
         if (paste.ip_tracking_enabled === false) return;
-
-        // Try to find Discord info from existing key redemptions if we have a Roblox user ID
-        let discordInfo: { 
-          discord_user_id: string | null; 
-          discord_username: string | null; 
-          discord_avatar: string | null; 
-          discord_created_at: string | null;
-        } = { 
-          discord_user_id: null, 
-          discord_username: null, 
-          discord_avatar: null, 
-          discord_created_at: null 
-        };
-
-        if (robloxUserId) {
-          // Look up Discord info from control_panel_keys where this Roblox user redeemed a key
-          const { data: keyData } = await supabase
-            .from('control_panel_keys')
-            .select('redeemed_by_discord_id')
-            .eq('roblox_user_id', robloxUserId)
-            .not('redeemed_by_discord_id', 'is', null)
-            .limit(1)
-            .maybeSingle();
-
-          if (keyData?.redeemed_by_discord_id) {
-            discordInfo.discord_user_id = keyData.redeemed_by_discord_id;
-
-            // Fetch Discord user info from Discord API
-            const discordBotToken = Deno.env.get('DISCORD_BOT_TOKEN');
-            if (discordBotToken) {
-              try {
-                const discordRes = await fetch(
-                  `https://discord.com/api/v10/users/${keyData.redeemed_by_discord_id}`,
-                  { headers: { Authorization: `Bot ${discordBotToken}` } }
-                );
-                if (discordRes.ok) {
-                  const discordUser = await discordRes.json();
-                  discordInfo.discord_username = discordUser.username;
-                  discordInfo.discord_avatar = discordUser.avatar;
-                  // Calculate account creation date from Discord snowflake ID
-                  const snowflake = BigInt(keyData.redeemed_by_discord_id);
-                  const timestamp = Number((snowflake >> 22n) + 1420070400000n);
-                  discordInfo.discord_created_at = new Date(timestamp).toISOString();
-                }
-              } catch (discordErr) {
-                console.error('Failed to fetch Discord user:', discordErr);
-              }
-            }
-          }
-        }
 
         // Find existing log for this exact "identity" so we don't create duplicates.
         let q = supabase
@@ -347,7 +296,6 @@ Deno.serve(async (req) => {
               last_seen_at: nowIso,
               is_active: true,
               user_agent: userAgent,
-              ...discordInfo,
             })
             .eq('id', existingLog.id);
         } else {
@@ -361,7 +309,6 @@ Deno.serve(async (req) => {
               access_type: accessType,
               is_active: true,
               last_seen_at: nowIso,
-              ...discordInfo,
             });
         }
       } catch (logError) {
@@ -568,11 +515,11 @@ Deno.serve(async (req) => {
         .eq('access_type', 'blacklist')
         .maybeSingle();
 
-      const nowTime = Date.now();
+      const nowDate = new Date().toISOString();
       const isBlacklisted = blacklistEntry && (
         blacklistEntry.is_eternal || 
         !blacklistEntry.expires_at || 
-        new Date(blacklistEntry.expires_at).getTime() > nowTime
+        blacklistEntry.expires_at > nowDate
       );
 
       if (isBlacklisted) {
@@ -609,15 +556,14 @@ Deno.serve(async (req) => {
       .eq('paste_id', paste.id)
       .eq('roblox_user_id', uid);
 
-    const nowTime = Date.now();
+    const nowDate = new Date().toISOString();
 
-    // Check for blacklist first - using proper Date comparisons
+    // Check for blacklist first
     const isBlacklisted = accessList?.some(entry => {
       if (entry.access_type !== 'blacklist') return false;
       if (entry.is_eternal) return true;
       if (!entry.expires_at) return true;
-      // Proper date comparison using timestamps
-      return new Date(entry.expires_at).getTime() > nowTime;
+      return entry.expires_at > nowDate;
     });
 
     if (isBlacklisted) {
@@ -639,13 +585,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if whitelist entry is valid - using proper Date comparisons
+    // Check if whitelist entry is valid
     const isValidWhitelist = whitelistEntry.is_eternal || 
       !whitelistEntry.expires_at || 
-      new Date(whitelistEntry.expires_at).getTime() > nowTime;
+      whitelistEntry.expires_at > nowDate;
 
     if (!isValidWhitelist) {
-      console.log(`Whitelist time expired: ${uid}, expires_at: ${whitelistEntry.expires_at}`);
+      console.log(`Whitelist time expired: ${uid}`);
       return new Response(generateKickEncrypted('Your whitelist time has expired', slug, tk, uid), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
