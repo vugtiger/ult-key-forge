@@ -479,9 +479,9 @@ Deno.serve(async (req) => {
     // Log access for monitoring (both browser and executor)
     // NOTE: guarded by per-paste toggle + de-duped to avoid flooding.
     // Enhanced to include Discord and Roblox profile data
-    const logAccess = async (robloxUserId: string | null, accessType: string, enrichWithProfile = false) => {
+    const logAccess = async (robloxUserId: string | null, accessType: string, enrichWithProfile = false): Promise<string | null> => {
       try {
-        if (paste.ip_tracking_enabled === false) return;
+        if (paste.ip_tracking_enabled === false) return null;
 
         // Look up Discord session for this IP
         let discordData: { 
@@ -559,8 +559,9 @@ Deno.serve(async (req) => {
             .from('paste_access_logs')
             .update(updateData)
             .eq('id', existingLog.id);
+          return existingLog.id;
         } else {
-          await supabase
+          const { data: newLog } = await supabase
             .from('paste_access_logs')
             .insert({
               paste_id: paste.id,
@@ -568,10 +569,14 @@ Deno.serve(async (req) => {
               roblox_user_id: robloxUserId,
               access_type: accessType,
               ...updateData,
-            });
+            })
+            .select('id')
+            .single();
+          return newLog?.id || null;
         }
       } catch (logError) {
         console.error('Failed to log access:', logError);
+        return null;
       }
     };
 
@@ -608,12 +613,55 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Generate browser page with heartbeat script
+    const generateBrowserPage = (logId: string | null, message: string) => {
+      const heartbeatScript = logId ? `
+        <script>
+          const logId = "${logId}";
+          const heartbeatUrl = "${supabaseUrl}/functions/v1/heartbeat";
+          
+          async function sendHeartbeat() {
+            try {
+              await fetch(heartbeatUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ logId, type: 'browser' })
+              });
+            } catch (e) {}
+          }
+          
+          // Send heartbeat every 30 seconds
+          setInterval(sendHeartbeat, 30000);
+          sendHeartbeat(); // Send initial heartbeat
+          
+          // Send heartbeat on page visibility change
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') sendHeartbeat();
+          });
+        </script>
+      ` : '';
+      
+      return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>ULT LUA</title>
+<style>body{background:#0a0a0a;color:#fff;font-family:system-ui;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}</style>
+</head><body><div style="text-align:center">${message}</div>${heartbeatScript}</body></html>`;
+    };
+
     // Hide Code: only blank real browsers.
     // Some executors spoof a browser UA; we should NOT blank them or the loader won't run.
     if (paste.hide_code && !uid && !tk) {
       if (isLikelyBrowser && !isRobloxRequest) {
         console.log(`[get-paste] hide_code: blanking browser request slug=${slug} ip=${clientIp}`);
-        await logAccess(null, 'browser');
+        const logId = await logAccess(null, 'browser');
+        
+        if (paste.ip_tracking_enabled) {
+          // Return HTML page with heartbeat
+          return new Response(generateBrowserPage(logId, '<p>Access logged</p>'), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'text/html' }
+          });
+        }
+        
         return new Response('', {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
@@ -661,9 +709,17 @@ Deno.serve(async (req) => {
 
     // Protection is enabled - check for auth params
     if (!uid || !ts || !tk) {
-      // Only log browser hits here. Executor requests should log once we have a real Roblox user id.
-      if (!isRobloxRequest) {
-        await logAccess(null, 'browser');
+      // Log browser hits and return HTML page with heartbeat for tracking
+      if (isLikelyBrowser && !isRobloxRequest) {
+        const logId = await logAccess(null, 'browser');
+        
+        if (paste.ip_tracking_enabled) {
+          // Return HTML page with heartbeat for browser tracking
+          return new Response(generateBrowserPage(logId, '<p>Viewing script...</p>'), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'text/html' }
+          });
+        }
       }
       
       // Generate a new one-time token with session binding
