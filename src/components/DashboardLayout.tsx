@@ -19,6 +19,7 @@ import { NavLink } from "@/components/NavLink";
 import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
+import GoogleTranslate from "@/components/GoogleTranslate";
 
 const navigationItems = [
   { title: "Key System Gen", url: "/dashboard", icon: Zap },
