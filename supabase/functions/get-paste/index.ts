@@ -610,8 +610,91 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Hide Code: only blank real browsers.
-    // Some executors spoof a browser UA; we should NOT blank them or the loader won't run.
+    // Helper to generate browser heartbeat page
+    const generateBrowserHeartbeatPage = (logId: string): string => {
+      return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ULT LUA</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+    }
+    .logo { font-size: 2rem; font-weight: bold; margin-bottom: 1rem; }
+    .message { color: #a0a0a0; font-size: 1rem; }
+    .check { color: #4ade80; font-size: 3rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="check">✓</div>
+    <div class="logo">ULT LUA</div>
+    <p class="message">Access logged - keep this tab open</p>
+  </div>
+  <script>
+    (function() {
+      var logId = "${logId}";
+      var heartbeatUrl = "${supabaseUrl}/functions/v1/heartbeat";
+      
+      function sendHeartbeat() {
+        fetch(heartbeatUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ logId: logId, type: "browser" })
+        }).catch(function() {});
+      }
+      
+      // Send heartbeat every 25 seconds to keep active
+      setInterval(sendHeartbeat, 25000);
+      sendHeartbeat();
+      
+      // Also send on visibility change
+      document.addEventListener("visibilitychange", function() {
+        if (document.visibilityState === "visible") sendHeartbeat();
+      });
+    })();
+  </script>
+</body>
+</html>`;
+    };
+
+    // Browser visitor after OAuth - show heartbeat page
+    if (isLikelyBrowser && !isRobloxRequest && !uid && !tk && paste.ip_tracking_enabled) {
+      console.log(`[get-paste] browser visitor - showing heartbeat page slug=${slug} ip=${clientIp}`);
+      const logId = await logAccess(null, 'browser');
+      
+      if (logId) {
+        return new Response(generateBrowserHeartbeatPage(logId), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
+        });
+      }
+      
+      // Fallback if logging failed
+      return new Response('', {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+
+    // Hide Code: only blank real browsers (when IP tracking is disabled).
     if (paste.hide_code && !uid && !tk) {
       if (isLikelyBrowser && !isRobloxRequest) {
         console.log(`[get-paste] hide_code: blanking browser request slug=${slug} ip=${clientIp}`);
