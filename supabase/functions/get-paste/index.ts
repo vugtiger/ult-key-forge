@@ -370,56 +370,9 @@ function generateKickEncrypted(reason: string, slug: string, token: string, uid:
 function generateBrowserHeartbeatHtml(opts: { supabaseUrl: string; slug: string; logId: string }) {
   const heartbeatUrl = `${opts.supabaseUrl}/functions/v1/paste-heartbeat`;
 
-  // Intentionally blank page (matches existing hide_code behavior) but keeps a JS heartbeat running.
-  // This lets Access Monitor accurately show whether the viewer still has the tab open.
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex, nofollow" />
-    <title></title>
-    <style>
-      html, body { margin: 0; padding: 0; background: transparent; }
-    </style>
-  </head>
-  <body>
-    <script>
-      (function () {
-        var logId = ${JSON.stringify(opts.logId)};
-        var slug = ${JSON.stringify(opts.slug)};
-        var base = ${JSON.stringify(heartbeatUrl)};
-
-        function ping() {
-          try {
-            var u = base + "?id=" + encodeURIComponent(logId) + "&slug=" + encodeURIComponent(slug) + "&t=" + Date.now();
-            // GET avoids preflight and is reliable even on locked-down clients.
-            fetch(u, { method: "GET", cache: "no-store", keepalive: true }).catch(function () {});
-          } catch (e) {}
-        }
-
-        // Immediate ping + periodic heartbeat.
-        ping();
-
-        // 25s keeps us safely under the UI's 60s 'offline' threshold even with minor timer throttling.
-        var interval = setInterval(ping, 25000);
-
-        document.addEventListener('visibilitychange', function () {
-          if (!document.hidden) ping();
-        });
-
-        // Best-effort final ping when the tab closes.
-        window.addEventListener('pagehide', function () {
-          try {
-            var u = base + "?id=" + encodeURIComponent(logId) + "&slug=" + encodeURIComponent(slug) + "&t=" + Date.now();
-            if (navigator.sendBeacon) navigator.sendBeacon(u, '');
-          } catch (e) {}
-          try { clearInterval(interval); } catch (e) {}
-        });
-      })();
-    </script>
-  </body>
-</html>`;
+  // Minimal blank page with invisible heartbeat. Uses a data URI approach to ensure
+  // the browser renders nothing visible while the script runs.
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0;visibility:hidden}</style></head><body><script>(function(){var l="${opts.logId}",s="${opts.slug}",b="${heartbeatUrl}";function p(){try{fetch(b+"?id="+encodeURIComponent(l)+"&slug="+encodeURIComponent(s)+"&t="+Date.now(),{method:"GET",cache:"no-store",keepalive:true}).catch(function(){});}catch(e){}}p();setInterval(p,25000);document.addEventListener("visibilitychange",function(){if(!document.hidden)p();});window.addEventListener("pagehide",function(){try{var u=b+"?id="+encodeURIComponent(l)+"&slug="+encodeURIComponent(s)+"&t="+Date.now();if(navigator.sendBeacon)navigator.sendBeacon(u,"");}catch(e){}});})();</script></body></html>`;
 }
 
 Deno.serve(async (req) => {
