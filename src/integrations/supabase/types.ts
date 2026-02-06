@@ -245,63 +245,6 @@ export type Database = {
         }
         Relationships: []
       }
-      discord_oauth_sessions: {
-        Row: {
-          created_at: string
-          discord_avatar: string | null
-          discord_created_at: string | null
-          discord_user_id: string
-          discord_username: string | null
-          expires_at: string
-          id: string
-          token: string
-        }
-        Insert: {
-          created_at?: string
-          discord_avatar?: string | null
-          discord_created_at?: string | null
-          discord_user_id: string
-          discord_username?: string | null
-          expires_at?: string
-          id?: string
-          token: string
-        }
-        Update: {
-          created_at?: string
-          discord_avatar?: string | null
-          discord_created_at?: string | null
-          discord_user_id?: string
-          discord_username?: string | null
-          expires_at?: string
-          id?: string
-          token?: string
-        }
-        Relationships: []
-      }
-      discord_oauth_states: {
-        Row: {
-          created_at: string
-          id: string
-          slug: string
-          state: string
-          used_at: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          slug: string
-          state: string
-          used_at?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          slug?: string
-          state?: string
-          used_at?: string | null
-        }
-        Relationships: []
-      }
       key_systems: {
         Row: {
           ascii_text: string
@@ -585,8 +528,6 @@ export type Database = {
           discord_username: string | null
           id: string
           is_banned: boolean | null
-          preferred_language: string | null
-          tutorial_completed: boolean | null
           updated_at: string | null
           username: string | null
         }
@@ -598,8 +539,6 @@ export type Database = {
           discord_username?: string | null
           id: string
           is_banned?: boolean | null
-          preferred_language?: string | null
-          tutorial_completed?: boolean | null
           updated_at?: string | null
           username?: string | null
         }
@@ -611,8 +550,6 @@ export type Database = {
           discord_username?: string | null
           id?: string
           is_banned?: boolean | null
-          preferred_language?: string | null
-          tutorial_completed?: boolean | null
           updated_at?: string | null
           username?: string | null
         }
@@ -994,7 +931,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cleanup_expired_discord_oauth: { Args: never; Returns: undefined }
       cleanup_expired_tokens: { Args: never; Returns: undefined }
       has_role: {
         Args: {
