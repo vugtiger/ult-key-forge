@@ -382,6 +382,7 @@ Deno.serve(async (req) => {
     const ss = url.searchParams.get('ss'); // Session secret
     const gid = url.searchParams.get('gid'); // Game ID
     const pid = url.searchParams.get('pid'); // Place ID
+    const oauthTs = url.searchParams.get('oauth_ts'); // set after OAuth callback to prevent redirect loop
 
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                      req.headers.get('cf-connecting-ip') || 
@@ -582,11 +583,16 @@ Deno.serve(async (req) => {
 
     // Check if browser visitor needs Discord identification
     // Redirect to Discord OAuth EVERY time if IP tracking is enabled (always re-authorize)
+    // BUT: after OAuth callback we allow a short window to load the page (prevents infinite loop)
     const shouldRedirectToDiscord = (): boolean => {
       if (!paste.ip_tracking_enabled) return false;
       if (!isLikelyBrowser || isRobloxRequest) return false;
-      if (uid || tk) return false; // Already has auth params from executor
-      return true; // Always redirect browser to Discord OAuth
+      if (uid || tk) return false; // executor params
+
+      const tsNum = oauthTs ? Number(oauthTs) : NaN;
+      if (Number.isFinite(tsNum) && Date.now() - tsNum < 60_000) return false;
+
+      return true;
     };
 
     // Redirect browser to Discord OAuth for identification
