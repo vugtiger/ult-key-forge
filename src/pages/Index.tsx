@@ -58,7 +58,9 @@ const Index = () => {
             <LastUpdatedBadge />
           </div>
           <div className="flex items-center gap-4">
-            <GoogleTranslate className="hidden sm:block" />
+            <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-card/50 border border-border rounded-lg">
+              <GoogleTranslate />
+            </div>
             <a
               href="https://discord.gg/hPywsq3yqw"
               target="_blank"

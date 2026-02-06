@@ -221,7 +221,7 @@ const AccessMonitor = () => {
                </div>
                <div className="flex items-center gap-1.5">
                  <div className="h-2 w-2 rounded-full bg-muted-foreground" />
-                 <span>Offline</span>
+                 <span>Offline (60s+ inactive)</span>
                </div>
              </div>
           </div>

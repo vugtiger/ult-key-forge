@@ -14,7 +14,7 @@ type Props = {
 
 export default function AccessLogRow({ log, onDelete, deleting }: Props) {
   const active = isActiveNow(log.last_seen_at);
-  const fromBrowser = isBrowserRequest(log.user_agent);
+  const fromBrowser = isBrowserRequest(log.access_type);
 
   // If not active, always show as offline (muted). If active, color depends on request type.
   const dotClass = !active ? "bg-muted-foreground" : fromBrowser ? "bg-destructive" : "bg-primary";
@@ -43,9 +43,13 @@ export default function AccessLogRow({ log, onDelete, deleting }: Props) {
             <div className="flex items-center gap-2 min-w-0 flex-wrap">
               <Globe className="h-3 w-3 text-muted-foreground shrink-0" />
               <span className="font-mono text-sm font-medium truncate">{log.ip_address}</span>
-              {fromBrowser && (
+              {fromBrowser ? (
                 <Badge variant="destructive" className="text-[10px] px-1.5 py-0 shrink-0">
                   BROWSER
+                </Badge>
+              ) : (
+                <Badge variant="default" className="text-[10px] px-1.5 py-0 shrink-0 bg-primary">
+                  EXECUTOR
                 </Badge>
               )}
               {!active && (

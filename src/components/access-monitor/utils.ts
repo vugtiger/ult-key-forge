@@ -22,10 +22,9 @@ export const isActiveNow = (lastSeen: string) => {
   return diff < 60_000; // Active if seen in last minute
 };
 
-export const isBrowserRequest = (userAgent: string | null) => {
-  if (!userAgent) return false;
-  const ua = userAgent.toLowerCase();
-  return !ua.includes("roblox") && !ua.includes("httpservice");
+// Determine if the access was from a browser vs executor based on access_type
+export const isBrowserRequest = (accessType: string) => {
+  return accessType === 'browser';
 };
 
 export const accessLogKey = (log: Pick<AccessLog, "paste_id" | "ip_address" | "access_type" | "roblox_user_id">) => {
