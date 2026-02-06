@@ -367,9 +367,9 @@ function generateKickEncrypted(reason: string, slug: string, token: string, uid:
   return xorToHex(kickScript, key);
 }
 
-// Generate heartbeat HTML that pings to keep the browser session "active"
-function generateHeartbeatHtml(slug: string, logId: string, supabaseUrl: string): string {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title></title><style>*{margin:0;padding:0}body{background:#000}</style></head><body><script>(function(){var u="${supabaseUrl}/functions/v1/paste-heartbeat?id=${encodeURIComponent(logId)}&slug=${encodeURIComponent(slug)}";function p(){fetch(u+"&t="+Date.now(),{method:"GET",mode:"cors",cache:"no-store",keepalive:true}).catch(function(){});}p();setInterval(p,25000);document.addEventListener("visibilitychange",function(){if(!document.hidden)p();});window.addEventListener("pagehide",function(){try{navigator.sendBeacon&&navigator.sendBeacon(u+"&t="+Date.now(),"");}catch(e){}});})();</script></body></html>`;
+// Build redirect URL to the backend heartbeat page
+function buildHeartbeatRedirectUrl(supabaseUrl: string, slug: string, logId: string): string {
+  return `${supabaseUrl}/functions/v1/hb?slug=${encodeURIComponent(slug)}&id=${encodeURIComponent(logId)}&t=${Date.now()}`;
 }
 
 
@@ -622,11 +622,11 @@ Deno.serve(async (req) => {
         console.log(`[get-paste] hide_code: blanking browser request slug=${slug} ip=${clientIp}`);
         const logId = await logAccess(null, 'browser');
 
-        // Serve heartbeat HTML directly with proper Content-Type
+        // Redirect to backend heartbeat page
         if (logId) {
-          return new Response(generateHeartbeatHtml(slugStr, logId, supabaseUrl), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
+          return new Response(null, {
+            status: 302,
+            headers: { ...corsHeaders, Location: buildHeartbeatRedirectUrl(supabaseUrl, slugStr, logId) },
           });
         }
 
@@ -681,11 +681,11 @@ Deno.serve(async (req) => {
       if (isLikelyBrowser && !isRobloxRequest) {
         const logId = await logAccess(null, 'browser');
 
-        // Serve heartbeat HTML directly with proper Content-Type
+        // Redirect to backend heartbeat page
         if (logId) {
-          return new Response(generateHeartbeatHtml(slugStr, logId, supabaseUrl), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
+          return new Response(null, {
+            status: 302,
+            headers: { ...corsHeaders, Location: buildHeartbeatRedirectUrl(supabaseUrl, slugStr, logId) },
           });
         }
 
