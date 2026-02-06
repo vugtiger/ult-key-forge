@@ -89,7 +89,10 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
     }).join('');
   });
 
-  return `--[[ULT LUA PROTECTION v3 - Enhanced Security]]
+  // Use per-execution unique nonce to defeat all caching
+  const executionNonce = generateToken().slice(0, 16);
+  
+  return `--[[ULT LUA PROTECTION v4 - Anti-Cache]]
 local player = game:GetService("Players").LocalPlayer
 if not player then
   player = game:GetService("Players").PlayerAdded:Wait()
@@ -105,7 +108,7 @@ end
 
 if not _vE() then return end
 
--- Fingerprint collection for validation
+-- Generate unique nonce for THIS execution
 local function _n()
   local hs = game:GetService("HttpService")
   local ok, guid = pcall(function()
@@ -119,9 +122,9 @@ local function _gF()
   local p = {}
   p.u = tostring(player.UserId)
   p.n = player.Name
-  -- Use seconds for server time window checks, plus a nonce to defeat executor caching
   p.t = tostring(os.time())
-  p.r = _n()
+  -- Double nonce: server-generated + client-generated to defeat all caching
+  p.r = "${executionNonce}" .. _n()
   p.g = tostring(game.GameId or 0)
   p.p = tostring(game.PlaceId or 0)
   return p
@@ -153,7 +156,7 @@ local _ss = "${sessionSecret}"
 local fp = _gF()
 local tk = _rT()
 
-local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. _ss .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r
+local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. _ss .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&_=" .. tostring(tick())
 
 local function hb(h)
   local o = table.create(math.floor(#h / 2))
@@ -199,7 +202,7 @@ if s and r then
   end
 
   if r:sub(1,2) == "--" then
-    -- Some executors cache HTTP responses. If we got another loader back, run it to refresh tokens.
+    -- Executor cached an old loader. Run the new one to refresh.
     local rf, re = loadstring(r)
     if rf then
       return rf()
@@ -219,7 +222,7 @@ if s and r then
     return
   end
 
-  -- Server may sometimes return plain Lua (e.g. rate limit / error). Execute it directly.
+  -- Plain Lua response (kick script, rate limit, etc.)
   local pf, pe = loadstring(r)
   if pf then
     return pf()
