@@ -609,14 +609,15 @@ Deno.serve(async (req) => {
       .eq('paste_id', paste.id)
       .eq('roblox_user_id', uid);
 
-    const nowDate = new Date().toISOString();
+    const nowTime = Date.now();
 
-    // Check for blacklist first
+    // Check for blacklist first - using proper Date comparisons
     const isBlacklisted = accessList?.some(entry => {
       if (entry.access_type !== 'blacklist') return false;
       if (entry.is_eternal) return true;
       if (!entry.expires_at) return true;
-      return entry.expires_at > nowDate;
+      // Proper date comparison using timestamps
+      return new Date(entry.expires_at).getTime() > nowTime;
     });
 
     if (isBlacklisted) {
@@ -638,13 +639,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if whitelist entry is valid
+    // Check if whitelist entry is valid - using proper Date comparisons
     const isValidWhitelist = whitelistEntry.is_eternal || 
       !whitelistEntry.expires_at || 
-      whitelistEntry.expires_at > nowDate;
+      new Date(whitelistEntry.expires_at).getTime() > nowTime;
 
     if (!isValidWhitelist) {
-      console.log(`Whitelist time expired: ${uid}`);
+      console.log(`Whitelist time expired: ${uid}, expires_at: ${whitelistEntry.expires_at}`);
       return new Response(generateKickEncrypted('Your whitelist time has expired', slug, tk, uid), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
