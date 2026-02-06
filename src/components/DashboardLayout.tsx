@@ -258,6 +258,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <header className="h-16 border-b border-border flex items-center px-6 sticky top-0 bg-background/80 backdrop-blur-xl z-10">
             <SidebarTrigger className="mr-4" />
             <div className="flex-1" />
+            <GoogleTranslate />
           </header>
           <main className="flex-1 overflow-auto p-6">
             {children}
