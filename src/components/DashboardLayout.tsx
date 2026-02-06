@@ -265,6 +265,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             {children}
           </main>
         </div>
+        <OnboardingTour />
       </div>
     </SidebarProvider>
   );
