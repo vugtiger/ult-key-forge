@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, Globe, Trash2 } from "lucide-react";
 import type { AccessLog } from "./types";
-import { formatTime, isActiveNow, isBrowserRequest } from "./utils";
+import { formatTime, isBrowserRequest } from "./utils";
 import RobloxProfileCard from "./RobloxProfileCard";
 import DiscordProfileCard from "./DiscordProfileCard";
 
@@ -13,18 +13,15 @@ type Props = {
 };
 
 export default function AccessLogRow({ log, onDelete, deleting }: Props) {
-  const active = isActiveNow(log.last_seen_at);
   const fromBrowser = isBrowserRequest(log.access_type);
 
-  // If not active, always show as offline (muted). If active, color depends on request type.
-  const dotClass = !active ? "bg-muted-foreground" : fromBrowser ? "bg-destructive" : "bg-primary";
+  // Browser visits = red glow, Executor = white/primary glow (no offline status)
+  const dotClass = fromBrowser ? "bg-destructive" : "bg-primary";
   const pingClass = fromBrowser ? "bg-destructive" : "bg-primary";
 
-  const cardClass = active
-    ? fromBrowser
-      ? "border-destructive/50 bg-destructive/10 shadow-lg shadow-destructive/20"
-      : "border-primary/50 bg-primary/10 shadow-lg shadow-primary/20"
-    : "border-border/30 bg-background/50";
+  const cardClass = fromBrowser
+    ? "border-destructive/50 bg-destructive/10 shadow-lg shadow-destructive/20"
+    : "border-primary/50 bg-primary/10 shadow-lg shadow-primary/20";
 
   const hasRobloxData = log.roblox_user_id;
   const hasDiscordData = log.discord_user_id;
@@ -35,7 +32,7 @@ export default function AccessLogRow({ log, onDelete, deleting }: Props) {
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative shrink-0">
             <div className={`h-3 w-3 rounded-full ${dotClass}`} />
-            {active && <div className={`absolute inset-0 h-3 w-3 rounded-full animate-ping ${pingClass}`} />}
+            <div className={`absolute inset-0 h-3 w-3 rounded-full animate-ping ${pingClass}`} />
           </div>
 
           <div className="space-y-2 min-w-0">
@@ -50,11 +47,6 @@ export default function AccessLogRow({ log, onDelete, deleting }: Props) {
               ) : (
                 <Badge variant="default" className="text-[10px] px-1.5 py-0 shrink-0 bg-primary">
                   EXECUTOR
-                </Badge>
-              )}
-              {!active && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
-                  OFFLINE
                 </Badge>
               )}
             </div>
