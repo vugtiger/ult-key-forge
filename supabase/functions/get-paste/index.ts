@@ -616,35 +616,69 @@ Deno.serve(async (req) => {
     // Generate browser page with heartbeat script
     const generateBrowserPage = (logId: string | null, message: string) => {
       const heartbeatScript = logId ? `
-        <script>
-          const logId = "${logId}";
-          const heartbeatUrl = "${supabaseUrl}/functions/v1/heartbeat";
-          
-          async function sendHeartbeat() {
-            try {
-              await fetch(heartbeatUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ logId, type: 'browser' })
-              });
-            } catch (e) {}
-          }
-          
-          // Send heartbeat every 30 seconds
-          setInterval(sendHeartbeat, 30000);
-          sendHeartbeat(); // Send initial heartbeat
-          
-          // Send heartbeat on page visibility change
-          document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') sendHeartbeat();
-          });
-        </script>
-      ` : '';
+    <script>
+      (function() {
+        var logId = "${logId}";
+        var heartbeatUrl = "${supabaseUrl}/functions/v1/heartbeat";
+        
+        function sendHeartbeat() {
+          try {
+            fetch(heartbeatUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ logId: logId, type: "browser" })
+            }).catch(function() {});
+          } catch (e) {}
+        }
+        
+        setInterval(sendHeartbeat, 30000);
+        sendHeartbeat();
+        
+        document.addEventListener("visibilitychange", function() {
+          if (document.visibilityState === "visible") sendHeartbeat();
+        });
+      })();
+    </script>` : '';
       
       return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>ULT LUA</title>
-<style>body{background:#0a0a0a;color:#fff;font-family:system-ui;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}</style>
-</head><body><div style="text-align:center">${message}</div>${heartbeatScript}</body></html>`;
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ULT LUA</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+    }
+    .logo { font-size: 2rem; font-weight: bold; margin-bottom: 1rem; }
+    .message { color: #a0a0a0; font-size: 1rem; }
+    .check { color: #4ade80; font-size: 3rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="check">✓</div>
+    <div class="logo">ULT LUA</div>
+    <p class="message">${message}</p>
+  </div>
+  ${heartbeatScript}
+</body>
+</html>`;
     };
 
     // Hide Code: only blank real browsers.
