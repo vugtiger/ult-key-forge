@@ -46,6 +46,28 @@ function generateToken(): string {
   return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
 }
 
+function parseCookies(cookieHeader: string | null) {
+  const out: Record<string, string> = {};
+  if (!cookieHeader) return out;
+  for (const part of cookieHeader.split(';')) {
+    const idx = part.indexOf('=');
+    if (idx === -1) continue;
+    const k = part.slice(0, idx).trim();
+    const v = part.slice(idx + 1).trim();
+    if (!k) continue;
+    out[k] = decodeURIComponent(v);
+  }
+  return out;
+}
+
+function detectRobloxRequest(req: Request, userAgent: string): boolean {
+  // Browsers send Origin; Roblox executors generally do not.
+  if (req.headers.get('origin')) return false;
+  if (!userAgent) return true; // safest for executors that send no UA
+  const ua = userAgent.toLowerCase();
+  return ua.includes('roblox') || ua.includes('httpservice');
+}
+
 // Generate a session-bound secret for additional validation
 function generateSessionSecret(ip: string, timestamp: number): string {
   const data = `${ip}:${timestamp}:ULT_SESSION_v3`;
@@ -224,9 +246,7 @@ Deno.serve(async (req) => {
     const userAgent = req.headers.get('user-agent') || '';
     
     // Detect non-Roblox requests with auth params (bypass attempt)
-    const isRobloxRequest = userAgent.toLowerCase().includes('roblox') || 
-                            userAgent.includes('HttpService');
-    
+    const isRobloxRequest = detectRobloxRequest(req, userAgent);
     // Rate limiting
     if (!checkRateLimit(clientIp)) {
       console.log(`Rate limited: ${clientIp}`);
@@ -377,6 +397,89 @@ Deno.serve(async (req) => {
         await logAccess(null, 'browser');
         // Return empty response - code is hidden from browsers
         return new Response('', {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+    }
+
+    // Discord OAuth gating: If ip_tracking_enabled and browser request, require Discord auth
+    if (paste.ip_tracking_enabled && !isRobloxRequest && !uid && !tk) {
+      // Check for existing Discord session cookie
+      const cookies = parseCookies(req.headers.get('cookie'));
+      const dscToken = cookies['dsc'];
+
+      let discordSession = null;
+      if (dscToken) {
+        const { data: session } = await supabase
+          .from('discord_oauth_sessions')
+          .select('*')
+          .eq('token', dscToken)
+          .gt('expires_at', new Date().toISOString())
+          .maybeSingle();
+        discordSession = session;
+      }
+
+      if (!discordSession) {
+        // No valid session - redirect to Discord OAuth
+        const discordClientId = Deno.env.get('DISCORD_APPLICATION_ID');
+        if (!discordClientId) {
+          console.error('DISCORD_APPLICATION_ID not configured');
+          return new Response('OAuth not configured', {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          });
+        }
+
+        // Generate and store state
+        const state = generateToken();
+        await supabase.from('discord_oauth_states').insert({
+          state,
+          slug
+        });
+
+        const redirectUri = encodeURIComponent(`${supabaseUrl}/functions/v1/discord-oauth-callback`);
+        const scopes = encodeURIComponent('identify');
+        const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes}&state=${state}`;
+
+        return new Response(null, {
+          status: 302,
+          headers: {
+            ...corsHeaders,
+            'Location': discordAuthUrl
+          }
+        });
+      }
+
+      // Valid Discord session - log with Discord info and continue
+      await supabase.from('paste_access_logs').upsert({
+        paste_id: paste.id,
+        ip_address: clientIp,
+        roblox_user_id: null,
+        user_agent: userAgent,
+        access_type: 'browser',
+        is_active: true,
+        last_seen_at: new Date().toISOString(),
+        discord_user_id: discordSession.discord_user_id,
+        discord_username: discordSession.discord_username,
+        discord_avatar: discordSession.discord_avatar,
+        discord_created_at: discordSession.discord_created_at
+      }, {
+        onConflict: 'paste_id,ip_address,access_type',
+        ignoreDuplicates: false
+      });
+
+      // If hide_code is on, return empty even after auth (browser shouldn't see code)
+      if (paste.hide_code) {
+        return new Response('', {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+
+      // Otherwise show the raw content to authenticated browser (no protection)
+      if (!paste.protection_enabled && !paste.public_protection) {
+        return new Response(paste.content, {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
         });
