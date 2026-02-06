@@ -46,6 +46,28 @@ function generateToken(): string {
   return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
 }
 
+function parseCookies(cookieHeader: string | null) {
+  const out: Record<string, string> = {};
+  if (!cookieHeader) return out;
+  for (const part of cookieHeader.split(';')) {
+    const idx = part.indexOf('=');
+    if (idx === -1) continue;
+    const k = part.slice(0, idx).trim();
+    const v = part.slice(idx + 1).trim();
+    if (!k) continue;
+    out[k] = decodeURIComponent(v);
+  }
+  return out;
+}
+
+function detectRobloxRequest(req: Request, userAgent: string): boolean {
+  // Browsers send Origin; Roblox executors generally do not.
+  if (req.headers.get('origin')) return false;
+  if (!userAgent) return true; // safest for executors that send no UA
+  const ua = userAgent.toLowerCase();
+  return ua.includes('roblox') || ua.includes('httpservice');
+}
+
 // Generate a session-bound secret for additional validation
 function generateSessionSecret(ip: string, timestamp: number): string {
   const data = `${ip}:${timestamp}:ULT_SESSION_v3`;
