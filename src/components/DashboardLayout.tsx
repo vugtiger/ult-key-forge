@@ -20,6 +20,7 @@ import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarC
 import { Button } from "@/components/ui/button";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import GoogleTranslate from "@/components/GoogleTranslate";
+import OnboardingTour from "@/components/OnboardingTour";
 
 const navigationItems = [
   { title: "Key System Gen", url: "/dashboard", icon: Zap },
