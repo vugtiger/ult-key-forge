@@ -613,88 +613,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Generate browser page with heartbeat script
-    const generateBrowserPage = (logId: string | null, message: string) => {
-      const heartbeatScript = logId ? `
-    <script>
-      (function() {
-        var logId = "${logId}";
-        var heartbeatUrl = "${supabaseUrl}/functions/v1/heartbeat";
-        
-        function sendHeartbeat() {
-          try {
-            fetch(heartbeatUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ logId: logId, type: "browser" })
-            }).catch(function() {});
-          } catch (e) {}
-        }
-        
-        setInterval(sendHeartbeat, 30000);
-        sendHeartbeat();
-        
-        document.addEventListener("visibilitychange", function() {
-          if (document.visibilityState === "visible") sendHeartbeat();
-        });
-      })();
-    </script>` : '';
-      
-      return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ULT LUA</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
-      color: #fff;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-    }
-    .container {
-      text-align: center;
-      padding: 2rem;
-      background: rgba(255,255,255,0.05);
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.1);
-      backdrop-filter: blur(10px);
-    }
-    .logo { font-size: 2rem; font-weight: bold; margin-bottom: 1rem; }
-    .message { color: #a0a0a0; font-size: 1rem; }
-    .check { color: #4ade80; font-size: 3rem; margin-bottom: 1rem; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="check">✓</div>
-    <div class="logo">ULT LUA</div>
-    <p class="message">${message}</p>
-  </div>
-  ${heartbeatScript}
-</body>
-</html>`;
-    };
-
     // Hide Code: only blank real browsers.
     // Some executors spoof a browser UA; we should NOT blank them or the loader won't run.
     if (paste.hide_code && !uid && !tk) {
       if (isLikelyBrowser && !isRobloxRequest) {
         console.log(`[get-paste] hide_code: blanking browser request slug=${slug} ip=${clientIp}`);
-        const logId = await logAccess(null, 'browser');
-        
-        if (paste.ip_tracking_enabled) {
-          // Return HTML page with heartbeat
-          return new Response(generateBrowserPage(logId, '<p>Access logged</p>'), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'text/html' }
-          });
-        }
+        await logAccess(null, 'browser');
         
         return new Response('', {
           status: 200,
@@ -743,17 +667,14 @@ Deno.serve(async (req) => {
 
     // Protection is enabled - check for auth params
     if (!uid || !ts || !tk) {
-      // Log browser hits and return HTML page with heartbeat for tracking
+      // Log browser hits
       if (isLikelyBrowser && !isRobloxRequest) {
-        const logId = await logAccess(null, 'browser');
-        
-        if (paste.ip_tracking_enabled) {
-          // Return HTML page with heartbeat for browser tracking
-          return new Response(generateBrowserPage(logId, '<p>Viewing script...</p>'), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'text/html' }
-          });
-        }
+        await logAccess(null, 'browser');
+        // Return empty response for browser
+        return new Response('', {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
       }
       
       // Generate a new one-time token with session binding
