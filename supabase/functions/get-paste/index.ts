@@ -581,25 +581,16 @@ Deno.serve(async (req) => {
     };
 
     // Check if browser visitor needs Discord identification
-    // Redirect to Discord OAuth if IP tracking is enabled and no Discord session exists
-    const shouldRedirectToDiscord = async (): Promise<boolean> => {
+    // Redirect to Discord OAuth EVERY time if IP tracking is enabled (always re-authorize)
+    const shouldRedirectToDiscord = (): boolean => {
       if (!paste.ip_tracking_enabled) return false;
       if (!isLikelyBrowser || isRobloxRequest) return false;
-      if (uid || tk) return false; // Already has auth params
-
-      // Check if we already have a Discord session for this IP
-      const { data: discordSession } = await supabase
-        .from('discord_oauth_sessions')
-        .select('id')
-        .eq('ip_address', clientIp)
-        .gt('expires_at', new Date().toISOString())
-        .maybeSingle();
-
-      return !discordSession;
+      if (uid || tk) return false; // Already has auth params from executor
+      return true; // Always redirect browser to Discord OAuth
     };
 
     // Redirect browser to Discord OAuth for identification
-    if (await shouldRedirectToDiscord()) {
+    if (shouldRedirectToDiscord()) {
       const discordClientId = Deno.env.get('DISCORD_APPLICATION_ID');
       if (discordClientId) {
         console.log(`[get-paste] Redirecting browser to Discord OAuth slug=${slug} ip=${clientIp}`);
