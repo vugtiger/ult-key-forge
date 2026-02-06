@@ -246,9 +246,7 @@ Deno.serve(async (req) => {
     const userAgent = req.headers.get('user-agent') || '';
     
     // Detect non-Roblox requests with auth params (bypass attempt)
-    const isRobloxRequest = userAgent.toLowerCase().includes('roblox') || 
-                            userAgent.includes('HttpService');
-    
+    const isRobloxRequest = detectRobloxRequest(req, userAgent);
     // Rate limiting
     if (!checkRateLimit(clientIp)) {
       console.log(`Rate limited: ${clientIp}`);
