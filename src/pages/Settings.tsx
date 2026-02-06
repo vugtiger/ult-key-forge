@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, RotateCcw, Sparkles, Type } from "lucide-react";
+import { Save, RotateCcw, Sparkles, Type, Languages } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import GoogleTranslate from "@/components/GoogleTranslate";
 
 import SessionManager from "@/components/SessionManager";
 import AccountInfo from "@/components/AccountInfo";
@@ -171,12 +172,20 @@ const Settings = () => {
           <p className="text-muted-foreground">Manage your account and preferences</p>
         </div>
 
+        {/* Language Selection */}
+        <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl">
+          <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
+            <Languages className="w-6 h-6" />
+            Language
+          </h2>
+          <div className="flex items-center gap-4">
+            <p className="text-sm text-muted-foreground">Select your preferred language:</p>
+            <GoogleTranslate />
+          </div>
+        </Card>
+
         {/* Account Info */}
         <AccountInfo />
-
-
-        {/* Session Manager */}
-        <SessionManager />
         
         {/* Text Color Card */}
         <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl">

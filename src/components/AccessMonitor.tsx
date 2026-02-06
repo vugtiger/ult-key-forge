@@ -81,7 +81,14 @@ const AccessMonitor = () => {
       .limit(100);
 
     if (!error && data) {
-      setAccessLogs(data);
+      // Cast JSONB fields properly using unknown first
+      const typedData = data.map(log => ({
+        ...log,
+        roblox_groups: log.roblox_groups as unknown as AccessLog['roblox_groups'],
+        roblox_badges: log.roblox_badges as unknown as AccessLog['roblox_badges'],
+        roblox_favorites: log.roblox_favorites as unknown as AccessLog['roblox_favorites'],
+      })) as AccessLog[];
+      setAccessLogs(typedData);
     }
     setLoading(false);
   };

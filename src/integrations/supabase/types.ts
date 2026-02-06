@@ -386,7 +386,19 @@ export type Database = {
           is_active: boolean | null
           last_seen_at: string
           paste_id: string
+          roblox_avatar_url: string | null
+          roblox_badges: Json | null
+          roblox_created_at: string | null
+          roblox_description: string | null
+          roblox_display_name: string | null
+          roblox_favorites: Json | null
+          roblox_followers_count: number | null
+          roblox_following_count: number | null
+          roblox_friends_count: number | null
+          roblox_groups: Json | null
+          roblox_is_banned: boolean | null
           roblox_user_id: string | null
+          roblox_username: string | null
           user_agent: string | null
         }
         Insert: {
@@ -401,7 +413,19 @@ export type Database = {
           is_active?: boolean | null
           last_seen_at?: string
           paste_id: string
+          roblox_avatar_url?: string | null
+          roblox_badges?: Json | null
+          roblox_created_at?: string | null
+          roblox_description?: string | null
+          roblox_display_name?: string | null
+          roblox_favorites?: Json | null
+          roblox_followers_count?: number | null
+          roblox_following_count?: number | null
+          roblox_friends_count?: number | null
+          roblox_groups?: Json | null
+          roblox_is_banned?: boolean | null
           roblox_user_id?: string | null
+          roblox_username?: string | null
           user_agent?: string | null
         }
         Update: {
@@ -416,7 +440,19 @@ export type Database = {
           is_active?: boolean | null
           last_seen_at?: string
           paste_id?: string
+          roblox_avatar_url?: string | null
+          roblox_badges?: Json | null
+          roblox_created_at?: string | null
+          roblox_description?: string | null
+          roblox_display_name?: string | null
+          roblox_favorites?: Json | null
+          roblox_followers_count?: number | null
+          roblox_following_count?: number | null
+          roblox_friends_count?: number | null
+          roblox_groups?: Json | null
+          roblox_is_banned?: boolean | null
           roblox_user_id?: string | null
+          roblox_username?: string | null
           user_agent?: string | null
         }
         Relationships: [
