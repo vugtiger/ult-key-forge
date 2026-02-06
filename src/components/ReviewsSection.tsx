@@ -167,9 +167,9 @@ const ReviewsSection = () => {
   };
 
   return (
-    <section className="max-w-6xl mx-auto mb-24">
-      <h2 className="text-4xl font-bold text-center mb-4">User Reviews</h2>
-      <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
+    <div className="w-full">
+      <h2 className="text-4xl font-bold text-center lg:text-left mb-4">User Reviews</h2>
+      <p className="text-muted-foreground text-center lg:text-left mb-8 max-w-2xl">
         See what our users are saying about ULT LUA Protects
       </p>
 
@@ -251,7 +251,7 @@ const ReviewsSection = () => {
           }
         }
       `}</style>
-    </section>
+    </div>
   );
 };
 
