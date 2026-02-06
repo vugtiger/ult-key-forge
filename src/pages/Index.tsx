@@ -184,14 +184,9 @@ const Index = () => {
             <AIAssistantDemo />
           </section>
 
-          {/* Reviews Section with Globe */}
-          <section className="max-w-7xl mx-auto mb-24">
-            <div className="grid lg:grid-cols-[1fr_380px] gap-8 items-start">
-              <ReviewsSection />
-              <div className="hidden lg:block sticky top-8">
-                <GlobeVisualization />
-              </div>
-            </div>
+          {/* Reviews Section */}
+          <section className="max-w-6xl mx-auto mb-24">
+            <ReviewsSection />
           </section>
 
           {/* About Section */}
