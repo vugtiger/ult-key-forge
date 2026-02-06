@@ -199,6 +199,17 @@ const commands = [
     ]
   },
 
+  // Discord Hawk Commands
+  {
+    name: "userhawk",
+    description: "Enable Discord Hawk scanning for this server (scans all members)",
+    options: []
+  },
+  {
+    name: "unuserhawk",
+    description: "Disable Discord Hawk scanning for this server"
+  },
+
   // Help Command
   {
     name: "help",
