@@ -367,8 +367,12 @@ function generateKickEncrypted(reason: string, slug: string, token: string, uid:
   return xorToHex(kickScript, key);
 }
 
-// Browser heartbeat is not reliable in edge functions due to Content-Type issues.
-// Returning empty string for browser views instead.
+const HEARTBEAT_PAGE_URL = "https://ultluacodeprotectsyourcode.lovable.app/hb";
+
+const buildHeartbeatRedirectUrl = (slug: string, logId: string) => {
+  return `${HEARTBEAT_PAGE_URL}?slug=${encodeURIComponent(slug)}&id=${encodeURIComponent(logId)}&t=${Date.now()}`;
+};
+
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -617,7 +621,19 @@ Deno.serve(async (req) => {
     if (paste.hide_code && !uid && !tk) {
       if (isLikelyBrowser && !isRobloxRequest) {
         console.log(`[get-paste] hide_code: blanking browser request slug=${slug} ip=${clientIp}`);
-        await logAccess(null, 'browser');
+        const logId = await logAccess(null, 'browser');
+
+        // We cannot serve HTML reliably from this endpoint (it is delivered as text/plain),
+        // so we redirect to a real blank page in the site which runs the heartbeat.
+        if (logId) {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              ...corsHeaders,
+              Location: buildHeartbeatRedirectUrl(slugStr, logId),
+            },
+          });
+        }
 
         return new Response('', {
           status: 200,
@@ -668,9 +684,19 @@ Deno.serve(async (req) => {
     if (!uid || !ts || !tk) {
       // Log browser hits
       if (isLikelyBrowser && !isRobloxRequest) {
-        await logAccess(null, 'browser');
+        const logId = await logAccess(null, 'browser');
 
-        // Return empty response for browser
+        if (logId) {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              ...corsHeaders,
+              Location: buildHeartbeatRedirectUrl(slugStr, logId),
+            },
+          });
+        }
+
+        // Fallback: Return empty response for browser
         return new Response('', {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
