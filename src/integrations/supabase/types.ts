@@ -254,7 +254,7 @@ export type Database = {
           discord_username: string | null
           expires_at: string
           id: string
-          token: string
+          ip_address: string
         }
         Insert: {
           created_at?: string
@@ -264,7 +264,7 @@ export type Database = {
           discord_username?: string | null
           expires_at?: string
           id?: string
-          token: string
+          ip_address: string
         }
         Update: {
           created_at?: string
@@ -274,29 +274,35 @@ export type Database = {
           discord_username?: string | null
           expires_at?: string
           id?: string
-          token?: string
+          ip_address?: string
         }
         Relationships: []
       }
       discord_oauth_states: {
         Row: {
           created_at: string
+          expires_at: string
           id: string
-          slug: string
+          ip_address: string
+          paste_slug: string
           state: string
           used_at: string | null
         }
         Insert: {
           created_at?: string
+          expires_at: string
           id?: string
-          slug: string
+          ip_address: string
+          paste_slug: string
           state: string
           used_at?: string | null
         }
         Update: {
           created_at?: string
+          expires_at?: string
           id?: string
-          slug?: string
+          ip_address?: string
+          paste_slug?: string
           state?: string
           used_at?: string | null
         }
