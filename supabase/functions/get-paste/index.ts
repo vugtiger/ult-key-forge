@@ -267,10 +267,23 @@ Deno.serve(async (req) => {
                      'unknown';
     
     const userAgent = req.headers.get('user-agent') || '';
+    const accept = req.headers.get('accept') || '';
+    const secFetchMode = req.headers.get('sec-fetch-mode') || '';
+    const secFetchDest = req.headers.get('sec-fetch-dest') || '';
+    const origin = req.headers.get('origin') || '';
+    const referer = req.headers.get('referer') || '';
     
     // Detect non-Roblox requests with auth params (bypass attempt)
+    // NOTE: Some executors spoof a browser UA, so we also use browser-only headers to detect real browsers.
     const isRobloxRequest = userAgent.toLowerCase().includes('roblox') || 
                             userAgent.includes('HttpService');
+
+    const isLikelyBrowser =
+      Boolean(secFetchMode) ||
+      Boolean(secFetchDest) ||
+      accept.includes('text/html') ||
+      Boolean(origin) ||
+      Boolean(referer);
     
     // Rate limiting
     if (!checkRateLimit(clientIp)) {
@@ -314,6 +327,12 @@ Deno.serve(async (req) => {
         headers: corsHeaders 
       });
     }
+
+    console.log(
+      `[get-paste] slug=${slug} uid=${uid ?? ''} hasTk=${Boolean(tk)} ip=${clientIp} ` +
+      `robloxUA=${isRobloxRequest} browser=${isLikelyBrowser} hide=${Boolean(paste.hide_code)} ` +
+      `prot=${Boolean(paste.protection_enabled)} pub=${Boolean(paste.public_protection)}`
+    );
 
     const slugStr = slug;
     const baseUrl = supabaseUrl + '/functions/v1/get-paste';
@@ -382,13 +401,12 @@ Deno.serve(async (req) => {
       }
     };
 
-    // If hide_code is enabled and this is a browser request without auth params, return empty
+    // Hide Code: only blank real browsers.
+    // Some executors spoof a browser UA; we should NOT blank them or the loader won't run.
     if (paste.hide_code && !uid && !tk) {
-      // Check if this looks like a browser request (not Roblox)
-      if (!isRobloxRequest) {
-        // Log browser access attempt
+      if (isLikelyBrowser && !isRobloxRequest) {
+        console.log(`[get-paste] hide_code: blanking browser request slug=${slug} ip=${clientIp}`);
         await logAccess(null, 'browser');
-        // Return empty response - code is hidden from browsers
         return new Response('', {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
@@ -622,37 +640,33 @@ Deno.serve(async (req) => {
     });
 
     if (isBlacklisted) {
-      console.log(`Blacklisted user: ${uid}`);
+      console.log(`[get-paste] slug=${slug} paste=${paste.id} uid=${uid} decision=blacklisted`);
       return new Response(generateKickEncrypted('You are blacklisted', slug, tk, uid), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
 
-    // Check for whitelist
-    const whitelistEntry = accessList?.find(entry => entry.access_type === 'whitelist');
-    
-    if (!whitelistEntry) {
-      console.log(`Not whitelisted: ${uid}`);
+    // Whitelist: allow if ANY whitelist entry is valid (prevents inconsistent behavior if duplicates ever exist).
+    const hasWhitelist = (accessList ?? []).some((e) => e.access_type === 'whitelist');
+    const hasValidWhitelist = (accessList ?? []).some((entry) => {
+      if (entry.access_type !== 'whitelist') return false;
+      if (entry.is_eternal) return true;
+      if (!entry.expires_at) return true;
+      const expiresAtMs = Date.parse(entry.expires_at);
+      return Number.isFinite(expiresAtMs) && expiresAtMs > nowMs;
+    });
+
+    if (!hasWhitelist) {
+      console.log(`[get-paste] slug=${slug} paste=${paste.id} uid=${uid} decision=not_whitelisted`);
       return new Response(generateKickEncrypted('Not whitelisted', slug, tk, uid), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
 
-    const whitelistExpiresAtMs = whitelistEntry.expires_at
-      ? Date.parse(whitelistEntry.expires_at)
-      : null;
-
-    const isValidWhitelist =
-      whitelistEntry.is_eternal ||
-      !whitelistEntry.expires_at ||
-      (whitelistExpiresAtMs !== null &&
-        Number.isFinite(whitelistExpiresAtMs) &&
-        whitelistExpiresAtMs > nowMs);
-
-    if (!isValidWhitelist) {
-      console.log(`Whitelist time expired: ${uid}`);
+    if (!hasValidWhitelist) {
+      console.log(`[get-paste] slug=${slug} paste=${paste.id} uid=${uid} decision=whitelist_expired`);
       return new Response(generateKickEncrypted('Your whitelist time has expired', slug, tk, uid), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
