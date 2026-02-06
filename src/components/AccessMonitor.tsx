@@ -212,16 +212,12 @@ const AccessMonitor = () => {
             {/* Legend */}
              <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t border-border/30">
                <div className="flex items-center gap-1.5">
-                 <div className="h-2 w-2 rounded-full bg-primary" />
-                 <span>Executor (active)</span>
+                 <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                 <span>Executor</span>
                </div>
                <div className="flex items-center gap-1.5">
-                 <div className="h-2 w-2 rounded-full bg-destructive" />
-                 <span>Browser (active)</span>
-               </div>
-               <div className="flex items-center gap-1.5">
-                 <div className="h-2 w-2 rounded-full bg-muted-foreground" />
-                 <span>Offline (60s+ inactive)</span>
+                 <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                 <span>Browser Visitor</span>
                </div>
              </div>
           </div>
