@@ -367,13 +367,8 @@ function generateKickEncrypted(reason: string, slug: string, token: string, uid:
   return xorToHex(kickScript, key);
 }
 
-function generateBrowserHeartbeatHtml(opts: { supabaseUrl: string; slug: string; logId: string }) {
-  const heartbeatUrl = `${opts.supabaseUrl}/functions/v1/paste-heartbeat`;
-
-  // Minimal blank page with invisible heartbeat. Uses a data URI approach to ensure
-  // the browser renders nothing visible while the script runs.
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0;visibility:hidden}</style></head><body><script>(function(){var l="${opts.logId}",s="${opts.slug}",b="${heartbeatUrl}";function p(){try{fetch(b+"?id="+encodeURIComponent(l)+"&slug="+encodeURIComponent(s)+"&t="+Date.now(),{method:"GET",cache:"no-store",keepalive:true}).catch(function(){});}catch(e){}}p();setInterval(p,25000);document.addEventListener("visibilitychange",function(){if(!document.hidden)p();});window.addEventListener("pagehide",function(){try{var u=b+"?id="+encodeURIComponent(l)+"&slug="+encodeURIComponent(s)+"&t="+Date.now();if(navigator.sendBeacon)navigator.sendBeacon(u,"");}catch(e){}});})();</script></body></html>`;
-}
+// Browser heartbeat is not reliable in edge functions due to Content-Type issues.
+// Returning empty string for browser views instead.
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -622,15 +617,7 @@ Deno.serve(async (req) => {
     if (paste.hide_code && !uid && !tk) {
       if (isLikelyBrowser && !isRobloxRequest) {
         console.log(`[get-paste] hide_code: blanking browser request slug=${slug} ip=${clientIp}`);
-        const logId = await logAccess(null, 'browser');
-
-        // Keep it visually blank, but emit a heartbeat so Access Monitor stays "active" while the tab is open.
-        if (logId) {
-          return new Response(generateBrowserHeartbeatHtml({ supabaseUrl, slug: slugStr, logId }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
-          });
-        }
+        await logAccess(null, 'browser');
 
         return new Response('', {
           status: 200,
@@ -681,17 +668,9 @@ Deno.serve(async (req) => {
     if (!uid || !ts || !tk) {
       // Log browser hits
       if (isLikelyBrowser && !isRobloxRequest) {
-        const logId = await logAccess(null, 'browser');
+        await logAccess(null, 'browser');
 
-        // Return a visually blank page with a heartbeat so the tab stays "active" while open.
-        if (logId) {
-          return new Response(generateBrowserHeartbeatHtml({ supabaseUrl, slug: slugStr, logId }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
-          });
-        }
-
-        // Fallback: Return empty response for browser
+        // Return empty response for browser
         return new Response('', {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
