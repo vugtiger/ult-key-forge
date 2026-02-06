@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import OnboardingTour from "@/components/onboarding/OnboardingTour";
 import {
   Sidebar,
   SidebarContent,
@@ -263,6 +264,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           </main>
         </div>
       </div>
+      <OnboardingTour />
     </SidebarProvider>
   );
 };

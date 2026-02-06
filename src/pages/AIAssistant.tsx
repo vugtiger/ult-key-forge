@@ -7,6 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Send, Loader2, Sparkles, Code, Globe, HelpCircle, Trash2, MessageSquare, Zap, Bot } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import TabHelpSection from "@/components/onboarding/TabHelpSection";
+import { aiAssistantHelp } from "@/components/onboarding/helpContent";
 
 interface Message {
   role: "user" | "assistant";
@@ -118,9 +120,9 @@ const AIAssistant = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-5xl mx-auto h-[calc(100vh-10rem)] flex flex-col">
+      <div className="max-w-5xl mx-auto space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20">
               <Sparkles className="h-8 w-8 text-primary" />
@@ -143,8 +145,10 @@ const AIAssistant = () => {
           )}
         </div>
 
+        <TabHelpSection {...aiAssistantHelp} />
+
         {/* Main Chat Area */}
-        <Card className="flex-1 cyber-border bg-card/50 backdrop-blur-xl flex flex-col overflow-hidden">
+        <Card className="cyber-border bg-card/50 backdrop-blur-xl flex flex-col overflow-hidden h-[calc(100vh-22rem)]">
           {/* Messages Container */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.length === 0 ? (

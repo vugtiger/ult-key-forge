@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import TabHelpSection from "@/components/onboarding/TabHelpSection";
+import { analyticsHelp } from "@/components/onboarding/helpContent";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
@@ -96,10 +98,10 @@ const Analytics = () => {
   }, []);
 
   const statCards = [
-    { title: "Total Pastes", value: pasteStats.total_pastes, icon: FileCode, color: "text-blue-500" },
-    { title: "Protected Pastes", value: pasteStats.protected_pastes, icon: Activity, color: "text-green-500" },
-    { title: "Total Executions", value: pasteStats.total_executions, icon: TrendingUp, color: "text-purple-500" },
-    { title: "Protection Rate", value: `${pasteStats.total_pastes > 0 ? Math.round((pasteStats.protected_pastes / pasteStats.total_pastes) * 100) : 0}%`, icon: Users, color: "text-orange-500" },
+    { title: "Total Pastes", value: pasteStats.total_pastes, icon: FileCode, color: "text-primary" },
+    { title: "Protected Pastes", value: pasteStats.protected_pastes, icon: Activity, color: "text-primary" },
+    { title: "Total Executions", value: pasteStats.total_executions, icon: TrendingUp, color: "text-primary" },
+    { title: "Protection Rate", value: `${pasteStats.total_pastes > 0 ? Math.round((pasteStats.protected_pastes / pasteStats.total_pastes) * 100) : 0}%`, icon: Users, color: "text-primary" },
   ];
 
   return (
@@ -109,6 +111,8 @@ const Analytics = () => {
           <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
           <p className="text-muted-foreground">Track your script executions and usage</p>
         </div>
+
+        <TabHelpSection {...analyticsHelp} />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

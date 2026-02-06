@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import TabHelpSection from "@/components/onboarding/TabHelpSection";
+import { changelogHelp } from "@/components/onboarding/helpContent";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,6 +75,8 @@ const Changelog = () => {
             Stay updated with the latest features and improvements
           </p>
         </div>
+
+        <TabHelpSection {...changelogHelp} />
 
         {loading ? (
           <div className="space-y-4">
