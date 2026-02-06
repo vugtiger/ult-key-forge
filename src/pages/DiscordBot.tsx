@@ -2,6 +2,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import DashboardLayout from "@/components/DashboardLayout";
+import TabHelpSection from "@/components/onboarding/TabHelpSection";
+import { discordBotHelp } from "@/components/onboarding/helpContent";
 import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Globe, Sparkles, EyeOff } from "lucide-react";
 
 const DiscordBot = () => {
@@ -119,8 +121,8 @@ const DiscordBot = () => {
           
           {/* Status Badge */}
           <div className="flex items-center justify-center gap-2 mb-6">
-            <Badge variant="outline" className="px-4 py-2 text-sm border-green-500/50 bg-green-500/10">
-              <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
+            <Badge variant="outline" className="px-4 py-2 text-sm border-primary/50 bg-primary/10">
+              <span className="w-2 h-2 rounded-full bg-primary mr-2 animate-pulse"></span>
               Bot Online
             </Badge>
             <Badge variant="outline" className="px-4 py-2 text-sm border-primary/50 bg-primary/10">
@@ -140,6 +142,8 @@ const DiscordBot = () => {
             <ExternalLink className="w-4 h-4" />
           </Button>
         </div>
+
+        <TabHelpSection {...discordBotHelp} />
 
         {/* Features Grid */}
         <div>

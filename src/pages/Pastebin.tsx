@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import TabHelpSection from "@/components/onboarding/TabHelpSection";
+import { pastebinHelp } from "@/components/onboarding/helpContent";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -351,6 +353,8 @@ const Pastebin = () => {
             <p className="text-muted-foreground">Upload and share your Lua scripts with raw links</p>
           </div>
         </div>
+
+        <TabHelpSection {...pastebinHelp} />
 
         {/* Create New Paste */}
         <Card className="border-border/50 bg-card/50 backdrop-blur-sm">

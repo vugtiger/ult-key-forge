@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Trash2, Download } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import TabHelpSection from "@/components/onboarding/TabHelpSection";
+import { scriptStorageHelp } from "@/components/onboarding/helpContent";
 import {
   Dialog,
   DialogContent,
@@ -203,6 +205,8 @@ const Scripts = () => {
             </DialogContent>
           </Dialog>
         </div>
+
+        <TabHelpSection {...scriptStorageHelp} />
 
         {loading ? (
           <div className="text-center py-12 text-muted-foreground">

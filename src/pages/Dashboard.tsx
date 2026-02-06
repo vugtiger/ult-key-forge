@@ -7,6 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Download } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import TabHelpSection from "@/components/onboarding/TabHelpSection";
+import { keySystemHelp } from "@/components/onboarding/helpContent";
 
 // ASCII art character map for converting text
 const asciiChars: Record<string, string[]> = {
@@ -396,6 +398,8 @@ TweenService:Create(input, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
             Create custom key systems with unlimited keys and full customization
           </p>
         </div>
+
+        <TabHelpSection {...keySystemHelp} />
 
         <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl">
           <div className="space-y-6">

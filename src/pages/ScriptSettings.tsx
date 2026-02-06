@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
+import TabHelpSection from "@/components/onboarding/TabHelpSection";
+import { scriptSettingsHelp } from "@/components/onboarding/helpContent";
 import AccessMonitor from "@/components/AccessMonitor";
 import GameBindingsManager from "@/components/GameBindingsManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,6 +47,8 @@ const ScriptSettings = () => {
             <p className="text-muted-foreground">Manage access monitoring and game restrictions for your scripts</p>
           </div>
         </div>
+
+        <TabHelpSection {...scriptSettingsHelp} />
 
         {/* Tabs */}
         <Tabs defaultValue="monitor" className="w-full">

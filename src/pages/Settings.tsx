@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Save, RotateCcw, Sparkles, Type, Languages } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import TabHelpSection from "@/components/onboarding/TabHelpSection";
+import { settingsHelp } from "@/components/onboarding/helpContent";
 import GoogleTranslate from "@/components/GoogleTranslate";
 
 import SessionManager from "@/components/SessionManager";
@@ -171,6 +173,8 @@ const Settings = () => {
           <h1 className="text-4xl font-bold mb-2">Settings</h1>
           <p className="text-muted-foreground">Manage your account and preferences</p>
         </div>
+
+        <TabHelpSection {...settingsHelp} />
 
         {/* Language Selection */}
         <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl">
