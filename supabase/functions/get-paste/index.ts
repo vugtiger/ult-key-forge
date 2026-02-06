@@ -568,11 +568,11 @@ Deno.serve(async (req) => {
         .eq('access_type', 'blacklist')
         .maybeSingle();
 
-      const nowDate = new Date().toISOString();
+      const nowTime = Date.now();
       const isBlacklisted = blacklistEntry && (
         blacklistEntry.is_eternal || 
         !blacklistEntry.expires_at || 
-        blacklistEntry.expires_at > nowDate
+        new Date(blacklistEntry.expires_at).getTime() > nowTime
       );
 
       if (isBlacklisted) {
