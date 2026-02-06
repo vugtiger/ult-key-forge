@@ -610,28 +610,36 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Browser visitor after OAuth - log visit and show blank page
-    if (isLikelyBrowser && !isRobloxRequest && !uid && !tk && paste.ip_tracking_enabled) {
-      console.log(`[get-paste] browser visitor logged slug=${slug} ip=${clientIp}`);
-      await logAccess(null, 'browser');
-      
-      return new Response('', {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
-    }
-
-    // Hide Code: only blank real browsers (when IP tracking is disabled).
-    if (paste.hide_code && !uid && !tk) {
-      if (isLikelyBrowser && !isRobloxRequest) {
-        console.log(`[get-paste] hide_code: blanking browser request slug=${slug} ip=${clientIp}`);
+    // Handle browser visitors (non-executor requests without auth params)
+    if (isLikelyBrowser && !isRobloxRequest && !uid && !tk) {
+      // Log browser visit if IP tracking is enabled
+      if (paste.ip_tracking_enabled) {
+        console.log(`[get-paste] browser visitor logged slug=${slug} ip=${clientIp}`);
         await logAccess(null, 'browser');
-        
+      }
+      
+      // Only return blank page if hide_code is explicitly enabled
+      if (paste.hide_code) {
+        console.log(`[get-paste] hide_code: blanking browser request slug=${slug} ip=${clientIp}`);
         return new Response('', {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
         });
       }
+      
+      // If no protection and no hide_code, show actual content to browsers
+      if (!paste.protection_enabled && !paste.public_protection) {
+        return new Response(paste.content, {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+      
+      // For protected pastes without hide_code, show a user-friendly message
+      return new Response('-- This script is protected. Execute via loadstring() in Roblox.', {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
     }
 
     // If protection is disabled, return content directly
