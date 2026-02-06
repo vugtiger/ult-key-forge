@@ -1609,6 +1609,154 @@ When building websites, focus on clean, modern, responsive design.`;
       return { type: 4, data: { content: `✅ User <@${targetUserId}> has been force expired from panel **${panel.name}**.\n\n• All their keys are now expired\n• Roblox User IDs removed from whitelist\n• Discord role removed`, flags: 64 } };
     }
 
+    case 'userhawk': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const guildId = interaction.guild_id;
+      if (!guildId) {
+        return { type: 4, data: { content: '❌ This command can only be used in a Discord server.', flags: 64 } };
+      }
+
+      // Check if hawk is already enabled for this guild
+      const { data: existingHawk } = await supabase
+        .from('discord_hawk_settings')
+        .select('id, enabled')
+        .eq('user_id', user.userId)
+        .eq('guild_id', guildId)
+        .maybeSingle();
+
+      if (existingHawk?.enabled) {
+        return { type: 4, data: { content: '✅ Discord Hawk is already enabled for this server!', flags: 64 } };
+      }
+
+      // Enable or create hawk settings
+      if (existingHawk) {
+        await supabase
+          .from('discord_hawk_settings')
+          .update({ enabled: true })
+          .eq('id', existingHawk.id);
+      } else {
+        await supabase
+          .from('discord_hawk_settings')
+          .insert({
+            user_id: user.userId,
+            guild_id: guildId,
+            enabled: true
+          });
+      }
+
+      // Start scanning guild members in the background
+      // Fetch all guild members and store them
+      let totalScanned = 0;
+      let after: string | undefined = undefined;
+
+      try {
+        // Scan up to 1000 members (Discord limit per request)
+        for (let i = 0; i < 10; i++) {
+          const url = `https://discord.com/api/v10/guilds/${guildId}/members?limit=100${after ? `&after=${after}` : ''}`;
+          const membersRes = await fetch(url, {
+            headers: { 'Authorization': `Bot ${DISCORD_BOT_TOKEN}` }
+          });
+
+          if (!membersRes.ok) {
+            console.error('Failed to fetch members:', await membersRes.text());
+            break;
+          }
+
+          const members = await membersRes.json();
+          if (!members || members.length === 0) break;
+
+          // Store each member
+          for (const member of members) {
+            if (member.user?.bot) continue; // Skip bots
+
+            const discordUserId = member.user?.id;
+            const discordUsername = member.user?.username;
+            const discordAvatar = member.user?.avatar;
+            
+            // Calculate account creation date from snowflake
+            let discordCreatedAt: string | null = null;
+            if (discordUserId) {
+              const snowflake = BigInt(discordUserId);
+              const timestamp = Number((snowflake >> 22n) + 1420070400000n);
+              discordCreatedAt = new Date(timestamp).toISOString();
+            }
+
+            // Upsert member data
+            await supabase
+              .from('discord_hawk_users')
+              .upsert({
+                user_id: user.userId,
+                guild_id: guildId,
+                discord_user_id: discordUserId,
+                discord_username: discordUsername,
+                discord_avatar: discordAvatar,
+                discord_created_at: discordCreatedAt,
+                is_active: true,
+                scanned_at: new Date().toISOString()
+              }, { onConflict: 'user_id,guild_id,discord_user_id' });
+
+            totalScanned++;
+          }
+
+          // Get last member ID for pagination
+          after = members[members.length - 1]?.user?.id;
+          if (members.length < 100) break; // No more members
+        }
+      } catch (error) {
+        console.error('Hawk scanning error:', error);
+      }
+
+      return { 
+        type: 4, 
+        data: { 
+          content: `🦅 **Discord Hawk Enabled!**\n\n✅ Scanned **${totalScanned}** server members\n\nAll current and future members will be tracked. When they view your pastes (browser or executor), their Discord info will be shown in the Access Monitor.`, 
+          flags: 64 
+        } 
+      };
+    }
+
+    case 'unuserhawk': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const guildId = interaction.guild_id;
+      if (!guildId) {
+        return { type: 4, data: { content: '❌ This command can only be used in a Discord server.', flags: 64 } };
+      }
+
+      // Disable hawk for this guild
+      const { data: existingHawk } = await supabase
+        .from('discord_hawk_settings')
+        .select('id')
+        .eq('user_id', user.userId)
+        .eq('guild_id', guildId)
+        .maybeSingle();
+
+      if (!existingHawk) {
+        return { type: 4, data: { content: '❌ Discord Hawk is not enabled for this server.', flags: 64 } };
+      }
+
+      await supabase
+        .from('discord_hawk_settings')
+        .update({ enabled: false })
+        .eq('id', existingHawk.id);
+
+      // Note: We keep the scanned data - users stay tracked even after leaving
+      return { 
+        type: 4, 
+        data: { 
+          content: `🦅 **Discord Hawk Disabled**\n\nNew members will no longer be scanned. However, previously scanned members will remain in the database and can still be identified when viewing your pastes.`, 
+          flags: 64 
+        } 
+      };
+    }
+
     default:
       return { type: 4, data: { content: '❓ Unknown command. Use `/help` to see available commands.', flags: 64 } };
   }
