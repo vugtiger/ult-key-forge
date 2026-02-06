@@ -106,11 +106,22 @@ end
 if not _vE() then return end
 
 -- Fingerprint collection for validation
+local function _n()
+  local hs = game:GetService("HttpService")
+  local ok, guid = pcall(function()
+    return hs:GenerateGUID(false)
+  end)
+  if ok and guid then return guid end
+  return tostring(math.floor((os.clock() * 1000000) % 1000000000)) .. tostring(math.random(1, 1000000000))
+end
+
 local function _gF()
   local p = {}
   p.u = tostring(player.UserId)
   p.n = player.Name
+  -- Use seconds for server time window checks, plus a nonce to defeat executor caching
   p.t = tostring(os.time())
+  p.r = _n()
   p.g = tostring(game.GameId or 0)
   p.p = tostring(game.PlaceId or 0)
   return p
@@ -132,11 +143,17 @@ local function _rT()
   return r
 end
 
+local function _isHex(str)
+  if type(str) ~= "string" then return false end
+  if (#str % 2) ~= 0 then return false end
+  return str:match("^[0-9a-fA-F]+$") ~= nil
+end
+
 local _ss = "${sessionSecret}"
 local fp = _gF()
 local tk = _rT()
 
-local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. _ss .. "&gid=" .. fp.g .. "&pid=" .. fp.p
+local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. _ss .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r
 
 local function hb(h)
   local o = table.create(math.floor(#h / 2))
@@ -176,6 +193,11 @@ local s, r = pcall(function()
 end)
 
 if s and r then
+  if r == "" then
+    warn("Empty response")
+    return
+  end
+
   if r:sub(1,2) == "--" then
     -- Some executors cache HTTP responses. If we got another loader back, run it to refresh tokens.
     local rf, re = loadstring(r)
@@ -185,13 +207,24 @@ if s and r then
     warn("Protection error")
     return
   end
-  local d = bs(xb(hb(r), kb))
-  local f, e = loadstring(d)
-  if f then
-    f()
-  else
-    warn("E:" .. tostring(e))
+
+  if _isHex(r) then
+    local d = bs(xb(hb(r), kb))
+    local f, e = loadstring(d)
+    if f then
+      f()
+    else
+      warn("E:" .. tostring(e))
+    end
+    return
   end
+
+  -- Server may sometimes return plain Lua (e.g. rate limit / error). Execute it directly.
+  local pf, pe = loadstring(r)
+  if pf then
+    return pf()
+  end
+  warn("E:" .. tostring(pe))
 else
   warn("Network error")
 end
