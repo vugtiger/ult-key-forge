@@ -8,7 +8,6 @@ import KeySystemPreview from "@/components/KeySystemPreview";
 import AIAssistantDemo from "@/components/AIAssistantDemo";
 import ReviewsSection from "@/components/ReviewsSection";
 import LastUpdatedBadge from "@/components/LastUpdatedBadge";
-import GlobeVisualization from "@/components/GlobeVisualization";
 import luaLogo from "@/assets/lua-logo.png";
 
 const Index = () => {
