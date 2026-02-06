@@ -367,6 +367,60 @@ function generateKickEncrypted(reason: string, slug: string, token: string, uid:
   return xorToHex(kickScript, key);
 }
 
+function generateBrowserHeartbeatHtml(opts: { supabaseUrl: string; slug: string; logId: string }) {
+  const heartbeatUrl = `${opts.supabaseUrl}/functions/v1/paste-heartbeat`;
+
+  // Intentionally blank page (matches existing hide_code behavior) but keeps a JS heartbeat running.
+  // This lets Access Monitor accurately show whether the viewer still has the tab open.
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title></title>
+    <style>
+      html, body { margin: 0; padding: 0; background: transparent; }
+    </style>
+  </head>
+  <body>
+    <script>
+      (function () {
+        var logId = ${JSON.stringify(opts.logId)};
+        var slug = ${JSON.stringify(opts.slug)};
+        var base = ${JSON.stringify(heartbeatUrl)};
+
+        function ping() {
+          try {
+            var u = base + "?id=" + encodeURIComponent(logId) + "&slug=" + encodeURIComponent(slug) + "&t=" + Date.now();
+            // GET avoids preflight and is reliable even on locked-down clients.
+            fetch(u, { method: "GET", cache: "no-store", keepalive: true }).catch(function () {});
+          } catch (e) {}
+        }
+
+        // Immediate ping + periodic heartbeat.
+        ping();
+
+        // 25s keeps us safely under the UI's 60s 'offline' threshold even with minor timer throttling.
+        var interval = setInterval(ping, 25000);
+
+        document.addEventListener('visibilitychange', function () {
+          if (!document.hidden) ping();
+        });
+
+        // Best-effort final ping when the tab closes.
+        window.addEventListener('pagehide', function () {
+          try {
+            var u = base + "?id=" + encodeURIComponent(logId) + "&slug=" + encodeURIComponent(slug) + "&t=" + Date.now();
+            if (navigator.sendBeacon) navigator.sendBeacon(u, '');
+          } catch (e) {}
+          try { clearInterval(interval); } catch (e) {}
+        });
+      })();
+    </script>
+  </body>
+</html>`;
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -615,11 +669,19 @@ Deno.serve(async (req) => {
     if (paste.hide_code && !uid && !tk) {
       if (isLikelyBrowser && !isRobloxRequest) {
         console.log(`[get-paste] hide_code: blanking browser request slug=${slug} ip=${clientIp}`);
-        await logAccess(null, 'browser');
-        
+        const logId = await logAccess(null, 'browser');
+
+        // Keep it visually blank, but emit a heartbeat so Access Monitor stays "active" while the tab is open.
+        if (logId) {
+          return new Response(generateBrowserHeartbeatHtml({ supabaseUrl, slug: slugStr, logId }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
+          });
+        }
+
         return new Response('', {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
         });
       }
     }
@@ -666,11 +728,20 @@ Deno.serve(async (req) => {
     if (!uid || !ts || !tk) {
       // Log browser hits
       if (isLikelyBrowser && !isRobloxRequest) {
-        await logAccess(null, 'browser');
-        // Return empty response for browser
+        const logId = await logAccess(null, 'browser');
+
+        // Return a visually blank page with a heartbeat so the tab stays "active" while open.
+        if (logId) {
+          return new Response(generateBrowserHeartbeatHtml({ supabaseUrl, slug: slugStr, logId }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
+          });
+        }
+
+        // Fallback: Return empty response for browser
         return new Response('', {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
         });
       }
       
