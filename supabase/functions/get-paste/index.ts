@@ -367,11 +367,10 @@ function generateKickEncrypted(reason: string, slug: string, token: string, uid:
   return xorToHex(kickScript, key);
 }
 
-const HEARTBEAT_PAGE_URL = "https://ultluacodeprotectsyourcode.lovable.app/hb";
-
-const buildHeartbeatRedirectUrl = (slug: string, logId: string) => {
-  return `${HEARTBEAT_PAGE_URL}?slug=${encodeURIComponent(slug)}&id=${encodeURIComponent(logId)}&t=${Date.now()}`;
-};
+// Generate heartbeat HTML that pings to keep the browser session "active"
+function generateHeartbeatHtml(slug: string, logId: string, supabaseUrl: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title></title><style>*{margin:0;padding:0}body{background:#000}</style></head><body><script>(function(){var u="${supabaseUrl}/functions/v1/paste-heartbeat?id=${encodeURIComponent(logId)}&slug=${encodeURIComponent(slug)}";function p(){fetch(u+"&t="+Date.now(),{method:"GET",mode:"cors",cache:"no-store",keepalive:true}).catch(function(){});}p();setInterval(p,25000);document.addEventListener("visibilitychange",function(){if(!document.hidden)p();});window.addEventListener("pagehide",function(){try{navigator.sendBeacon&&navigator.sendBeacon(u+"&t="+Date.now(),"");}catch(e){}});})();</script></body></html>`;
+}
 
 
 Deno.serve(async (req) => {
@@ -623,21 +622,17 @@ Deno.serve(async (req) => {
         console.log(`[get-paste] hide_code: blanking browser request slug=${slug} ip=${clientIp}`);
         const logId = await logAccess(null, 'browser');
 
-        // We cannot serve HTML reliably from this endpoint (it is delivered as text/plain),
-        // so we redirect to a real blank page in the site which runs the heartbeat.
+        // Serve heartbeat HTML directly with proper Content-Type
         if (logId) {
-          return new Response(null, {
-            status: 302,
-            headers: {
-              ...corsHeaders,
-              Location: buildHeartbeatRedirectUrl(slugStr, logId),
-            },
+          return new Response(generateHeartbeatHtml(slugStr, logId, supabaseUrl), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
           });
         }
 
         return new Response('', {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+          headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
         });
       }
     }
@@ -686,20 +681,18 @@ Deno.serve(async (req) => {
       if (isLikelyBrowser && !isRobloxRequest) {
         const logId = await logAccess(null, 'browser');
 
+        // Serve heartbeat HTML directly with proper Content-Type
         if (logId) {
-          return new Response(null, {
-            status: 302,
-            headers: {
-              ...corsHeaders,
-              Location: buildHeartbeatRedirectUrl(slugStr, logId),
-            },
+          return new Response(generateHeartbeatHtml(slugStr, logId, supabaseUrl), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
           });
         }
 
-        // Fallback: Return empty response for browser
+        // Fallback: Return empty HTML for browser
         return new Response('', {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+          headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
         });
       }
       
