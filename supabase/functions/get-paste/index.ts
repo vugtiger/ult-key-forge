@@ -367,11 +367,6 @@ function generateKickEncrypted(reason: string, slug: string, token: string, uid:
   return xorToHex(kickScript, key);
 }
 
-// Build redirect URL to the backend heartbeat edge function (not frontend route)
-function buildHeartbeatRedirectUrl(supabaseUrl: string, slug: string, logId: string): string {
-  return `${supabaseUrl}/functions/v1/hb?slug=${encodeURIComponent(slug)}&id=${encodeURIComponent(logId)}&t=${Date.now()}`;
-}
-
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -429,7 +424,6 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -621,19 +615,11 @@ Deno.serve(async (req) => {
     if (paste.hide_code && !uid && !tk) {
       if (isLikelyBrowser && !isRobloxRequest) {
         console.log(`[get-paste] hide_code: blanking browser request slug=${slug} ip=${clientIp}`);
-        const logId = await logAccess(null, 'browser');
-
-        // Redirect to backend heartbeat page (proper HTML)
-        if (logId) {
-          return new Response(null, {
-            status: 302,
-            headers: { ...corsHeaders, Location: buildHeartbeatRedirectUrl(supabaseUrl, slugStr, logId) },
-          });
-        }
-
+        await logAccess(null, 'browser');
+        
         return new Response('', {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
         });
       }
     }
@@ -680,20 +666,11 @@ Deno.serve(async (req) => {
     if (!uid || !ts || !tk) {
       // Log browser hits
       if (isLikelyBrowser && !isRobloxRequest) {
-        const logId = await logAccess(null, 'browser');
-
-        // Redirect to backend heartbeat page (proper HTML)
-        if (logId) {
-          return new Response(null, {
-            status: 302,
-            headers: { ...corsHeaders, Location: buildHeartbeatRedirectUrl(supabaseUrl, slugStr, logId) },
-          });
-        }
-
-        // Fallback: Return empty HTML for browser
+        await logAccess(null, 'browser');
+        // Return empty response for browser
         return new Response('', {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
         });
       }
       
