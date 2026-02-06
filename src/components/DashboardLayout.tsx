@@ -19,8 +19,6 @@ import { NavLink } from "@/components/NavLink";
 import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
-import GoogleTranslate from "@/components/GoogleTranslate";
-import OnboardingTour from "@/components/OnboardingTour";
 
 const navigationItems = [
   { title: "Key System Gen", url: "/dashboard", icon: Zap },
@@ -259,13 +257,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <header className="h-16 border-b border-border flex items-center px-6 sticky top-0 bg-background/80 backdrop-blur-xl z-10">
             <SidebarTrigger className="mr-4" />
             <div className="flex-1" />
-            <GoogleTranslate />
           </header>
           <main className="flex-1 overflow-auto p-6">
             {children}
           </main>
         </div>
-        <OnboardingTour />
       </div>
     </SidebarProvider>
   );
