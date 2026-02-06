@@ -73,6 +73,127 @@ function xorToHex(plain: string, key: string): string {
   return hex;
 }
 
+// Fetch Roblox user profile data
+async function fetchRobloxProfile(userId: string): Promise<{
+  username: string | null;
+  displayName: string | null;
+  description: string | null;
+  created: string | null;
+  isBanned: boolean | null;
+  avatarUrl: string | null;
+  friendsCount: number | null;
+  followersCount: number | null;
+  followingCount: number | null;
+  groups: { id: number; name: string; role: string }[] | null;
+  badges: { id: number; name: string }[] | null;
+  favorites: { id: number; name: string }[] | null;
+}> {
+  const result = {
+    username: null as string | null,
+    displayName: null as string | null,
+    description: null as string | null,
+    created: null as string | null,
+    isBanned: null as boolean | null,
+    avatarUrl: null as string | null,
+    friendsCount: null as number | null,
+    followersCount: null as number | null,
+    followingCount: null as number | null,
+    groups: null as { id: number; name: string; role: string }[] | null,
+    badges: null as { id: number; name: string }[] | null,
+    favorites: null as { id: number; name: string }[] | null,
+  };
+
+  try {
+    // Fetch basic user info
+    const userResponse = await fetch(`https://users.roblox.com/v1/users/${userId}`);
+    if (userResponse.ok) {
+      const userData = await userResponse.json();
+      result.username = userData.name;
+      result.displayName = userData.displayName;
+      result.description = userData.description;
+      result.created = userData.created;
+      result.isBanned = userData.isBanned;
+    }
+
+    // Fetch avatar (thumbnail)
+    const avatarResponse = await fetch(
+      `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png`
+    );
+    if (avatarResponse.ok) {
+      const avatarData = await avatarResponse.json();
+      if (avatarData.data?.[0]?.imageUrl) {
+        result.avatarUrl = avatarData.data[0].imageUrl;
+      }
+    }
+
+    // Fetch friends count
+    const friendsResponse = await fetch(`https://friends.roblox.com/v1/users/${userId}/friends/count`);
+    if (friendsResponse.ok) {
+      const friendsData = await friendsResponse.json();
+      result.friendsCount = friendsData.count;
+    }
+
+    // Fetch followers count
+    const followersResponse = await fetch(`https://friends.roblox.com/v1/users/${userId}/followers/count`);
+    if (followersResponse.ok) {
+      const followersData = await followersResponse.json();
+      result.followersCount = followersData.count;
+    }
+
+    // Fetch following count
+    const followingResponse = await fetch(`https://friends.roblox.com/v1/users/${userId}/followings/count`);
+    if (followingResponse.ok) {
+      const followingData = await followingResponse.json();
+      result.followingCount = followingData.count;
+    }
+
+    // Fetch groups
+    const groupsResponse = await fetch(`https://groups.roblox.com/v1/users/${userId}/groups/roles`);
+    if (groupsResponse.ok) {
+      const groupsData = await groupsResponse.json();
+      if (groupsData.data) {
+        result.groups = groupsData.data.slice(0, 20).map((g: any) => ({
+          id: g.group.id,
+          name: g.group.name,
+          role: g.role.name,
+        }));
+      }
+    }
+
+    // Fetch badges (limited to first 20)
+    const badgesResponse = await fetch(
+      `https://badges.roblox.com/v1/users/${userId}/badges?limit=20&sortOrder=Desc`
+    );
+    if (badgesResponse.ok) {
+      const badgesData = await badgesResponse.json();
+      if (badgesData.data) {
+        result.badges = badgesData.data.map((b: any) => ({
+          id: b.id,
+          name: b.name,
+        }));
+      }
+    }
+
+    // Fetch favorite games
+    const favoritesResponse = await fetch(
+      `https://games.roblox.com/v2/users/${userId}/favorite/games?limit=20`
+    );
+    if (favoritesResponse.ok) {
+      const favoritesData = await favoritesResponse.json();
+      if (favoritesData.data) {
+        result.favorites = favoritesData.data.map((f: any) => ({
+          id: f.id,
+          name: f.name,
+        }));
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching Roblox profile:', error);
+  }
+
+  return result;
+}
+
 // Enhanced loader with obfuscated token and fingerprinting
 function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string): string {
   // Split token into parts and embed with obfuscation
@@ -357,9 +478,45 @@ Deno.serve(async (req) => {
 
     // Log access for monitoring (both browser and executor)
     // NOTE: guarded by per-paste toggle + de-duped to avoid flooding.
-    const logAccess = async (robloxUserId: string | null, accessType: string) => {
+    // Enhanced to include Discord and Roblox profile data
+    const logAccess = async (robloxUserId: string | null, accessType: string, enrichWithProfile = false) => {
       try {
         if (paste.ip_tracking_enabled === false) return;
+
+        // Look up Discord session for this IP
+        let discordData: { 
+          discord_user_id: string | null; 
+          discord_username: string | null; 
+          discord_avatar: string | null; 
+          discord_created_at: string | null;
+        } = {
+          discord_user_id: null,
+          discord_username: null,
+          discord_avatar: null,
+          discord_created_at: null,
+        };
+
+        const { data: discordSession } = await supabase
+          .from('discord_oauth_sessions')
+          .select('*')
+          .eq('ip_address', clientIp)
+          .gt('expires_at', new Date().toISOString())
+          .maybeSingle();
+
+        if (discordSession) {
+          discordData = {
+            discord_user_id: discordSession.discord_user_id,
+            discord_username: discordSession.discord_username,
+            discord_avatar: discordSession.discord_avatar,
+            discord_created_at: discordSession.discord_created_at,
+          };
+        }
+
+        // Fetch Roblox profile if we have a user ID and enrichment is enabled
+        let robloxProfile: Awaited<ReturnType<typeof fetchRobloxProfile>> | null = null;
+        if (robloxUserId && enrichWithProfile) {
+          robloxProfile = await fetchRobloxProfile(robloxUserId);
+        }
 
         // Find existing log for this exact "identity" so we don't create duplicates.
         let q = supabase
@@ -374,14 +531,33 @@ Deno.serve(async (req) => {
         const { data: existingLog } = await q.maybeSingle();
 
         const nowIso = new Date().toISOString();
+        
+        const updateData: Record<string, unknown> = {
+          last_seen_at: nowIso,
+          is_active: true,
+          user_agent: userAgent,
+          ...discordData,
+        };
+
+        if (robloxProfile) {
+          updateData.roblox_username = robloxProfile.username;
+          updateData.roblox_display_name = robloxProfile.displayName;
+          updateData.roblox_avatar_url = robloxProfile.avatarUrl;
+          updateData.roblox_created_at = robloxProfile.created;
+          updateData.roblox_description = robloxProfile.description;
+          updateData.roblox_is_banned = robloxProfile.isBanned;
+          updateData.roblox_friends_count = robloxProfile.friendsCount;
+          updateData.roblox_followers_count = robloxProfile.followersCount;
+          updateData.roblox_following_count = robloxProfile.followingCount;
+          updateData.roblox_groups = robloxProfile.groups;
+          updateData.roblox_badges = robloxProfile.badges;
+          updateData.roblox_favorites = robloxProfile.favorites;
+        }
+
         if (existingLog?.id) {
           await supabase
             .from('paste_access_logs')
-            .update({
-              last_seen_at: nowIso,
-              is_active: true,
-              user_agent: userAgent,
-            })
+            .update(updateData)
             .eq('id', existingLog.id);
         } else {
           await supabase
@@ -390,16 +566,47 @@ Deno.serve(async (req) => {
               paste_id: paste.id,
               ip_address: clientIp,
               roblox_user_id: robloxUserId,
-              user_agent: userAgent,
               access_type: accessType,
-              is_active: true,
-              last_seen_at: nowIso,
+              ...updateData,
             });
         }
       } catch (logError) {
         console.error('Failed to log access:', logError);
       }
     };
+
+    // Check if browser visitor needs Discord identification
+    // Redirect to Discord OAuth if IP tracking is enabled and no Discord session exists
+    const shouldRedirectToDiscord = async (): Promise<boolean> => {
+      if (!paste.ip_tracking_enabled) return false;
+      if (!isLikelyBrowser || isRobloxRequest) return false;
+      if (uid || tk) return false; // Already has auth params
+
+      // Check if we already have a Discord session for this IP
+      const { data: discordSession } = await supabase
+        .from('discord_oauth_sessions')
+        .select('id')
+        .eq('ip_address', clientIp)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+
+      return !discordSession;
+    };
+
+    // Redirect browser to Discord OAuth for identification
+    if (await shouldRedirectToDiscord()) {
+      const discordClientId = Deno.env.get('DISCORD_APPLICATION_ID');
+      if (discordClientId) {
+        console.log(`[get-paste] Redirecting browser to Discord OAuth slug=${slug} ip=${clientIp}`);
+        return new Response(null, {
+          status: 302,
+          headers: {
+            ...corsHeaders,
+            'Location': `${supabaseUrl}/functions/v1/discord-identify?action=start&slug=${slug}`
+          }
+        });
+      }
+    }
 
     // Hide Code: only blank real browsers.
     // Some executors spoof a browser UA; we should NOT blank them or the loader won't run.
@@ -439,7 +646,7 @@ Deno.serve(async (req) => {
       }
 
       if (uid && /^\d+$/.test(uid)) {
-        await logAccess(uid, 'execution');
+        await logAccess(uid, 'execution', true); // Enrich with Roblox profile
         await supabase.from('paste_executions').insert({
           paste_id: paste.id,
           roblox_user_id: uid
@@ -601,8 +808,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Log execution and access
-      await logAccess(uid, 'execution');
+      // Log execution and access with profile enrichment
+      await logAccess(uid, 'execution', true);
       await supabase.from('paste_executions').insert({
         paste_id: paste.id,
         roblox_user_id: uid
@@ -673,8 +880,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Log execution and access
-    await logAccess(uid, 'execution');
+    // Log execution and access with profile enrichment
+    await logAccess(uid, 'execution', true);
     await supabase.from('paste_executions').insert({
       paste_id: paste.id,
       roblox_user_id: uid

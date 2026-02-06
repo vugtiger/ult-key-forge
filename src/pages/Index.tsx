@@ -8,6 +8,7 @@ import KeySystemPreview from "@/components/KeySystemPreview";
 import AIAssistantDemo from "@/components/AIAssistantDemo";
 import ReviewsSection from "@/components/ReviewsSection";
 import LastUpdatedBadge from "@/components/LastUpdatedBadge";
+import GoogleTranslate from "@/components/GoogleTranslate";
 import luaLogo from "@/assets/lua-logo.png";
 
 const Index = () => {
@@ -57,6 +58,7 @@ const Index = () => {
             <LastUpdatedBadge />
           </div>
           <div className="flex items-center gap-4">
+            <GoogleTranslate className="hidden sm:block" />
             <a
               href="https://discord.gg/hPywsq3yqw"
               target="_blank"
