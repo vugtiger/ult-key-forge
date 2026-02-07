@@ -167,6 +167,16 @@ const tourSteps: TourStep[] = [
   },
 ];
 
+// Local persistence keys (DashboardLayout remounts per route, so we must persist tour state)
+const LS_TOUR_COMPLETED = "onboarding_tour_completed";
+const LS_TOUR_DISMISSED = "onboarding_tour_dismissed";
+const LS_TOUR_IN_PROGRESS = "onboarding_tour_in_progress";
+const LS_TOUR_STEP = "onboarding_tour_step";
+
+// Only show tour for accounts created after this feature shipped.
+// (Using a fixed cutover avoids the buggy "< 2 minutes old" logic.)
+const TOUR_FEATURE_START = new Date("2026-02-07T00:00:00.000Z");
+
 interface OnboardingTourProps {
   onComplete?: () => void;
 }
@@ -184,39 +194,48 @@ const OnboardingTour = ({ onComplete }: OnboardingTourProps) => {
   }, []);
 
   const checkIfNewUser = async () => {
-    // Check localStorage first for quick response
-    const tourCompleted = localStorage.getItem("onboarding_tour_completed");
-    const tourDismissed = localStorage.getItem("onboarding_tour_dismissed");
-    
-    if (tourCompleted === "true" || tourDismissed === "true") {
+    // If the user already completed/dismissed, never show again.
+    const tourCompleted = localStorage.getItem(LS_TOUR_COMPLETED);
+    const tourDismissed = localStorage.getItem(LS_TOUR_DISMISSED);
+    if (tourCompleted === "true" || tourDismissed === "true") return;
+
+    // If a tour is already in progress (we navigated to a new route), restore it.
+    const inProgress = localStorage.getItem(LS_TOUR_IN_PROGRESS) === "true";
+    if (inProgress) {
+      const savedStep = Number(localStorage.getItem(LS_TOUR_STEP) ?? "0");
+      const step = Number.isFinite(savedStep) ? Math.min(Math.max(savedStep, 0), tourSteps.length - 1) : 0;
+
+      setIsNewUser(true);
+      setShowWelcome(false);
+      setShowTour(true);
+      setCurrentStep(step);
+
+      const targetRoute = tourSteps[step]?.route;
+      if (targetRoute && location.pathname !== targetRoute) {
+        navigate(targetRoute);
+      }
       return;
     }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Check if account was created recently (within 2 minutes = truly new signup)
+    // Don't show onboarding to accounts created before this feature existed.
     const createdAt = new Date(user.created_at);
-    const now = new Date();
-    const timeSinceCreation = now.getTime() - createdAt.getTime();
-    const TWO_MINUTES = 2 * 60 * 1000;
-    
-    // If account is older than 2 minutes, they're an existing user - don't show tour
-    if (timeSinceCreation > TWO_MINUTES) {
-      localStorage.setItem("onboarding_tour_dismissed", "true");
-      // Also mark in database for consistency
+    if (createdAt < TOUR_FEATURE_START) {
+      localStorage.setItem(LS_TOUR_DISMISSED, "true");
       try {
         await (supabase as any)
           .from("profiles")
           .update({ tutorial_completed: true })
           .eq("user_id", user.id);
       } catch {
-        // Ignore errors
+        // ignore
       }
       return;
     }
 
-    // For new accounts, check if they already completed the tutorial
+    // If they already completed in the database, don't show.
     try {
       const { data: profile } = await (supabase as any)
         .from("profiles")
@@ -225,36 +244,49 @@ const OnboardingTour = ({ onComplete }: OnboardingTourProps) => {
         .maybeSingle();
 
       if (profile?.tutorial_completed) {
-        localStorage.setItem("onboarding_tour_completed", "true");
+        localStorage.setItem(LS_TOUR_COMPLETED, "true");
         return;
       }
     } catch {
-      // Ignore errors - show tour if can't fetch
+      // If we can't fetch, still allow showing the welcome.
     }
 
-    // Show welcome dialog for new users only
+    // New-enough account and not completed → show welcome.
     setIsNewUser(true);
     setShowWelcome(true);
   };
 
-  const handleStartTour = () => {
+  const startOrRestoreTourAt = (step: number) => {
+    const safeStep = Math.min(Math.max(step, 0), tourSteps.length - 1);
+
+    localStorage.setItem(LS_TOUR_IN_PROGRESS, "true");
+    localStorage.setItem(LS_TOUR_STEP, String(safeStep));
+
+    setIsNewUser(true);
     setShowWelcome(false);
     setShowTour(true);
-    setCurrentStep(0);
-    navigate(tourSteps[0].route);
+    setCurrentStep(safeStep);
+
+    const route = tourSteps[safeStep]?.route;
+    if (route && location.pathname !== route) navigate(route);
   };
 
-  const handleSkipTour = () => {
+  const handleStartTour = () => {
+    startOrRestoreTourAt(0);
+  };
+
+  const handleSkipTour = async () => {
     setShowWelcome(false);
-    localStorage.setItem("onboarding_tour_dismissed", "true");
-    markTourComplete();
+    setShowTour(false);
+    localStorage.setItem(LS_TOUR_DISMISSED, "true");
+    localStorage.removeItem(LS_TOUR_IN_PROGRESS);
+    localStorage.removeItem(LS_TOUR_STEP);
+    await markTourComplete();
   };
 
   const handleNextStep = () => {
     if (currentStep < tourSteps.length - 1) {
-      const nextStep = currentStep + 1;
-      setCurrentStep(nextStep);
-      navigate(tourSteps[nextStep].route);
+      startOrRestoreTourAt(currentStep + 1);
     } else {
       handleCompleteTour();
     }
@@ -262,17 +294,25 @@ const OnboardingTour = ({ onComplete }: OnboardingTourProps) => {
 
   const handlePrevStep = () => {
     if (currentStep > 0) {
-      const prevStep = currentStep - 1;
-      setCurrentStep(prevStep);
-      navigate(tourSteps[prevStep].route);
+      startOrRestoreTourAt(currentStep - 1);
     }
   };
 
   const handleCompleteTour = async () => {
     setShowTour(false);
-    localStorage.setItem("onboarding_tour_completed", "true");
+    localStorage.setItem(LS_TOUR_COMPLETED, "true");
+    localStorage.removeItem(LS_TOUR_IN_PROGRESS);
+    localStorage.removeItem(LS_TOUR_STEP);
     await markTourComplete();
     onComplete?.();
+  };
+
+  const handleCloseTour = async () => {
+    setShowTour(false);
+    localStorage.setItem(LS_TOUR_DISMISSED, "true");
+    localStorage.removeItem(LS_TOUR_IN_PROGRESS);
+    localStorage.removeItem(LS_TOUR_STEP);
+    await markTourComplete();
   };
 
   const markTourComplete = async () => {
@@ -283,12 +323,6 @@ const OnboardingTour = ({ onComplete }: OnboardingTourProps) => {
       .from("profiles")
       .update({ tutorial_completed: true })
       .eq("user_id", user.id);
-  };
-
-  const handleCloseTour = () => {
-    setShowTour(false);
-    localStorage.setItem("onboarding_tour_dismissed", "true");
-    markTourComplete();
   };
 
   const currentTourStep = tourSteps[currentStep];
