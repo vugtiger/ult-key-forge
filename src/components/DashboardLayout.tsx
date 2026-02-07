@@ -100,7 +100,16 @@ const AppSidebar = ({ user }: { user: User | null }) => {
   const handleLogout = async () => {
     // Reset theme before logout
     resetTheme();
-    await supabase.auth.signOut();
+    
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      // Ignore errors - session may already be invalid
+      console.log('Logout error (session may already be expired):', error);
+    }
+    
+    // Always clear local storage and navigate regardless of signOut result
+    localStorage.removeItem('sb-iyfvpnjrghsownkpazec-auth-token');
     navigate("/auth");
   };
 
