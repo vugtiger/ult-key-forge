@@ -58,7 +58,7 @@ const Index = () => {
             <LastUpdatedBadge />
           </div>
           <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-card/50 border border-border rounded-lg">
+            <div className="flex items-center gap-2 px-2 sm:px-3 py-2 bg-card/50 border border-border rounded-lg">
               <GoogleTranslate />
             </div>
             <a
