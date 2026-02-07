@@ -192,12 +192,32 @@ const OnboardingTour = ({ onComplete }: OnboardingTourProps) => {
       return;
     }
 
-    // Check database for tutorial_completed flag
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Check if account was created recently (within 2 minutes = truly new signup)
+    const createdAt = new Date(user.created_at);
+    const now = new Date();
+    const timeSinceCreation = now.getTime() - createdAt.getTime();
+    const TWO_MINUTES = 2 * 60 * 1000;
+    
+    // If account is older than 2 minutes, they're an existing user - don't show tour
+    if (timeSinceCreation > TWO_MINUTES) {
+      localStorage.setItem("onboarding_tour_dismissed", "true");
+      // Also mark in database for consistency
+      try {
+        await (supabase as any)
+          .from("profiles")
+          .update({ tutorial_completed: true })
+          .eq("user_id", user.id);
+      } catch {
+        // Ignore errors
+      }
+      return;
+    }
+
+    // For new accounts, check if they already completed the tutorial
     try {
-      // Use explicit any to avoid TypeScript deep instantiation issue with Supabase types
       const { data: profile } = await (supabase as any)
         .from("profiles")
         .select("tutorial_completed")
@@ -212,7 +232,7 @@ const OnboardingTour = ({ onComplete }: OnboardingTourProps) => {
       // Ignore errors - show tour if can't fetch
     }
 
-    // Show welcome dialog for new users
+    // Show welcome dialog for new users only
     setIsNewUser(true);
     setShowWelcome(true);
   };
