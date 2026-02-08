@@ -10,7 +10,7 @@ import { Save, RotateCcw, Sparkles, Type, Languages } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import TabHelpSection from "@/components/onboarding/TabHelpSection";
 import { settingsHelp } from "@/components/onboarding/helpContent";
-import GoogleTranslate from "@/components/GoogleTranslate";
+import LanguageSelector from "@/components/LanguageSelector";
 
 import SessionManager from "@/components/SessionManager";
 import AccountInfo from "@/components/AccountInfo";
@@ -184,7 +184,7 @@ const Settings = () => {
           </h2>
           <div className="flex items-center gap-4">
             <p className="text-sm text-muted-foreground">Select your preferred language:</p>
-            <GoogleTranslate />
+            <LanguageSelector />
           </div>
         </Card>
 
