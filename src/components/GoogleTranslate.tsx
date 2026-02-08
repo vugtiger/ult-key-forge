@@ -162,15 +162,34 @@ const GoogleTranslate = ({ className = "" }: GoogleTranslateProps) => {
         </DropdownMenuContent>
       </DropdownMenu>
       
-      {/* Hidden Google Translate styles */}
+      {/* Hidden Google Translate styles - hide ALL Google Translate UI elements */}
       <style>{`
         .goog-te-banner-frame,
         .skiptranslate,
         .goog-te-spinner-pos,
-        #google_translate_element {
+        #google_translate_element,
+        .goog-te-gadget,
+        iframe.goog-te-banner-frame,
+        .goog-te-menu-frame,
+        #goog-gt-tt,
+        .goog-te-balloon-frame,
+        div#goog-gt-,
+        .goog-text-highlight {
           display: none !important;
+          visibility: hidden !important;
+          height: 0 !important;
+          width: 0 !important;
+          overflow: hidden !important;
         }
         body {
+          top: 0 !important;
+          position: static !important;
+        }
+        body > .skiptranslate {
+          display: none !important;
+        }
+        html.translated-ltr body,
+        html.translated-rtl body {
           top: 0 !important;
         }
       `}</style>

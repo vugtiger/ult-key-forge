@@ -58,12 +58,12 @@ const Index = () => {
             <LastUpdatedBadge />
           </div>
           <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <a
                 href="https://discord.gg/hPywsq3yqw"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 bg-card/50 border border-border rounded-lg hover:bg-card/80 transition-colors cyber-glow"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-card/50 border border-border rounded-lg hover:bg-card/80 transition-colors cyber-glow"
               >
                 <MessageSquare size={18} />
                 <span className="hidden sm:inline">Discord</span>
@@ -73,9 +73,7 @@ const Index = () => {
                 Sign In
               </Button>
             </div>
-            <div className="flex items-center gap-2 px-2 sm:px-3 py-2 bg-card/50 border border-border rounded-lg">
-              <GoogleTranslate />
-            </div>
+            <GoogleTranslate />
           </div>
         </nav>
 
