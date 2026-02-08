@@ -8,11 +8,13 @@ import KeySystemPreview from "@/components/KeySystemPreview";
 import AIAssistantDemo from "@/components/AIAssistantDemo";
 import ReviewsSection from "@/components/ReviewsSection";
 import LastUpdatedBadge from "@/components/LastUpdatedBadge";
-import GoogleTranslate from "@/components/GoogleTranslate";
+import LanguageSelector from "@/components/LanguageSelector";
+import { useTranslation } from "@/contexts/TranslationContext";
 import luaLogo from "@/assets/lua-logo.png";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -23,21 +25,21 @@ const Index = () => {
   }, [navigate]);
 
   const features = [
-    { icon: Key, title: "Key System Generator", description: "Generate custom key systems with unlimited keys, custom colors, and ASCII art branding.", isNew: false },
-    { icon: Shield, title: "User-Locked Keys", description: "Each key is locked to a single Roblox user ID for maximum security.", isNew: false },
-    { icon: Database, title: "Script Storage", description: "Save and manage your Roblox scripts in one secure location.", isNew: false },
-    { icon: Bot, title: "AI Assistant", description: "Get help generating Roblox scripts and even build websites with AI.", isNew: false },
-    { icon: Palette, title: "Theme Customization", description: "Fully customize the UI text colors to match your brand.", isNew: false },
-    { icon: Save, title: "Cloud Backup", description: "All your data is securely stored and accessible anywhere.", isNew: false },
+    { icon: Key, titleKey: "features.keySystem.title", descKey: "features.keySystem.desc" },
+    { icon: Shield, titleKey: "features.userLocked.title", descKey: "features.userLocked.desc" },
+    { icon: Database, titleKey: "features.scriptStorage.title", descKey: "features.scriptStorage.desc" },
+    { icon: Bot, titleKey: "features.aiAssistant.title", descKey: "features.aiAssistant.desc" },
+    { icon: Palette, titleKey: "features.theme.title", descKey: "features.theme.desc" },
+    { icon: Save, titleKey: "features.cloud.title", descKey: "features.cloud.desc" },
   ];
 
   const newFeatures = [
-    { icon: EyeOff, title: "Hide Code", description: "Hide your code from the raw URL - shows blank but loadstring still works.", isNew: true },
-    { icon: Zap, title: "Public Protection", description: "Encrypted protection without whitelist - anyone can execute but code stays safe.", isNew: true },
-    { icon: Bot, title: "Discord Control Panels", description: "Create control panels with key redemption, role assignment, and script delivery.", isNew: true },
-    { icon: Key, title: "Expiring Keys", description: "Generate keys with custom expiration times - minutes, hours, or days.", isNew: true },
-    { icon: Shield, title: "Console Blacklist", description: "Blacklist users from control panels and force expire their access.", isNew: true },
-    { icon: Clock, title: "Whitelist Time Management", description: "Set precise expiration times for whitelisted users.", isNew: true },
+    { icon: EyeOff, titleKey: "newFeatures.hideCode.title", descKey: "newFeatures.hideCode.desc" },
+    { icon: Zap, titleKey: "newFeatures.publicProtection.title", descKey: "newFeatures.publicProtection.desc" },
+    { icon: Bot, titleKey: "newFeatures.discordPanels.title", descKey: "newFeatures.discordPanels.desc" },
+    { icon: Key, titleKey: "newFeatures.expiringKeys.title", descKey: "newFeatures.expiringKeys.desc" },
+    { icon: Shield, titleKey: "newFeatures.blacklist.title", descKey: "newFeatures.blacklist.desc" },
+    { icon: Clock, titleKey: "newFeatures.whitelistTime.title", descKey: "newFeatures.whitelistTime.desc" },
   ];
 
   return (
@@ -66,14 +68,14 @@ const Index = () => {
                 className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-card/50 border border-border rounded-lg hover:bg-card/80 transition-colors cyber-glow"
               >
                 <MessageSquare size={18} />
-                <span className="hidden sm:inline">Discord</span>
+                <span className="hidden sm:inline">{t("nav.discord")}</span>
                 <ExternalLink size={14} />
               </a>
               <Button onClick={() => navigate("/auth")} className="cyber-glow">
-                Sign In
+                {t("nav.signIn")}
               </Button>
             </div>
-            <GoogleTranslate />
+            <LanguageSelector />
           </div>
         </nav>
 
@@ -82,24 +84,24 @@ const Index = () => {
           <div className="text-center mb-20 space-y-6 pt-12">
             <h1 className="text-5xl md:text-7xl font-bold tracking-tighter mb-4">
               <span className="text-foreground">
-                ULT LUA PROTECTS
+                {t("hero.title")}
               </span>
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-              Advanced key system management and Roblox script protection platform
+              {t("hero.subtitle")}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Shield size={16} className="text-foreground" />
-                <span>100% Free Forever</span>
+                <span>{t("hero.free")}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Zap size={16} className="text-foreground" />
-                <span>Unlimited Keys</span>
+                <span>{t("hero.unlimited")}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Code size={16} className="text-foreground" />
-                <span>AI Powered</span>
+                <span>{t("hero.ai")}</span>
               </div>
             </div>
             <div className="pt-6">
@@ -108,7 +110,7 @@ const Index = () => {
                 className="cyber-glow text-lg px-8 py-6"
                 onClick={() => navigate("/auth")}
               >
-                Get Started
+                {t("hero.getStarted")}
                 <ArrowRight className="ml-2" size={24} />
               </Button>
             </div>
@@ -117,10 +119,10 @@ const Index = () => {
           {/* Features Section */}
           <section className="max-w-6xl mx-auto mb-24">
             <h2 className="text-4xl font-bold text-center mb-4">
-              Everything You Need
+              {t("features.title")}
             </h2>
             <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
-              A complete toolkit for protecting your Roblox scripts with professional-grade key systems
+              {t("features.subtitle")}
             </p>
             
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -130,8 +132,8 @@ const Index = () => {
                   className="p-6 cyber-border bg-card/50 backdrop-blur-xl hover:bg-card/70 transition-all group relative"
                 >
                   <feature.icon className="w-12 h-12 mb-4 text-foreground group-hover:scale-110 transition-transform" />
-                  <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                  <p className="text-muted-foreground">{feature.description}</p>
+                  <h3 className="text-xl font-semibold mb-2">{t(feature.titleKey)}</h3>
+                  <p className="text-muted-foreground">{t(feature.descKey)}</p>
                 </Card>
               ))}
             </div>
@@ -140,11 +142,11 @@ const Index = () => {
           {/* New Features Section */}
           <section className="max-w-6xl mx-auto mb-24">
             <h2 className="text-4xl font-bold text-center mb-4 flex items-center justify-center gap-3">
-              What's New
+              {t("newFeatures.title")}
               <Sparkles className="w-8 h-8 text-primary" />
             </h2>
             <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
-              Latest features and improvements to the platform
+              {t("newFeatures.subtitle")}
             </p>
             
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -158,8 +160,8 @@ const Index = () => {
                     NEW
                   </div>
                   <feature.icon className="w-12 h-12 mb-4 text-foreground group-hover:scale-110 transition-transform" />
-                  <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                  <p className="text-muted-foreground">{feature.description}</p>
+                  <h3 className="text-xl font-semibold mb-2">{t(feature.titleKey)}</h3>
+                  <p className="text-muted-foreground">{t(feature.descKey)}</p>
                 </Card>
               ))}
             </div>
@@ -168,10 +170,10 @@ const Index = () => {
           {/* Key System Preview Section */}
           <section className="max-w-6xl mx-auto mb-24">
             <h2 className="text-4xl font-bold text-center mb-4">
-              Key System Preview
+              {t("keyPreview.title")}
             </h2>
             <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
-              See exactly what your users will see when they use your key system in Roblox
+              {t("keyPreview.subtitle")}
             </p>
             <KeySystemPreview />
           </section>
@@ -179,10 +181,10 @@ const Index = () => {
           {/* AI Assistant Preview Section */}
           <section className="max-w-6xl mx-auto mb-24">
             <h2 className="text-4xl font-bold text-center mb-4">
-              AI Assistant
+              {t("aiDemo.title")}
             </h2>
             <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
-              Get help with Roblox scripts, website building, and more with our powerful AI assistant
+              {t("aiDemo.subtitle")}
             </p>
             <AIAssistantDemo />
           </section>
@@ -192,52 +194,52 @@ const Index = () => {
 
           {/* About Section */}
           <section className="max-w-4xl mx-auto mb-24 text-center">
-            <h2 className="text-4xl font-bold mb-6">About ULT LUA PROTECTS</h2>
+            <h2 className="text-4xl font-bold mb-6">{t("about.title")}</h2>
             <Card className="p-8 cyber-border bg-card/50 backdrop-blur-xl">
               <div className="space-y-6 text-left">
                 <p className="text-lg text-muted-foreground">
-                  ULT LUA Protects is a comprehensive key system generator and script management platform designed specifically for Roblox developers.
+                  {t("about.intro")}
                 </p>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-3">
-                    <h3 className="text-xl font-semibold text-foreground">What We Provide</h3>
+                    <h3 className="text-xl font-semibold text-foreground">{t("about.whatWeProvide")}</h3>
                     <ul className="space-y-2 text-muted-foreground">
                       <li className="flex items-start gap-2">
                         <Key size={18} className="text-foreground mt-0.5 flex-shrink-0" />
-                        <span>Custom key systems with unlimited keys</span>
+                        <span>{t("about.customKeys")}</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <Shield size={18} className="text-foreground mt-0.5 flex-shrink-0" />
-                        <span>User ID locked keys for maximum security</span>
+                        <span>{t("about.userIdLocked")}</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <Database size={18} className="text-foreground mt-0.5 flex-shrink-0" />
-                        <span>Cloud-based script storage</span>
+                        <span>{t("about.cloudScript")}</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <Bot size={18} className="text-foreground mt-0.5 flex-shrink-0" />
-                        <span>AI-powered script generation</span>
+                        <span>{t("about.aiPowered")}</span>
                       </li>
                     </ul>
                   </div>
                   <div className="space-y-3">
-                    <h3 className="text-xl font-semibold text-foreground">Our Promise</h3>
+                    <h3 className="text-xl font-semibold text-foreground">{t("about.ourPromise")}</h3>
                     <ul className="space-y-2 text-muted-foreground">
                       <li className="flex items-start gap-2">
                         <Zap size={18} className="text-foreground mt-0.5 flex-shrink-0" />
-                        <span>100% free forever - no hidden costs</span>
+                        <span>{t("about.freeForever")}</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <Code size={18} className="text-foreground mt-0.5 flex-shrink-0" />
-                        <span>Full source code in every download</span>
+                        <span>{t("about.fullSource")}</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <Save size={18} className="text-foreground mt-0.5 flex-shrink-0" />
-                        <span>Secure cloud storage for all data</span>
+                        <span>{t("about.secureCloud")}</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <Palette size={18} className="text-foreground mt-0.5 flex-shrink-0" />
-                        <span>Full customization options</span>
+                        <span>{t("about.fullCustom")}</span>
                       </li>
                     </ul>
                   </div>
@@ -249,9 +251,9 @@ const Index = () => {
           {/* CTA Section */}
           <section className="max-w-4xl mx-auto mb-16 text-center">
             <Card className="p-8 cyber-border bg-card/50 backdrop-blur-xl">
-              <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
+              <h2 className="text-3xl font-bold mb-4">{t("cta.title")}</h2>
               <p className="text-muted-foreground mb-6">
-                Join thousands of developers using ULT LUA Protects to secure their scripts
+                {t("cta.subtitle")}
               </p>
               <div className="flex flex-wrap items-center justify-center gap-4">
                 <Button
@@ -259,7 +261,7 @@ const Index = () => {
                   className="cyber-glow"
                   size="lg"
                 >
-                  Create Free Account
+                  {t("cta.createAccount")}
                 </Button>
                 <a
                   href="https://discord.gg/hPywsq3yqw"
@@ -268,7 +270,7 @@ const Index = () => {
                 >
                   <Button variant="outline" size="lg" className="gap-2">
                     <MessageSquare size={18} />
-                    Join Discord
+                    {t("cta.joinDiscord")}
                   </Button>
                 </a>
               </div>
@@ -278,7 +280,7 @@ const Index = () => {
           {/* Footer */}
           <footer className="border-t border-border/50 pt-8 pb-4">
             <div className="text-center text-sm text-muted-foreground">
-              <p>ULT LUA PROTECTS - 100% Free Forever</p>
+              <p>{t("footer.text")}</p>
             </div>
           </footer>
         </div>
