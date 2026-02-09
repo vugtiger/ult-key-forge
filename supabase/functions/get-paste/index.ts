@@ -114,8 +114,6 @@ function validateRobloxExecutor(headers: Headers): { valid: boolean; reason: str
   const ua = headers.get('user-agent') || '';
   const accept = headers.get('accept') || '';
   const acceptLanguage = headers.get('accept-language');
-  const acceptEncoding = headers.get('accept-encoding') || '';
-  const connection = headers.get('connection');
   const secFetchMode = headers.get('sec-fetch-mode');
   const secFetchDest = headers.get('sec-fetch-dest');
   const secFetchSite = headers.get('sec-fetch-site');
@@ -124,6 +122,7 @@ function validateRobloxExecutor(headers: Headers): { valid: boolean; reason: str
   const referer = headers.get('referer');
   
   // Browser-specific headers that Roblox executors DON'T send
+  // Browsers are handled separately - mark them as browser for different flow
   if (secFetchMode || secFetchDest || secFetchSite || secChUa) {
     return { valid: false, reason: 'browser_headers' };
   }
@@ -138,28 +137,7 @@ function validateRobloxExecutor(headers: Headers): { valid: boolean; reason: str
     return { valid: false, reason: 'origin_referer' };
   }
   
-  // Check for Roblox HttpService signature
-  const isRobloxUA = ua.toLowerCase().includes('roblox') || ua.includes('HttpService');
-  
-  // If claiming to be Roblox, validate further
-  if (isRobloxUA) {
-    // Roblox requests typically have specific accept patterns
-    // and don't have complex accept-language headers
-    if (acceptLanguage && acceptLanguage.split(',').length > 3) {
-      return { valid: false, reason: 'complex_accept_language' };
-    }
-    return { valid: true, reason: 'roblox_ua' };
-  }
-  
-  // Non-Roblox UA without browser headers - could be a simple HTTP client
-  // This is the tricky case - Discord bots often fall here
-  
-  // Empty or minimal user agent is suspicious
-  if (!ua || ua.length < 10) {
-    return { valid: false, reason: 'minimal_ua' };
-  }
-  
-  // Check if blocked user agent
+  // Check if blocked user agent FIRST (bots, Discord, etc.)
   if (isBlockedUserAgent(ua)) {
     return { valid: false, reason: 'blocked_ua' };
   }
@@ -169,9 +147,35 @@ function validateRobloxExecutor(headers: Headers): { valid: boolean; reason: str
     return { valid: false, reason: 'discord_bot' };
   }
   
-  // For non-Roblox clients without obvious bot signatures,
-  // we require a valid token + additional validation
-  return { valid: true, reason: 'unknown_client' };
+  // Check for Roblox HttpService signature (explicit Roblox clients)
+  const isRobloxUA = ua.toLowerCase().includes('roblox') || 
+                     ua.includes('HttpService') ||
+                     ua.includes('WinInet');
+  
+  if (isRobloxUA) {
+    // Validate further - Roblox requests don't have complex accept-language
+    if (acceptLanguage && acceptLanguage.split(',').length > 5) {
+      return { valid: false, reason: 'complex_accept_language' };
+    }
+    return { valid: true, reason: 'roblox_ua' };
+  }
+  
+  // Empty or very minimal user agent is suspicious
+  if (!ua || ua.length < 5) {
+    return { valid: false, reason: 'minimal_ua' };
+  }
+  
+  // Many executors use custom user agents that DON'T contain "Roblox"
+  // They still send requests without browser headers
+  // Key indicators of a valid executor request:
+  // 1. No sec-fetch-* headers (already checked above)
+  // 2. No origin/referer (already checked above)
+  // 3. Not a blocked user agent (already checked above)
+  // 4. Has some kind of user agent
+  
+  // If we get here, the request has passed all bot detection checks
+  // It's likely a legitimate executor with a custom user agent
+  return { valid: true, reason: 'executor_client' };
 }
 
 function checkRateLimit(ip: string): boolean {
@@ -375,7 +379,7 @@ async function fetchRobloxProfile(userId: string): Promise<{
 }
 
 // ===== ANTI-RUNTIME LOGGER + ANTI-STATIC LOGGER PROTECTION =====
-// Enhanced loader with maximum obfuscation and anti-dump protection
+// Enhanced loader with obfuscation - compatible with all major executors
 function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string): string {
   // Split token into parts and embed with obfuscation
   const tokenParts = [];
@@ -397,7 +401,6 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   // Generate random variable names to defeat static analysis
   const varNames = {
     player: '_' + Math.random().toString(36).substring(2, 8),
-    verify: '_' + Math.random().toString(36).substring(2, 8),
     nonce: '_' + Math.random().toString(36).substring(2, 8),
     fingerprint: '_' + Math.random().toString(36).substring(2, 8),
     tokenParts: '_' + Math.random().toString(36).substring(2, 8),
@@ -407,9 +410,7 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
     hexBytes: '_' + Math.random().toString(36).substring(2, 8),
     xorBytes: '_' + Math.random().toString(36).substring(2, 8),
     bytesToString: '_' + Math.random().toString(36).substring(2, 8),
-    integrityCheck: '_' + Math.random().toString(36).substring(2, 8),
-    antiHook: '_' + Math.random().toString(36).substring(2, 8),
-    checkEnv: '_' + Math.random().toString(36).substring(2, 8),
+    envCheck: '_' + Math.random().toString(36).substring(2, 8),
   };
   
   // Generate junk code to confuse static analyzers
@@ -419,93 +420,25 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
     return `local ${junkVar}="${junkVal}"`;
   }).join('\n');
   
-  return `--[[ULT LUA PROTECTION v5.0 - ULTRA SECURE - ${Date.now()}]]
+  return `--[[ULT Protection v5.1]]
 ${junkCode}
 local ${varNames.player} = game:GetService("Players").LocalPlayer
 if not ${varNames.player} then
   ${varNames.player} = game:GetService("Players").PlayerAdded:Wait()
 end
 
--- ===== ANTI-RUNTIME LOGGER: Detect function hooks =====
-local ${varNames.antiHook} = function()
-  local _s = tostring
-  local _t = type
-  local _g = getfenv
-  local _r = rawget
-  
-  -- Check if tostring is hooked
-  local tsTest = _s(function() end)
-  if not tsTest:find("function") then return false end
-  
-  -- Check if game services are genuine
-  local ps = game:GetService("Players")
-  if _t(ps) ~= "userdata" then return false end
-  if _t(ps.GetPlayers) ~= "function" then return false end
-  
-  -- Check for suspicious global modifications
-  local env = _g(1)
-  if _r(env, "hookfunction") then return false end
-  if _r(env, "hookmetamethod") then return false end
-  if _r(env, "newcclosure") and not _r(env, "game") then return false end
-  
-  -- Check for debug library tampering
-  if debug and debug.setmetatable then
-    local ok = pcall(function()
-      local mt = getmetatable(game)
-      if mt and rawget(mt, "__index") == nil then return end
-    end)
-    if not ok then return false end
-  end
-  
-  return true
-end
-
--- ===== ANTI-STATIC LOGGER: Environment validation =====
-local ${varNames.checkEnv} = function()
-  local s,r = pcall(function()
-    local hs = game:GetService("HttpService")
+-- Basic environment check (compatible with all executors)
+local ${varNames.envCheck} = function()
+  local ok, result = pcall(function()
     local ps = game:GetService("Players")
     local rs = game:GetService("RunService")
-    
-    -- Must have all core services
-    if not hs or not ps or not rs then return false end
-    
-    -- Verify we're in a real Roblox environment
-    local isStudio = rs:IsStudio()
-    local isClient = rs:IsClient()
-    
-    -- Must be either client or studio
-    if not isClient and not isStudio then return false end
-    
-    -- Check if script is running in protected context
-    local scriptEnv = getfenv(2)
-    if type(scriptEnv) ~= "table" then return false end
-    
-    return true
+    if not ps or not rs then return false end
+    return rs:IsClient() or rs:IsStudio()
   end)
-  return s and r
+  return ok and result
 end
 
--- ===== INTEGRITY CHECK =====
-local ${varNames.integrityCheck} = function()
-  -- Validate no debugging/logging is active
-  local ok = pcall(function()
-    -- Check for common logger globals
-    local env = getfenv(0)
-    local suspiciousGlobals = {"Logger", "Dump", "LogService", "Tracer", "Hook"}
-    for _, name in ipairs(suspiciousGlobals) do
-      if rawget(env, name) and type(rawget(env, name)) == "table" then
-        return false
-      end
-    end
-  end)
-  return ok
-end
-
--- Run all security checks
-if not ${varNames.checkEnv}() then return end
-if not ${varNames.antiHook}() then return end
-if not ${varNames.integrityCheck}() then return end
+if not ${varNames.envCheck}() then return end
 
 -- Generate unique execution nonce
 local ${varNames.nonce} = function()
@@ -972,18 +905,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ===== CRITICAL: For protected pastes, ALWAYS require valid Roblox signature =====
-    // This blocks Discord bots and other fetch tools from getting the loader
+    // ===== ANTI-FETCH: Block requests that failed validation for protected pastes =====
+    // Only block if validation explicitly failed (not browser, those are handled above)
     if ((paste.protection_enabled || paste.public_protection || paste.hide_code) && !isLikelyBrowser) {
-      // Must have Roblox user agent OR be a known executor
-      if (!isRobloxRequest && validationResult.reason === 'unknown_client') {
-        console.log(`[get-paste] BLOCKED unknown client for protected paste: ${slug} from ${clientIp}`);
+      // If validation failed for a reason other than being a browser, block it
+      if (!validationResult.valid) {
+        console.log(`[get-paste] BLOCKED ${validationResult.reason} for protected paste: ${slug} from ${clientIp}`);
         return new Response(generateHoneypot(), { 
           status: 200, 
           headers: textHeaders 
         });
       }
     }
+
 
     // If protection is disabled, return content directly
     if (!paste.protection_enabled && !paste.public_protection) {
