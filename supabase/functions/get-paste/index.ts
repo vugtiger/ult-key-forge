@@ -380,7 +380,7 @@ async function fetchRobloxProfile(userId: string): Promise<{
 
 // ===== ANTI-RUNTIME LOGGER + ANTI-STATIC LOGGER + ANTI-HOOK + ANTI-DUMP PROTECTION =====
 // Enhanced loader with comprehensive bypass protection
-function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string): string {
+function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string, options?: { showLoadingBar?: boolean; showWelcomeMessage?: boolean }): string {
   // Split token into parts and embed with obfuscation
   const tokenParts = [];
   for (let i = 0; i < token.length; i += 8) {
