@@ -581,6 +581,8 @@ export type Database = {
           ip_tracking_enabled: boolean
           protection_enabled: boolean
           public_protection: boolean | null
+          show_loading_bar: boolean | null
+          show_welcome_message: boolean | null
           slug: string
           title: string | null
           updated_at: string
@@ -596,6 +598,8 @@ export type Database = {
           ip_tracking_enabled?: boolean
           protection_enabled?: boolean
           public_protection?: boolean | null
+          show_loading_bar?: boolean | null
+          show_welcome_message?: boolean | null
           slug: string
           title?: string | null
           updated_at?: string
@@ -611,6 +615,8 @@ export type Database = {
           ip_tracking_enabled?: boolean
           protection_enabled?: boolean
           public_protection?: boolean | null
+          show_loading_bar?: boolean | null
+          show_welcome_message?: boolean | null
           slug?: string
           title?: string | null
           updated_at?: string
