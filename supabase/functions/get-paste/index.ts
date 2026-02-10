@@ -695,6 +695,31 @@ end
 -- Re-verify protection before network request
 ${protectionSeed > 0.5 ? `if not ${v.antiLogger}() then return end` : `if not ${v.antiDump}() then return end`}
 
+${options?.showLoadingBar ? `
+-- Console Loading Bar
+local ${v.junk5} = {
+  {msg = "Initializing ULT Protection...", pct = 10},
+  {msg = "Connecting to server...", pct = 25},
+  {msg = "Checking whitelist status...", pct = 40},
+  {msg = "Verifying identity...", pct = 60},
+  {msg = "Validating session token...", pct = 75},
+  {msg = "Decrypting payload...", pct = 90},
+  {msg = "Loading script...", pct = 100},
+}
+local function ${v.junk6}(pct)
+  local barLen = 30
+  local filled = math.floor(barLen * pct / 100)
+  local empty = barLen - filled
+  return "[" .. string.rep("█", filled) .. string.rep("░", empty) .. "] " .. pct .. "%"
+end
+for _, step in ipairs(${v.junk5}) do
+  print("⚡ " .. step.msg .. " " .. ${v.junk6}(step.pct))
+  if step.pct < 100 then
+    task.wait(0.15)
+  end
+end
+` : ''}
+
 -- Execute request using CACHED HttpGet (anti-hook)
 local s, r = pcall(function()
   return ${v.cachedHG}(game, url)
@@ -734,6 +759,13 @@ if s and r then
       return
     end
     
+${options?.showWelcomeMessage ? `    -- Welcome message
+    pcall(function()
+      local pName = ${v.player}.DisplayName or ${v.player}.Name
+      print("✅ Welcome, " .. tostring(pName) .. "!")
+      print("🔒 Script loaded successfully via ULT Protection v6.0")
+    end)
+` : ''}
     -- Use CACHED loadstring (anti-hook)
     local ${v.execFunc}, e = ${v.cachedLS}(${v.decPayload})
     
