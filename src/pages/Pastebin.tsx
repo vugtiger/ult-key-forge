@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe, EyeOff } from "lucide-react";
+import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe, EyeOff, Terminal, Hand } from "lucide-react";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
 import luaLogo from "@/assets/lua-logo.png";
 
@@ -27,6 +27,8 @@ interface Paste {
   protection_enabled: boolean;
   public_protection?: boolean;
   hide_code?: boolean;
+  show_loading_bar?: boolean;
+  show_welcome_message?: boolean;
 }
 
 interface AccessEntry {
@@ -261,6 +263,48 @@ const Pastebin = () => {
         description: enabled 
           ? "Raw URL shows blank but loadstring execution still works" 
           : "Code is visible in raw URL again"
+      });
+      fetchPastes();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const toggleLoadingBar = async (pasteId: string, enabled: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('pastes')
+        .update({ show_loading_bar: enabled } as any)
+        .eq('id', pasteId);
+
+      if (error) throw error;
+
+      toast({ 
+        title: enabled ? "Loading Bar Enabled" : "Loading Bar Disabled",
+        description: enabled 
+          ? "Users will see a verification loading bar in console" 
+          : "Loading bar disabled"
+      });
+      fetchPastes();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const toggleWelcomeMessage = async (pasteId: string, enabled: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('pastes')
+        .update({ show_welcome_message: enabled } as any)
+        .eq('id', pasteId);
+
+      if (error) throw error;
+
+      toast({ 
+        title: enabled ? "Welcome Message Enabled" : "Welcome Message Disabled",
+        description: enabled 
+          ? "Users will see a welcome message with their username in console" 
+          : "Welcome message disabled"
       });
       fetchPastes();
     } catch (error: any) {
@@ -647,6 +691,60 @@ const Pastebin = () => {
                     <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
                       When enabled, anyone can execute the script without being whitelisted. 
                       The script is still encrypted and blacklisted users are still blocked.
+                    </p>
+                  </div>
+
+                  {/* Loading Bar */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Terminal className="h-5 w-5 text-primary" />
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2">
+                            Console Loading Bar
+                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Shows a verification loading bar in Roblox console
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={(selectedPaste as any).show_loading_bar !== false}
+                        onCheckedChange={(checked) => toggleLoadingBar(selectedPaste.id, checked)}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                      When enabled, whitelisted users see a cool loading bar in the Roblox console
+                      while the system verifies their identity. Shows progress like "Checking whitelist...",
+                      "Verifying identity...", etc. Only works when protection is enabled.
+                    </p>
+                  </div>
+
+                  {/* Welcome Message */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Hand className="h-5 w-5 text-primary" />
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2">
+                            Welcome Message
+                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Greets verified users by their Roblox username in console
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={(selectedPaste as any).show_welcome_message !== false}
+                        onCheckedChange={(checked) => toggleWelcomeMessage(selectedPaste.id, checked)}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                      When enabled and IP tracking is on, after successful verification the console
+                      prints "Welcome, [username]!" using their Roblox display name. Only works when
+                      protection is enabled.
                     </p>
                   </div>
                 </TabsContent>

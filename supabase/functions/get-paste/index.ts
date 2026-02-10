@@ -380,7 +380,7 @@ async function fetchRobloxProfile(userId: string): Promise<{
 
 // ===== ANTI-RUNTIME LOGGER + ANTI-STATIC LOGGER + ANTI-HOOK + ANTI-DUMP PROTECTION =====
 // Enhanced loader with comprehensive bypass protection
-function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string): string {
+function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string, options?: { showLoadingBar?: boolean; showWelcomeMessage?: boolean }): string {
   // Split token into parts and embed with obfuscation
   const tokenParts = [];
   for (let i = 0; i < token.length; i += 8) {
@@ -695,6 +695,31 @@ end
 -- Re-verify protection before network request
 ${protectionSeed > 0.5 ? `if not ${v.antiLogger}() then return end` : `if not ${v.antiDump}() then return end`}
 
+${options?.showLoadingBar ? `
+-- Console Loading Bar
+local ${v.junk5} = {
+  {msg = "Initializing ULT Protection...", pct = 10},
+  {msg = "Connecting to server...", pct = 25},
+  {msg = "Checking whitelist status...", pct = 40},
+  {msg = "Verifying identity...", pct = 60},
+  {msg = "Validating session token...", pct = 75},
+  {msg = "Decrypting payload...", pct = 90},
+  {msg = "Loading script...", pct = 100},
+}
+local function ${v.junk6}(pct)
+  local barLen = 30
+  local filled = math.floor(barLen * pct / 100)
+  local empty = barLen - filled
+  return "[" .. string.rep("█", filled) .. string.rep("░", empty) .. "] " .. pct .. "%"
+end
+for _, step in ipairs(${v.junk5}) do
+  print("⚡ " .. step.msg .. " " .. ${v.junk6}(step.pct))
+  if step.pct < 100 then
+    task.wait(0.15)
+  end
+end
+` : ''}
+
 -- Execute request using CACHED HttpGet (anti-hook)
 local s, r = pcall(function()
   return ${v.cachedHG}(game, url)
@@ -734,6 +759,13 @@ if s and r then
       return
     end
     
+${options?.showWelcomeMessage ? `    -- Welcome message
+    pcall(function()
+      local pName = ${v.player}.DisplayName or ${v.player}.Name
+      print("✅ Welcome, " .. tostring(pName) .. "!")
+      print("🔒 Script loaded successfully via ULT Protection v6.0")
+    end)
+` : ''}
     -- Use CACHED loadstring (anti-hook)
     local ${v.execFunc}, e = ${v.cachedLS}(${v.decPayload})
     
@@ -914,7 +946,10 @@ Deno.serve(async (req) => {
         expires_at: new Date(Date.now() + 30000).toISOString()
       });
 
-      const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret);
+      const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
+        showLoadingBar: paste.show_loading_bar !== false,
+        showWelcomeMessage: paste.show_welcome_message !== false,
+      });
       console.log(`Refreshed loader for paste: ${paste.id} from IP: ${clientIp}`);
       return new Response(loader, { status: 200, headers: textHeaders });
     };
@@ -1157,7 +1192,10 @@ Deno.serve(async (req) => {
       });
 
       // Return the loader script with obfuscated token
-      const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret);
+      const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
+        showLoadingBar: paste.show_loading_bar !== false,
+        showWelcomeMessage: paste.show_welcome_message !== false,
+      });
       
       console.log(`Generated secure loader for paste: ${paste.id} from IP: ${clientIp}`);
       
