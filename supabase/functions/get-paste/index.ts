@@ -946,7 +946,10 @@ Deno.serve(async (req) => {
         expires_at: new Date(Date.now() + 30000).toISOString()
       });
 
-      const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret);
+      const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
+        showLoadingBar: paste.show_loading_bar !== false,
+        showWelcomeMessage: paste.show_welcome_message !== false,
+      });
       console.log(`Refreshed loader for paste: ${paste.id} from IP: ${clientIp}`);
       return new Response(loader, { status: 200, headers: textHeaders });
     };
