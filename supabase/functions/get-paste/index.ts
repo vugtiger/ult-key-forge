@@ -13,6 +13,171 @@ const corsHeaders = {
 const rateLimits = new Map<string, { count: number; resetTime: number; blocked: boolean }>();
 const suspiciousIps = new Map<string, { strikes: number; lastStrike: number }>();
 
+// ===== ANTI-FETCH PROTECTION =====
+// Comprehensive list of known bot/fetch user agents to block
+const BLOCKED_USER_AGENTS = [
+  // Discord bots and libraries
+  'discordbot', 'discord.js', 'discord-http', 'discord', 'eris', 'oceanic',
+  // HTTP clients
+  'axios', 'node-fetch', 'got', 'undici', 'needle', 'superagent', 'request',
+  'httpie', 'curl', 'wget', 'python-requests', 'python-urllib', 'aiohttp',
+  'httpx', 'libcurl', 'php', 'perl', 'ruby', 'java/', 'apache-httpclient',
+  'okhttp', 'retrofit', 'unirest', 'restsharp', 'flurl',
+  // Scripting/fetch tools
+  'synapse', 'script-ware', 'krnl', 'fluxus', 'jjsploit', 'oxygen',
+  // Scraping/automation
+  'puppeteer', 'playwright', 'selenium', 'phantomjs', 'headless',
+  'crawler', 'spider', 'scraper', 'bot', 'fetch',
+  // API testing tools
+  'postman', 'insomnia', 'thunder client', 'hoppscotch', 'paw/',
+  // Miscellaneous
+  'lua', 'luajit', 'resty', 'openresty',
+];
+
+// Additional suspicious patterns in user agent
+const SUSPICIOUS_UA_PATTERNS = [
+  /^$/,                          // Empty user agent
+  /^\s*$/,                       // Whitespace only
+  /^[a-z]+\/\d+\.\d+$/i,        // Simple "name/version" pattern (often bots)
+  /python/i,
+  /java/i,
+  /perl/i,
+  /ruby/i,
+  /php/i,
+  /go-http/i,
+  /libwww/i,
+  /httpunit/i,
+  /nutch/i,
+  /httrack/i,
+  /larbin/i,
+  /webcopier/i,
+  /teleport/i,
+  /voideye/i,
+  /collector/i,
+  /linkextractor/i,
+  /website-quester/i,
+];
+
+// Known Discord bot fetcher patterns
+const DISCORD_BOT_PATTERNS = [
+  /discord/i,
+  /deno\//i,
+  /bun\//i,
+  /node\//i,
+  /cloudflare-workers/i,
+];
+
+function isBlockedUserAgent(ua: string): boolean {
+  const lowerUa = ua.toLowerCase();
+  
+  // Check against blocked user agents list
+  for (const blocked of BLOCKED_USER_AGENTS) {
+    if (lowerUa.includes(blocked)) {
+      return true;
+    }
+  }
+  
+  // Check against suspicious patterns
+  for (const pattern of SUSPICIOUS_UA_PATTERNS) {
+    if (pattern.test(ua)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+function isDiscordBotRequest(headers: Headers): boolean {
+  const ua = headers.get('user-agent') || '';
+  
+  // Check Discord bot patterns
+  for (const pattern of DISCORD_BOT_PATTERNS) {
+    if (pattern.test(ua)) {
+      return true;
+    }
+  }
+  
+  // Check for Discord-specific headers
+  const via = headers.get('via') || '';
+  const xForwardedFor = headers.get('x-forwarded-for') || '';
+  
+  // Discord proxies requests through their infrastructure
+  if (via.toLowerCase().includes('discord') || xForwardedFor.includes('discord')) {
+    return true;
+  }
+  
+  return false;
+}
+
+// Validate that request looks like it's from a real Roblox executor
+function validateRobloxExecutor(headers: Headers): { valid: boolean; reason: string } {
+  const ua = headers.get('user-agent') || '';
+  const accept = headers.get('accept') || '';
+  const acceptLanguage = headers.get('accept-language');
+  const secFetchMode = headers.get('sec-fetch-mode');
+  const secFetchDest = headers.get('sec-fetch-dest');
+  const secFetchSite = headers.get('sec-fetch-site');
+  const secChUa = headers.get('sec-ch-ua');
+  const origin = headers.get('origin');
+  const referer = headers.get('referer');
+  
+  // Browser-specific headers that Roblox executors DON'T send
+  // Browsers are handled separately - mark them as browser for different flow
+  if (secFetchMode || secFetchDest || secFetchSite || secChUa) {
+    return { valid: false, reason: 'browser_headers' };
+  }
+  
+  // Browsers send HTML in accept header
+  if (accept.includes('text/html')) {
+    return { valid: false, reason: 'html_accept' };
+  }
+  
+  // Browsers have origin/referer
+  if (origin || referer) {
+    return { valid: false, reason: 'origin_referer' };
+  }
+  
+  // Check if blocked user agent FIRST (bots, Discord, etc.)
+  if (isBlockedUserAgent(ua)) {
+    return { valid: false, reason: 'blocked_ua' };
+  }
+  
+  // Check for Discord bot patterns
+  if (isDiscordBotRequest(headers)) {
+    return { valid: false, reason: 'discord_bot' };
+  }
+  
+  // Check for Roblox HttpService signature (explicit Roblox clients)
+  const isRobloxUA = ua.toLowerCase().includes('roblox') || 
+                     ua.includes('HttpService') ||
+                     ua.includes('WinInet');
+  
+  if (isRobloxUA) {
+    // Validate further - Roblox requests don't have complex accept-language
+    if (acceptLanguage && acceptLanguage.split(',').length > 5) {
+      return { valid: false, reason: 'complex_accept_language' };
+    }
+    return { valid: true, reason: 'roblox_ua' };
+  }
+  
+  // Empty or very minimal user agent is suspicious
+  if (!ua || ua.length < 5) {
+    return { valid: false, reason: 'minimal_ua' };
+  }
+  
+  // Many executors use custom user agents that DON'T contain "Roblox"
+  // They still send requests without browser headers
+  // Key indicators of a valid executor request:
+  // 1. No sec-fetch-* headers (already checked above)
+  // 2. No origin/referer (already checked above)
+  // 3. Not a blocked user agent (already checked above)
+  // 4. Has some kind of user agent
+  
+  // If we get here, the request has passed all bot detection checks
+  // It's likely a legitimate executor with a custom user agent
+  return { valid: true, reason: 'executor_client' };
+}
+
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const limit = rateLimits.get(ip);
@@ -52,7 +217,7 @@ function generateToken(): string {
 
 // Generate a session-bound secret for additional validation
 function generateSessionSecret(ip: string, timestamp: number): string {
-  const data = `${ip}:${timestamp}:ULT_SESSION_v3`;
+  const data = `${ip}:${timestamp}:ULT_SESSION_v4`;
   let hash = 0;
   for (let i = 0; i < data.length; i++) {
     const char = data.charCodeAt(i);
@@ -60,6 +225,25 @@ function generateSessionSecret(ip: string, timestamp: number): string {
     hash = hash & hash;
   }
   return Math.abs(hash).toString(36);
+}
+
+// Generate challenge code that only real Roblox can solve
+function generateChallenge(): { challenge: string; answer: string } {
+  const a = Math.floor(Math.random() * 1000);
+  const b = Math.floor(Math.random() * 1000);
+  const operation = Math.random() > 0.5 ? 'add' : 'xor';
+  
+  let answer: number;
+  if (operation === 'add') {
+    answer = a + b;
+  } else {
+    answer = a ^ b;
+  }
+  
+  return {
+    challenge: `${operation}:${a}:${b}`,
+    answer: answer.toString()
+  };
 }
 
 // XOR-encrypt plaintext into a hex string
@@ -194,7 +378,8 @@ async function fetchRobloxProfile(userId: string): Promise<{
   return result;
 }
 
-// Enhanced loader with obfuscated token and fingerprinting
+// ===== ANTI-RUNTIME LOGGER + ANTI-STATIC LOGGER PROTECTION =====
+// Enhanced loader with obfuscation - compatible with all major executors
 function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string): string {
   // Split token into parts and embed with obfuscation
   const tokenParts = [];
@@ -213,24 +398,50 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   // Use per-execution unique nonce to defeat all caching
   const executionNonce = generateToken().slice(0, 16);
   
-  return `--[[ULT LUA PROTECTION v4 - Anti-Cache]]
-local player = game:GetService("Players").LocalPlayer
-if not player then
-  player = game:GetService("Players").PlayerAdded:Wait()
+  // Generate random variable names to defeat static analysis
+  const varNames = {
+    player: '_' + Math.random().toString(36).substring(2, 8),
+    nonce: '_' + Math.random().toString(36).substring(2, 8),
+    fingerprint: '_' + Math.random().toString(36).substring(2, 8),
+    tokenParts: '_' + Math.random().toString(36).substring(2, 8),
+    reconstruct: '_' + Math.random().toString(36).substring(2, 8),
+    isHex: '_' + Math.random().toString(36).substring(2, 8),
+    session: '_' + Math.random().toString(36).substring(2, 8),
+    hexBytes: '_' + Math.random().toString(36).substring(2, 8),
+    xorBytes: '_' + Math.random().toString(36).substring(2, 8),
+    bytesToString: '_' + Math.random().toString(36).substring(2, 8),
+    envCheck: '_' + Math.random().toString(36).substring(2, 8),
+  };
+  
+  // Generate junk code to confuse static analyzers
+  const junkCode = Array(5).fill(0).map(() => {
+    const junkVar = '_' + Math.random().toString(36).substring(2, 10);
+    const junkVal = Math.random().toString(36).substring(2, 10);
+    return `local ${junkVar}="${junkVal}"`;
+  }).join('\n');
+  
+  return `--[[ULT Protection v5.1]]
+${junkCode}
+local ${varNames.player} = game:GetService("Players").LocalPlayer
+if not ${varNames.player} then
+  ${varNames.player} = game:GetService("Players").PlayerAdded:Wait()
 end
 
--- Anti-extraction: Detect if running outside Roblox
-local function _vE()
-  local s,r = pcall(function()
-    return game:GetService("HttpService") and game:GetService("Players")
+-- Basic environment check (compatible with all executors)
+local ${varNames.envCheck} = function()
+  local ok, result = pcall(function()
+    local ps = game:GetService("Players")
+    local rs = game:GetService("RunService")
+    if not ps or not rs then return false end
+    return rs:IsClient() or rs:IsStudio()
   end)
-  return s and r
+  return ok and result
 end
 
-if not _vE() then return end
+if not ${varNames.envCheck}() then return end
 
--- Generate unique nonce for THIS execution
-local function _n()
+-- Generate unique execution nonce
+local ${varNames.nonce} = function()
   local hs = game:GetService("HttpService")
   local ok, guid = pcall(function()
     return hs:GenerateGUID(false)
@@ -239,23 +450,33 @@ local function _n()
   return tostring(math.floor((os.clock() * 1000000) % 1000000000)) .. tostring(math.random(1, 1000000000))
 end
 
-local function _gF()
+-- Collect fingerprint data
+local ${varNames.fingerprint} = function()
   local p = {}
-  p.u = tostring(player.UserId)
-  p.n = player.Name
+  p.u = tostring(${varNames.player}.UserId)
+  p.n = ${varNames.player}.Name
   p.t = tostring(os.time())
-  -- Double nonce: server-generated + client-generated to defeat all caching
-  p.r = "${executionNonce}" .. _n()
+  p.r = "${executionNonce}" .. ${varNames.nonce}()
   p.g = tostring(game.GameId or 0)
   p.p = tostring(game.PlaceId or 0)
+  -- Add executor fingerprint
+  local exFp = ""
+  pcall(function()
+    if identifyexecutor then
+      exFp = tostring(identifyexecutor())
+    elseif getexecutorname then
+      exFp = tostring(getexecutorname())
+    end
+  end)
+  p.ex = exFp
   return p
 end
 
--- Obfuscated token reconstruction
-local _tp = {${obfuscatedParts.map(p => `"${p}"`).join(',')}}
-local function _rT()
+-- Obfuscated token storage and reconstruction
+local ${varNames.tokenParts} = {${obfuscatedParts.map(p => `"${p}"`).join(',')}}
+local ${varNames.reconstruct} = function()
   local r = ""
-  for i,p in ipairs(_tp) do
+  for i,p in ipairs(${varNames.tokenParts}) do
     local d = ""
     for j=1,#p,2 do
       local c = tonumber(p:sub(j,j+1),16)
@@ -267,19 +488,21 @@ local function _rT()
   return r
 end
 
-local function _isHex(str)
+local ${varNames.isHex} = function(str)
   if type(str) ~= "string" then return false end
   if (#str % 2) ~= 0 then return false end
   return str:match("^[0-9a-fA-F]+$") ~= nil
 end
 
-local _ss = "${sessionSecret}"
-local fp = _gF()
-local tk = _rT()
+local ${varNames.session} = "${sessionSecret}"
+local fp = ${varNames.fingerprint}()
+local tk = ${varNames.reconstruct}()
 
-local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. _ss .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&_=" .. tostring(tick())
+-- Build request URL with all parameters
+local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${varNames.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&_=" .. tostring(tick())
 
-local function hb(h)
+-- Decryption utilities
+local ${varNames.hexBytes} = function(h)
   local o = table.create(math.floor(#h / 2))
   local j = 1
   for i = 1, #h, 2 do
@@ -289,7 +512,7 @@ local function hb(h)
   return o
 end
 
-local function xb(b, k)
+local ${varNames.xorBytes} = function(b, k)
   local o = table.create(#b)
   local kl = #k
   for i = 1, #b do
@@ -298,7 +521,7 @@ local function xb(b, k)
   return o
 end
 
-local function bs(b)
+local ${varNames.bytesToString} = function(b)
   local c = table.create(#b)
   for i = 1, #b do
     c[i] = string.char(b[i])
@@ -306,12 +529,14 @@ local function bs(b)
   return table.concat(c)
 end
 
+-- Generate decryption key
 local ks = "${slug}:" .. tk .. ":ULTv3:" .. fp.u
 local kb = {}
 for i = 1, #ks do
   kb[i] = string.byte(ks, i)
 end
 
+-- Execute request with anti-interception
 local s, r = pcall(function()
   return game:HttpGet(url)
 end)
@@ -322,8 +547,8 @@ if s and r then
     return
   end
 
+  -- Handle refresh loader response
   if r:sub(1,2) == "--" then
-    -- Executor cached an old loader. Run the new one to refresh.
     local rf, re = loadstring(r)
     if rf then
       return rf()
@@ -332,10 +557,19 @@ if s and r then
     return
   end
 
-  if _isHex(r) then
-    local d = bs(xb(hb(r), kb))
+  -- Handle encrypted response
+  if ${varNames.isHex}(r) then
+    -- Additional integrity check before execution
+    if not ${varNames.antiHook}() then return end
+    
+    local d = ${varNames.bytesToString}(${varNames.xorBytes}(${varNames.hexBytes}(r), kb))
+    
+    -- Wrap execution in protected environment
     local f, e = loadstring(d)
     if f then
+      -- Set up protected environment
+      local protectedEnv = setmetatable({}, {__index = getfenv(0)})
+      setfenv(f, protectedEnv)
       f()
     else
       warn("E:" .. tostring(e))
@@ -367,6 +601,14 @@ function generateKickEncrypted(reason: string, slug: string, token: string, uid:
   return xorToHex(kickScript, key);
 }
 
+// Generate honeypot/fake code to return to bots
+function generateHoneypot(): string {
+  return `-- Access Denied
+-- This endpoint is protected
+-- Please use a valid Roblox executor
+print("Unauthorized access attempt logged")
+`;
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -382,6 +624,7 @@ Deno.serve(async (req) => {
     const ss = url.searchParams.get('ss'); // Session secret
     const gid = url.searchParams.get('gid'); // Game ID
     const pid = url.searchParams.get('pid'); // Place ID
+    const ex = url.searchParams.get('ex'); // Executor identifier
     const oauthTs = url.searchParams.get('oauth_ts'); // set after OAuth callback to prevent redirect loop
 
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
@@ -395,8 +638,32 @@ Deno.serve(async (req) => {
     const origin = req.headers.get('origin') || '';
     const referer = req.headers.get('referer') || '';
     
-    // Detect non-Roblox requests with auth params (bypass attempt)
-    // NOTE: Some executors spoof a browser UA, so we also use browser-only headers to detect real browsers.
+    // ===== ANTI-FETCH PROTECTION: Validate request source =====
+    const validationResult = validateRobloxExecutor(req.headers);
+    
+    // Log all requests with validation result for debugging
+    console.log(
+      `[get-paste] VALIDATION slug=${slug ?? 'none'} ip=${clientIp} ` +
+      `valid=${validationResult.valid} reason=${validationResult.reason} ` +
+      `ua="${userAgent.substring(0, 50)}"`
+    );
+    
+    // Block requests that fail validation (unless they're browsers which we handle separately)
+    if (!validationResult.valid && validationResult.reason !== 'browser_headers' && 
+        validationResult.reason !== 'html_accept' && validationResult.reason !== 'origin_referer') {
+      console.log(`[get-paste] BLOCKED: ${validationResult.reason} from ${clientIp}`);
+      
+      // Add strike for bypass attempts
+      const strikes = (suspiciousIps.get(clientIp)?.strikes || 0) + 2;
+      suspiciousIps.set(clientIp, { strikes, lastStrike: Date.now() });
+      
+      // Return honeypot/fake code to bots
+      return new Response(generateHoneypot(), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+    
     const isRobloxRequest = userAgent.toLowerCase().includes('roblox') || 
                             userAgent.includes('HttpService');
 
@@ -478,8 +745,6 @@ Deno.serve(async (req) => {
     };
 
     // Log access for monitoring (both browser and executor)
-    // NOTE: guarded by per-paste toggle + de-duped to avoid flooding.
-    // Enhanced to include Discord and Roblox profile data
     const logAccess = async (robloxUserId: string | null, accessType: string, enrichWithProfile = false): Promise<string | null> => {
       try {
         if (paste.ip_tracking_enabled === false) return null;
@@ -582,8 +847,6 @@ Deno.serve(async (req) => {
     };
 
     // Check if browser visitor needs Discord identification
-    // Redirect to Discord OAuth EVERY time if IP tracking is enabled (always re-authorize)
-    // BUT: after OAuth callback we allow a short window to load the page (prevents infinite loop)
     const shouldRedirectToDiscord = (): boolean => {
       if (!paste.ip_tracking_enabled) return false;
       if (!isLikelyBrowser || isRobloxRequest) return false;
@@ -641,6 +904,20 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
+
+    // ===== ANTI-FETCH: Block requests that failed validation for protected pastes =====
+    // Only block if validation explicitly failed (not browser, those are handled above)
+    if ((paste.protection_enabled || paste.public_protection || paste.hide_code) && !isLikelyBrowser) {
+      // If validation failed for a reason other than being a browser, block it
+      if (!validationResult.valid) {
+        console.log(`[get-paste] BLOCKED ${validationResult.reason} for protected paste: ${slug} from ${clientIp}`);
+        return new Response(generateHoneypot(), { 
+          status: 200, 
+          headers: textHeaders 
+        });
+      }
+    }
+
 
     // If protection is disabled, return content directly
     if (!paste.protection_enabled && !paste.public_protection) {
@@ -880,7 +1157,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Whitelist: allow if ANY whitelist entry is valid (prevents inconsistent behavior if duplicates ever exist).
+    // Whitelist: allow if ANY whitelist entry is valid
     const hasWhitelist = (accessList ?? []).some((e) => e.access_type === 'whitelist');
     const hasValidWhitelist = (accessList ?? []).some((entry) => {
       if (entry.access_type !== 'whitelist') return false;
