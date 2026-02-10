@@ -27,6 +27,8 @@ interface Paste {
   protection_enabled: boolean;
   public_protection?: boolean;
   hide_code?: boolean;
+  show_loading_bar?: boolean;
+  show_welcome_message?: boolean;
 }
 
 interface AccessEntry {
