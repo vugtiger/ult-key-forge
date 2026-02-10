@@ -1192,7 +1192,10 @@ Deno.serve(async (req) => {
       });
 
       // Return the loader script with obfuscated token
-      const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret);
+      const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
+        showLoadingBar: paste.show_loading_bar !== false,
+        showWelcomeMessage: paste.show_welcome_message !== false,
+      });
       
       console.log(`Generated secure loader for paste: ${paste.id} from IP: ${clientIp}`);
       
