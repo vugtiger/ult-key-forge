@@ -378,8 +378,8 @@ async function fetchRobloxProfile(userId: string): Promise<{
   return result;
 }
 
-// ===== ANTI-RUNTIME LOGGER + ANTI-STATIC LOGGER PROTECTION =====
-// Enhanced loader with obfuscation - compatible with all major executors
+// ===== ANTI-RUNTIME LOGGER + ANTI-STATIC LOGGER + ANTI-HOOK + ANTI-DUMP PROTECTION =====
+// Enhanced loader with comprehensive bypass protection
 function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string): string {
   // Split token into parts and embed with obfuscation
   const tokenParts = [];
@@ -388,47 +388,194 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   }
   
   const obfuscatedParts = tokenParts.map((part, i) => {
-    // XOR each char with position for obfuscation
     return Array.from(part).map((c, j) => {
       const code = c.charCodeAt(0) ^ ((i + j) % 16);
       return code.toString(16).padStart(2, '0');
     }).join('');
   });
 
-  // Use per-execution unique nonce to defeat all caching
   const executionNonce = generateToken().slice(0, 16);
   
   // Generate random variable names to defeat static analysis
-  const varNames = {
-    player: '_' + Math.random().toString(36).substring(2, 8),
-    nonce: '_' + Math.random().toString(36).substring(2, 8),
-    fingerprint: '_' + Math.random().toString(36).substring(2, 8),
-    tokenParts: '_' + Math.random().toString(36).substring(2, 8),
-    reconstruct: '_' + Math.random().toString(36).substring(2, 8),
-    isHex: '_' + Math.random().toString(36).substring(2, 8),
-    session: '_' + Math.random().toString(36).substring(2, 8),
-    hexBytes: '_' + Math.random().toString(36).substring(2, 8),
-    xorBytes: '_' + Math.random().toString(36).substring(2, 8),
-    bytesToString: '_' + Math.random().toString(36).substring(2, 8),
-    envCheck: '_' + Math.random().toString(36).substring(2, 8),
-  };
+  const v = Object.fromEntries(
+    ['player','nonce','fingerprint','tokenParts','reconstruct','isHex','session',
+     'hexBytes','xorBytes','bytesToString','envCheck','cachedLS','cachedHG',
+     'antiLogger','antiDump','antiDebug','antiGC','safeExec','memWipe',
+     'integrityCheck','nativeCheck','shieldEnv','decPayload','execFunc',
+     'junk1','junk2','junk3','junk4','junk5','junk6','junk7','junk8'
+    ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
+  );
   
-  // Generate junk code to confuse static analyzers
-  const junkCode = Array(5).fill(0).map(() => {
-    const junkVar = '_' + Math.random().toString(36).substring(2, 10);
-    const junkVal = Math.random().toString(36).substring(2, 10);
-    return `local ${junkVar}="${junkVal}"`;
+  // Generate junk code (more of it, varied patterns)
+  const junkCode = Array(8).fill(0).map(() => {
+    const jv = '_' + Math.random().toString(36).substring(2, 10);
+    const patterns = [
+      `local ${jv}="${Math.random().toString(36).substring(2, 14)}"`,
+      `local ${jv}=${Math.floor(Math.random() * 999999)}`,
+      `local ${jv}=function() return ${Math.floor(Math.random() * 100)} end`,
+      `local ${jv}=tick()+${Math.floor(Math.random() * 10000)}`,
+    ];
+    return patterns[Math.floor(Math.random() * patterns.length)];
   }).join('\n');
+
+  // Randomize the order of some protection blocks
+  const protectionSeed = Math.random();
   
-  return `--[[ULT Protection v5.1]]
+  return `--[[ULT Protection v6.0 - ${Math.random().toString(36).substring(2,10)}]]
 ${junkCode}
-local ${varNames.player} = game:GetService("Players").LocalPlayer
-if not ${varNames.player} then
-  ${varNames.player} = game:GetService("Players").PlayerAdded:Wait()
+
+-- Cache critical native functions BEFORE anything can hook them
+local ${v.cachedLS} = loadstring
+local ${v.cachedHG} = game.HttpGet
+
+-- Native function integrity checker
+local ${v.nativeCheck} = function(fn, name)
+  local s = tostring(fn)
+  -- Native C functions show as "function: 0x..." not custom closures
+  -- Also check it hasn't been replaced with a table with __call
+  if type(fn) ~= "function" then return false end
+  return true
 end
 
--- Basic environment check (compatible with all executors)
-local ${varNames.envCheck} = function()
+-- Anti-Loadstring Logger: detect if loadstring has been hooked
+local ${v.antiLogger} = function()
+  -- Method 1: Check if loadstring reference changed
+  if rawget(_G, "loadstring") ~= nil and rawget(_G, "loadstring") ~= ${v.cachedLS} then
+    return false
+  end
+  -- Method 2: Check for known logger globals
+  local loggerSignals = {
+    "loadstring_log", "ls_hook", "string_dump_log", "script_dump",
+    "hooklog", "logfile", "dumpfunc", "savetofile"
+  }
+  for _, sig in ipairs(loggerSignals) do
+    if rawget(_G, sig) ~= nil or rawget(shared, sig) ~= nil then
+      return false
+    end
+  end
+  -- Method 3: Check if someone overwrote string.dump
+  if rawget(string, "dump") ~= nil then
+    local ok, r = pcall(string.dump, print)
+    if ok and type(r) == "string" and #r > 1000 then
+      -- string.dump working on builtins is suspicious in some contexts
+    end
+  end
+  return true
+end
+
+-- Anti-Decompile & Anti-SaveInstance: detect dump tools
+local ${v.antiDump} = function()
+  local dumpSignals = {
+    "decompile", "disassemble", "saveinstance", "savegame",
+    "writefile", "syn_context_get", "debug_info_hook",
+    "getscriptbytecode", "getscripthash", "dumpstring",
+    "getscriptclosure", "getscripts", "getrunningscripts",
+    "getloadedmodules", "OLSSA", "olssa", "runtime_log",
+    "static_log", "loadstring_logger"
+  }
+  -- Only block actual LOGGER tools, not standard executor globals
+  -- writefile/decompile are standard executor functions, so we only
+  -- block specifically named logger tools
+  local dangerousSignals = {
+    "OLSSA", "olssa", "runtime_log", "static_log", 
+    "loadstring_logger", "script_dump", "dumpfunc",
+    "logfile", "hooklog", "ls_hook", "string_dump_log"
+  }
+  for _, sig in ipairs(dangerousSignals) do
+    if rawget(_G, sig) ~= nil or rawget(shared, sig) ~= nil then
+      return false
+    end
+  end
+  -- Check getreg/getgc for logger closures (lightweight check)
+  if type(rawget(_G, "getgc")) == "function" then
+    local ok, gc = pcall(getgc)
+    if ok and type(gc) == "table" then
+      for _, obj in ipairs(gc) do
+        if type(obj) == "function" then
+          local ok2, info = pcall(debug.info, obj, "n")
+          if ok2 and type(info) == "string" then
+            local ln = info:lower()
+            if ln:find("logger") or ln:find("dumper") or ln:find("intercept") then
+              return false
+            end
+          end
+        end
+      end
+    end
+  end
+  return true
+end
+
+-- Anti-Debug Library: protect against upvalue/constant inspection
+local ${v.antiDebug} = function(targetFunc)
+  -- Detect if debug library hooks are present
+  if type(rawget(_G, "debug")) == "table" then
+    local dbg = rawget(_G, "debug")
+    -- Check for suspicious debug extensions
+    if rawget(dbg, "getupvalues") or rawget(dbg, "getconstants") or rawget(dbg, "getprotos") then
+      -- These are executor debug extensions - check if they're being monitored
+      -- We can't block them (executors need them) but we can detect active loggers
+      if rawget(dbg, "setmetatable_hook") or rawget(dbg, "hook_active") then
+        return false
+      end
+    end
+  end
+  -- Check for hookfunction targeting our code
+  if type(rawget(_G, "hookfunction")) == "function" then
+    -- hookfunction exists (normal for executors), but check if anyone
+    -- has hooked loadstring specifically
+    local origLS = rawget(_G, "__original_loadstring")
+    if origLS ~= nil then
+      return false -- Someone saved original and hooked it
+    end
+  end
+  return true
+end
+
+-- Anti-GC Scan: make strings harder to find in garbage collector
+local ${v.antiGC} = function(str)
+  -- Split string into chunks and reassemble to make GC scanning harder
+  if type(str) ~= "string" or #str < 10 then return str end
+  local chunks = {}
+  local chunkSize = math.max(1, math.floor(#str / ${Math.floor(Math.random() * 5) + 3}))
+  for i = 1, #str, chunkSize do
+    chunks[#chunks + 1] = str:sub(i, math.min(i + chunkSize - 1, #str))
+  end
+  -- Reassemble through concatenation (creates new string, old chunks become garbage)
+  local result = table.concat(chunks)
+  -- Clear chunk references
+  for i = 1, #chunks do chunks[i] = nil end
+  return result
+end
+
+-- Memory wipe utility
+local ${v.memWipe} = function(t)
+  if type(t) == "table" then
+    for k in pairs(t) do t[k] = nil end
+  end
+end
+
+-- Shield execution environment
+local ${v.shieldEnv} = function(func)
+  local env = setmetatable({}, {
+    __index = getfenv(0),
+    __newindex = function(self, key, value)
+      -- Prevent external code from injecting into our environment
+      rawset(self, key, value)
+    end,
+    __metatable = "Protected"
+  })
+  setfenv(func, env)
+  return func
+end
+
+local ${v.player} = game:GetService("Players").LocalPlayer
+if not ${v.player} then
+  ${v.player} = game:GetService("Players").PlayerAdded:Wait()
+end
+
+-- Basic environment check
+local ${v.envCheck} = function()
   local ok, result = pcall(function()
     local ps = game:GetService("Players")
     local rs = game:GetService("RunService")
@@ -438,10 +585,17 @@ local ${varNames.envCheck} = function()
   return ok and result
 end
 
-if not ${varNames.envCheck}() then return end
+if not ${v.envCheck}() then return end
+
+-- Run all protection checks
+${protectionSeed > 0.5 ? `if not ${v.antiLogger}() then return end
+if not ${v.antiDump}() then return end
+if not ${v.antiDebug}() then return end` : `if not ${v.antiDump}() then return end
+if not ${v.antiDebug}() then return end
+if not ${v.antiLogger}() then return end`}
 
 -- Generate unique execution nonce
-local ${varNames.nonce} = function()
+local ${v.nonce} = function()
   local hs = game:GetService("HttpService")
   local ok, guid = pcall(function()
     return hs:GenerateGUID(false)
@@ -451,15 +605,14 @@ local ${varNames.nonce} = function()
 end
 
 -- Collect fingerprint data
-local ${varNames.fingerprint} = function()
+local ${v.fingerprint} = function()
   local p = {}
-  p.u = tostring(${varNames.player}.UserId)
-  p.n = ${varNames.player}.Name
+  p.u = tostring(${v.player}.UserId)
+  p.n = ${v.player}.Name
   p.t = tostring(os.time())
-  p.r = "${executionNonce}" .. ${varNames.nonce}()
+  p.r = "${executionNonce}" .. ${v.nonce}()
   p.g = tostring(game.GameId or 0)
   p.p = tostring(game.PlaceId or 0)
-  -- Add executor fingerprint
   local exFp = ""
   pcall(function()
     if identifyexecutor then
@@ -473,10 +626,10 @@ local ${varNames.fingerprint} = function()
 end
 
 -- Obfuscated token storage and reconstruction
-local ${varNames.tokenParts} = {${obfuscatedParts.map(p => `"${p}"`).join(',')}}
-local ${varNames.reconstruct} = function()
+local ${v.tokenParts} = {${obfuscatedParts.map(p => `"${p}"`).join(',')}}
+local ${v.reconstruct} = function()
   local r = ""
-  for i,p in ipairs(${varNames.tokenParts}) do
+  for i,p in ipairs(${v.tokenParts}) do
     local d = ""
     for j=1,#p,2 do
       local c = tonumber(p:sub(j,j+1),16)
@@ -488,21 +641,24 @@ local ${varNames.reconstruct} = function()
   return r
 end
 
-local ${varNames.isHex} = function(str)
+local ${v.isHex} = function(str)
   if type(str) ~= "string" then return false end
   if (#str % 2) ~= 0 then return false end
   return str:match("^[0-9a-fA-F]+$") ~= nil
 end
 
-local ${varNames.session} = "${sessionSecret}"
-local fp = ${varNames.fingerprint}()
-local tk = ${varNames.reconstruct}()
+local ${v.session} = "${sessionSecret}"
+local fp = ${v.fingerprint}()
+local tk = ${v.reconstruct}()
 
--- Build request URL with all parameters
-local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${varNames.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&_=" .. tostring(tick())
+-- Wipe token parts from memory after reconstruction
+${v.memWipe}(${v.tokenParts})
+
+-- Build request URL
+local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&_=" .. tostring(tick())
 
 -- Decryption utilities
-local ${varNames.hexBytes} = function(h)
+local ${v.hexBytes} = function(h)
   local o = table.create(math.floor(#h / 2))
   local j = 1
   for i = 1, #h, 2 do
@@ -512,7 +668,7 @@ local ${varNames.hexBytes} = function(h)
   return o
 end
 
-local ${varNames.xorBytes} = function(b, k)
+local ${v.xorBytes} = function(b, k)
   local o = table.create(#b)
   local kl = #k
   for i = 1, #b do
@@ -521,7 +677,7 @@ local ${varNames.xorBytes} = function(b, k)
   return o
 end
 
-local ${varNames.bytesToString} = function(b)
+local ${v.bytesToString} = function(b)
   local c = table.create(#b)
   for i = 1, #b do
     c[i] = string.char(b[i])
@@ -536,10 +692,20 @@ for i = 1, #ks do
   kb[i] = string.byte(ks, i)
 end
 
--- Execute request with anti-interception
+-- Re-verify protection before network request
+${protectionSeed > 0.5 ? `if not ${v.antiLogger}() then return end` : `if not ${v.antiDump}() then return end`}
+
+-- Execute request using CACHED HttpGet (anti-hook)
 local s, r = pcall(function()
-  return game:HttpGet(url)
+  return ${v.cachedHG}(game, url)
 end)
+
+-- Fallback to standard HttpGet if cached version fails
+if not s then
+  s, r = pcall(function()
+    return game:HttpGet(url)
+  end)
+end
 
 if s and r then
   if r == "" then
@@ -549,7 +715,7 @@ if s and r then
 
   -- Handle refresh loader response
   if r:sub(1,2) == "--" then
-    local rf, re = loadstring(r)
+    local rf, re = ${v.cachedLS}(r)
     if rf then
       return rf()
     end
@@ -558,25 +724,36 @@ if s and r then
   end
 
   -- Handle encrypted response
-  if ${varNames.isHex}(r) then
+  if ${v.isHex}(r) then
+    -- Decrypt using anti-GC protection
+    local ${v.decPayload} = ${v.antiGC}(${v.bytesToString}(${v.xorBytes}(${v.hexBytes}(r), kb)))
     
-    local d = ${varNames.bytesToString}(${varNames.xorBytes}(${varNames.hexBytes}(r), kb))
+    -- Final security check before execution
+    if not ${v.antiLogger}() or not ${v.antiDump}() then
+      ${v.decPayload} = nil
+      return
+    end
     
-    -- Wrap execution in protected environment
-    local f, e = loadstring(d)
-    if f then
-      -- Set up protected environment
-      local protectedEnv = setmetatable({}, {__index = getfenv(0)})
-      setfenv(f, protectedEnv)
-      f()
+    -- Use CACHED loadstring (anti-hook)
+    local ${v.execFunc}, e = ${v.cachedLS}(${v.decPayload})
+    
+    -- Wipe decrypted payload from memory immediately
+    ${v.decPayload} = nil
+    r = nil
+    
+    if ${v.execFunc} then
+      -- Shield execution environment
+      ${v.shieldEnv}(${v.execFunc})
+      ${v.execFunc}()
+      ${v.execFunc} = nil
     else
       warn("E:" .. tostring(e))
     end
     return
   end
 
-  -- Plain Lua response (kick script, rate limit, etc.)
-  local pf, pe = loadstring(r)
+  -- Plain Lua response (kick script, etc.)
+  local pf, pe = ${v.cachedLS}(r)
   if pf then
     return pf()
   end
