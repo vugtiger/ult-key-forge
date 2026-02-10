@@ -747,6 +747,8 @@ const Pastebin = () => {
                       protection is enabled.
                     </p>
                   </div>
+                  </div>
+                </TabsContent>
 
                 <TabsContent value="time">
                   <WhitelistTimeManager 
