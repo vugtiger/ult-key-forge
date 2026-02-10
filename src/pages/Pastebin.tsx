@@ -270,6 +270,48 @@ const Pastebin = () => {
     }
   };
 
+  const toggleLoadingBar = async (pasteId: string, enabled: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('pastes')
+        .update({ show_loading_bar: enabled } as any)
+        .eq('id', pasteId);
+
+      if (error) throw error;
+
+      toast({ 
+        title: enabled ? "Loading Bar Enabled" : "Loading Bar Disabled",
+        description: enabled 
+          ? "Users will see a verification loading bar in console" 
+          : "Loading bar disabled"
+      });
+      fetchPastes();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const toggleWelcomeMessage = async (pasteId: string, enabled: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('pastes')
+        .update({ show_welcome_message: enabled } as any)
+        .eq('id', pasteId);
+
+      if (error) throw error;
+
+      toast({ 
+        title: enabled ? "Welcome Message Enabled" : "Welcome Message Disabled",
+        description: enabled 
+          ? "Users will see a welcome message with their username in console" 
+          : "Welcome message disabled"
+      });
+      fetchPastes();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
   const addAccessEntry = async (accessType: 'whitelist' | 'blacklist') => {
     if (!selectedPasteId) {
       toast({ title: "Error", description: "Please select a paste first", variant: "destructive" });
