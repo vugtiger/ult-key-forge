@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe, EyeOff } from "lucide-react";
+import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe, EyeOff, Terminal, Hand } from "lucide-react";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
 import luaLogo from "@/assets/lua-logo.png";
 
