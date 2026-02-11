@@ -118,8 +118,8 @@ const AppSidebar = ({ user }: { user: User | null }) => {
       <SidebarContent className="bg-sidebar border-r border-sidebar-border">
         <div className="p-4 border-b border-sidebar-border">
           {state !== "collapsed" && (
-            <h1 className="text-lg font-bold tracking-wider">
-              ULT <span className="text-primary red-glow-text">LUA</span>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-sidebar-primary to-sidebar-primary/50 bg-clip-text text-transparent">
+              ULT LUA
             </h1>
           )}
         </div>

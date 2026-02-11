@@ -2,52 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
 
 @layer base {
   :root {
     --background: 0 0% 3%;
-    --foreground: 0 0% 93%;
+    --foreground: 0 0% 98%;
 
-    --card: 0 0% 6%;
-    --card-foreground: 0 0% 93%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 6%;
-    --popover-foreground: 0 0% 93%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 0 85% 55%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 3%;
 
     --secondary: 0 0% 10%;
-    --secondary-foreground: 0 0% 93%;
+    --secondary-foreground: 0 0% 98%;
 
     --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 55%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 0 30% 12%;
-    --accent-foreground: 0 0% 93%;
+    --accent: 0 0% 12%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 20% 15%;
-    --input: 0 10% 12%;
-    --ring: 0 85% 55%;
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
+    --ring: 0 0% 90%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --cyber-glow: 0 85% 55%;
-    --cyber-glow-intense: 0 90% 60%;
-    --grid-color: 0 20% 8%;
+    --cyber-glow: 0 0% 100%;
+    --cyber-glow-intense: 0 0% 100%;
+    --grid-color: 0 0% 15%;
     
     --sidebar-background: 0 0% 4%;
-    --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 0 85% 55%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 20% 10%;
-    --sidebar-accent-foreground: 0 0% 93%;
-    --sidebar-border: 0 20% 12%;
-    --sidebar-ring: 0 85% 55%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 0 0% 3%;
+    --sidebar-accent: 0 0% 8%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 0 0% 90%;
   }
 }
 
@@ -58,16 +60,12 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Rajdhani', system-ui, -apple-system, sans-serif;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Orbitron', monospace;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
   @keyframes cyber-pulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 0.8; }
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
   }
 
   @keyframes grid-shift {
@@ -75,32 +73,10 @@
     100% { background-position: 50px 50px; }
   }
 
-  @keyframes red-pulse {
-    0%, 100% { 
-      box-shadow: 0 0 20px hsla(0, 85%, 55%, 0.2), 0 0 40px hsla(0, 85%, 55%, 0.1);
-    }
-    50% { 
-      box-shadow: 0 0 30px hsla(0, 85%, 55%, 0.4), 0 0 60px hsla(0, 85%, 55%, 0.2);
-    }
-  }
-
-  @keyframes scanline {
-    0% { transform: translateY(-100%); }
-    100% { transform: translateY(100%); }
-  }
-
   .cyber-glow {
     box-shadow: 
-      0 0 15px hsla(var(--cyber-glow) / 0.3),
-      0 0 30px hsla(var(--cyber-glow) / 0.15),
-      inset 0 0 15px hsla(var(--cyber-glow) / 0.05);
-    transition: box-shadow 0.3s ease;
-  }
-
-  .cyber-glow:hover {
-    box-shadow: 
-      0 0 25px hsla(var(--cyber-glow) / 0.5),
-      0 0 50px hsla(var(--cyber-glow) / 0.25),
+      0 0 20px hsla(var(--cyber-glow) / 0.3),
+      0 0 40px hsla(var(--cyber-glow) / 0.2),
       inset 0 0 20px hsla(var(--cyber-glow) / 0.1);
   }
 
@@ -113,7 +89,7 @@
     content: '';
     position: absolute;
     inset: -1px;
-    background: linear-gradient(135deg, transparent 30%, hsl(var(--primary) / 0.4) 50%, transparent 70%);
+    background: linear-gradient(45deg, transparent, hsl(var(--cyber-glow) / 0.5), transparent);
     border-radius: inherit;
     opacity: 0;
     transition: opacity 0.3s;
@@ -133,26 +109,7 @@
     animation: grid-shift 20s linear infinite;
   }
 
-  .red-glow-text {
-    text-shadow: 
-      0 0 10px hsl(var(--primary) / 0.5),
-      0 0 20px hsl(var(--primary) / 0.3),
-      0 0 40px hsl(var(--primary) / 0.15);
-  }
-
-  .scanline-overlay::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      transparent 50%,
-      hsl(var(--primary) / 0.03) 50%
-    );
-    background-size: 100% 4px;
-    pointer-events: none;
-  }
-
-  /* Neon text effect */
+  /* Neon text effect - soft outer glow like neon lights */
   .neon-text-enabled h1,
   .neon-text-enabled h2,
   .neon-text-enabled h3,
