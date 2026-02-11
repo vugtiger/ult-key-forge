@@ -51,6 +51,7 @@ const Pastebin = () => {
   const [pastes, setPastes] = useState<Paste[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [consoleFeedbackMap, setConsoleFeedbackMap] = useState<Record<string, boolean>>({});
   
   // Access control state
   const [selectedPasteId, setSelectedPasteId] = useState<string>("");
@@ -270,41 +271,21 @@ const Pastebin = () => {
     }
   };
 
-  const toggleLoadingBar = async (pasteId: string, enabled: boolean) => {
+  const toggleConsoleFeedback = async (pasteId: string, enabled: boolean) => {
     try {
       const { error } = await supabase
         .from('pastes')
-        .update({ show_loading_bar: enabled } as any)
+        .update({ show_loading_bar: enabled, show_welcome_message: enabled } as any)
         .eq('id', pasteId);
 
       if (error) throw error;
 
+      setConsoleFeedbackMap(prev => ({ ...prev, [pasteId]: enabled }));
       toast({ 
-        title: enabled ? "Loading Bar Enabled" : "Loading Bar Disabled",
+        title: enabled ? "Console Feedback Enabled" : "Console Feedback Disabled",
         description: enabled 
-          ? "Users will see a verification loading bar in console" 
-          : "Loading bar disabled"
-      });
-      fetchPastes();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
-
-  const toggleWelcomeMessage = async (pasteId: string, enabled: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('pastes')
-        .update({ show_welcome_message: enabled } as any)
-        .eq('id', pasteId);
-
-      if (error) throw error;
-
-      toast({ 
-        title: enabled ? "Welcome Message Enabled" : "Welcome Message Disabled",
-        description: enabled 
-          ? "Users will see a welcome message with their username in console" 
-          : "Welcome message disabled"
+          ? "Users will see an animated loading bar and welcome message in console" 
+          : "Console feedback disabled"
       });
       fetchPastes();
     } catch (error: any) {
@@ -694,57 +675,35 @@ const Pastebin = () => {
                     </p>
                   </div>
 
-                  {/* Loading Bar */}
+                  {/* Console Feedback (combined) */}
                   <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Terminal className="h-5 w-5 text-primary" />
                         <div>
                           <h4 className="font-medium flex items-center gap-2">
-                            Console Loading Bar
+                            Console Feedback
                             <Badge variant="outline" className="text-[10px]">NEW</Badge>
                           </h4>
                           <p className="text-xs text-muted-foreground">
-                            Shows a verification loading bar in Roblox console
+                            Animated loading bar + welcome message in Roblox console
                           </p>
                         </div>
                       </div>
                       <Switch
-                        checked={(selectedPaste as any).show_loading_bar !== false}
-                        onCheckedChange={(checked) => toggleLoadingBar(selectedPaste.id, checked)}
+                        checked={
+                          consoleFeedbackMap[selectedPaste.id] !== undefined 
+                            ? consoleFeedbackMap[selectedPaste.id] 
+                            : ((selectedPaste as any).show_loading_bar !== false)
+                        }
+                        onCheckedChange={(checked) => toggleConsoleFeedback(selectedPaste.id, checked)}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
-                      When enabled, whitelisted users see a cool loading bar in the Roblox console
-                      while the system verifies their identity. Shows progress like "Checking whitelist...",
-                      "Verifying identity...", etc. Only works when protection is enabled.
-                    </p>
-                  </div>
-
-                  {/* Welcome Message */}
-                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Hand className="h-5 w-5 text-primary" />
-                        <div>
-                          <h4 className="font-medium flex items-center gap-2">
-                            Welcome Message
-                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
-                          </h4>
-                          <p className="text-xs text-muted-foreground">
-                            Greets verified users by their Roblox username in console
-                          </p>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={(selectedPaste as any).show_welcome_message !== false}
-                        onCheckedChange={(checked) => toggleWelcomeMessage(selectedPaste.id, checked)}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
-                      When enabled and IP tracking is on, after successful verification the console
-                      prints "Welcome, [username]!" using their Roblox display name. Only works when
-                      protection is enabled.
+                      When enabled, users see an animated verification progress bar in the Roblox 
+                      console with real-time status updates. After successful verification, a 
+                      personalized welcome message greets the user by their Roblox display name.
+                      Works with all protection modes.
                     </p>
                   </div>
                 </TabsContent>
