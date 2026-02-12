@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe, EyeOff, Terminal, Hand } from "lucide-react";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
-import luaLogo from "@/assets/lua-logo.png";
+import CloudLogo from "@/components/CloudLogo";
 
 interface Paste {
   id: string;
@@ -372,7 +372,7 @@ const Pastebin = () => {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <img src={luaLogo} alt="Lua Logo" className="h-12 w-12 object-contain" />
+          <CloudLogo size={48} className="text-foreground" />
           <div>
             <h1 className="text-2xl font-bold">Pastebin</h1>
             <p className="text-muted-foreground">Upload and share your Lua scripts with raw links</p>

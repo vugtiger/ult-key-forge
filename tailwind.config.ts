@@ -58,6 +58,7 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
         "cyber-glow": "hsl(var(--cyber-glow))",
+        "cloud-glow": "hsl(var(--cyber-glow))",
       },
       borderRadius: {
         lg: "var(--radius)",

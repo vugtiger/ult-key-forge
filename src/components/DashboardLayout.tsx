@@ -20,6 +20,7 @@ import { NavLink } from "@/components/NavLink";
 import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
+import CloudLogo from "@/components/CloudLogo";
 
 const navigationItems = [
   { title: "Key System Gen", url: "/dashboard", icon: Zap },
@@ -98,17 +99,12 @@ const AppSidebar = ({ user }: { user: User | null }) => {
   const { isAdmin } = useAdminStatus(user?.id);
 
   const handleLogout = async () => {
-    // Reset theme before logout
     resetTheme();
-    
     try {
       await supabase.auth.signOut();
     } catch (error) {
-      // Ignore errors - session may already be invalid
       console.log('Logout error (session may already be expired):', error);
     }
-    
-    // Always clear local storage and navigate regardless of signOut result
     localStorage.removeItem('sb-iyfvpnjrghsownkpazec-auth-token');
     navigate("/auth");
   };
@@ -116,29 +112,27 @@ const AppSidebar = ({ user }: { user: User | null }) => {
   return (
     <Sidebar className={state === "collapsed" ? "w-14" : "w-64"} collapsible="icon">
       <SidebarContent className="bg-sidebar border-r border-sidebar-border">
-        <div className="p-4 border-b border-sidebar-border">
-          {state !== "collapsed" && (
-            <h1 className="text-lg font-bold tracking-wider">
-              ULT <span className="text-primary red-glow-text">LUA</span>
-            </h1>
+        <div className="p-4 border-b border-sidebar-border flex items-center gap-3">
+          {state !== "collapsed" ? (
+            <>
+              <CloudLogo size={28} className="text-foreground" />
+              <h1 className="text-lg font-bold tracking-wider">
+                ULT <span className="text-primary cloud-glow-text">CLOUD</span>
+              </h1>
+            </>
+          ) : (
+            <CloudLogo size={24} className="text-foreground" />
           )}
         </div>
 
         <SidebarGroup>
-          <SidebarGroupLabel className={state === "collapsed" ? "sr-only" : ""}>
-            Main Menu
-          </SidebarGroupLabel>
+          <SidebarGroupLabel className={state === "collapsed" ? "sr-only" : ""}>Main Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      end
-                      className="hover:bg-sidebar-accent"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                    >
+                    <NavLink to={item.url} end className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
                       <item.icon className={state === "collapsed" ? "" : "mr-2"} size={20} />
                       {state !== "collapsed" && <span>{item.title}</span>}
                     </NavLink>
@@ -151,20 +145,13 @@ const AppSidebar = ({ user }: { user: User | null }) => {
 
         {isAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel className={state === "collapsed" ? "sr-only" : ""}>
-              Admin
-            </SidebarGroupLabel>
+            <SidebarGroupLabel className={state === "collapsed" ? "sr-only" : ""}>Admin</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {adminItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
-                      <NavLink
-                        to={item.url}
-                        end
-                        className="hover:bg-sidebar-accent"
-                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                      >
+                      <NavLink to={item.url} end className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
                         <item.icon className={state === "collapsed" ? "" : "mr-2"} size={20} />
                         {state !== "collapsed" && <span>{item.title}</span>}
                       </NavLink>
@@ -177,11 +164,7 @@ const AppSidebar = ({ user }: { user: User | null }) => {
         )}
 
         <div className="mt-auto p-4 border-t border-sidebar-border">
-          <Button
-            variant="ghost"
-            className="w-full justify-start hover:bg-sidebar-accent"
-            onClick={handleLogout}
-          >
+          <Button variant="ghost" className="w-full justify-start hover:bg-sidebar-accent" onClick={handleLogout}>
             <LogOut className={state === "collapsed" ? "" : "mr-2"} size={20} />
             {state !== "collapsed" && <span>Logout</span>}
           </Button>
@@ -202,18 +185,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   useEffect(() => {
     const loadUserTheme = async (userId: string) => {
       try {
-        const { data } = await supabase
-          .from('user_themes')
-          .select('primary_color, neon_enabled, ult_lua_style')
-          .eq('user_id', userId)
-          .single();
-        
+        const { data } = await supabase.from('user_themes').select('primary_color, neon_enabled, ult_lua_style').eq('user_id', userId).single();
         if (data) {
-          applyTheme(
-            data.primary_color, 
-            data.neon_enabled || false, 
-            data.ult_lua_style || false
-          );
+          applyTheme(data.primary_color, data.neon_enabled || false, data.ult_lua_style || false);
         }
       } catch (error) {
         console.error('Error loading theme:', error);
@@ -222,36 +196,20 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
     const trackLogin = async (userId: string) => {
       try {
-        await supabase.functions.invoke('track-ip', {
-          body: { user_id: userId, action: 'login' }
-        });
+        await supabase.functions.invoke('track-ip', { body: { user_id: userId, action: 'login' } });
       } catch (error) {
         console.error('Error tracking IP:', error);
       }
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        resetTheme();
-        navigate("/auth");
-      } else {
-        setUser(session.user);
-        loadUserTheme(session.user.id);
-        trackLogin(session.user.id);
-      }
+      if (!session) { resetTheme(); navigate("/auth"); }
+      else { setUser(session.user); loadUserTheme(session.user.id); trackLogin(session.user.id); }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        resetTheme();
-        navigate("/auth");
-      } else {
-        setUser(session.user);
-        if (event === 'SIGNED_IN') {
-          loadUserTheme(session.user.id);
-          trackLogin(session.user.id);
-        }
-      }
+      if (!session) { resetTheme(); navigate("/auth"); }
+      else { setUser(session.user); if (event === 'SIGNED_IN') { loadUserTheme(session.user.id); trackLogin(session.user.id); } }
     });
 
     return () => subscription.unsubscribe();
@@ -261,19 +219,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background">
+      <div className="flex min-h-screen w-full bg-background overflow-x-hidden">
         <AppSidebar user={user} />
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           <header className="h-16 border-b border-border flex items-center px-6 sticky top-0 bg-background/80 backdrop-blur-xl z-10">
             <SidebarTrigger className="mr-4" />
             <div className="flex-1" />
           </header>
-          <main className="flex-1 overflow-auto p-6">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
             {children}
           </main>
         </div>
       </div>
-      
     </SidebarProvider>
   );
 };
