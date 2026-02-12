@@ -696,63 +696,38 @@ end
 ${protectionSeed > 0.5 ? `if not ${v.antiLogger}() then return end` : `if not ${v.antiDump}() then return end`}
 
 ${options?.showConsoleFeedback ? `
--- Animated Console Feedback with real-time verification
-local ${v.junk5} = function(msg, pct)
-  local barLen = 30
+-- Console Feedback: milestone-only loading bar (no spam)
+local function ${v.junk5}(msg, pct)
+  local barLen = 20
   local filled = math.floor(barLen * pct / 100)
   local empty = barLen - filled
-  local bar = "[" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "%"
-  print("[ULT] " .. msg .. " " .. bar)
+  print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
 end
 
--- Phase 1: Environment check (real)
-${v.junk5}("Initializing protection...", 5)
-task.wait(0.05)
+-- Phase 1: Environment (real check)
+${v.junk5}("Scanning environment...", 0)
+task.wait(0.1)
 
--- Animated progress for environment verification
-for pctStep = 10, 20, 2 do
-  ${v.junk5}("Verifying environment...", pctStep)
-  task.wait(0.03)
-end
-
--- Phase 2: Real anti-logger check
+-- Phase 2: Anti-logger (real check)
 local ${v.junk7} = ${v.antiLogger}()
-for pctStep = 25, 40, 3 do
-  ${v.junk5}("Scanning for loggers...", pctStep)
-  task.wait(0.03)
-end
 if not ${v.junk7} then
-  print("[ULT] Logger detected - aborting.")
+  print("[ULT PROTECTION] Logger detected - aborting.")
   return
 end
-${v.junk5}("Logger scan clean.", 40)
-task.wait(0.02)
+${v.junk5}("Logger scan clean.", 25)
+task.wait(0.1)
 
--- Phase 3: Real anti-dump check
+-- Phase 3: Integrity (real check)
 local ${v.junk8} = ${v.antiDump}()
-for pctStep = 45, 55, 2 do
-  ${v.junk5}("Checking integrity...", pctStep)
-  task.wait(0.03)
-end
 if not ${v.junk8} then
-  print("[ULT] Integrity check failed - aborting.")
+  print("[ULT PROTECTION] Integrity check failed - aborting.")
   return
 end
-${v.junk5}("Integrity verified.", 55)
-task.wait(0.02)
+${v.junk5}("Integrity verified.", 50)
+task.wait(0.1)
 
--- Phase 4: Token reconstruction (real)
-for pctStep = 58, 70, 3 do
-  ${v.junk5}("Reconstructing token...", pctStep)
-  task.wait(0.02)
-end
-${v.junk5}("Token ready.", 70)
-
--- Phase 5: Building request
-for pctStep = 72, 80, 2 do
-  ${v.junk5}("Connecting to server...", pctStep)
-  task.wait(0.03)
-end
+-- Phase 4: Token + Connection
+${v.junk5}("Connecting to server...", 75)
 ` : ''}
 
 -- Execute request using CACHED HttpGet (anti-hook)
