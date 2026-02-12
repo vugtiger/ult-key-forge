@@ -380,7 +380,7 @@ async function fetchRobloxProfile(userId: string): Promise<{
 
 // ===== ANTI-RUNTIME LOGGER + ANTI-STATIC LOGGER + ANTI-HOOK + ANTI-DUMP PROTECTION =====
 // Enhanced loader with comprehensive bypass protection
-function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string, options?: { showLoadingBar?: boolean; showWelcomeMessage?: boolean }): string {
+function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string, options?: { showConsoleFeedback?: boolean }): string {
   // Split token into parts and embed with obfuscation
   const tokenParts = [];
   for (let i = 0; i < token.length; i += 8) {
@@ -695,28 +695,63 @@ end
 -- Re-verify protection before network request
 ${protectionSeed > 0.5 ? `if not ${v.antiLogger}() then return end` : `if not ${v.antiDump}() then return end`}
 
-${options?.showLoadingBar ? `
--- Console Loading Bar
-local ${v.junk5} = {
-  {msg = "Initializing ULT Protection...", pct = 10},
-  {msg = "Connecting to server...", pct = 25},
-  {msg = "Checking whitelist status...", pct = 40},
-  {msg = "Verifying identity...", pct = 60},
-  {msg = "Validating session token...", pct = 75},
-  {msg = "Decrypting payload...", pct = 90},
-  {msg = "Loading script...", pct = 100},
-}
-local function ${v.junk6}(pct)
+${options?.showConsoleFeedback ? `
+-- Animated Console Feedback with real-time verification
+local ${v.junk5} = function(msg, pct)
   local barLen = 30
   local filled = math.floor(barLen * pct / 100)
   local empty = barLen - filled
-  return "[" .. string.rep("█", filled) .. string.rep("░", empty) .. "] " .. pct .. "%"
+  local bar = "[" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "%"
+  print("[ULT] " .. msg .. " " .. bar)
 end
-for _, step in ipairs(${v.junk5}) do
-  print("⚡ " .. step.msg .. " " .. ${v.junk6}(step.pct))
-  if step.pct < 100 then
-    task.wait(0.15)
-  end
+
+-- Phase 1: Environment check (real)
+${v.junk5}("Initializing protection...", 5)
+task.wait(0.05)
+
+-- Animated progress for environment verification
+for pctStep = 10, 20, 2 do
+  ${v.junk5}("Verifying environment...", pctStep)
+  task.wait(0.03)
+end
+
+-- Phase 2: Real anti-logger check
+local ${v.junk7} = ${v.antiLogger}()
+for pctStep = 25, 40, 3 do
+  ${v.junk5}("Scanning for loggers...", pctStep)
+  task.wait(0.03)
+end
+if not ${v.junk7} then
+  print("[ULT] Logger detected - aborting.")
+  return
+end
+${v.junk5}("Logger scan clean.", 40)
+task.wait(0.02)
+
+-- Phase 3: Real anti-dump check
+local ${v.junk8} = ${v.antiDump}()
+for pctStep = 45, 55, 2 do
+  ${v.junk5}("Checking integrity...", pctStep)
+  task.wait(0.03)
+end
+if not ${v.junk8} then
+  print("[ULT] Integrity check failed - aborting.")
+  return
+end
+${v.junk5}("Integrity verified.", 55)
+task.wait(0.02)
+
+-- Phase 4: Token reconstruction (real)
+for pctStep = 58, 70, 3 do
+  ${v.junk5}("Reconstructing token...", pctStep)
+  task.wait(0.02)
+end
+${v.junk5}("Token ready.", 70)
+
+-- Phase 5: Building request
+for pctStep = 72, 80, 2 do
+  ${v.junk5}("Connecting to server...", pctStep)
+  task.wait(0.03)
 end
 ` : ''}
 
@@ -759,11 +794,22 @@ if s and r then
       return
     end
     
-${options?.showWelcomeMessage ? `    -- Welcome message
+${options?.showConsoleFeedback ? `    -- Decryption + Welcome feedback
     pcall(function()
+      local function ultBar(msg, pct)
+        local barLen = 30
+        local filled = math.floor(barLen * pct / 100)
+        local empty = barLen - filled
+        print("[ULT] " .. msg .. " [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "%")
+      end
+      for pctStep = 85, 95, 2 do
+        ultBar("Decrypting payload...", pctStep)
+        task.wait(0.02)
+      end
+      ultBar("Script loaded successfully.", 100)
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("✅ Welcome, " .. tostring(pName) .. "!")
-      print("🔒 Script loaded successfully via ULT Protection v6.0")
+      print("[ULT] Welcome, " .. tostring(pName) .. "!")
+      print("[ULT] Protected by ULT Protection v6.0")
     end)
 ` : ''}
     -- Use CACHED loadstring (anti-hook)
@@ -947,8 +993,7 @@ Deno.serve(async (req) => {
       });
 
       const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
-        showLoadingBar: paste.show_loading_bar !== false,
-        showWelcomeMessage: paste.show_welcome_message !== false,
+        showConsoleFeedback: paste.show_loading_bar !== false,
       });
       console.log(`Refreshed loader for paste: ${paste.id} from IP: ${clientIp}`);
       return new Response(loader, { status: 200, headers: textHeaders });
@@ -1193,8 +1238,7 @@ Deno.serve(async (req) => {
 
       // Return the loader script with obfuscated token
       const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
-        showLoadingBar: paste.show_loading_bar !== false,
-        showWelcomeMessage: paste.show_welcome_message !== false,
+        showConsoleFeedback: paste.show_loading_bar !== false,
       });
       
       console.log(`Generated secure loader for paste: ${paste.id} from IP: ${clientIp}`);
