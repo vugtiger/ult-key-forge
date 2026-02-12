@@ -3,13 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, Key, Shield, Database, Bot, Palette, Save, Zap, Code, MessageSquare, ExternalLink, Sparkles, EyeOff, Clock, Lock, Terminal, TrendingUp } from "lucide-react";
+import { ArrowRight, Key, Shield, Database, Bot, Palette, Save, Zap, Code, MessageSquare, ExternalLink, Sparkles, EyeOff, Clock, Lock, Terminal, TrendingUp, Cloud } from "lucide-react";
 import KeySystemPreview from "@/components/KeySystemPreview";
 import AIAssistantDemo from "@/components/AIAssistantDemo";
 import ReviewsSection from "@/components/ReviewsSection";
 import LastUpdatedBadge from "@/components/LastUpdatedBadge";
 import GoogleTranslate from "@/components/GoogleTranslate";
-import luaLogo from "@/assets/lua-logo.png";
+import CloudLogo from "@/components/CloudLogo";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -48,25 +48,19 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Animated grid background */}
-      <div className="absolute inset-0 grid-bg opacity-20" />
-      
-      {/* Red glow effects */}
-      <div className="absolute top-[-200px] left-1/4 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[150px]" />
-      <div className="absolute bottom-[-200px] right-1/4 w-[500px] h-[500px] bg-primary/8 rounded-full blur-[150px]" />
-      <div className="absolute top-1/2 left-[-100px] w-[300px] h-[300px] bg-primary/3 rounded-full blur-[100px]" />
+    <div className="min-h-screen bg-background relative overflow-hidden cloud-bg">
+      {/* Cloud ambient effects */}
+      <div className="absolute top-[-200px] left-1/4 w-[600px] h-[600px] bg-foreground/[0.02] rounded-full blur-[150px]" />
+      <div className="absolute bottom-[-200px] right-1/4 w-[500px] h-[500px] bg-foreground/[0.03] rounded-full blur-[150px]" />
+      <div className="absolute top-1/2 left-[-100px] w-[300px] h-[300px] bg-foreground/[0.015] rounded-full blur-[100px]" />
 
       <div className="relative z-10">
         {/* Navigation */}
         <nav className="container mx-auto px-4 py-6 flex items-center justify-between border-b border-border/30">
           <div className="flex items-center gap-4">
-            <div className="relative">
-              <img src={luaLogo} alt="Lua Logo" className="h-10 w-10 object-contain" />
-              <div className="absolute inset-0 bg-primary/20 rounded-full blur-md" />
-            </div>
+            <CloudLogo size={40} className="text-foreground" />
             <h2 className="text-xl font-bold tracking-wider text-foreground">
-              ULT <span className="text-primary red-glow-text">LUA</span> PROTECTS
+              ULT <span className="text-primary cloud-glow-text">CLOUD</span>
             </h2>
             <LastUpdatedBadge />
           </div>
@@ -93,23 +87,22 @@ const Index = () => {
         <div className="container mx-auto px-4 py-8">
           {/* Hero Section */}
           <div className="text-center mb-24 space-y-8 pt-16 relative">
-            {/* Decorative lines */}
             <div className="absolute left-1/2 top-0 w-px h-16 bg-gradient-to-b from-transparent to-primary/30 -translate-x-1/2" />
             
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 border border-primary/20 rounded-full text-sm text-primary mb-4">
-              <Lock size={14} />
-              <span className="font-medium">Protection v6.0 -- Advanced Security</span>
+              <Cloud size={14} />
+              <span className="font-medium">Protection v6.0 -- Cloud Security</span>
             </div>
 
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-none">
               <span className="text-foreground">ULT</span>
-              <span className="text-primary red-glow-text"> LUA </span>
+              <span className="text-primary cloud-glow-text"> CLOUD </span>
               <span className="text-foreground">PROTECTS</span>
             </h1>
             
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-light tracking-wide">
               Advanced key system management and Roblox script protection platform. 
-              Military-grade encryption. Zero compromises.
+              Cloud-grade encryption. Zero compromises.
             </p>
 
             {/* Stats Row */}
@@ -146,11 +139,7 @@ const Index = () => {
                 Get Started
                 <ArrowRight className="ml-2" size={22} />
               </Button>
-              <a
-                href="https://discord.gg/hPywsq3yqw"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
                 <Button 
                   variant="outline" 
                   size="lg" 
@@ -169,9 +158,7 @@ const Index = () => {
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary uppercase tracking-widest mb-4">
                 Core Features
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold mb-3">
-                Everything You Need
-              </h2>
+              <h2 className="text-3xl md:text-4xl font-bold mb-3">Everything You Need</h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">
                 A complete toolkit for protecting your Roblox scripts with professional-grade key systems
               </p>
@@ -179,10 +166,7 @@ const Index = () => {
             
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
               {features.map((feature, index) => (
-                <Card
-                  key={index}
-                  className="p-6 bg-card/60 backdrop-blur-xl border-border/50 hover:border-primary/30 transition-all duration-300 group relative overflow-hidden"
-                >
+                <Card key={index} className="p-6 bg-card/60 backdrop-blur-xl border-border/50 hover:border-primary/30 transition-all duration-300 group relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="relative">
                     <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
@@ -203,23 +187,14 @@ const Index = () => {
                 <Sparkles className="w-3 h-3" />
                 Latest Updates
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold mb-3">
-                What's New
-              </h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                Latest features and improvements to the platform
-              </p>
+              <h2 className="text-3xl md:text-4xl font-bold mb-3">What's New</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">Latest features and improvements to the platform</p>
             </div>
             
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
               {newFeatures.map((feature, index) => (
-                <Card
-                  key={index}
-                  className="p-6 bg-card/60 backdrop-blur-xl border-border/50 hover:border-primary/30 transition-all duration-300 group relative overflow-hidden"
-                >
-                  <div className="absolute top-3 right-3 bg-primary/20 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                    New
-                  </div>
+                <Card key={index} className="p-6 bg-card/60 backdrop-blur-xl border-border/50 hover:border-primary/30 transition-all duration-300 group relative overflow-hidden">
+                  <div className="absolute top-3 right-3 bg-primary/20 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">New</div>
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="relative">
                     <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
@@ -236,15 +211,9 @@ const Index = () => {
           {/* Key System Preview Section */}
           <section className="max-w-6xl mx-auto mb-28">
             <div className="text-center mb-14">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary uppercase tracking-widest mb-4">
-                Preview
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold mb-3">
-                Key System Preview
-              </h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                See exactly what your users will see when they use your key system in Roblox
-              </p>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary uppercase tracking-widest mb-4">Preview</div>
+              <h2 className="text-3xl md:text-4xl font-bold mb-3">Key System Preview</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">See exactly what your users will see when they use your key system in Roblox</p>
             </div>
             <KeySystemPreview />
           </section>
@@ -252,15 +221,9 @@ const Index = () => {
           {/* AI Assistant Preview Section */}
           <section className="max-w-6xl mx-auto mb-28">
             <div className="text-center mb-14">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary uppercase tracking-widest mb-4">
-                AI Powered
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold mb-3">
-                AI Assistant
-              </h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                Get help with Roblox scripts, website building, and more with our powerful AI assistant
-              </p>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary uppercase tracking-widest mb-4">AI Powered</div>
+              <h2 className="text-3xl md:text-4xl font-bold mb-3">AI Assistant</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">Get help with Roblox scripts, websites, and more with our powerful AI assistant</p>
             </div>
             <AIAssistantDemo />
           </section>
@@ -271,13 +234,13 @@ const Index = () => {
           {/* About Section */}
           <section className="max-w-5xl mx-auto mb-28">
             <div className="text-center mb-14">
-              <h2 className="text-3xl md:text-4xl font-bold mb-3">About ULT LUA PROTECTS</h2>
+              <h2 className="text-3xl md:text-4xl font-bold mb-3">About ULT CLOUD PROTECTS</h2>
             </div>
             <Card className="p-8 bg-card/60 backdrop-blur-xl border-border/50 relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/3 to-transparent" />
               <div className="relative space-y-6">
                 <p className="text-lg text-muted-foreground">
-                  ULT LUA Protects is a comprehensive key system generator and script management platform designed specifically for Roblox developers.
+                  ULT Cloud Protects is a comprehensive key system generator and script management platform designed specifically for Roblox developers.
                 </p>
                 <div className="grid md:grid-cols-2 gap-8">
                   <div className="space-y-3">
@@ -330,21 +293,13 @@ const Index = () => {
               <div className="relative">
                 <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
                 <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
-                  Join thousands of developers using ULT LUA Protects to secure their scripts
+                  Join thousands of developers using ULT Cloud Protects to secure their scripts
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-4">
-                  <Button
-                    onClick={() => navigate("/auth")}
-                    className="cyber-glow bg-primary text-primary-foreground hover:bg-primary/90 px-8"
-                    size="lg"
-                  >
+                  <Button onClick={() => navigate("/auth")} className="cyber-glow bg-primary text-primary-foreground hover:bg-primary/90 px-8" size="lg">
                     Create Free Account
                   </Button>
-                  <a
-                    href="https://discord.gg/hPywsq3yqw"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                  <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
                     <Button variant="outline" size="lg" className="gap-2 border-primary/30 hover:bg-primary/10">
                       <MessageSquare size={18} className="text-primary" />
                       Join Discord
@@ -358,7 +313,7 @@ const Index = () => {
           {/* Footer */}
           <footer className="border-t border-border/30 pt-8 pb-4">
             <div className="text-center text-sm text-muted-foreground">
-              <p>ULT <span className="text-primary">LUA</span> PROTECTS -- 100% Free Forever</p>
+              <p>ULT <span className="text-primary">CLOUD</span> PROTECTS -- 100% Free Forever</p>
             </div>
           </footer>
         </div>

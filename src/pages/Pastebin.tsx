@@ -372,7 +372,7 @@ const Pastebin = () => {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <img src={luaLogo} alt="Lua Logo" className="h-12 w-12 object-contain" />
+          <CloudLogo size={48} className="text-foreground" />
           <div>
             <h1 className="text-2xl font-bold">Pastebin</h1>
             <p className="text-muted-foreground">Upload and share your Lua scripts with raw links</p>
