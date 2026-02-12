@@ -769,22 +769,18 @@ if s and r then
       return
     end
     
-${options?.showConsoleFeedback ? `    -- Decryption + Welcome feedback
+${options?.showConsoleFeedback ? `    -- Final milestone prints
     pcall(function()
       local function ultBar(msg, pct)
-        local barLen = 30
+        local barLen = 20
         local filled = math.floor(barLen * pct / 100)
         local empty = barLen - filled
-        print("[ULT] " .. msg .. " [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "%")
-      end
-      for pctStep = 85, 95, 2 do
-        ultBar("Decrypting payload...", pctStep)
-        task.wait(0.02)
+        print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
       end
       ultBar("Script loaded successfully.", 100)
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("[ULT] Welcome, " .. tostring(pName) .. "!")
-      print("[ULT] Protected by ULT Protection v6.0")
+      print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
+      print("[ULT PROTECTION] Protected by ULT Protection v6.0")
     end)
 ` : ''}
     -- Use CACHED loadstring (anti-hook)
