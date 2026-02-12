@@ -67,7 +67,7 @@
   }
 
   a, button, [role="button"], input[type="submit"], select, label[for] {
-    cursor: url('/cloud-cursor.png') 16 16, pointer;
+    cursor: url('/cloud-cursor.svg') 16 16, pointer;
   }
 
   h1, h2, h3, h4, h5, h6 {
