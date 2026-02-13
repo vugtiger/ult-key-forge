@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, ArrowLeft, Cloud } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import CloudLogo from "@/components/CloudLogo";
+import CloudBackground from "@/components/CloudBackground";
+import SnowEffect from "@/components/SnowEffect";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -74,10 +76,9 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center cloud-bg">
-      {/* Cloud ambient */}
-      <div className="absolute top-[-100px] left-1/3 w-[500px] h-[500px] bg-foreground/[0.02] rounded-full blur-[150px]" />
-      <div className="absolute bottom-[-100px] right-1/3 w-[400px] h-[400px] bg-foreground/[0.03] rounded-full blur-[120px]" />
+    <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+      <CloudBackground />
+      <SnowEffect />
 
       <div className="relative z-10 w-full max-w-md px-4">
         <Button
@@ -89,12 +90,11 @@ const Auth = () => {
           Back to Home
         </Button>
 
-        <Card className="p-8 bg-card/70 backdrop-blur-xl border-border/50 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
+        <Card className="p-8 bg-card/50 backdrop-blur-xl border-border/30 relative overflow-hidden rounded-2xl">
           <div className="relative">
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 border border-primary/20 mb-4">
-                <Cloud className="w-6 h-6 text-primary" />
+              <div className="inline-flex items-center justify-center mb-4">
+                <CloudLogo size={56} className="text-primary" />
               </div>
               <h1 className="text-2xl font-bold tracking-wider">
                 ULT <span className="text-primary cloud-glow-text">CLOUD</span>
@@ -107,18 +107,18 @@ const Auth = () => {
             <form onSubmit={handleAuth} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm text-muted-foreground">Email</Label>
-                <Input id="email" type="email" placeholder="your@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-background/50 border-border focus:border-primary/50" />
+                <Input id="email" type="email" placeholder="your@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-background/50 border-border/50 focus:border-primary/50 rounded-xl" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm text-muted-foreground">Password</Label>
                 <div className="relative">
-                  <Input id="password" type={showPassword ? "text" : "password"} placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-background/50 border-border focus:border-primary/50 pr-10" />
+                  <Input id="password" type={showPassword ? "text" : "password"} placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-background/50 border-border/50 focus:border-primary/50 pr-10 rounded-xl" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </div>
-              <Button type="submit" className="w-full cyber-glow bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
+              <Button type="submit" className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-xl" disabled={loading}>
                 {loading ? "Processing..." : isLogin ? "Sign In" : "Create Account"}
               </Button>
             </form>
