@@ -2,12 +2,11 @@ const CloudLogo = ({ className = "", size = 40 }: { className?: string; size?: n
   <svg
     width={size}
     height={size}
-    viewBox="0 0 100 100"
+    viewBox="0 0 100 80"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     className={className}
   >
-    {/* Cloud shape */}
     <path
       d="M75 45c0-11-9-20-20-20a20 20 0 00-19 14 15 15 0 00-16 15c0 8.3 6.7 15 15 15h38c7.2 0 13-5.8 13-13s-5.8-13-11-11z"
       fill="currentColor"
@@ -18,19 +17,6 @@ const CloudLogo = ({ className = "", size = 40 }: { className?: string; size?: n
       fill="currentColor"
       opacity="0.15"
     />
-    {/* ULT text */}
-    <text
-      x="50"
-      y="72"
-      textAnchor="middle"
-      fontFamily="Orbitron, monospace"
-      fontWeight="800"
-      fontSize="18"
-      fill="currentColor"
-      letterSpacing="3"
-    >
-      ULT
-    </text>
   </svg>
 );
 
