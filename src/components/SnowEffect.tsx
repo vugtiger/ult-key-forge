@@ -1,9 +1,154 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
+
+// Shared audio context for the entire app
+let globalAudioCtx: AudioContext | null = null;
+let globalGainNode: GainNode | null = null;
+let globalSourceNode: AudioBufferSourceNode | null = null;
+let audioInitialized = false;
+
+const initAudio = () => {
+  if (audioInitialized) return;
+  audioInitialized = true;
+
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    globalAudioCtx = audioCtx;
+
+    // Create a longer buffer for seamless looping (8 seconds)
+    const bufferSize = audioCtx.sampleRate * 8;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+
+    // Generate soft wind/snow noise with smooth fade in/out for seamless loop
+    const fadeLen = audioCtx.sampleRate * 0.5; // 0.5s fade
+    for (let i = 0; i < bufferSize; i++) {
+      let sample = (Math.random() * 2 - 1) * 0.025;
+      // Smooth fade in
+      if (i < fadeLen) sample *= i / fadeLen;
+      // Smooth fade out
+      if (i > bufferSize - fadeLen) sample *= (bufferSize - i) / fadeLen;
+      data[i] = sample;
+    }
+
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.loopStart = 0;
+    source.loopEnd = buffer.duration;
+
+    // Bandpass filter for soft wind
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 600;
+    filter.Q.value = 0.4;
+
+    // Second filter for warmth
+    const lowpass = audioCtx.createBiquadFilter();
+    lowpass.type = "lowpass";
+    lowpass.frequency.value = 2000;
+
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.18; // Louder than before
+
+    source.connect(filter);
+    filter.connect(lowpass);
+    lowpass.connect(gain);
+    gain.connect(audioCtx.destination);
+    source.start();
+
+    globalGainNode = gain;
+    globalSourceNode = source;
+
+    // Handle tab visibility to prevent audio stopping
+    const handleVisibility = () => {
+      if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
+        globalAudioCtx.resume();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+  } catch (e) {
+    // Audio not supported
+  }
+};
+
+// Button click snow sound effect
+export const playButtonClickSound = () => {
+  try {
+    const ctx = globalAudioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (!globalAudioCtx) globalAudioCtx = ctx;
+
+    // Create a short "crunch in snow" sound
+    const duration = 0.15;
+    const sampleRate = ctx.sampleRate;
+    const bufferSize = Math.floor(sampleRate * duration);
+    const buffer = ctx.createBuffer(1, bufferSize, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < bufferSize; i++) {
+      const t = i / sampleRate;
+      // Mix of noise with rapid decay for "crunch" feel
+      const envelope = Math.exp(-t * 25);
+      const noise = (Math.random() * 2 - 1) * 0.4;
+      data[i] = noise * envelope;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 1200;
+    filter.Q.value = 1.5;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0.25;
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+  } catch (e) {
+    // Ignore
+  }
+};
+
+// Snow burst animation at coordinates
+export const createSnowBurst = (x: number, y: number) => {
+  const count = 8;
+  for (let i = 0; i < count; i++) {
+    const particle = document.createElement('div');
+    particle.style.cssText = `
+      position: fixed;
+      left: ${x}px;
+      top: ${y}px;
+      width: ${Math.random() * 4 + 2}px;
+      height: ${Math.random() * 4 + 2}px;
+      background: white;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.8;
+    `;
+    document.body.appendChild(particle);
+
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+    const speed = 30 + Math.random() * 40;
+    const dx = Math.cos(angle) * speed;
+    const dy = Math.sin(angle) * speed - 20; // Bias upward
+
+    particle.animate([
+      { transform: 'translate(0, 0) scale(1)', opacity: 0.8 },
+      { transform: `translate(${dx}px, ${dy + 40}px) scale(0)`, opacity: 0 },
+    ], {
+      duration: 400 + Math.random() * 200,
+      easing: 'cubic-bezier(0, 0.5, 0.5, 1)',
+    }).onfinish = () => particle.remove();
+  }
+};
 
 const SnowEffect = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const hasPlayedRef = useRef(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -43,10 +188,7 @@ const SnowEffect = () => {
         f.y += f.speed;
         f.x += f.wind + Math.sin(f.y * 0.01) * 0.3;
 
-        if (f.y > h) {
-          f.y = -5;
-          f.x = Math.random() * w;
-        }
+        if (f.y > h) { f.y = -5; f.x = Math.random() * w; }
         if (f.x > w) f.x = 0;
         if (f.x < 0) f.x = w;
       }
@@ -63,63 +205,29 @@ const SnowEffect = () => {
     };
     window.addEventListener("resize", handleResize);
 
-    // Subtle ambient snow sound via Web Audio API
-    const playAmbient = () => {
-      if (hasPlayedRef.current) return;
-      hasPlayedRef.current = true;
-
-      try {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        
-        // Create white noise (soft static = snow-like)
-        const bufferSize = audioCtx.sampleRate * 4;
-        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = (Math.random() * 2 - 1) * 0.015; // Very quiet
-        }
-
-        const source = audioCtx.createBufferSource();
-        source.buffer = buffer;
-        source.loop = true;
-
-        // Bandpass filter to make it sound more like soft wind/snow
-        const filter = audioCtx.createBiquadFilter();
-        filter.type = "bandpass";
-        filter.frequency.value = 800;
-        filter.Q.value = 0.5;
-
-        const gain = audioCtx.createGain();
-        gain.gain.value = 0.08; // Keep it subtle
-
-        source.connect(filter);
-        filter.connect(gain);
-        gain.connect(audioCtx.destination);
-        source.start();
-
-        audioRef.current = { pause: () => { gain.gain.value = 0; source.stop(); audioCtx.close(); } } as any;
-      } catch (e) {
-        // Audio not supported or blocked
-      }
-    };
-
-    // Play on first user interaction
+    // Initialize audio on first interaction
     const startAudio = () => {
-      playAmbient();
+      initAudio();
       document.removeEventListener("click", startAudio);
       document.removeEventListener("keydown", startAudio);
     };
     document.addEventListener("click", startAudio);
     document.addEventListener("keydown", startAudio);
 
+    // Keep audio alive when switching tabs
+    const handleVisibility = () => {
+      if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
+        globalAudioCtx.resume();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       cancelAnimationFrame(animationId);
       window.removeEventListener("resize", handleResize);
       document.removeEventListener("click", startAudio);
       document.removeEventListener("keydown", startAudio);
-      if (audioRef.current) {
-        try { audioRef.current.pause(); } catch {}
-      }
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 
