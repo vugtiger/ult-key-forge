@@ -6,9 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Shield, Eye, EyeOff, CheckCircle, KeyRound } from "lucide-react";
-import CloudBackground from "@/components/CloudBackground";
-import SnowEffect from "@/components/SnowEffect";
+import { ArrowLeft, Shield, Eye, EyeOff, CheckCircle } from "lucide-react";
 
 const UpdatePassword = () => {
   const [newPassword, setNewPassword] = useState("");
@@ -20,16 +18,7 @@ const UpdatePassword = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Supabase handles the recovery token from the email link automatically
-    // via onAuthStateChange PASSWORD_RECOVERY event
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        // User clicked recovery link - they're now in recovery mode
-        // Don't navigate away, let them set new password
-      }
-    });
-
-    // Also verify we have a session (from the recovery link)
+    // Check if user has a valid recovery session
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -41,11 +30,7 @@ const UpdatePassword = () => {
         navigate("/password-reset");
       }
     };
-    
-    // Small delay to allow Supabase to process the recovery token from URL
-    setTimeout(checkSession, 1000);
-
-    return () => subscription.unsubscribe();
+    checkSession();
   }, [navigate, toast]);
 
   const handleUpdatePassword = async () => {
@@ -69,15 +54,15 @@ const UpdatePassword = () => {
 
       setSuccess(true);
       toast({ 
-        title: "Password Updated!", 
-        description: "Your password has been changed. Please sign in with your new password." 
+        title: "Success!", 
+        description: "Your password has been updated." 
       });
 
-      // Sign out and redirect to login
+      // Sign out and redirect after a short delay
       setTimeout(async () => {
         await supabase.auth.signOut();
         navigate("/auth");
-      }, 2500);
+      }, 2000);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -88,15 +73,16 @@ const UpdatePassword = () => {
   if (success) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
-        <CloudBackground />
-        <SnowEffect />
+        <div className="absolute inset-0 grid-bg opacity-30" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-white/5 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-white/5 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: "1s" }} />
 
-        <Card className="relative z-10 p-8 bg-card/50 backdrop-blur-xl border-border/30 rounded-2xl text-center max-w-md">
+        <Card className="relative z-10 p-8 cyber-border bg-card/50 backdrop-blur-xl text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
             <CheckCircle className="w-8 h-8 text-green-500" />
           </div>
           <h1 className="text-2xl font-bold mb-2">Password Updated!</h1>
-          <p className="text-muted-foreground">Your password has been changed. Redirecting to sign in...</p>
+          <p className="text-muted-foreground">Redirecting you to sign in...</p>
         </Card>
       </div>
     );
@@ -104,37 +90,36 @@ const UpdatePassword = () => {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
-      <CloudBackground />
-      <SnowEffect />
+      <div className="absolute inset-0 grid-bg opacity-30" />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-white/5 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-white/5 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: "1s" }} />
 
       <div className="relative z-10 w-full max-w-md px-4">
-        <Button variant="ghost" onClick={() => navigate("/auth")} className="mb-6 gap-2 text-muted-foreground hover:text-foreground">
+        <Button variant="ghost" onClick={() => navigate("/auth")} className="mb-6 gap-2">
           <ArrowLeft size={18} />
           Back to Sign In
         </Button>
 
-        <Card className="p-8 bg-card/50 backdrop-blur-xl border-border/30 rounded-2xl">
+        <Card className="p-8 cyber-border bg-card/50 backdrop-blur-xl">
           <div className="text-center mb-8">
-            <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-card border border-border/50 flex items-center justify-center">
-              <KeyRound className="w-7 h-7 text-foreground" />
-            </div>
-            <h1 className="text-2xl font-bold mb-2">Set New Password</h1>
-            <p className="text-sm text-muted-foreground">
-              Enter your new password below. Your old password will no longer work.
+            <Shield className="w-12 h-12 mx-auto mb-4 text-foreground" />
+            <h1 className="text-3xl font-bold mb-2">Set New Password</h1>
+            <p className="text-muted-foreground">
+              Enter your new password below
             </p>
           </div>
 
-          <div className="space-y-5">
+          <div className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="newPassword" className="text-sm text-muted-foreground">New Password</Label>
+              <Label htmlFor="newPassword">New Password</Label>
               <div className="relative">
                 <Input
                   id="newPassword"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter new password"
+                  placeholder="••••••••"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="bg-background/50 border-border/50 focus:border-primary/50 pr-10 rounded-xl"
+                  className="bg-input border-border pr-10"
                 />
                 <button
                   type="button"
@@ -147,19 +132,19 @@ const UpdatePassword = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-sm text-muted-foreground">Confirm Password</Label>
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
               <Input
                 id="confirmPassword"
                 type={showPassword ? "text" : "password"}
-                placeholder="Confirm new password"
+                placeholder="••••••••"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleUpdatePassword()}
-                className="bg-background/50 border-border/50 focus:border-primary/50 rounded-xl"
+                className="bg-input border-border"
               />
             </div>
 
-            <Button onClick={handleUpdatePassword} disabled={loading} className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-xl">
+            <Button onClick={handleUpdatePassword} disabled={loading} className="w-full cyber-glow">
               {loading ? "Updating..." : "Update Password"}
             </Button>
           </div>
