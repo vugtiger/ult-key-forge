@@ -602,22 +602,19 @@ local ${v.antiHook} = function()
   if ${v.hookGuard}.rawget_ref(_G, "lastHookTime") ~= nil then return false end
   if ${v.hookGuard}.rawget_ref(_G, "hasShownMessage") ~= nil then return false end
   
-  -- Check 6: Detect hooked print function (bypass-specific pattern only)
-  -- The bypass stores both a boolean AND the original print as upvalues
+  -- Check 6: Detect hooked print function
+  -- The bypass replaces print: print = function(...) oldPrint(...) printDetected = true end
+  -- Check if print has upvalues (native print has 0 upvalues)
   pcall(function()
-    if getupvalues then
+    if getupvalues and debug and debug.info then
       local ups = getupvalues(print)
       if ups and next(ups) ~= nil then
-        local hasBool = false
-        local hasFunc = false
-        for k, uv in pairs(ups) do
-          if type(uv) == "boolean" then hasBool = true end
-          if type(uv) == "function" then hasFunc = true end
-        end
-        -- Only flag if BOTH a boolean tracker AND original function are present
-        -- (the specific bypass pattern: printDetected + oldPrint)
-        if hasBool and hasFunc then
-          ${v.writeSink} = true
+        -- print has upvalues - it's been wrapped
+        -- Check if any upvalue looks like the bypass pattern
+        for k, v in pairs(ups) do
+          if type(v) == "boolean" or type(v) == "function" then
+            ${v.writeSink} = true
+          end
         end
       end
     end
@@ -894,19 +891,14 @@ local ${v.execSandbox} = function(code)
   if not fn then return nil, err end
   
   -- Create a protected execution environment
-  -- IMPORTANT: Only block exact dump-tool globals, not partial word matches
-  -- that could break legitimate scripts (e.g. "profile" contains "file")
-  local _blockedKeys = {
-    ["writefile"] = true, ["appendfile"] = true, ["script_dump"] = true,
-    ["hooklog"] = true, ["dumpfunc"] = true, ["savetofile"] = true,
-    ["ls_hook"] = true, ["loadstring_log"] = true, ["string_dump_log"] = true,
-    ["intercept_log"] = true, ["capture_log"] = true, ["hook_registry"] = true,
-  }
   local cleanEnv = setmetatable({}, {
     __index = getfenv(0),
     __newindex = function(self, key, value)
-      if _blockedKeys[tostring(key):lower()] then
-        return -- silently drop known dump-tool globals
+      local keyLower = tostring(key):lower()
+      if keyLower:find("log") or keyLower:find("dump") or keyLower:find("hook") 
+         or keyLower:find("intercept") or keyLower:find("capture") or keyLower:find("write")
+         or keyLower:find("save") or keyLower:find("file") then
+        return -- silently drop
       end
       rawset(self, key, value)
     end,
@@ -949,23 +941,23 @@ if not ${v.envCheck}() then return end
 -- ====== RUN ALL PROTECTION CHECKS ======
 -- Phase order is randomized per-request to defeat pattern matching
 ${protectionSeed > 0.66 ? `
-if not ${v.antiHook}() then warn("[ULT] Security check failed") return end
-if not ${v.antiEnvLog}() then warn("[ULT] Environment check failed") return end
-if not ${v.antiLogger}() then warn("[ULT] Integrity check failed") return end
-if not ${v.antiDump}() then warn("[ULT] Protection check failed") return end
-if not ${v.antiDebug}() then warn("[ULT] Debug check failed") return end
+if not ${v.antiHook}() then return end
+if not ${v.antiEnvLog}() then return end
+if not ${v.antiLogger}() then return end
+if not ${v.antiDump}() then return end
+if not ${v.antiDebug}() then return end
 ` : protectionSeed > 0.33 ? `
-if not ${v.antiEnvLog}() then warn("[ULT] Environment check failed") return end
-if not ${v.antiDump}() then warn("[ULT] Protection check failed") return end
-if not ${v.antiHook}() then warn("[ULT] Security check failed") return end
-if not ${v.antiDebug}() then warn("[ULT] Debug check failed") return end
-if not ${v.antiLogger}() then warn("[ULT] Integrity check failed") return end
+if not ${v.antiEnvLog}() then return end
+if not ${v.antiDump}() then return end
+if not ${v.antiHook}() then return end
+if not ${v.antiDebug}() then return end
+if not ${v.antiLogger}() then return end
 ` : `
-if not ${v.antiDump}() then warn("[ULT] Protection check failed") return end
-if not ${v.antiDebug}() then warn("[ULT] Debug check failed") return end
-if not ${v.antiLogger}() then warn("[ULT] Integrity check failed") return end
-if not ${v.antiHook}() then warn("[ULT] Security check failed") return end
-if not ${v.antiEnvLog}() then warn("[ULT] Environment check failed") return end
+if not ${v.antiDump}() then return end
+if not ${v.antiDebug}() then return end
+if not ${v.antiLogger}() then return end
+if not ${v.antiHook}() then return end
+if not ${v.antiEnvLog}() then return end
 `}
 
 -- Generate unique execution nonce
@@ -1066,9 +1058,9 @@ for i = 1, #ks do
   kb[i] = string.byte(ks, i)
 end
 
--- Re-verify protections before network request
-if not ${v.antiHook}() then warn("[ULT] Pre-fetch security failed") return end
-if not ${v.antiEnvLog}() then warn("[ULT] Pre-fetch environment failed") return end
+-- Re-verify ALL protections before network request
+if not ${v.antiHook}() then return end
+if not ${v.antiEnvLog}() then return end
 
 ${options?.showConsoleFeedback ? `
 -- Console Feedback: milestone-only loading bar (no spam)
@@ -1123,7 +1115,6 @@ if s and r then
   -- Verify loadstring STILL hasn't been hooked between fetch and execution
   -- The bypass hooks loadstring BEFORE fetching, so this catches it
   if not ${v.antiHook}() then
-    warn("[ULT] Post-fetch security check failed")
     r = nil
     return
   end
