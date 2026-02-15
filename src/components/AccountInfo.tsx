@@ -2,15 +2,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Mail, Lock, Eye, EyeOff, CheckCircle, KeyRound } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 
 const AccountInfo = () => {
   const [email, setEmail] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchAccountInfo();
@@ -65,18 +63,26 @@ const AccountInfo = () => {
             <Lock className="h-4 w-4" />
             Password
           </Label>
-          <p className="text-sm text-muted-foreground">
-            For security, your password cannot be displayed. Use the button below to change it.
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Input 
+                type={showPassword ? "text" : "password"}
+                value="••••••••••••"
+                readOnly 
+                className="bg-muted/50 pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Click the eye icon to view/hide your password placeholder
           </p>
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="gap-2"
-            onClick={() => navigate("/password-reset")}
-          >
-            <KeyRound className="h-4 w-4" />
-            Change Password
-          </Button>
         </div>
       </CardContent>
     </Card>
