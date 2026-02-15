@@ -10,8 +10,6 @@ import ReviewsSection from "@/components/ReviewsSection";
 import LastUpdatedBadge from "@/components/LastUpdatedBadge";
 import GoogleTranslate from "@/components/GoogleTranslate";
 import CloudLogo from "@/components/CloudLogo";
-import CloudBackground from "@/components/CloudBackground";
-import SnowEffect from "@/components/SnowEffect";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -50,50 +48,49 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      <CloudBackground />
-      <SnowEffect />
+    <div className="min-h-screen bg-background relative overflow-hidden cloud-bg">
+      {/* Cloud ambient effects */}
+      <div className="absolute top-[-200px] left-1/4 w-[600px] h-[600px] bg-foreground/[0.02] rounded-full blur-[150px]" />
+      <div className="absolute bottom-[-200px] right-1/4 w-[500px] h-[500px] bg-foreground/[0.03] rounded-full blur-[150px]" />
+      <div className="absolute top-1/2 left-[-100px] w-[300px] h-[300px] bg-foreground/[0.015] rounded-full blur-[100px]" />
 
       <div className="relative z-10">
-        {/* Navigation - cleaned up */}
-        <nav className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between bg-card/40 backdrop-blur-xl border border-border/30 rounded-2xl px-5 py-3">
-            <div className="flex items-center gap-3">
-              <CloudLogo size={32} className="text-foreground" />
-              <h2 className="text-lg font-bold tracking-wider text-foreground hidden sm:block">
-                ULT <span className="text-primary cloud-glow-text">CLOUD</span>
-              </h2>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <LastUpdatedBadge />
-              <GoogleTranslate />
+        {/* Navigation */}
+        <nav className="container mx-auto px-4 py-6 flex items-center justify-between border-b border-border/30">
+          <div className="flex items-center gap-4">
+            <CloudLogo size={40} className="text-foreground" />
+            <h2 className="text-xl font-bold tracking-wider text-foreground">
+              ULT <span className="text-primary cloud-glow-text">CLOUD</span>
+            </h2>
+            <LastUpdatedBadge />
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2 sm:gap-4">
               <a
                 href="https://discord.gg/hPywsq3yqw"
                 target="_blank"
                 rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-card/80 border border-border rounded-lg hover:border-primary/50 transition-all"
               >
-                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
-                  <MessageSquare size={16} />
-                  <span className="hidden sm:inline">Discord</span>
-                </Button>
+                <MessageSquare size={18} className="text-primary" />
+                <span className="hidden sm:inline text-sm">Discord</span>
+                <ExternalLink size={14} className="text-muted-foreground" />
               </a>
-              <Button onClick={() => navigate("/auth")} size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl px-5">
+              <Button onClick={() => navigate("/auth")} className="cyber-glow bg-primary text-primary-foreground hover:bg-primary/90">
                 Sign In
               </Button>
             </div>
+            <GoogleTranslate />
           </div>
         </nav>
 
         <div className="container mx-auto px-4 py-8">
-          {/* Hero Section - redesigned */}
-          <div className="text-center mb-28 space-y-8 pt-20 relative">
-            <div className="flex justify-center mb-6">
-              <CloudLogo size={80} className="text-primary cloud-glow-text" />
-            </div>
-
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-card/60 backdrop-blur border border-border/40 rounded-full text-sm text-muted-foreground">
-              <Cloud size={14} className="text-primary" />
+          {/* Hero Section */}
+          <div className="text-center mb-24 space-y-8 pt-16 relative">
+            <div className="absolute left-1/2 top-0 w-px h-16 bg-gradient-to-b from-transparent to-primary/30 -translate-x-1/2" />
+            
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 border border-primary/20 rounded-full text-sm text-primary mb-4">
+              <Cloud size={14} />
               <span className="font-medium">Protection v6.0 -- Cloud Security</span>
             </div>
 
@@ -108,12 +105,12 @@ const Index = () => {
               Cloud-grade encryption. Zero compromises.
             </p>
 
-            {/* Stats Row - pill style */}
-            <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+            {/* Stats Row */}
+            <div className="flex flex-wrap items-center justify-center gap-8 pt-4">
               {stats.map((stat, i) => (
-                <div key={i} className="px-5 py-3 bg-card/50 backdrop-blur border border-border/30 rounded-2xl text-center min-w-[120px]">
-                  <div className="text-xl md:text-2xl font-bold text-foreground">{stat.value}</div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-widest">{stat.label}</div>
+                <div key={i} className="text-center">
+                  <div className="text-2xl md:text-3xl font-bold text-primary">{stat.value}</div>
+                  <div className="text-xs text-muted-foreground uppercase tracking-widest">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -133,10 +130,10 @@ const Index = () => {
               </div>
             </div>
 
-            <div className="pt-8 flex flex-wrap justify-center gap-3">
+            <div className="pt-6 flex flex-wrap justify-center gap-4">
               <Button 
                 size="lg" 
-                className="text-lg px-10 py-7 bg-foreground text-background hover:bg-foreground/90 tracking-wider rounded-2xl"
+                className="cyber-glow text-lg px-10 py-7 bg-primary text-primary-foreground hover:bg-primary/90 tracking-wider"
                 onClick={() => navigate("/auth")}
               >
                 Get Started
@@ -146,19 +143,19 @@ const Index = () => {
                 <Button 
                   variant="outline" 
                   size="lg" 
-                  className="text-lg px-10 py-7 border-border/50 hover:bg-card/50 tracking-wider rounded-2xl"
+                  className="text-lg px-10 py-7 border-primary/30 hover:bg-primary/10 hover:border-primary/50 tracking-wider"
                 >
-                  <MessageSquare size={20} className="mr-2" />
+                  <MessageSquare size={20} className="mr-2 text-primary" />
                   Join Discord
                 </Button>
               </a>
             </div>
           </div>
 
-          {/* Features Section - horizontal cards */}
+          {/* Features Section */}
           <section className="max-w-6xl mx-auto mb-28">
             <div className="text-center mb-14">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-card/60 border border-border/30 rounded-full text-xs text-muted-foreground uppercase tracking-widest mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary uppercase tracking-widest mb-4">
                 Core Features
               </div>
               <h2 className="text-3xl md:text-4xl font-bold mb-3">Everything You Need</h2>
@@ -167,18 +164,16 @@ const Index = () => {
               </p>
             </div>
             
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
               {features.map((feature, index) => (
-                <Card key={index} className="p-5 bg-card/40 backdrop-blur-xl border-border/30 hover:border-border/60 transition-all duration-300 group relative overflow-hidden rounded-2xl">
-                  <div className="absolute inset-0 bg-gradient-to-br from-foreground/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-card border border-border/50 flex items-center justify-center flex-shrink-0 group-hover:border-primary/30 transition-colors">
-                      <feature.icon className="w-5 h-5 text-primary" />
+                <Card key={index} className="p-6 bg-card/60 backdrop-blur-xl border-border/50 hover:border-primary/30 transition-all duration-300 group relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                      <feature.icon className="w-6 h-6 text-primary" />
                     </div>
-                    <div>
-                      <h3 className="text-base font-semibold mb-1">{feature.title}</h3>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
-                    </div>
+                    <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
                   </div>
                 </Card>
               ))}
@@ -188,7 +183,7 @@ const Index = () => {
           {/* New Features Section */}
           <section className="max-w-6xl mx-auto mb-28">
             <div className="text-center mb-14">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-card/60 border border-border/30 rounded-full text-xs text-muted-foreground uppercase tracking-widest mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary uppercase tracking-widest mb-4">
                 <Sparkles className="w-3 h-3" />
                 Latest Updates
               </div>
@@ -196,18 +191,17 @@ const Index = () => {
               <p className="text-muted-foreground max-w-2xl mx-auto">Latest features and improvements to the platform</p>
             </div>
             
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
               {newFeatures.map((feature, index) => (
-                <Card key={index} className="p-5 bg-card/40 backdrop-blur-xl border-border/30 hover:border-border/60 transition-all duration-300 group relative overflow-hidden rounded-2xl">
-                  <div className="absolute top-3 right-3 bg-foreground/10 text-foreground text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">New</div>
-                  <div className="relative flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-card border border-border/50 flex items-center justify-center flex-shrink-0">
-                      <feature.icon className="w-5 h-5 text-primary" />
+                <Card key={index} className="p-6 bg-card/60 backdrop-blur-xl border-border/50 hover:border-primary/30 transition-all duration-300 group relative overflow-hidden">
+                  <div className="absolute top-3 right-3 bg-primary/20 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">New</div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                      <feature.icon className="w-6 h-6 text-primary" />
                     </div>
-                    <div>
-                      <h3 className="text-base font-semibold mb-1">{feature.title}</h3>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
-                    </div>
+                    <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
                   </div>
                 </Card>
               ))}
@@ -217,7 +211,7 @@ const Index = () => {
           {/* Key System Preview Section */}
           <section className="max-w-6xl mx-auto mb-28">
             <div className="text-center mb-14">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-card/60 border border-border/30 rounded-full text-xs text-muted-foreground uppercase tracking-widest mb-4">Preview</div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary uppercase tracking-widest mb-4">Preview</div>
               <h2 className="text-3xl md:text-4xl font-bold mb-3">Key System Preview</h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">See exactly what your users will see when they use your key system in Roblox</p>
             </div>
@@ -227,7 +221,7 @@ const Index = () => {
           {/* AI Assistant Preview Section */}
           <section className="max-w-6xl mx-auto mb-28">
             <div className="text-center mb-14">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-card/60 border border-border/30 rounded-full text-xs text-muted-foreground uppercase tracking-widest mb-4">AI Powered</div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs text-primary uppercase tracking-widest mb-4">AI Powered</div>
               <h2 className="text-3xl md:text-4xl font-bold mb-3">AI Assistant</h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">Get help with Roblox scripts, websites, and more with our powerful AI assistant</p>
             </div>
@@ -242,7 +236,8 @@ const Index = () => {
             <div className="text-center mb-14">
               <h2 className="text-3xl md:text-4xl font-bold mb-3">About ULT CLOUD PROTECTS</h2>
             </div>
-            <Card className="p-8 bg-card/40 backdrop-blur-xl border-border/30 relative overflow-hidden rounded-2xl">
+            <Card className="p-8 bg-card/60 backdrop-blur-xl border-border/50 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/3 to-transparent" />
               <div className="relative space-y-6">
                 <p className="text-lg text-muted-foreground">
                   ULT Cloud Protects is a comprehensive key system generator and script management platform designed specifically for Roblox developers.
@@ -293,20 +288,20 @@ const Index = () => {
 
           {/* CTA Section */}
           <section className="max-w-4xl mx-auto mb-20 text-center">
-            <Card className="p-10 bg-card/40 backdrop-blur-xl border-border/30 relative overflow-hidden rounded-2xl">
+            <Card className="p-10 bg-card/60 backdrop-blur-xl border-primary/20 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5" />
               <div className="relative">
-                <CloudLogo size={48} className="text-primary mx-auto mb-4" />
                 <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
                 <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
                   Join thousands of developers using ULT Cloud Protects to secure their scripts
                 </p>
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                  <Button onClick={() => navigate("/auth")} className="bg-foreground text-background hover:bg-foreground/90 px-8 rounded-2xl" size="lg">
+                <div className="flex flex-wrap items-center justify-center gap-4">
+                  <Button onClick={() => navigate("/auth")} className="cyber-glow bg-primary text-primary-foreground hover:bg-primary/90 px-8" size="lg">
                     Create Free Account
                   </Button>
                   <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" size="lg" className="gap-2 border-border/50 hover:bg-card/50 rounded-2xl">
-                      <MessageSquare size={18} />
+                    <Button variant="outline" size="lg" className="gap-2 border-primary/30 hover:bg-primary/10">
+                      <MessageSquare size={18} className="text-primary" />
                       Join Discord
                     </Button>
                   </a>
@@ -316,9 +311,8 @@ const Index = () => {
           </section>
 
           {/* Footer */}
-          <footer className="border-t border-border/20 pt-8 pb-4">
-            <div className="text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
-              <CloudLogo size={16} className="text-muted-foreground" />
+          <footer className="border-t border-border/30 pt-8 pb-4">
+            <div className="text-center text-sm text-muted-foreground">
               <p>ULT <span className="text-primary">CLOUD</span> PROTECTS -- 100% Free Forever</p>
             </div>
           </footer>

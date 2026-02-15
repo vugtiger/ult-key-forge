@@ -21,8 +21,6 @@ import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarC
 import { Button } from "@/components/ui/button";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import CloudLogo from "@/components/CloudLogo";
-import CloudBackground from "@/components/CloudBackground";
-import SnowEffect from "@/components/SnowEffect";
 
 const navigationItems = [
   { title: "Key System Gen", url: "/dashboard", icon: Zap },
@@ -221,12 +219,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background overflow-x-hidden relative">
-        <CloudBackground />
-        <SnowEffect />
+      <div className="flex min-h-screen w-full bg-background overflow-x-hidden">
         <AppSidebar user={user} />
-        <div className="flex-1 flex flex-col min-w-0 relative z-10">
-          <header className="h-14 border-b border-border/30 flex items-center px-6 sticky top-0 bg-background/60 backdrop-blur-xl z-10">
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="h-16 border-b border-border flex items-center px-6 sticky top-0 bg-background/80 backdrop-blur-xl z-10">
             <SidebarTrigger className="mr-4" />
             <div className="flex-1" />
           </header>
