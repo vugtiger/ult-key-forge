@@ -897,26 +897,9 @@ local ${v.execSandbox} = function(code)
   local fn, err = ${v.cleanLS}(code)
   if not fn then return nil, err end
   
-  -- Create a protected execution environment
-  -- IMPORTANT: Only block exact dump-tool globals, not partial word matches
-  -- that could break legitimate scripts (e.g. "profile" contains "file")
-  local _blockedKeys = {
-    ["writefile"] = true, ["appendfile"] = true, ["script_dump"] = true,
-    ["hooklog"] = true, ["dumpfunc"] = true, ["savetofile"] = true,
-    ["ls_hook"] = true, ["loadstring_log"] = true, ["string_dump_log"] = true,
-    ["intercept_log"] = true, ["capture_log"] = true, ["hook_registry"] = true,
-  }
-  local cleanEnv = setmetatable({}, {
-    __index = getfenv(0),
-    __newindex = function(self, key, value)
-      if _blockedKeys[tostring(key):lower()] then
-        return -- silently drop known dump-tool globals
-      end
-      rawset(self, key, value)
-    end,
-    __metatable = "Protected"
-  })
-  setfenv(fn, cleanEnv)
+  -- DO NOT use setfenv - it corrupts Roblox's core PlayerModule
+  -- (CameraModule, ControlModule) causing black sky and input errors.
+  -- Security is enforced by the checks above, not by environment sandboxing.
   
   return fn, nil
 end
