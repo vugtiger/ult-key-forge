@@ -273,8 +273,10 @@ async function fetchRobloxProfile(userId: string): Promise<{
   return result;
 }
 
-// ===== PROTECTION v7.0 =====
+// ===== PROTECTION v8.0 =====
 // Anti-hookfunction, anti-environment logger, anti-decompiler, anti-replay
+// v8.0: Defends against hookfunction(loadstring) bypass by using clonefunction,
+// canary traps, writefile detection, and chunked execution
 function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string, options?: { showConsoleFeedback?: boolean }): string {
   const tokenParts = [];
   for (let i = 0; i < token.length; i += 8) {
@@ -297,7 +299,9 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
      'antiLogger','antiDump','antiDebug','antiGC','safeExec','memWipe',
      'integrityCheck','nativeCheck','shieldEnv','decPayload','execFunc',
      'antiHook','antiEnvLog','hookGuard','lsIntegrity','writeSink','execSandbox',
-     'junk1','junk2','junk3','junk4','junk5','junk6','junk7','junk8'
+     'junk1','junk2','junk3','junk4','junk5','junk6','junk7','junk8',
+     'cleanLS','canaryFile','canaryTest','writeDetect','clonedLS',
+     'splitExec','chunkCompile','antiWritefile','dumpTrap'
     ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
   );
   
@@ -318,20 +322,96 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   // Generate a unique integrity signature for this loader instance
   const integrityKey = Math.random().toString(36).substring(2, 18);
   
-  return `--[[ULT Protection v7.0 - ${Math.random().toString(36).substring(2,10)}]]
+  // Generate unique canary strings per-request
+  const canaryId = Math.random().toString(36).substring(2, 12);
+  const canaryFileName = `_ult_canary_${Math.random().toString(36).substring(2, 8)}.lua`;
+  
+  return `--[[ULT Protection v8.0 - ${Math.random().toString(36).substring(2,10)}]]
 ${junkCode}
 
--- ====== PHASE 0: INSTANT ENVIRONMENT SNAPSHOT ======
--- Capture ALL critical native functions BEFORE any hook can run
--- This MUST be the first thing that executes
-local ${v.cachedLS} = loadstring
+-- ====== PHASE 0: OBTAIN CLEAN LOADSTRING ======
+-- hookfunction(loadstring, ...) replaces loadstring BEFORE this runs.
+-- So "local cached = loadstring" captures the HOOKED version.
+-- Defense: use clonefunction() to get the ORIGINAL native implementation.
+-- clonefunction returns the original C closure, bypassing any Lua hook.
+
+local ${v.cleanLS}
+local ${v.clonedLS} = false
+
+-- Method 1: clonefunction (available in most modern executors)
+-- This is THE primary defense - it returns the original native function
+-- even after hookfunction has replaced the global reference
+do
+  local ok, cf = pcall(function()
+    if clonefunction then
+      return clonefunction(loadstring)
+    end
+    return nil
+  end)
+  if ok and cf then
+    ${v.cleanLS} = cf
+    ${v.clonedLS} = true
+  end
+end
+
+-- Method 2: getoriginalfunction (Synapse-style executors)
+if not ${v.cleanLS} then
+  local ok, gof = pcall(function()
+    if getoriginalfunction then
+      return getoriginalfunction(loadstring)
+    end
+    return nil
+  end)
+  if ok and gof then
+    ${v.cleanLS} = gof
+    ${v.clonedLS} = true
+  end
+end
+
+-- Method 3: cloneref (some executors)  
+if not ${v.cleanLS} then
+  local ok, cr = pcall(function()
+    if cloneref then
+      return cloneref(loadstring)
+    end
+    return nil
+  end)
+  if ok and cr then
+    ${v.cleanLS} = cr
+    ${v.clonedLS} = true
+  end
+end
+
+-- Method 4: Check getrenv for original loadstring
+if not ${v.cleanLS} then
+  local ok, rls = pcall(function()
+    if getrenv then
+      local renv = getrenv()
+      if renv and renv.loadstring then
+        return renv.loadstring
+      end
+    end
+    return nil
+  end)
+  if ok and rls then
+    ${v.cleanLS} = rls
+    ${v.clonedLS} = true
+  end
+end
+
+-- Fallback: use current loadstring (may be hooked - canary will catch it)
+if not ${v.cleanLS} then
+  ${v.cleanLS} = loadstring
+end
+
+local ${v.cachedLS} = ${v.cleanLS}
 local ${v.cachedHG} = game.HttpGet
 local ${v.writeSink} = false
 
--- Snapshot native function references for integrity verification
-local ${v.lsIntegrity} = tostring(loadstring)
+-- Snapshot references
+local ${v.lsIntegrity} = tostring(${v.cleanLS})
 local ${v.hookGuard} = {
-  ls_ref = loadstring,
+  ls_ref = ${v.cleanLS},
   hg_ref = game.HttpGet,
   ts_ref = tostring,
   type_ref = type,
@@ -342,57 +422,249 @@ local ${v.hookGuard} = {
   getfenv_ref = getfenv,
 }
 
--- ====== PHASE 1: ANTI-HOOKFUNCTION DEFENSE ======
--- Detects if loadstring/HttpGet have been hooked via hookfunction()
--- The bypass script uses: hookfunction(loadstring, function(src, chunk) ...)
+-- ====== PHASE 0.5: CANARY TRAP ======
+-- The bypass hook calls writefile() whenever loadstring is called.
+-- We call loadstring with a unique canary and then check if a file was created.
+-- If the file exists, loadstring is hooked with a writefile dumper.
+local ${v.canaryTest} = function()
+  -- Generate a unique canary string that only this loader instance knows
+  local canaryCode = "local ${canaryId} = " .. tostring(math.random(100000,999999))
+  
+  -- Call the GLOBAL loadstring (not our clean one) to trigger any hook
+  local ok = pcall(function()
+    local fn = loadstring(canaryCode)
+    if fn then pcall(fn) end
+  end)
+  
+  -- Now check if writefile was triggered by the hook
+  -- The bypass script uses: writefile("script.lua", src)
+  -- Check common dump filenames
+  local dumpFiles = {"script.lua", "dump.lua", "dumped.lua", "output.lua", "saved.lua", "source.lua"}
+  
+  for _, fname in ipairs(dumpFiles) do
+    local hasFile = false
+    pcall(function()
+      if isfile and isfile(fname) then
+        -- Read it to check if it contains our canary
+        local content = ""
+        pcall(function()
+          if readfile then content = readfile(fname) end
+        end)
+        if content:find("${canaryId}") then
+          hasFile = true
+          -- Clean up the canary file
+          pcall(function() if delfile then delfile(fname) end end)
+        end
+      end
+    end)
+    if hasFile then return false end
+  end
+  
+  -- Also check workspace folder files
+  pcall(function()
+    if listfiles then
+      local files = listfiles("") or {}
+      for _, f in ipairs(files) do
+        if f:find("%.lua$") then
+          local content = ""
+          pcall(function() if readfile then content = readfile(f) end end)
+          if content:find("${canaryId}") then
+            -- Canary was dumped - hook detected!
+            pcall(function() if delfile then delfile(f) end end)
+            ${v.writeSink} = true
+          end
+        end
+      end
+    end
+  end)
+  
+  if ${v.writeSink} then return false end
+  return true
+end
+
+-- ====== PHASE 0.6: WRITEFILE MONITOR ======
+-- Detect if writefile/appendfile are being used for script dumping
+local ${v.antiWritefile} = function()
+  -- Check if hookfunction itself exists and has been used on loadstring
+  local hookExists = false
+  pcall(function()
+    if hookfunction or detour_function or replace_closure then
+      hookExists = true
+    end
+  end)
+  
+  if hookExists then
+    -- If hookfunction exists, verify loadstring hasn't been hooked by comparing
+    -- the clean clone (if we got one) against the global
+    if ${v.clonedLS} then
+      -- We have a clean clone - compare behavior
+      local testStr = "return " .. tostring(math.random(1000000, 9999999))
+      local globalResult, cloneResult
+      
+      -- Execute via global loadstring
+      pcall(function()
+        local fn = loadstring(testStr)
+        if fn then globalResult = fn() end
+      end)
+      
+      -- Execute via clean clone
+      pcall(function()
+        local fn = ${v.cleanLS}(testStr)
+        if fn then cloneResult = fn() end
+      end)
+      
+      -- Both should produce identical results
+      if globalResult ~= cloneResult then
+        return false
+      end
+    end
+  end
+  
+  -- Check for active getconnections/hookfunction patterns in GC
+  pcall(function()
+    if getgc then
+      local gc = getgc(true) or {}
+      for _, obj in ipairs(gc) do
+        if type(obj) == "function" then
+          pcall(function()
+            if getupvalues then
+              local ups = getupvalues(obj)
+              for _, uv in pairs(ups) do
+                if type(uv) == "string" then
+                  local lo = uv:lower()
+                  if lo:find("writefile") and (lo:find("loadstring") or lo:find("hook")) then
+                    ${v.writeSink} = true
+                  end
+                end
+              end
+            end
+          end)
+        end
+      end
+    end
+  end)
+  
+  if ${v.writeSink} then return false end
+  return true
+end
+
+-- ====== PHASE 1: ANTI-HOOKFUNCTION DEFENSE (Enhanced v8.0) ======
 local ${v.antiHook} = function()
-  -- Check 1: Verify loadstring hasn't been swapped
-  if loadstring ~= ${v.hookGuard}.ls_ref then
+  -- Check 1: Run canary trap to detect writefile-based hooks
+  if not ${v.canaryTest}() then
     return false
   end
   
-  -- Check 2: Verify our cached reference matches current global
-  if ${v.cachedLS} ~= loadstring then
+  -- Check 2: Run writefile monitor
+  if not ${v.antiWritefile}() then
     return false
   end
   
-  -- Check 3: Check if __original_loadstring exists (common hookfunction pattern)
-  if ${v.hookGuard}.rawget_ref(_G, "__original_loadstring") ~= nil then
-    return false
+  -- Check 3: If we got a clean clone, the global loadstring being different is OK
+  -- But if we DIDN'T get a clean clone, check for obvious signs
+  if not ${v.clonedLS} then
+    -- No clone available - extra paranoid checks
+    -- Check if __original_loadstring exists (common hookfunction pattern)
+    if ${v.hookGuard}.rawget_ref(_G, "__original_loadstring") ~= nil then
+      return false
+    end
+    if ${v.hookGuard}.rawget_ref(_G, "__old_loadstring") ~= nil then
+      return false
+    end
+    if ${v.hookGuard}.rawget_ref(_G, "old") ~= nil then
+      -- The bypass literally uses: old = hookfunction(loadstring, ...)
+      -- Check if _G.old is a function that looks like loadstring
+      local oldVal = ${v.hookGuard}.rawget_ref(_G, "old")
+      if ${v.hookGuard}.type_ref(oldVal) == "function" then
+        -- Test if it behaves like loadstring
+        local testOk, testFn = pcall(oldVal, "return 42")
+        if testOk and ${v.hookGuard}.type_ref(testFn) == "function" then
+          local testOk2, testResult = pcall(testFn)
+          if testOk2 and testResult == 42 then
+            -- _G.old is the original loadstring - hook detected!
+            return false
+          end
+        end
+      end
+    end
   end
-  if ${v.hookGuard}.rawget_ref(_G, "__old_loadstring") ~= nil then
-    return false
-  end
   
-  -- Check 4: Detect hookfunction by testing loadstring behavior
-  -- If hooked, calling loadstring with a canary returns through the hook
-  local ${v.junk1} = "${Math.random().toString(36).substring(2, 10)}"
-  local ${v.junk2} = false
-  
-  -- Create a unique test string that the hook would try to capture
-  local testCode = "return " .. tostring(math.random(100000, 999999))
-  local ok1, fn1 = ${v.hookGuard}.pcall_ref(${v.cachedLS}, testCode)
-  
-  if ok1 and fn1 then
-    -- Verify the function executes correctly (hooks might modify behavior)
-    local ok2, result = ${v.hookGuard}.pcall_ref(fn1)
-    if not ok2 then return false end
-  end
-  
-  -- Check 5: Detect if writefile is being called suspiciously
-  -- The bypass uses writefile to dump scripts
-  -- We check if there's an active file write sink
+  -- Check 4: Detect if writefile is being called suspiciously
   if ${v.hookGuard}.rawget_ref(_G, "script_dump_active") then return false end
   if ${v.hookGuard}.rawget_ref(_G, "ls_interceptor") then return false end
   if ${v.hookGuard}.rawget_ref(shared, "script_dump_active") then return false end
   if ${v.hookGuard}.rawget_ref(shared, "ls_interceptor") then return false end
   
-  -- Check 6: Verify tostring(loadstring) hasn't changed
-  -- hookfunction replaces the function, changing its identity
-  local currentLsStr = ${v.hookGuard}.ts_ref(loadstring)
-  if currentLsStr ~= ${v.lsIntegrity} then
-    return false
-  end
+  -- Check 5: Check for the bypass's specific variables in _G
+  -- The bypass sets: local file = "script.lua" (as local, not global, so this is supplementary)
+  -- But also: printDetected, lastHookTime, hasShownMessage may leak
+  if ${v.hookGuard}.rawget_ref(_G, "printDetected") ~= nil then return false end
+  if ${v.hookGuard}.rawget_ref(_G, "lastHookTime") ~= nil then return false end
+  if ${v.hookGuard}.rawget_ref(_G, "hasShownMessage") ~= nil then return false end
+  
+  -- Check 6: Detect hooked print function (bypass-specific pattern only)
+  -- The bypass stores both a boolean AND the original print as upvalues
+  pcall(function()
+    if getupvalues then
+      local ups = getupvalues(print)
+      if ups and next(ups) ~= nil then
+        local hasBool = false
+        local hasFunc = false
+        for k, uv in pairs(ups) do
+          if type(uv) == "boolean" then hasBool = true end
+          if type(uv) == "function" then hasFunc = true end
+        end
+        -- Only flag if BOTH a boolean tracker AND original function are present
+        -- (the specific bypass pattern: printDetected + oldPrint)
+        if hasBool and hasFunc then
+          ${v.writeSink} = true
+        end
+      end
+    end
+  end)
+  if ${v.writeSink} then return false end
+  
+  -- Check 7: Scan GC for hookfunction calls on loadstring
+  pcall(function()
+    if getgc then
+      local gc = getgc(true) or {}
+      for _, obj in ipairs(gc) do
+        if type(obj) == "function" and obj ~= ${v.cleanLS} then
+          pcall(function()
+            if getupvalues then
+              local ups = getupvalues(obj)
+              for _, uv in pairs(ups) do
+                -- Check if any function's upvalue holds a reference to the original loadstring
+                -- The bypass stores: old = hookfunction(loadstring, ...)
+                -- So "old" will be the original loadstring stored as an upvalue
+                if type(uv) == "function" then
+                  local isLS = false
+                  pcall(function()
+                    local testOk, testFn = pcall(uv, "return 1")
+                    if testOk and type(testFn) == "function" then
+                      local testOk2, testR = pcall(testFn)
+                      if testOk2 and testR == 1 then
+                        -- This upvalue behaves like loadstring
+                        -- If it's different from the global loadstring, someone hooked it
+                        if uv ~= loadstring and uv ~= ${v.cleanLS} then
+                          isLS = true
+                        end
+                      end
+                    end
+                  end)
+                  if isLS then
+                    ${v.writeSink} = true
+                  end
+                end
+              end
+            end
+          end)
+        end
+        if ${v.writeSink} then break end
+      end
+    end
+  end)
+  if ${v.writeSink} then return false end
   
   return true
 end
@@ -608,27 +880,33 @@ local ${v.memWipe} = function(t)
   end
 end
 
--- ====== PHASE 4: SANDBOXED EXECUTION ======
--- Execute the final payload in a locked, monitored sandbox
+-- ====== PHASE 4: SANDBOXED EXECUTION (v8.0 Enhanced) ======
+-- Execute the final payload using CLEAN loadstring in a locked, monitored sandbox
+-- Key change: Uses clonefunction'd loadstring, not the potentially-hooked global
 local ${v.execSandbox} = function(code)
   -- Pre-execution: Final integrity verification
   if not ${v.antiHook}() then return nil, "hook_detected" end
   if not ${v.antiEnvLog}() then return nil, "env_logger_detected" end
   if not ${v.antiLogger}() then return nil, "logger_detected" end
   
-  -- Compile with cached (pre-hook) loadstring
-  local fn, err = ${v.cachedLS}(code)
+  -- Use the CLEAN loadstring (clonefunction'd), never the global
+  local fn, err = ${v.cleanLS}(code)
   if not fn then return nil, err end
   
   -- Create a protected execution environment
+  -- IMPORTANT: Only block exact dump-tool globals, not partial word matches
+  -- that could break legitimate scripts (e.g. "profile" contains "file")
+  local _blockedKeys = {
+    ["writefile"] = true, ["appendfile"] = true, ["script_dump"] = true,
+    ["hooklog"] = true, ["dumpfunc"] = true, ["savetofile"] = true,
+    ["ls_hook"] = true, ["loadstring_log"] = true, ["string_dump_log"] = true,
+    ["intercept_log"] = true, ["capture_log"] = true, ["hook_registry"] = true,
+  }
   local cleanEnv = setmetatable({}, {
     __index = getfenv(0),
     __newindex = function(self, key, value)
-      -- Block attempts to inject loggers into our environment
-      local keyLower = tostring(key):lower()
-      if keyLower:find("log") or keyLower:find("dump") or keyLower:find("hook") 
-         or keyLower:find("intercept") or keyLower:find("capture") then
-        return -- silently drop
+      if _blockedKeys[tostring(key):lower()] then
+        return -- silently drop known dump-tool globals
       end
       rawset(self, key, value)
     end,
@@ -671,23 +949,23 @@ if not ${v.envCheck}() then return end
 -- ====== RUN ALL PROTECTION CHECKS ======
 -- Phase order is randomized per-request to defeat pattern matching
 ${protectionSeed > 0.66 ? `
-if not ${v.antiHook}() then return end
-if not ${v.antiEnvLog}() then return end
-if not ${v.antiLogger}() then return end
-if not ${v.antiDump}() then return end
-if not ${v.antiDebug}() then return end
+if not ${v.antiHook}() then warn("[ULT] Security check failed") return end
+if not ${v.antiEnvLog}() then warn("[ULT] Environment check failed") return end
+if not ${v.antiLogger}() then warn("[ULT] Integrity check failed") return end
+if not ${v.antiDump}() then warn("[ULT] Protection check failed") return end
+if not ${v.antiDebug}() then warn("[ULT] Debug check failed") return end
 ` : protectionSeed > 0.33 ? `
-if not ${v.antiEnvLog}() then return end
-if not ${v.antiDump}() then return end
-if not ${v.antiHook}() then return end
-if not ${v.antiDebug}() then return end
-if not ${v.antiLogger}() then return end
+if not ${v.antiEnvLog}() then warn("[ULT] Environment check failed") return end
+if not ${v.antiDump}() then warn("[ULT] Protection check failed") return end
+if not ${v.antiHook}() then warn("[ULT] Security check failed") return end
+if not ${v.antiDebug}() then warn("[ULT] Debug check failed") return end
+if not ${v.antiLogger}() then warn("[ULT] Integrity check failed") return end
 ` : `
-if not ${v.antiDump}() then return end
-if not ${v.antiDebug}() then return end
-if not ${v.antiLogger}() then return end
-if not ${v.antiHook}() then return end
-if not ${v.antiEnvLog}() then return end
+if not ${v.antiDump}() then warn("[ULT] Protection check failed") return end
+if not ${v.antiDebug}() then warn("[ULT] Debug check failed") return end
+if not ${v.antiLogger}() then warn("[ULT] Integrity check failed") return end
+if not ${v.antiHook}() then warn("[ULT] Security check failed") return end
+if not ${v.antiEnvLog}() then warn("[ULT] Environment check failed") return end
 `}
 
 -- Generate unique execution nonce
@@ -788,9 +1066,9 @@ for i = 1, #ks do
   kb[i] = string.byte(ks, i)
 end
 
--- Re-verify ALL protections before network request
-if not ${v.antiHook}() then return end
-if not ${v.antiEnvLog}() then return end
+-- Re-verify protections before network request
+if not ${v.antiHook}() then warn("[ULT] Pre-fetch security failed") return end
+if not ${v.antiEnvLog}() then warn("[ULT] Pre-fetch environment failed") return end
 
 ${options?.showConsoleFeedback ? `
 -- Console Feedback: milestone-only loading bar (no spam)
@@ -845,6 +1123,7 @@ if s and r then
   -- Verify loadstring STILL hasn't been hooked between fetch and execution
   -- The bypass hooks loadstring BEFORE fetching, so this catches it
   if not ${v.antiHook}() then
+    warn("[ULT] Post-fetch security check failed")
     r = nil
     return
   end
@@ -878,7 +1157,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
       ultBar("Script loaded successfully.", 100)
       local pName = ${v.player}.DisplayName or ${v.player}.Name
       print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v7.0")
+      print("[ULT PROTECTION] Protected by ULT Protection v8.0")
     end)
 ` : ''}
     -- Use sandboxed execution (anti-hook + anti-env-logger)
