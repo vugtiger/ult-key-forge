@@ -520,29 +520,7 @@ local ${v.antiWritefile} = function()
     end
   end
   
-  -- Check for active getconnections/hookfunction patterns in GC
-  pcall(function()
-    if getgc then
-      local gc = getgc(true) or {}
-      for _, obj in ipairs(gc) do
-        if type(obj) == "function" then
-          pcall(function()
-            if getupvalues then
-              local ups = getupvalues(obj)
-              for _, uv in pairs(ups) do
-                if type(uv) == "string" then
-                  local lo = uv:lower()
-                  if lo:find("writefile") and (lo:find("loadstring") or lo:find("hook")) then
-                    ${v.writeSink} = true
-                  end
-                end
-              end
-            end
-          end)
-        end
-      end
-    end
-  end)
+  -- (GC scan removed - it corrupts Roblox PlayerModule by touching internal functions)
   
   if ${v.writeSink} then return false end
   return true
@@ -624,47 +602,12 @@ local ${v.antiHook} = function()
   end)
   if ${v.writeSink} then return false end
   
-  -- Check 7: Scan GC for hookfunction calls on loadstring
-  pcall(function()
-    if getgc then
-      local gc = getgc(true) or {}
-      for _, obj in ipairs(gc) do
-        if type(obj) == "function" and obj ~= ${v.cleanLS} then
-          pcall(function()
-            if getupvalues then
-              local ups = getupvalues(obj)
-              for _, uv in pairs(ups) do
-                -- Check if any function's upvalue holds a reference to the original loadstring
-                -- The bypass stores: old = hookfunction(loadstring, ...)
-                -- So "old" will be the original loadstring stored as an upvalue
-                if type(uv) == "function" then
-                  local isLS = false
-                  pcall(function()
-                    local testOk, testFn = pcall(uv, "return 1")
-                    if testOk and type(testFn) == "function" then
-                      local testOk2, testR = pcall(testFn)
-                      if testOk2 and testR == 1 then
-                        -- This upvalue behaves like loadstring
-                        -- If it's different from the global loadstring, someone hooked it
-                        if uv ~= loadstring and uv ~= ${v.cleanLS} then
-                          isLS = true
-                        end
-                      end
-                    end
-                  end)
-                  if isLS then
-                    ${v.writeSink} = true
-                  end
-                end
-              end
-            end
-          end)
-        end
-        if ${v.writeSink} then break end
-      end
-    end
-  end)
-  if ${v.writeSink} then return false end
+  -- Check 7: (Safe) Check for known hook patterns in globals only
+  -- DO NOT scan GC and execute random functions - it corrupts Roblox PlayerModule
+  if ${v.hookGuard}.rawget_ref(_G, "old_loadstring") ~= nil then return false end
+  if ${v.hookGuard}.rawget_ref(_G, "orig_loadstring") ~= nil then return false end
+  if ${v.hookGuard}.rawget_ref(_G, "real_loadstring") ~= nil then return false end
+  if ${v.hookGuard}.rawget_ref(_G, "backup_loadstring") ~= nil then return false end
   
   return true
 end
@@ -748,33 +691,7 @@ local ${v.antiEnvLog} = function()
     if ${v.hookGuard}.type_ref(req) == "table" then return false end
   end
   
-  -- Check 7: Check for getgc/getupvalues being used for scanning
-  if ${v.hookGuard}.type_ref(${v.hookGuard}.rawget_ref(_G, "getgc")) == "function" then
-    local ok, gc = ${v.hookGuard}.pcall_ref(getgc)
-    if ok and ${v.hookGuard}.type_ref(gc) == "table" then
-      for _, obj in ipairs(gc) do
-        if ${v.hookGuard}.type_ref(obj) == "function" then
-          local ok2, info = ${v.hookGuard}.pcall_ref(debug.info, obj, "n")
-          if ok2 and ${v.hookGuard}.type_ref(info) == "string" then
-            local ln = info:lower()
-            if ln:find("logger") or ln:find("dumper") or ln:find("intercept") 
-               or ln:find("unveil") or ln:find("threaded") or ln:find("deobf")
-               or ln:find("capture") or ln:find("monitor") or ln:find("trace") then
-              return false
-            end
-          end
-        end
-        -- Also check for suspicious string patterns in GC
-        if ${v.hookGuard}.type_ref(obj) == "string" and #obj > 20 then
-          local lo = obj:lower()
-          if lo:find("hookfunction%(loadstring") or lo:find("writefile%(") 
-             or lo:find("script_dump") or lo:find("env_log") then
-            return false
-          end
-        end
-      end
-    end
-  end
+  -- (GC scan removed - iterating GC and calling debug.info corrupts Roblox internals)
   
   -- Check 8: Verify our execution environment is clean
   -- Check if someone injected monitoring into our closure
@@ -829,22 +746,7 @@ local ${v.antiDump} = function()
       return false
     end
   end
-  if ${v.hookGuard}.type_ref(${v.hookGuard}.rawget_ref(_G, "getgc")) == "function" then
-    local ok, gc = ${v.hookGuard}.pcall_ref(getgc)
-    if ok and ${v.hookGuard}.type_ref(gc) == "table" then
-      for _, obj in ipairs(gc) do
-        if ${v.hookGuard}.type_ref(obj) == "function" then
-          local ok2, info = ${v.hookGuard}.pcall_ref(debug.info, obj, "n")
-          if ok2 and ${v.hookGuard}.type_ref(info) == "string" then
-            local ln = info:lower()
-            if ln:find("logger") or ln:find("dumper") or ln:find("intercept") then
-              return false
-            end
-          end
-        end
-      end
-    end
-  end
+  -- (GC scan removed - corrupts Roblox PlayerModule)
   return true
 end
 
