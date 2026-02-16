@@ -793,8 +793,12 @@ end
 
 -- ====== PHASE 3: ANTI-LOADSTRING INTERCEPT (Original + Enhanced) ======
 local ${v.antiLogger} = function()
-  if ${v.hookGuard}.rawget_ref(_G, "loadstring") ~= nil and ${v.hookGuard}.rawget_ref(_G, "loadstring") ~= ${v.cachedLS} then
-    return false
+  -- Only compare global loadstring if we did NOT get a clean clone
+  -- When clonefunction works, the clone is intentionally different from the global
+  if not ${v.clonedLS} then
+    if ${v.hookGuard}.rawget_ref(_G, "loadstring") ~= nil and ${v.hookGuard}.rawget_ref(_G, "loadstring") ~= ${v.cachedLS} then
+      return false
+    end
   end
   local loggerSignals = {
     "loadstring_log", "ls_hook", "string_dump_log", "script_dump",
