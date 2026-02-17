@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, Key, Shield, Database, Bot, Palette, Save, Zap, Code, MessageSquare, ExternalLink, Sparkles, EyeOff, Clock, Lock, Terminal, TrendingUp, Cloud, Volume2, VolumeX } from "lucide-react";
+import { ArrowRight, Key, Shield, Database, Bot, Palette, Save, Zap, Code, MessageSquare, ExternalLink, Sparkles, EyeOff, Clock, Lock, Terminal, TrendingUp, Cloud } from "lucide-react";
 import KeySystemPreview from "@/components/KeySystemPreview";
 import AIAssistantDemo from "@/components/AIAssistantDemo";
 import ReviewsSection from "@/components/ReviewsSection";
@@ -11,16 +11,7 @@ import LastUpdatedBadge from "@/components/LastUpdatedBadge";
 import GoogleTranslate from "@/components/GoogleTranslate";
 import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
-import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEffect";
-
-const SoundToggleBtn = () => {
-  const [soundOn, setSoundOn] = useState(isSnowSoundOn());
-  return (
-    <Button variant="ghost" size="icon" onClick={() => setSoundOn(toggleSnowSound())} className="text-muted-foreground hover:text-foreground h-8 w-8" title={soundOn ? "Mute" : "Unmute"}>
-      {soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
-    </Button>
-  );
-};
+import SnowEffect from "@/components/SnowEffect";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -75,7 +66,6 @@ const Index = () => {
             </div>
             
             <div className="flex items-center gap-2">
-              <SoundToggleBtn />
               <LastUpdatedBadge />
               <GoogleTranslate />
               <a

@@ -1,32 +1,31 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
 // Shared audio context for the entire app
 let globalAudioCtx: AudioContext | null = null;
 let globalGainNode: GainNode | null = null;
 let globalSourceNode: AudioBufferSourceNode | null = null;
 let audioInitialized = false;
-let audioMuted = false;
 
 const initAudio = () => {
   if (audioInitialized) return;
   audioInitialized = true;
 
-  // Check saved preference
-  const saved = localStorage.getItem('snow-sound-muted');
-  audioMuted = saved === 'true';
-
   try {
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     globalAudioCtx = audioCtx;
 
+    // Create a longer buffer for seamless looping (8 seconds)
     const bufferSize = audioCtx.sampleRate * 8;
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const data = buffer.getChannelData(0);
 
-    const fadeLen = audioCtx.sampleRate * 0.5;
+    // Generate soft wind/snow noise with smooth fade in/out for seamless loop
+    const fadeLen = audioCtx.sampleRate * 0.5; // 0.5s fade
     for (let i = 0; i < bufferSize; i++) {
       let sample = (Math.random() * 2 - 1) * 0.025;
+      // Smooth fade in
       if (i < fadeLen) sample *= i / fadeLen;
+      // Smooth fade out
       if (i > bufferSize - fadeLen) sample *= (bufferSize - i) / fadeLen;
       data[i] = sample;
     }
@@ -37,17 +36,19 @@ const initAudio = () => {
     source.loopStart = 0;
     source.loopEnd = buffer.duration;
 
+    // Bandpass filter for soft wind
     const filter = audioCtx.createBiquadFilter();
     filter.type = "bandpass";
     filter.frequency.value = 600;
     filter.Q.value = 0.4;
 
+    // Second filter for warmth
     const lowpass = audioCtx.createBiquadFilter();
     lowpass.type = "lowpass";
     lowpass.frequency.value = 2000;
 
     const gain = audioCtx.createGain();
-    gain.gain.value = audioMuted ? 0 : 0.18;
+    gain.gain.value = 0.18; // Louder than before
 
     source.connect(filter);
     filter.connect(lowpass);
@@ -58,6 +59,7 @@ const initAudio = () => {
     globalGainNode = gain;
     globalSourceNode = source;
 
+    // Handle tab visibility to prevent audio stopping
     const handleVisibility = () => {
       if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
         globalAudioCtx.resume();
@@ -70,28 +72,13 @@ const initAudio = () => {
   }
 };
 
-// Toggle sound on/off
-export const toggleSnowSound = (): boolean => {
-  audioMuted = !audioMuted;
-  localStorage.setItem('snow-sound-muted', String(audioMuted));
-  if (globalGainNode) {
-    globalGainNode.gain.value = audioMuted ? 0 : 0.18;
-  }
-  return !audioMuted; // returns true if sound is ON
-};
-
-export const isSnowSoundOn = (): boolean => {
-  const saved = localStorage.getItem('snow-sound-muted');
-  return saved !== 'true';
-};
-
 // Button click snow sound effect
 export const playButtonClickSound = () => {
-  if (audioMuted) return;
   try {
     const ctx = globalAudioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
     if (!globalAudioCtx) globalAudioCtx = ctx;
 
+    // Create a short "crunch in snow" sound
     const duration = 0.15;
     const sampleRate = ctx.sampleRate;
     const bufferSize = Math.floor(sampleRate * duration);
@@ -100,6 +87,7 @@ export const playButtonClickSound = () => {
 
     for (let i = 0; i < bufferSize; i++) {
       const t = i / sampleRate;
+      // Mix of noise with rapid decay for "crunch" feel
       const envelope = Math.exp(-t * 25);
       const noise = (Math.random() * 2 - 1) * 0.4;
       data[i] = noise * envelope;
@@ -147,7 +135,7 @@ export const createSnowBurst = (x: number, y: number) => {
     const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
     const speed = 30 + Math.random() * 40;
     const dx = Math.cos(angle) * speed;
-    const dy = Math.sin(angle) * speed - 20;
+    const dy = Math.sin(angle) * speed - 20; // Bias upward
 
     particle.animate([
       { transform: 'translate(0, 0) scale(1)', opacity: 0.8 },
@@ -217,6 +205,7 @@ const SnowEffect = () => {
     };
     window.addEventListener("resize", handleResize);
 
+    // Initialize audio on first interaction
     const startAudio = () => {
       initAudio();
       document.removeEventListener("click", startAudio);
@@ -225,6 +214,7 @@ const SnowEffect = () => {
     document.addEventListener("click", startAudio);
     document.addEventListener("keydown", startAudio);
 
+    // Keep audio alive when switching tabs
     const handleVisibility = () => {
       if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
         globalAudioCtx.resume();

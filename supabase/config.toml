@@ -15,6 +15,3 @@ verify_jwt = false
 
 [functions.discord-register-commands]
 verify_jwt = false
-
-[functions.admin-api]
-verify_jwt = false
