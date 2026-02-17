@@ -17,12 +17,12 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye } from "lucide-react";
+import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
-import SnowEffect from "@/components/SnowEffect";
+import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEffect";
 
 const navigationItems = [
   { title: "Key System Gen", url: "/dashboard", icon: Zap },
@@ -176,6 +176,21 @@ const AppSidebar = ({ user }: { user: User | null }) => {
   );
 };
 
+const SoundToggle = () => {
+  const [soundOn, setSoundOn] = useState(isSnowSoundOn());
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setSoundOn(toggleSnowSound())}
+      className="text-muted-foreground hover:text-foreground"
+      title={soundOn ? "Mute snow sound" : "Unmute snow sound"}
+    >
+      {soundOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
+    </Button>
+  );
+};
+
 interface DashboardLayoutProps {
   children: ReactNode;
 }
@@ -229,6 +244,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <header className="h-14 border-b border-border/30 flex items-center px-6 sticky top-0 bg-background/60 backdrop-blur-xl z-10">
             <SidebarTrigger className="mr-4" />
             <div className="flex-1" />
+            <SoundToggle />
           </header>
           <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
             {children}
