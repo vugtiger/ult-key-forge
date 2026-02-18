@@ -1,230 +1,135 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, KeyRound, Mail, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { ArrowLeft, Send, Sparkles, Loader2, KeyRound } from "lucide-react";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect from "@/components/SnowEffect";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
-type Step = "email" | "code" | "password" | "success";
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+}
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 const PasswordReset = () => {
-  const [step, setStep] = useState<Step>("email");
-  const [email, setEmail] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: "assistant",
+      content:
+        "Hey! I'm here to help you reset your ULT CLOUD password. Just tell me your email address and I'll get a reset link sent over to you right away.",
+    },
+  ]);
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSendCode = async () => {
-    if (!email) {
-      toast({ title: "Error", description: "Please enter your email", variant: "destructive" });
-      return;
-    }
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
-      if (error) throw error;
-      setStep("code");
-      toast({ title: "Code Sent!", description: "Check your email for the 6-digit code." });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const extractEmail = (text: string): string | null => {
+    const emailRegex = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/;
+    const match = text.match(emailRegex);
+    return match ? match[0] : null;
   };
 
-  const handleVerifyCode = async () => {
-    if (otpCode.length !== 6) {
-      toast({ title: "Error", description: "Please enter the full 6-digit code", variant: "destructive" });
-      return;
-    }
+  const sendResetEmail = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/update-password`,
+    });
+    return error;
+  };
+
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+
+    setInput("");
+    const newMessages: Message[] = [...messages, { role: "user", content: text }];
+    setMessages(newMessages);
     setLoading(true);
+
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        email,
-        token: otpCode,
-        type: "recovery",
+      // Check if user provided an email
+      const email = extractEmail(text);
+
+      if (email && !emailSent) {
+        // Send the reset email
+        const error = await sendResetEmail(email);
+
+        if (error) {
+          const errorMsg: Message = {
+            role: "assistant",
+            content: `Hmm, I ran into an issue: "${error.message}". Could you double-check that email address and try again?`,
+          };
+          setMessages([...newMessages, errorMsg]);
+        } else {
+          setEmailSent(true);
+          const successMsg: Message = {
+            role: "assistant",
+            content: `Done! I've sent a password reset link to **${email}**. Check your inbox (and spam folder just in case). Click the link in the email to set your new password. Once you're done, you can head back to sign in!`,
+          };
+          setMessages([...newMessages, successMsg]);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Use AI to handle the conversation
+      const { data, error: aiError } = await supabase.functions.invoke("ai-chat", {
+        body: {
+          messages: [
+            {
+              role: "user",
+              content: `You are a friendly password reset assistant for ULT CLOUD website. Keep responses short and helpful. The user is trying to reset their password. 
+              
+Context: ${emailSent ? "A reset email has already been sent." : "No reset email sent yet. You need to ask for their email."}
+
+User said: "${text}"
+
+If they haven't given an email yet, ask for it. If they seem confused about receiving the email, tell them to check spam. Keep it short and friendly.`,
+            },
+          ],
+        },
       });
-      if (error) throw error;
-      setStep("password");
-      toast({ title: "Code Verified!", description: "Now set your new password." });
-    } catch (error: any) {
-      toast({ title: "Invalid Code", description: error.message, variant: "destructive" });
+
+      if (aiError) throw aiError;
+
+      const aiResponse: Message = {
+        role: "assistant",
+        content: data?.response || "Let me help you! What's your email address?",
+      };
+      setMessages([...newMessages, aiResponse]);
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Something went wrong",
+        variant: "destructive",
+      });
+      setMessages([
+        ...newMessages,
+        {
+          role: "assistant",
+          content: "Sorry, I hit a snag. Could you try again?",
+        },
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdatePassword = async () => {
-    if (newPassword.length < 6) {
-      toast({ title: "Error", description: "Password must be at least 6 characters", variant: "destructive" });
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast({ title: "Error", description: "Passwords do not match", variant: "destructive" });
-      return;
-    }
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      setStep("success");
-      toast({ title: "Password Updated!", description: "Your password has been changed successfully." });
-      // Sign out and redirect
-      setTimeout(async () => {
-        await supabase.auth.signOut();
-        navigate("/auth");
-      }, 2500);
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const renderStep = () => {
-    switch (step) {
-      case "email":
-        return (
-          <>
-            <div className="text-center mb-8">
-              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-card border border-border/50 flex items-center justify-center">
-                <KeyRound className="w-7 h-7 text-foreground" />
-              </div>
-              <h1 className="text-2xl font-bold mb-2">Password Reset</h1>
-              <p className="text-muted-foreground text-sm">Enter your email to receive a verification code</p>
-            </div>
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm text-muted-foreground">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSendCode()}
-                  className="bg-background/50 border-border/50 focus:border-primary/50 rounded-xl"
-                />
-              </div>
-              <Button onClick={handleSendCode} disabled={loading} className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-xl">
-                {loading ? "Sending..." : "Send Verification Code"}
-              </Button>
-            </div>
-          </>
-        );
-
-      case "code":
-        return (
-          <>
-            <div className="text-center mb-8">
-              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-card border border-border/50 flex items-center justify-center">
-                <Mail className="w-7 h-7 text-foreground" />
-              </div>
-              <h1 className="text-2xl font-bold mb-2">Enter Verification Code</h1>
-              <p className="text-muted-foreground text-sm">
-                We sent a 6-digit code to <span className="text-foreground font-medium">{email}</span>
-              </p>
-            </div>
-            <div className="space-y-5">
-              <div className="flex justify-center">
-                <InputOTP maxLength={6} value={otpCode} onChange={setOtpCode}>
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
-                  </InputOTPGroup>
-                </InputOTP>
-              </div>
-              <Button onClick={handleVerifyCode} disabled={loading || otpCode.length !== 6} className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-xl">
-                {loading ? "Verifying..." : "Verify Code"}
-              </Button>
-              <div className="text-center space-y-2">
-                <button onClick={handleSendCode} disabled={loading} className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                  Didn't get the code? Resend
-                </button>
-                <button onClick={() => { setStep("email"); setOtpCode(""); }} className="text-sm text-muted-foreground hover:text-primary transition-colors block w-full">
-                  Try a different email
-                </button>
-              </div>
-            </div>
-          </>
-        );
-
-      case "password":
-        return (
-          <>
-            <div className="text-center mb-8">
-              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-card border border-border/50 flex items-center justify-center">
-                <KeyRound className="w-7 h-7 text-foreground" />
-              </div>
-              <h1 className="text-2xl font-bold mb-2">Set New Password</h1>
-              <p className="text-sm text-muted-foreground">
-                Enter your new password below. Your old password will no longer work.
-              </p>
-            </div>
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="newPassword" className="text-sm text-muted-foreground">New Password</Label>
-                <div className="relative">
-                  <Input
-                    id="newPassword"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter new password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="bg-background/50 border-border/50 focus:border-primary/50 pr-10 rounded-xl"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-sm text-muted-foreground">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Confirm new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleUpdatePassword()}
-                  className="bg-background/50 border-border/50 focus:border-primary/50 rounded-xl"
-                />
-              </div>
-              <Button onClick={handleUpdatePassword} disabled={loading} className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-xl">
-                {loading ? "Updating..." : "Update Password"}
-              </Button>
-            </div>
-          </>
-        );
-
-      case "success":
-        return (
-          <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
-              <CheckCircle className="w-8 h-8 text-green-500" />
-            </div>
-            <h1 className="text-2xl font-bold mb-2">Password Updated!</h1>
-            <p className="text-muted-foreground">Your password has been changed. Redirecting to sign in...</p>
-          </div>
-        );
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
@@ -234,15 +139,105 @@ const PasswordReset = () => {
       <SnowEffect />
 
       <div className="relative z-10 w-full max-w-md px-4">
-        {step !== "success" && (
-          <Button variant="ghost" onClick={() => navigate("/auth")} className="mb-6 gap-2 text-muted-foreground hover:text-foreground">
-            <ArrowLeft size={18} />
-            Back to Sign In
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          onClick={() => navigate("/auth")}
+          className="mb-6 gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft size={18} />
+          Back to Sign In
+        </Button>
 
-        <Card className="p-8 bg-card/50 backdrop-blur-xl border-border/30 rounded-2xl">
-          {renderStep()}
+        <Card className="p-6 bg-card/50 backdrop-blur-xl border-border/30 rounded-2xl flex flex-col h-[520px]">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border/30">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <KeyRound className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="font-bold text-base">Password Reset</h1>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-primary" />
+                AI Assistant
+              </p>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : "bg-muted/50 border border-border/40 rounded-bl-sm"
+                  }`}
+                >
+                  {msg.role === "assistant" && (
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Sparkles className="w-3 h-3 text-primary" />
+                      <span className="text-[10px] font-medium text-primary">AI Assistant</span>
+                    </div>
+                  )}
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-muted/50 border border-border/40 rounded-2xl rounded-bl-sm px-4 py-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Sparkles className="w-3 h-3 text-primary animate-pulse" />
+                    <span className="text-[10px] font-medium text-primary">Thinking...</span>
+                  </div>
+                  <div className="flex gap-1">
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {emailSent && (
+              <div className="text-center py-2">
+                <span className="text-xs text-muted-foreground bg-muted/30 px-3 py-1 rounded-full">
+                  Reset email sent ✓
+                </span>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className="mt-4 pt-4 border-t border-border/30 flex gap-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={emailSent ? "Any other questions?" : "Type your email address..."}
+              disabled={loading}
+              className="bg-background/50 border-border/50 focus:border-primary/50 rounded-xl text-sm"
+            />
+            <Button
+              onClick={handleSend}
+              disabled={loading || !input.trim()}
+              size="icon"
+              className="shrink-0 rounded-xl"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
         </Card>
       </div>
     </div>
