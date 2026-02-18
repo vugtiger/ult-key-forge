@@ -53,11 +53,11 @@ const ScriptSettings = () => {
         {/* Tabs */}
         <Tabs defaultValue="monitor" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="monitor" className="flex items-center gap-2">
+            <TabsTrigger value="monitor" type="button" className="flex items-center gap-2">
               <Eye className="h-4 w-4" />
               Access Monitor
             </TabsTrigger>
-            <TabsTrigger value="games" className="flex items-center gap-2">
+            <TabsTrigger value="games" type="button" className="flex items-center gap-2">
               <Gamepad2 className="h-4 w-4" />
               Game Bindings
             </TabsTrigger>

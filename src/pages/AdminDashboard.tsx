@@ -229,10 +229,16 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full max-w-lg grid-cols-3">
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="pastes">Pastes</TabsTrigger>
-            <TabsTrigger value="ips">IP Tracking</TabsTrigger>
+          <TabsList className="grid w-full max-w-lg grid-cols-3" onClick={(e) => e.stopPropagation()}>
+            <TabsTrigger value="users" type="button">
+              <Users className="h-4 w-4 mr-2" />Users
+            </TabsTrigger>
+            <TabsTrigger value="pastes" type="button">
+              <FileCode className="h-4 w-4 mr-2" />Pastes
+            </TabsTrigger>
+            <TabsTrigger value="ips" type="button">
+              <Globe className="h-4 w-4 mr-2" />IP Tracking
+            </TabsTrigger>
           </TabsList>
 
           {/* USERS TAB */}
