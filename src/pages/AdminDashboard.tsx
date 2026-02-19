@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Trash2, Search, Ban, Copy, Download, Users, FileCode, Globe, RefreshCw } from "lucide-react";
+import { Shield, Trash2, Search, Ban, Copy, Download, Users, FileCode, Globe, RefreshCw, Activity, Star, Clock, Database, Eye, EyeOff, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 
@@ -33,23 +33,78 @@ interface AdminPaste {
   owner_email: string;
 }
 
+interface AccessLog {
+  id: string;
+  paste_id: string;
+  paste_slug: string;
+  paste_title: string;
+  paste_owner_email: string;
+  ip_address: string;
+  roblox_user_id: string | null;
+  roblox_username: string | null;
+  roblox_avatar_url: string | null;
+  discord_username: string | null;
+  access_type: string;
+  is_active: boolean;
+  last_seen_at: string;
+  created_at: string;
+  user_agent: string | null;
+}
+
+interface UserSession {
+  id: string;
+  user_id: string;
+  user_email: string;
+  session_token: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  last_active: string;
+  created_at: string;
+}
+
+interface UserActivityRecord {
+  id: string;
+  user_id: string;
+  user_email: string;
+  activity_type: string;
+  activity_data: any;
+  created_at: string;
+}
+
+interface Review {
+  id: string;
+  user_id: string | null;
+  username: string;
+  content: string;
+  stars: number;
+  is_fake: boolean;
+  created_at: string;
+}
+
 const AdminDashboard = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [pastes, setPastes] = useState<AdminPaste[]>([]);
+  const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
+  const [sessions, setSessions] = useState<UserSession[]>([]);
+  const [activity, setActivity] = useState<UserActivityRecord[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dbLoading, setDbLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pasteSearch, setPasteSearch] = useState("");
+  const [logSearch, setLogSearch] = useState("");
+  const [sessionSearch, setSessionSearch] = useState("");
+  const [activitySearch, setActivitySearch] = useState("");
   const [banReason, setBanReason] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [expandedPaste, setExpandedPaste] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setCurrentUserId(session.user.id);
-      }
+      if (session) setCurrentUserId(session.user.id);
     });
   }, []);
 
@@ -98,11 +153,59 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchAccessLogs = async () => {
+    setDbLoading(true);
+    try {
+      const data = await adminCall('list_access_logs');
+      setAccessLogs(data.logs || []);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setDbLoading(false);
+    }
+  };
+
+  const fetchSessions = async () => {
+    setDbLoading(true);
+    try {
+      const data = await adminCall('list_sessions');
+      setSessions(data.sessions || []);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setDbLoading(false);
+    }
+  };
+
+  const fetchActivity = async () => {
+    setDbLoading(true);
+    try {
+      const data = await adminCall('list_activity');
+      setActivity(data.activity || []);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setDbLoading(false);
+    }
+  };
+
+  const fetchReviews = async () => {
+    setDbLoading(true);
+    try {
+      const data = await adminCall('list_reviews');
+      setReviews(data.reviews || []);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setDbLoading(false);
+    }
+  };
+
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this user and all their data?')) return;
+    if (!confirm('Permanently delete this user and all their data?')) return;
     try {
       await adminCall('delete_user', { target_user_id: userId });
-      toast({ title: "User Deleted", description: "Account has been permanently removed." });
+      toast({ title: "User Deleted" });
       fetchUsers();
       fetchPastes();
     } catch (error: any) {
@@ -147,7 +250,17 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleCopyPaste = (content: string) => {
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      await adminCall('delete_review', { review_id: reviewId });
+      toast({ title: "Review Deleted" });
+      setReviews(prev => prev.filter(r => r.id !== reviewId));
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
     toast({ title: "Copied to clipboard" });
   };
@@ -175,6 +288,23 @@ const AdminDashboard = () => {
     p.content.toLowerCase().includes(pasteSearch.toLowerCase())
   );
 
+  const filteredLogs = accessLogs.filter(l =>
+    l.ip_address?.includes(logSearch) ||
+    l.roblox_username?.toLowerCase().includes(logSearch.toLowerCase()) ||
+    l.paste_slug?.includes(logSearch) ||
+    l.paste_owner_email?.toLowerCase().includes(logSearch.toLowerCase())
+  );
+
+  const filteredSessions = sessions.filter(s =>
+    s.user_email?.toLowerCase().includes(sessionSearch.toLowerCase()) ||
+    s.ip_address?.includes(sessionSearch)
+  );
+
+  const filteredActivity = activity.filter(a =>
+    a.user_email?.toLowerCase().includes(activitySearch.toLowerCase()) ||
+    a.activity_type?.toLowerCase().includes(activitySearch.toLowerCase())
+  );
+
   if (adminLoading || !isAdmin) return null;
 
   return (
@@ -184,7 +314,7 @@ const AdminDashboard = () => {
           <Shield className="h-8 w-8 text-primary" />
           <div>
             <h1 className="text-3xl font-bold">Owner Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Full control over all accounts and data</p>
+            <p className="text-sm text-muted-foreground">Full control over all accounts, data, and activity</p>
           </div>
         </div>
 
@@ -229,16 +359,14 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full max-w-lg grid-cols-3" onClick={(e) => e.stopPropagation()}>
-            <TabsTrigger value="users" type="button">
-              <Users className="h-4 w-4 mr-2" />Users
-            </TabsTrigger>
-            <TabsTrigger value="pastes" type="button">
-              <FileCode className="h-4 w-4 mr-2" />Pastes
-            </TabsTrigger>
-            <TabsTrigger value="ips" type="button">
-              <Globe className="h-4 w-4 mr-2" />IP Tracking
-            </TabsTrigger>
+          <TabsList className="flex flex-wrap gap-1 h-auto p-1">
+            <TabsTrigger value="users" type="button"><Users className="h-3 w-3 mr-1" />Users</TabsTrigger>
+            <TabsTrigger value="pastes" type="button"><FileCode className="h-3 w-3 mr-1" />Pastes</TabsTrigger>
+            <TabsTrigger value="ips" type="button"><Globe className="h-3 w-3 mr-1" />IPs</TabsTrigger>
+            <TabsTrigger value="access-logs" type="button" onClick={fetchAccessLogs}><Database className="h-3 w-3 mr-1" />Access Logs</TabsTrigger>
+            <TabsTrigger value="sessions" type="button" onClick={fetchSessions}><Clock className="h-3 w-3 mr-1" />Sessions</TabsTrigger>
+            <TabsTrigger value="activity" type="button" onClick={fetchActivity}><Activity className="h-3 w-3 mr-1" />Activity</TabsTrigger>
+            <TabsTrigger value="reviews" type="button" onClick={fetchReviews}><Star className="h-3 w-3 mr-1" />Reviews</TabsTrigger>
           </TabsList>
 
           {/* USERS TAB */}
@@ -251,7 +379,6 @@ const AdminDashboard = () => {
                 </div>
                 <Button onClick={fetchUsers} variant="outline" size="icon"><RefreshCw className="h-4 w-4" /></Button>
               </div>
-
               {loading ? (
                 <div className="text-center py-8 text-muted-foreground">Loading users...</div>
               ) : (
@@ -266,15 +393,15 @@ const AdminDashboard = () => {
                             {user.is_banned && <span className="text-xs bg-destructive text-destructive-foreground px-2 py-0.5 rounded">BANNED</span>}
                           </div>
                           {user.discord_username && <p className="text-xs text-muted-foreground">Discord: {user.discord_username}</p>}
-                          <p className="text-xs text-muted-foreground">Joined: {new Date(user.created_at).toLocaleDateString()}</p>
-                          {user.last_sign_in_at && <p className="text-xs text-muted-foreground">Last login: {new Date(user.last_sign_in_at).toLocaleString()}</p>}
+                          <p className="text-xs text-muted-foreground">Joined: {new Date(user.created_at).toLocaleDateString()} · Last login: {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'Never'}</p>
+                          <p className="text-xs text-muted-foreground">ID: <span className="font-mono text-[10px]">{user.id}</span></p>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {user.ip_addresses.map((ip, idx) => (
                               <span key={idx} className={`text-xs font-mono px-2 py-0.5 rounded ${ip.is_primary ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
                                 {ip.address} {ip.is_primary ? '(primary)' : ''}
                               </span>
                             ))}
-                            {user.ip_addresses.length === 0 && <span className="text-xs text-muted-foreground">No IPs</span>}
+                            {user.ip_addresses.length === 0 && <span className="text-xs text-muted-foreground italic">No IPs recorded</span>}
                           </div>
                           {user.ban_reason && <p className="text-xs text-destructive mt-1">Reason: {user.ban_reason}</p>}
                         </div>
@@ -312,11 +439,10 @@ const AdminDashboard = () => {
               <div className="flex gap-4 mb-6">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search pastes..." value={pasteSearch} onChange={(e) => setPasteSearch(e.target.value)} className="pl-10" />
+                  <Input placeholder="Search by title, slug, owner email, or code..." value={pasteSearch} onChange={(e) => setPasteSearch(e.target.value)} className="pl-10" />
                 </div>
                 <Button onClick={fetchPastes} variant="outline" size="icon"><RefreshCw className="h-4 w-4" /></Button>
               </div>
-
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">{filteredPastes.length} pastes found</p>
                 {filteredPastes.map((paste) => (
@@ -324,18 +450,24 @@ const AdminDashboard = () => {
                     <div className="flex items-start justify-between gap-4">
                       <div className="space-y-1 min-w-0 flex-1">
                         <p className="font-medium text-sm">{paste.title || paste.slug}</p>
-                        <p className="text-xs text-muted-foreground">Owner: {paste.owner_email}</p>
-                        <p className="text-xs text-muted-foreground">Slug: /{paste.slug}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {paste.protection_enabled ? '🛡️ Protected' : '🔓 Unprotected'} · 
-                          Created: {new Date(paste.created_at).toLocaleDateString()}
-                        </p>
-                        <pre className="text-xs text-muted-foreground bg-muted/50 rounded p-2 mt-2 max-h-24 overflow-auto whitespace-pre-wrap">
-                          {paste.content.substring(0, 500)}{paste.content.length > 500 ? '...' : ''}
-                        </pre>
+                        <p className="text-xs text-muted-foreground font-mono">Owner: <span className="text-foreground">{paste.owner_email}</span></p>
+                        <p className="text-xs text-muted-foreground">Slug: /{paste.slug} · {paste.protection_enabled ? '🛡️ Protected' : '🔓 Unprotected'} · {new Date(paste.created_at).toLocaleDateString()}</p>
+                        {expandedPaste === paste.id ? (
+                          <pre className="text-xs bg-muted/50 rounded p-2 mt-2 max-h-64 overflow-auto whitespace-pre-wrap font-mono">
+                            {paste.content}
+                          </pre>
+                        ) : (
+                          <pre className="text-xs text-muted-foreground bg-muted/50 rounded p-2 mt-2 max-h-16 overflow-hidden whitespace-pre-wrap">
+                            {paste.content.substring(0, 200)}{paste.content.length > 200 ? '...' : ''}
+                          </pre>
+                        )}
                       </div>
                       <div className="flex flex-col gap-1.5 flex-shrink-0">
-                        <Button size="sm" variant="outline" onClick={() => handleCopyPaste(paste.content)} className="text-xs">
+                        <Button size="sm" variant="outline" onClick={() => setExpandedPaste(expandedPaste === paste.id ? null : paste.id)} className="text-xs">
+                          {expandedPaste === paste.id ? <EyeOff className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
+                          {expandedPaste === paste.id ? 'Hide' : 'View'}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleCopy(paste.content)} className="text-xs">
                           <Copy className="h-3 w-3 mr-1" />Copy
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => handleDownloadPaste(paste)} className="text-xs">
@@ -370,9 +502,7 @@ const AdminDashboard = () => {
                             <p className={`text-xs font-mono px-2 py-1 rounded ${ip.is_primary ? 'bg-primary/20 text-primary' : 'bg-muted'}`}>
                               {ip.address}
                             </p>
-                            <span className="text-[10px] text-muted-foreground">
-                              {new Date(ip.last_used).toLocaleDateString()}
-                            </span>
+                            <span className="text-[10px] text-muted-foreground">{new Date(ip.last_used).toLocaleDateString()}</span>
                           </div>
                         ))}
                       </div>
@@ -380,6 +510,169 @@ const AdminDashboard = () => {
                   </div>
                 ))}
               </div>
+            </Card>
+          </TabsContent>
+
+          {/* ACCESS LOGS TAB */}
+          <TabsContent value="access-logs" className="space-y-4 mt-6">
+            <Card className="p-6 bg-card/50 backdrop-blur-xl border-border/30">
+              <div className="flex gap-4 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Search by IP, Roblox user, paste slug, or owner email..." value={logSearch} onChange={(e) => setLogSearch(e.target.value)} className="pl-10" />
+                </div>
+                <Button onClick={fetchAccessLogs} variant="outline" size="icon"><RefreshCw className="h-4 w-4" /></Button>
+              </div>
+              {dbLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading access logs...</div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">{filteredLogs.length} logs found</p>
+                  {filteredLogs.map((log) => (
+                    <Card key={log.id} className="p-3 border-border/30">
+                      <div className="flex items-start gap-3">
+                        {log.roblox_avatar_url && (
+                          <img src={log.roblox_avatar_url} alt="" className="w-10 h-10 rounded-full shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0 space-y-0.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm">{log.roblox_username || 'Unknown'}</span>
+                            {log.discord_username && <span className="text-xs text-muted-foreground">(@{log.discord_username})</span>}
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${log.is_active ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                              {log.is_active ? '🟢 Active' : '⚫ Inactive'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Paste: <span className="text-foreground">{log.paste_slug}</span> · Owner: {log.paste_owner_email}</p>
+                          <p className="text-xs font-mono text-muted-foreground">IP: {log.ip_address} · RBX ID: {log.roblox_user_id || 'N/A'}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(log.created_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                  {filteredLogs.length === 0 && !dbLoading && (
+                    <p className="text-center py-8 text-muted-foreground">No access logs found. Click refresh to load.</p>
+                  )}
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* SESSIONS TAB */}
+          <TabsContent value="sessions" className="space-y-4 mt-6">
+            <Card className="p-6 bg-card/50 backdrop-blur-xl border-border/30">
+              <div className="flex gap-4 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Search by email or IP..." value={sessionSearch} onChange={(e) => setSessionSearch(e.target.value)} className="pl-10" />
+                </div>
+                <Button onClick={fetchSessions} variant="outline" size="icon"><RefreshCw className="h-4 w-4" /></Button>
+              </div>
+              {dbLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading sessions...</div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">{filteredSessions.length} sessions found</p>
+                  {filteredSessions.map((session) => (
+                    <Card key={session.id} className="p-3 border-border/30">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-0.5">
+                          <p className="font-medium text-sm">{session.user_email}</p>
+                          <p className="text-xs font-mono text-muted-foreground">IP: {session.ip_address || 'Unknown'}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-xs">{session.user_agent || 'Unknown UA'}</p>
+                          <p className="text-xs text-muted-foreground">Last active: {new Date(session.last_active).toLocaleString()} · Created: {new Date(session.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => handleCopy(session.session_token)} className="text-xs shrink-0">
+                          <Copy className="h-3 w-3 mr-1" />Token
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                  {filteredSessions.length === 0 && !dbLoading && (
+                    <p className="text-center py-8 text-muted-foreground">No sessions found. Click refresh to load.</p>
+                  )}
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* ACTIVITY TAB */}
+          <TabsContent value="activity" className="space-y-4 mt-6">
+            <Card className="p-6 bg-card/50 backdrop-blur-xl border-border/30">
+              <div className="flex gap-4 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Search by email or activity type..." value={activitySearch} onChange={(e) => setActivitySearch(e.target.value)} className="pl-10" />
+                </div>
+                <Button onClick={fetchActivity} variant="outline" size="icon"><RefreshCw className="h-4 w-4" /></Button>
+              </div>
+              {dbLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading activity...</div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">{filteredActivity.length} records found</p>
+                  {filteredActivity.map((item) => (
+                    <Card key={item.id} className="p-3 border-border/30">
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{item.user_email}</span>
+                            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded font-mono">{item.activity_type}</span>
+                          </div>
+                          {item.activity_data && Object.keys(item.activity_data).length > 0 && (
+                            <p className="text-xs text-muted-foreground font-mono">{JSON.stringify(item.activity_data).substring(0, 120)}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                  {filteredActivity.length === 0 && !dbLoading && (
+                    <p className="text-center py-8 text-muted-foreground">No activity found. Click refresh to load.</p>
+                  )}
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* REVIEWS TAB */}
+          <TabsContent value="reviews" className="space-y-4 mt-6">
+            <Card className="p-6 bg-card/50 backdrop-blur-xl border-border/30">
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-sm text-muted-foreground">{reviews.length} total reviews</p>
+                <Button onClick={fetchReviews} variant="outline" size="icon"><RefreshCw className="h-4 w-4" /></Button>
+              </div>
+              {dbLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading reviews...</div>
+              ) : (
+                <div className="space-y-2">
+                  {reviews.map((review) => (
+                    <Card key={review.id} className="p-3 border-border/30">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{review.username}</span>
+                            <div className="flex gap-0.5">
+                              {[1,2,3,4,5].map(n => (
+                                <Star key={n} className={`h-3 w-3 ${n <= review.stars ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
+                              ))}
+                            </div>
+                            {review.is_fake && <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">fake</span>}
+                            {!review.is_fake && <span className="text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">real</span>}
+                          </div>
+                          <p className="text-xs text-muted-foreground">{review.content}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(review.created_at).toLocaleString()}</p>
+                        </div>
+                        <Button size="sm" variant="destructive" onClick={() => handleDeleteReview(review.id)} className="text-xs shrink-0">
+                          <XCircle className="h-3 w-3 mr-1" />Delete
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                  {reviews.length === 0 && !dbLoading && (
+                    <p className="text-center py-8 text-muted-foreground">No reviews found. Click refresh to load.</p>
+                  )}
+                </div>
+              )}
             </Card>
           </TabsContent>
         </Tabs>

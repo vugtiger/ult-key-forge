@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, User } from "lucide-react";
+import { Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -13,42 +13,93 @@ interface Review {
   stars: number;
   is_fake: boolean;
   created_at: string;
-  offsetY?: number;
+  avatarSeed?: string;
+  timeAgo?: string;
+  platform?: string;
 }
 
+// 60+ varied, natural, believable review templates
 const fakeReviewTemplates = [
-  { content: "This is exactly what I needed for my Roblox scripts. The key system is so easy to use!", stars: 5 },
-  { content: "Amazing platform! Been using it for months and never had any issues.", stars: 5 },
-  { content: "The AI assistant is incredibly helpful for generating scripts.", stars: 5 },
-  { content: "Great tool for protecting my scripts. Highly recommend!", stars: 5 },
-  { content: "Love the customization options. My key system looks professional.", stars: 4 },
-  { content: "Very user-friendly interface. Even beginners can use it easily.", stars: 5 },
-  { content: "The Discord bot integration is a game changer!", stars: 5 },
-  { content: "Free and works perfectly. What more could you ask for?", stars: 5 },
-  { content: "Best key system generator out there. Period.", stars: 5 },
-  { content: "The pastebin feature with protection is exactly what I was looking for.", stars: 4 },
-  { content: "Good platform but could use more features.", stars: 3 },
-  { content: "Not bad, but the interface could be better.", stars: 3 },
-  { content: "It's okay I guess.", stars: 2 },
-  { content: "Works great for my needs!", stars: 5 },
-  { content: "Super fast and reliable. Love it!", stars: 5 },
-  { content: "The whitelist system is perfect for managing my buyers.", stars: 5 },
-  { content: "Clean UI and great functionality.", stars: 4 },
-  { content: "Been looking for something like this forever!", stars: 5 },
-  { content: "The key generation is instant. Very impressed.", stars: 5 },
-  { content: "Excellent customer support on Discord.", stars: 5 },
+  { content: "been using this for like 2 weeks now and honestly its rly good for what i need", stars: 5 },
+  { content: "works perfect for my scripts ngl. key system is easy to setup", stars: 5 },
+  { content: "its good but took me a bit to figure out how to setup the paste thing", stars: 4 },
+  { content: "the ip tracking feature is actually crazy useful. glad i found this", stars: 5 },
+  { content: "finally something that actually works. been looking forever lol", stars: 5 },
+  { content: "Discord bot integration is fire. saves me so much time", stars: 5 },
+  { content: "Honestly 10/10. The protection keeps my scripts safe from dumpers", stars: 5 },
+  { content: "pretty good platform overall. UI could be a bit cleaner but it works well", stars: 4 },
+  { content: "love that its free. other sites charge for this stuff", stars: 5 },
+  { content: "the keysystem works rly well for my buyers. no complaints", stars: 5 },
+  { content: "it's okay i guess. does what it says", stars: 3 },
+  { content: "been using since last month and havent had any issues at all", stars: 5 },
+  { content: "my whitelist is finally organized properly bc of this lol", stars: 4 },
+  { content: "not bad for a free tool honestly. the pastebin protection is nice", stars: 4 },
+  { content: "AI assistant actually helped me write better scripts. solid feature", stars: 5 },
+  { content: "this slaps. my scripts are actually protected now", stars: 5 },
+  { content: "setup was straightforward, been running smooth for weeks", stars: 5 },
+  { content: "I like the analytics section - can see whos using my stuff", stars: 5 },
+  { content: "the hide code feature is exactly what i needed. tysm", stars: 5 },
+  { content: "good tool but sometimes a lil slow to load. still 4 stars tho", stars: 4 },
+  { content: "would recommend to anyone making roblox scripts fr", stars: 5 },
+  { content: "super useful for managing buyers. the key system is clean", stars: 5 },
+  { content: "its not perfect but nothing is. gets the job done tho", stars: 3 },
+  { content: "i was skeptical at first but this is genuinely a great tool", stars: 5 },
+  { content: "10/10 no cap. the protection actually works unlike other sites", stars: 5 },
+  { content: "makes script selling SO much easier. key system is goated", stars: 5 },
+  { content: "pretty solid. the discord integration is what sold me on it", stars: 4 },
+  { content: "works as advertised. been using for my roblox hub and its great", stars: 5 },
+  { content: "tbh didnt expect much but this actually surprised me. good stuff", stars: 4 },
+  { content: "the whitelist manager is actually really clean and easy to use", stars: 5 },
+  { content: "bro this actually catches dumpers. had one try yesterday and got flagged lol", stars: 5 },
+  { content: "its giving what its supposed to give. no bugs so far", stars: 5 },
+  { content: "love the changelog feature, keeps me updated on whats new", stars: 4 },
+  { content: "solid platform. my scripts been protected for 3 weeks no issues", stars: 5 },
+  { content: "took a bit to understand but once you get it its rly powerful", stars: 4 },
+  { content: "honestly the best free option out there for this type of thing", stars: 5 },
+  { content: "game restriction feature is useful if you only want specific games", stars: 5 },
+  { content: "my friend told me about this and im glad he did. works well", stars: 5 },
+  { content: "better than i expected. the UI is clean and intuitive", stars: 4 },
+  { content: "does exactly what it says. no bs, just works", stars: 5 },
+  { content: "the roblox profile tracking is actually insane. love this feature", stars: 5 },
+  { content: "havent had a single bypass since switching to this. W platform", stars: 5 },
+  { content: "its decent. wish there were more customization options but still good", stars: 3 },
+  { content: "clean, fast, and actually secure. what more could you want lol", stars: 5 },
+  { content: "i like how the protection updates automatically. saves so much hassle", stars: 5 },
+  { content: "highly recommend if youre selling scripts. makes life way easier", stars: 5 },
+  { content: "not gonna lie this is actually really solid for what it is", stars: 4 },
+  { content: "the keygen is clean. my buyers love having their own keys", stars: 5 },
+  { content: "5 stars. does what i need and more. no complaints at all", stars: 5 },
+  { content: "been a while since i found a tool this useful. great work", stars: 5 },
+  { content: "idk man its pretty good. been using for a month and no problems", stars: 4 },
+  { content: "the paste protection is actually genius. cant believe this is free", stars: 5 },
+  { content: "works perfectly. set it up in like 10 mins and its been running since", stars: 5 },
+  { content: "needed something like this for ages. glad someone finally made it", stars: 5 },
+  { content: "literally the best tool for script protection rn. not even close", stars: 5 },
+  { content: "its good, not perfect, but definitely one of the better options out there", stars: 4 },
+  { content: "have been telling all my friends about this. actually useful", stars: 5 },
+  { content: "the security features are crazy good. had multiple bypass attempts fail", stars: 5 },
+  { content: "10/10 would use again. already been using for 2 months lol", stars: 5 },
+  { content: "setup is simple and the features actually work properly", stars: 5 },
 ];
 
 const fakeUsernames = [
-  "alex_gaming", "mike_dev", "sarah_codes", "jake92", "emma_rbx",
-  "tyler_scripts", "mia_lua", "ethan_pro", "olivia_dev", "noah_games",
-  "ava_coder", "liam_2k5", "sophia_rbx", "mason_dev", "isabella_lua",
-  "lucas_gamer", "amelia_codes", "henry_script", "charlotte_dev", "ben_gaming",
-  "lily_coder", "jack_rbx", "zoey_dev", "ryan_lua", "chloe_scripts",
-  "daniel_pro", "grace_games", "matthew_dev", "hannah_rbx", "andrew_lua",
-  "natalie_codes", "josh_gaming", "victoria_dev", "chris_rbx", "jessica_lua",
-  "kevin_scripts", "ashley_pro", "brandon_dev", "taylor_rbx", "justin_games"
+  "xXScript_ProXx", "lua_dev_fr", "rblx_coder42", "vxd_scripts", "altzy",
+  "nullbyte_", "hexcode_rbx", "y4kzii", "codez4life", "sxript",
+  "devmode_on", "rbxscripter", "luamaster99", "ult_fan", "codingwizard",
+  "x_nulll", "sxulzy", "rbxhub_user", "m1dnight_coder", "skidded_no",
+  "actualdev", "exploitfree", "scriptkid_nope", "realcoder_", "v3nom_rbx",
+  "ultlua_user", "xXdevXx", "codingisfun3", "scriptify_", "luvs_lua",
+  "r3tro_dev", "shadowscript", "phantom_coder", "bytemaster", "zeroday_rbx",
+  "lua4ever", "codebreaker_x", "ghostscript", "matrix_coder", "devcraft99",
 ];
+
+const platforms = ["via Discord", "via Web", "via App", "via Roblox"];
+
+function getTimeAgo(offsetMinutes: number): string {
+  if (offsetMinutes < 60) return `${offsetMinutes} min ago`;
+  if (offsetMinutes < 1440) return `${Math.floor(offsetMinutes / 60)}h ago`;
+  return `${Math.floor(offsetMinutes / 1440)}d ago`;
+}
 
 const ReviewsSection = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -63,12 +114,18 @@ const ReviewsSection = () => {
     fetchReviews();
     checkAuth();
     
-    // Add fake reviews fast (every 1.5 seconds)
-    const interval = setInterval(() => {
-      addFakeReview();
-    }, 1500);
+    // Start fake review rotation with randomized interval (8-15 seconds)
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const scheduleNext = () => {
+      const delay = 8000 + Math.random() * 7000; // 8-15 seconds
+      timeoutId = setTimeout(() => {
+        addFakeReview();
+        scheduleNext();
+      }, delay);
+    };
+    scheduleNext();
 
-    return () => clearInterval(interval);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const checkAuth = async () => {
@@ -84,29 +141,38 @@ const ReviewsSection = () => {
       .limit(20);
 
     if (!error && data) {
-      setReviews(data.map((r, i) => ({ ...r as Review, offsetY: 0 })));
+      const enriched = data.map((r: any) => ({
+        ...r,
+        avatarSeed: r.username,
+        timeAgo: getTimeAgo(Math.floor(Math.random() * 2880) + 30),
+        platform: platforms[Math.floor(Math.random() * platforms.length)],
+      }));
+      setReviews(enriched);
     }
   };
 
-  const addFakeReview = async () => {
+  const addFakeReview = () => {
     const template = fakeReviewTemplates[Math.floor(Math.random() * fakeReviewTemplates.length)];
     const baseUsername = fakeUsernames[Math.floor(Math.random() * fakeUsernames.length)];
-    // Sometimes add a small number suffix (more realistic)
-    const suffix = Math.random() > 0.6 ? '' : Math.floor(Math.random() * 99).toString();
+    // Sometimes append numbers (more realistic)
+    const suffix = Math.random() > 0.55 ? '' : (Math.floor(Math.random() * 999) + 1).toString();
     const username = baseUsername + suffix;
     
-    // Weight towards good reviews (85% good, 15% bad)
-    const shouldBeGood = Math.random() < 0.85;
-    const adjustedStars = shouldBeGood ? (Math.random() < 0.7 ? 5 : 4) : template.stars;
+    // Natural star distribution: 65% five stars, 20% four stars, 10% three, 5% lower
+    const rand = Math.random();
+    const stars = rand < 0.65 ? 5 : rand < 0.85 ? 4 : rand < 0.95 ? 3 : rand < 0.98 ? 2 : 1;
+    const timeOffset = Math.floor(Math.random() * 4320) + 5; // 5min to 3 days ago
 
     const newFakeReview: Review = {
       id: crypto.randomUUID(),
       username,
       content: template.content,
-      stars: adjustedStars,
+      stars,
       is_fake: true,
       created_at: new Date().toISOString(),
-      offsetY: 0
+      avatarSeed: username,
+      timeAgo: getTimeAgo(timeOffset),
+      platform: platforms[Math.floor(Math.random() * platforms.length)],
     };
 
     setReviews(prev => [newFakeReview, ...prev.slice(0, 11)]);
@@ -152,25 +218,23 @@ const ReviewsSection = () => {
     }
   };
 
-  const renderStars = (count: number, interactive = false, onSelect?: (n: number) => void) => {
-    return (
-      <div className="flex gap-1">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <Star
-            key={n}
-            className={`h-4 w-4 ${n <= count ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'} ${interactive ? 'cursor-pointer hover:scale-110 transition-transform' : ''}`}
-            onClick={() => interactive && onSelect?.(n)}
-          />
-        ))}
-      </div>
-    );
-  };
+  const renderStars = (count: number, interactive = false, onSelect?: (n: number) => void) => (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star
+          key={n}
+          className={`h-3.5 w-3.5 ${n <= count ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'} ${interactive ? 'cursor-pointer hover:scale-110 transition-transform' : ''}`}
+          onClick={() => interactive && onSelect?.(n)}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <section className="max-w-6xl mx-auto mb-24">
       <h2 className="text-4xl font-bold text-center mb-4">User Reviews</h2>
       <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
-        See what our users are saying about ULT LUA Protects
+        See what our users are saying about ULT CLOUD
       </p>
 
       {/* Submit Review Form */}
@@ -198,15 +262,15 @@ const ReviewsSection = () => {
       {/* 3D Carousel Reviews */}
       <div 
         ref={containerRef}
-        className="relative h-[500px] overflow-hidden perspective-1000"
+        className="relative h-[520px] overflow-hidden"
         style={{ perspective: '1000px' }}
       >
         <div className="absolute inset-0 flex flex-col items-center">
           {reviews.slice(0, 6).map((review, index) => {
-            const yOffset = index * 90;
+            const yOffset = index * 92;
             const zOffset = -index * 50;
-            const opacity = 1 - (index * 0.15);
-            const scale = 1 - (index * 0.05);
+            const opacity = 1 - (index * 0.14);
+            const scale = 1 - (index * 0.04);
             
             return (
               <Card
@@ -219,15 +283,32 @@ const ReviewsSection = () => {
                 }}
               >
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <User className="h-5 w-5 text-muted-foreground" />
-                  </div>
+                  {/* Deterministic avatar via DiceBear */}
+                  <img
+                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(review.avatarSeed || review.username)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
+                    alt={review.username}
+                    className="w-10 h-10 rounded-full bg-muted shrink-0"
+                    onError={(e) => { (e.target as HTMLImageElement).src = ''; }}
+                  />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium truncate">{review.username}</span>
-                      {renderStars(review.stars)}
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm truncate">{review.username}</span>
+                    {!review.is_fake && (
+                          <span className="text-[10px] bg-green-500/20 text-green-500 px-1.5 py-0.5 rounded">✓ Verified</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {renderStars(review.stars)}
+                        {review.platform && (
+                          <span className="text-[10px] text-muted-foreground">{review.platform}</span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{review.content}</p>
+                    <p className="text-sm text-muted-foreground mt-1.5 line-clamp-2">{review.content}</p>
+                    {review.timeAgo && (
+                      <p className="text-[10px] text-muted-foreground mt-1">{review.timeAgo}</p>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -235,20 +316,14 @@ const ReviewsSection = () => {
           })}
         </div>
         
-        {/* Gradient overlays for 3D effect */}
+        {/* Gradient overlay */}
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none z-10" />
       </div>
 
       <style>{`
         @keyframes slideDown {
-          from {
-            transform: translateY(-100px) translateZ(0) scale(1.1);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0) translateZ(0) scale(1);
-            opacity: 1;
-          }
+          from { transform: translateY(-100px) translateZ(0) scale(1.05); opacity: 0; }
+          to { transform: translateY(0) translateZ(0) scale(1); opacity: 1; }
         }
       `}</style>
     </section>

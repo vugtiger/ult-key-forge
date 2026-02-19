@@ -1144,8 +1144,32 @@ Deno.serve(async (req) => {
       });
     }
     
-    const isRobloxRequest = userAgent.toLowerCase().includes('roblox') || 
-                            userAgent.includes('HttpService');
+  // === BYPASS PATCH: Block spoofed Roblox-Id (e.g. curl -H "Roblox-Id: 1") ===
+  const robloxIdHeader = req.headers.get('roblox-id') || req.headers.get('Roblox-Id') || '';
+  if (robloxIdHeader) {
+    const robloxIdNum = parseInt(robloxIdHeader, 10);
+    // Real Roblox user IDs are all > 1000. Block fake/spoofed IDs.
+    if (isNaN(robloxIdNum) || robloxIdNum < 1000) {
+      console.log(`[get-paste] BLOCKED: spoofed Roblox-Id="${robloxIdHeader}" from ${clientIp}`);
+      return new Response(generateHoneypot(), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+  }
+
+  // Also block raw curl even when combined with a Roblox UA header
+  const uaLower = userAgent.toLowerCase();
+  if (uaLower.includes('curl') || uaLower.includes('wget') || uaLower.includes('libcurl')) {
+    console.log(`[get-paste] BLOCKED: curl/wget tool detected ua="${userAgent}" from ${clientIp}`);
+    return new Response(generateHoneypot(), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+    });
+  }
+
+  const isRobloxRequest = userAgent.toLowerCase().includes('roblox') || 
+                          userAgent.includes('HttpService');
 
     const isLikelyBrowser =
       Boolean(secFetchMode) ||
