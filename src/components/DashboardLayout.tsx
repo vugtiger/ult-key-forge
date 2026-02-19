@@ -111,9 +111,6 @@ const AppSidebar = ({ user }: { user: User | null }) => {
     navigate("/auth");
   };
 
-  // Admin accounts only see Admin Panel
-  const navItems = isAdmin ? adminItems : navigationItems;
-
   return (
     <Sidebar className={state === "collapsed" ? "w-14" : "w-64"} collapsible="icon">
       <SidebarContent className="bg-sidebar border-r border-sidebar-border">
@@ -131,12 +128,10 @@ const AppSidebar = ({ user }: { user: User | null }) => {
         </div>
 
         <SidebarGroup>
-          <SidebarGroupLabel className={state === "collapsed" ? "sr-only" : ""}>
-            {isAdmin ? "Owner" : "Main Menu"}
-          </SidebarGroupLabel>
+          <SidebarGroupLabel className={state === "collapsed" ? "sr-only" : ""}>Main Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} end className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
@@ -150,6 +145,26 @@ const AppSidebar = ({ user }: { user: User | null }) => {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className={state === "collapsed" ? "sr-only" : ""}>Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink to={item.url} end className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                        <item.icon className={state === "collapsed" ? "" : "mr-2"} size={20} />
+                        {state !== "collapsed" && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         <div className="mt-auto p-4 border-t border-sidebar-border">
           <Button variant="ghost" className="w-full justify-start hover:bg-sidebar-accent" onClick={handleLogout}>
             <LogOut className={state === "collapsed" ? "" : "mr-2"} size={20} />
@@ -160,7 +175,6 @@ const AppSidebar = ({ user }: { user: User | null }) => {
     </Sidebar>
   );
 };
-
 
 const SoundToggle = () => {
   const [soundOn, setSoundOn] = useState(isSnowSoundOn());
@@ -184,7 +198,6 @@ interface DashboardLayoutProps {
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     const loadUserTheme = async (userId: string) => {
@@ -206,38 +219,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       }
     };
 
-    const redirectIfAdmin = async (userId: string) => {
-      const { data } = await supabase.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle();
-      if (data && location.pathname !== '/admin') {
-        navigate('/admin');
-      }
-    };
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) { resetTheme(); navigate("/auth"); }
-      else {
-        setUser(session.user);
-        loadUserTheme(session.user.id);
-        trackLogin(session.user.id);
-        redirectIfAdmin(session.user.id);
-      }
+      else { setUser(session.user); loadUserTheme(session.user.id); trackLogin(session.user.id); }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) { resetTheme(); navigate("/auth"); }
-      else {
-        setUser(session.user);
-        if (event === 'SIGNED_IN') {
-          loadUserTheme(session.user.id);
-          trackLogin(session.user.id);
-          redirectIfAdmin(session.user.id);
-        }
-      }
+      else { setUser(session.user); if (event === 'SIGNED_IN') { loadUserTheme(session.user.id); trackLogin(session.user.id); } }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, location.pathname]);
-
+  }, [navigate]);
 
   if (!user) return null;
 
