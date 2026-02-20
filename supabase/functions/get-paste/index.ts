@@ -1363,6 +1363,22 @@ Deno.serve(async (req) => {
         await logAccess(null, 'browser');
         return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
       }
+
+      // === PATCH: Block setclipboard(game:HttpGet(url)) bypass ===
+      // Real Roblox execution always has game/place IDs in the URL params.
+      // A raw HttpGet call (e.g. from setclipboard) won't include gid/pid.
+      // If the paste has hide_code enabled, require game context for loader delivery.
+      if (paste.hide_code && (!gid || !pid)) {
+        console.log(`[get-paste] BLOCKED: raw HttpGet (no game context) for hide_code paste slug=${slug} ip=${clientIp}`);
+        return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
+      }
+
+      // Also block if uid is provided but extremely low (spoofed like Roblox-Id: 1)
+      if (uid && /^\d+$/.test(uid) && parseInt(uid) < 1000 && parseInt(uid) !== 0) {
+        console.log(`[get-paste] BLOCKED: spoofed uid=${uid} slug=${slug} ip=${clientIp}`);
+        return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
+      }
+
       const newToken = generateToken();
       const sessionSecret = generateSessionSecret(clientIp, Date.now());
       await supabase.from('paste_execution_tokens').insert({
