@@ -15,15 +15,16 @@ const suspiciousIps = new Map<string, { strikes: number; lastStrike: number }>()
 // ===== ANTI-FETCH PROTECTION =====
 const BLOCKED_USER_AGENTS = [
   'discordbot', 'discord.js', 'discord-http', 'discord', 'eris', 'oceanic',
-  'axios', 'node-fetch', 'got', 'undici', 'needle', 'superagent', 'request',
+  'axios', 'node-fetch', 'got', 'undici', 'needle', 'superagent',
   'httpie', 'curl', 'wget', 'python-requests', 'python-urllib', 'aiohttp',
   'httpx', 'libcurl', 'php', 'perl', 'ruby', 'java/', 'apache-httpclient',
   'okhttp', 'retrofit', 'unirest', 'restsharp', 'flurl',
-  'synapse', 'script-ware', 'krnl', 'fluxus', 'jjsploit', 'oxygen',
+  // NOTE: executor names (synapse, krnl, etc.) intentionally NOT blocked —
+  // they are legitimate Roblox executors. Only block automation/scraping tools.
   'puppeteer', 'playwright', 'selenium', 'phantomjs', 'headless',
-  'crawler', 'spider', 'scraper', 'bot', 'fetch',
+  'crawler', 'spider', 'scraper',
   'postman', 'insomnia', 'thunder client', 'hoppscotch', 'paw/',
-  'lua', 'luajit', 'resty', 'openresty',
+  'luajit', 'resty', 'openresty',
 ];
 
 const SUSPICIOUS_UA_PATTERNS = [
