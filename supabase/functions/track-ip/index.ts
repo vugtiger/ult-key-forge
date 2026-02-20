@@ -12,19 +12,86 @@ serve(async (req) => {
   }
 
   try {
-    const { user_id, action } = await req.json();
+    const body = await req.json();
+    const { user_id, action, limit_action } = body;
     
     // Get IP from request headers
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                req.headers.get('cf-connecting-ip') || 
                req.headers.get('x-real-ip') || 
                'unknown';
 
-    console.log(`IP tracking for user ${user_id}, action: ${action}, IP: ${ip}`);
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    console.log(`IP tracking for user ${user_id ?? 'anon'}, action: ${action}, IP: ${ip}`);
+
+    // ===== RATE LIMIT CHECK =====
+    if (action === 'check_rate_limit') {
+      const targetAction = limit_action || 'signup';
+      
+      // Cooldown windows per action
+      const cooldowns: Record<string, number> = {
+        'signup': 24 * 60 * 60 * 1000,      // 24 hours
+        'login': 60 * 60 * 1000,             // 1 hour (10 attempts)
+        'paste_create': 60 * 1000,           // 60 seconds
+      };
+      const maxCounts: Record<string, number> = {
+        'signup': 1,
+        'login': 10,
+        'paste_create': 5,
+      };
+      
+      const windowMs = cooldowns[targetAction] || 60000;
+      const maxCount = maxCounts[targetAction] || 5;
+      const windowStart = new Date(Date.now() - windowMs).toISOString();
+      
+      const { data: existing } = await supabase
+        .from('rate_limits')
+        .select('count, window_start')
+        .eq('identifier', ip)
+        .eq('action', targetAction)
+        .gte('window_start', windowStart)
+        .order('window_start', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (existing && existing.count >= maxCount) {
+        return new Response(JSON.stringify({ allowed: false, action: targetAction }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      return new Response(JSON.stringify({ allowed: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // ===== RECORD SIGNUP (for rate limiting) =====
+    if (action === 'record_signup') {
+      const windowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      
+      const { data: existing } = await supabase
+        .from('rate_limits')
+        .select('id, count')
+        .eq('identifier', ip)
+        .eq('action', 'signup')
+        .gte('window_start', windowStart)
+        .order('window_start', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (existing) {
+        await supabase.from('rate_limits').update({ count: existing.count + 1 }).eq('id', existing.id);
+      } else {
+        await supabase.from('rate_limits').insert({ identifier: ip, action: 'signup', count: 1 });
+      }
+      
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     if (action === 'register') {
       // On registration, store the IP as primary
@@ -86,8 +153,7 @@ serve(async (req) => {
         });
       }
       
-      // IP doesn't match - this is a new device/location
-      // Add it to the list but not as primary
+      // IP doesn't match - add it to the list but not as primary
       await supabase.from('user_ips').insert({
         user_id,
         ip_address: ip,
@@ -105,7 +171,6 @@ serve(async (req) => {
     }
 
     if (action === 'verify') {
-      // Check if IP matches
       const { data: userIps, error: fetchError } = await supabase
         .from('user_ips')
         .select('*')
