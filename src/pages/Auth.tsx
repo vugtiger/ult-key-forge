@@ -38,6 +38,14 @@ const Auth = () => {
 
     try {
       if (isLogin) {
+        // Check login rate limit before attempting
+        const { data: loginRateCheck } = await supabase.functions.invoke('track-ip', {
+          body: { action: 'check_rate_limit', limit_action: 'login' }
+        });
+        if (loginRateCheck?.allowed === false) {
+          throw new Error('Too many login attempts. Please wait before trying again.');
+        }
+
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         
@@ -52,12 +60,30 @@ const Auth = () => {
         
         navigate("/dashboard");
       } else {
-        const { error } = await supabase.auth.signUp({
+        // Check signup rate limit (24h cooldown per IP)
+        const { data: signupRateCheck } = await supabase.functions.invoke('track-ip', {
+          body: { action: 'check_rate_limit', limit_action: 'signup' }
+        });
+        if (signupRateCheck?.allowed === false) {
+          throw new Error('You must wait 24 hours before creating another account from this location.');
+        }
+
+        const { data: signupData, error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: `${window.location.origin}/` }
         });
         if (error) throw error;
+        
+        // Record signup for rate limiting + capture IP
+        if (signupData.user) {
+          await supabase.functions.invoke('track-ip', {
+            body: { user_id: signupData.user.id, action: 'register' }
+          });
+          await supabase.functions.invoke('track-ip', {
+            body: { action: 'record_signup' }
+          });
+        }
         
         toast({
           title: "Success!",

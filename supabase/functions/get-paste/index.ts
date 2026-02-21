@@ -15,15 +15,16 @@ const suspiciousIps = new Map<string, { strikes: number; lastStrike: number }>()
 // ===== ANTI-FETCH PROTECTION =====
 const BLOCKED_USER_AGENTS = [
   'discordbot', 'discord.js', 'discord-http', 'discord', 'eris', 'oceanic',
-  'axios', 'node-fetch', 'got', 'undici', 'needle', 'superagent', 'request',
+  'axios', 'node-fetch', 'got', 'undici', 'needle', 'superagent',
   'httpie', 'curl', 'wget', 'python-requests', 'python-urllib', 'aiohttp',
   'httpx', 'libcurl', 'php', 'perl', 'ruby', 'java/', 'apache-httpclient',
   'okhttp', 'retrofit', 'unirest', 'restsharp', 'flurl',
-  'synapse', 'script-ware', 'krnl', 'fluxus', 'jjsploit', 'oxygen',
+  // NOTE: executor names (synapse, krnl, etc.) intentionally NOT blocked —
+  // they are legitimate Roblox executors. Only block automation/scraping tools.
   'puppeteer', 'playwright', 'selenium', 'phantomjs', 'headless',
-  'crawler', 'spider', 'scraper', 'bot', 'fetch',
+  'crawler', 'spider', 'scraper',
   'postman', 'insomnia', 'thunder client', 'hoppscotch', 'paw/',
-  'lua', 'luajit', 'resty', 'openresty',
+  'luajit', 'resty', 'openresty',
 ];
 
 const SUSPICIOUS_UA_PATTERNS = [
@@ -1144,8 +1145,32 @@ Deno.serve(async (req) => {
       });
     }
     
-    const isRobloxRequest = userAgent.toLowerCase().includes('roblox') || 
-                            userAgent.includes('HttpService');
+  // === BYPASS PATCH: Block spoofed Roblox-Id (e.g. curl -H "Roblox-Id: 1") ===
+  const robloxIdHeader = req.headers.get('roblox-id') || req.headers.get('Roblox-Id') || '';
+  if (robloxIdHeader) {
+    const robloxIdNum = parseInt(robloxIdHeader, 10);
+    // Real Roblox user IDs are all > 1000. Block fake/spoofed IDs.
+    if (isNaN(robloxIdNum) || robloxIdNum < 1000) {
+      console.log(`[get-paste] BLOCKED: spoofed Roblox-Id="${robloxIdHeader}" from ${clientIp}`);
+      return new Response(generateHoneypot(), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+  }
+
+  // Also block raw curl even when combined with a Roblox UA header
+  const uaLower = userAgent.toLowerCase();
+  if (uaLower.includes('curl') || uaLower.includes('wget') || uaLower.includes('libcurl')) {
+    console.log(`[get-paste] BLOCKED: curl/wget tool detected ua="${userAgent}" from ${clientIp}`);
+    return new Response(generateHoneypot(), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+    });
+  }
+
+  const isRobloxRequest = userAgent.toLowerCase().includes('roblox') || 
+                          userAgent.includes('HttpService');
 
     const isLikelyBrowser =
       Boolean(secFetchMode) ||
@@ -1339,6 +1364,22 @@ Deno.serve(async (req) => {
         await logAccess(null, 'browser');
         return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
       }
+
+      // === PATCH: Block setclipboard(game:HttpGet(url)) bypass ===
+      // Real Roblox execution always has game/place IDs in the URL params.
+      // A raw HttpGet call (e.g. from setclipboard) won't include gid/pid.
+      // If the paste has hide_code enabled, require game context for loader delivery.
+      if (paste.hide_code && (!gid || !pid)) {
+        console.log(`[get-paste] BLOCKED: raw HttpGet (no game context) for hide_code paste slug=${slug} ip=${clientIp}`);
+        return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
+      }
+
+      // Also block if uid is provided but extremely low (spoofed like Roblox-Id: 1)
+      if (uid && /^\d+$/.test(uid) && parseInt(uid) < 1000 && parseInt(uid) !== 0) {
+        console.log(`[get-paste] BLOCKED: spoofed uid=${uid} slug=${slug} ip=${clientIp}`);
+        return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
+      }
+
       const newToken = generateToken();
       const sessionSecret = generateSessionSecret(clientIp, Date.now());
       await supabase.from('paste_execution_tokens').insert({

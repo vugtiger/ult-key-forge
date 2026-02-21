@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -185,6 +185,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     const loadUserTheme = async (userId: string) => {
@@ -206,9 +207,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       }
     };
 
-    const redirectIfAdmin = async (userId: string) => {
+    const redirectIfAdmin = async (userId: string, currentPath: string) => {
       const { data } = await supabase.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle();
-      if (data && location.pathname !== '/admin') {
+      if (data && currentPath !== '/admin') {
         navigate('/admin');
       }
     };
@@ -217,9 +218,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       if (!session) { resetTheme(); navigate("/auth"); }
       else {
         setUser(session.user);
-        loadUserTheme(session.user.id);
-        trackLogin(session.user.id);
-        redirectIfAdmin(session.user.id);
+        if (!initializedRef.current) {
+          initializedRef.current = true;
+          loadUserTheme(session.user.id);
+          trackLogin(session.user.id);
+          redirectIfAdmin(session.user.id, location.pathname);
+        }
       }
     });
 
@@ -230,13 +234,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         if (event === 'SIGNED_IN') {
           loadUserTheme(session.user.id);
           trackLogin(session.user.id);
-          redirectIfAdmin(session.user.id);
+          redirectIfAdmin(session.user.id, location.pathname);
         }
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, location.pathname]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate]);
 
 
   if (!user) return null;
