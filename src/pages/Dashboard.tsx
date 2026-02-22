@@ -980,18 +980,14 @@ input.FocusLost:Connect(function(enter)
         fadeAndDestroy("Wrong Key! Access Denied", Color3.fromRGB(255,0,0), false)
         return
     end
-    -- Check if key is already used/assigned
     if usedKeysData[enteredKey] then
         if usedKeysData[enteredKey] == userId then
-            -- Same user, allow re-entry
             fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), true)
         else
-            -- Different user already claimed this key
-            fadeAndDestroy("Key Already Assigned! Access Denied", Color3.fromRGB(255,0,0), false)
+            fadeAndDestroy("Key Already Used! Access Denied", Color3.fromRGB(255,0,0), false)
         end
         return
     end
-    -- First-time use: bind key to this user's ID
     usedKeysData[enteredKey] = userId
     saveUsedKeys()
     fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), true)

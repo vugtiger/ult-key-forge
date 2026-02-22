@@ -209,18 +209,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
     const redirectIfAdmin = async (userId: string, currentPath: string) => {
       const { data } = await supabase.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle();
-      if (data) {
-        // Admin accounts should ONLY be on /admin - redirect once and stop
-        if (currentPath !== '/admin') {
-          navigate('/admin', { replace: true });
-        }
+      if (data && currentPath !== '/admin') {
+        navigate('/admin');
       }
     };
 
-    let mounted = true;
-
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
       if (!session) { resetTheme(); navigate("/auth"); }
       else {
         setUser(session.user);
@@ -234,7 +228,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return;
       if (!session) { resetTheme(); navigate("/auth"); }
       else {
         setUser(session.user);
@@ -246,12 +239,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       }
     });
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [navigate]);
 
 
   if (!user) return null;

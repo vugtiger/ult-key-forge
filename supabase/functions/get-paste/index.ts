@@ -1365,13 +1365,14 @@ Deno.serve(async (req) => {
         return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
       }
 
-      // NOTE: The initial loadstring(game:HttpGet(url))() request naturally lacks gid/pid.
-      // Those params are added by the LOADER in the second request. So we cannot block
-      // the initial request for missing game context — that would break ALL protected pastes.
-      // The setclipboard bypass is already mitigated because:
-      // 1. The loader has token-based auth (30s expiry)
-      // 2. The actual content is XOR-encrypted with the token
-      // 3. Anti-hook protections prevent dumping
+      // === PATCH: Block setclipboard(game:HttpGet(url)) bypass ===
+      // Real Roblox execution always has game/place IDs in the URL params.
+      // A raw HttpGet call (e.g. from setclipboard) won't include gid/pid.
+      // If the paste has hide_code enabled, require game context for loader delivery.
+      if (paste.hide_code && (!gid || !pid)) {
+        console.log(`[get-paste] BLOCKED: raw HttpGet (no game context) for hide_code paste slug=${slug} ip=${clientIp}`);
+        return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
+      }
 
       // Also block if uid is provided but extremely low (spoofed like Roblox-Id: 1)
       if (uid && /^\d+$/.test(uid) && parseInt(uid) < 1000 && parseInt(uid) !== 0) {
