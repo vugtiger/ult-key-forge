@@ -189,13 +189,92 @@ const commands = [
     ]
   },
 
-  // AI Command
+  // Script Settings Commands
   {
-    name: "ai",
-    description: "Chat with the AI assistant",
+    name: "gamebind",
+    description: "Bind a paste to a specific Roblox game (restrict execution to that game)",
     options: [
-      { name: "enabled", description: "Enable or disable AI (True/False)", type: 5, required: true },
-      { name: "message", description: "Your message/question for the AI", type: 3, required: false }
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "gameid", description: "Roblox Game/Place ID to bind", type: 3, required: true },
+      { name: "gamename", description: "Game name (for display)", type: 3, required: false }
+    ]
+  },
+  {
+    name: "gameunbind",
+    description: "Remove a game binding from a paste",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "gameid", description: "Roblox Game/Place ID to unbind", type: 3, required: true }
+    ]
+  },
+  {
+    name: "gamerestriction",
+    description: "Toggle game restriction on a paste (only allow bound games)",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable game restriction", type: 5, required: true }
+    ]
+  },
+  {
+    name: "loadingbar",
+    description: "Toggle the loading bar on script execution",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable loading bar", type: 5, required: true }
+    ]
+  },
+  {
+    name: "welcomemessage",
+    description: "Toggle welcome message on script execution",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable welcome message", type: 5, required: true }
+    ]
+  },
+  {
+    name: "backgroundprotection",
+    description: "Toggle background protection (anti-dump, obfuscation)",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable background protection", type: 5, required: true }
+    ]
+  },
+  {
+    name: "iptracking",
+    description: "Toggle IP tracking and Discord OAuth on paste access",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable IP tracking", type: 5, required: true }
+    ]
+  },
+  {
+    name: "removewhitelist",
+    description: "Remove a Roblox user ID from paste whitelist",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "userid", description: "Roblox user ID to remove", type: 3, required: true }
+    ]
+  },
+  {
+    name: "removeblacklist",
+    description: "Remove a Roblox user ID from paste blacklist",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "userid", description: "Roblox user ID to remove", type: 3, required: true }
+    ]
+  },
+  {
+    name: "deletepaste",
+    description: "Delete one of your pastes permanently",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true }
+    ]
+  },
+  {
+    name: "deletescript",
+    description: "Delete one of your saved scripts",
+    options: [
+      { name: "name", description: "Script name", type: 3, required: true }
     ]
   },
 
