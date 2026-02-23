@@ -1654,21 +1654,9 @@ Deno.serve(async (req) => {
         }
         // Key is assigned to THIS user - allow
       } else {
-        // Key is unassigned - assign it to this user
-        console.log(`[get-paste] Assigning key to uid=${uid}`);
-        await supabase
-          .from('control_panel_keys')
-          .update({ roblox_user_id: uid, redeemed_at: new Date().toISOString() })
-          .eq('id', keyData.id);
-        
-        // Also add to paste access control whitelist
-        await supabase.from('paste_access_control').upsert({
-          paste_id: paste.id,
-          roblox_user_id: uid,
-          access_type: 'whitelist',
-          is_eternal: true,
-          expires_at: null,
-        }, { onConflict: 'paste_id,roblox_user_id' });
+        // Key is unassigned - reject it, keys must be assigned to a user ID first
+        console.log(`[get-paste] KEY_UNASSIGNED: key has no user ID assigned, rejecting for uid=${uid}`);
+        return new Response('KEY_INVALID:This key is not assigned to any user. Ask the owner to assign it to your User ID.', { status: 200, headers: textHeaders });
       }
       
       // Key is valid! Log execution
