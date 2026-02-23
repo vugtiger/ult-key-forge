@@ -12,6 +12,7 @@ import GoogleTranslate from "@/components/GoogleTranslate";
 import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEffect";
+import TabPreviews from "@/components/landing/TabPreviews";
 
 const SoundToggleBtn = () => {
   const [soundOn, setSoundOn] = useState(isSnowSoundOn());
