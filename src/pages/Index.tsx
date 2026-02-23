@@ -225,6 +225,9 @@ const Index = () => {
             </div>
           </section>
 
+          {/* Tab Previews Section */}
+          <TabPreviews />
+
           {/* Key System Preview Section */}
           <section className="max-w-6xl mx-auto mb-28">
             <div className="text-center mb-14">
