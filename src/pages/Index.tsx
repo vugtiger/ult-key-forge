@@ -12,6 +12,7 @@ import GoogleTranslate from "@/components/GoogleTranslate";
 import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEffect";
+import TabPreviews from "@/components/landing/TabPreviews";
 
 const SoundToggleBtn = () => {
   const [soundOn, setSoundOn] = useState(isSnowSoundOn());
@@ -223,6 +224,9 @@ const Index = () => {
               ))}
             </div>
           </section>
+
+          {/* Tab Previews Section */}
+          <TabPreviews />
 
           {/* Key System Preview Section */}
           <section className="max-w-6xl mx-auto mb-28">

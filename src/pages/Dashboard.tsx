@@ -850,9 +850,10 @@ const Dashboard = () => {
 };
 
 // ── Lua code generator ────────────────────────────────────────────────
-function generateLuaCode(name: string, asciiText: string, themeColor: string, keyList: string, pasteUrl: string): string {
+function generateLuaCode(name: string, asciiText: string, themeColor: string, _keyList: string, pasteUrl: string): string {
+  // Keys are validated server-side now - no embedded keys in Lua code
   return `-- // ULT LUA KEY SYSTEM - Generated for ${name} \\ --
--- Paste URL is auto-filled. Copy this script and share it with your users.
+-- Keys are validated server-side. Copy this script and share it with your users.
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -865,24 +866,7 @@ local gui = Instance.new("ScreenGui", plr:WaitForChild("PlayerGui"))
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 999999999
 
-local VALID_KEYS = {${keyList}}
-local usedKeysData = {}
-local DATA_KEY = "UltLuaUsedKeys_${name.replace(/\s+/g, '_')}"
-
-local function loadUsedKeys()
-    local success, data = pcall(function()
-        return HttpService:JSONDecode(game:GetService("DataStoreService"):GetDataStore(DATA_KEY):GetAsync("keys") or "{}")
-    end)
-    if success then usedKeysData = data end
-end
-
-local function saveUsedKeys()
-    pcall(function()
-        game:GetService("DataStoreService"):GetDataStore(DATA_KEY):SetAsync("keys", HttpService:JSONEncode(usedKeysData))
-    end)
-end
-
-loadUsedKeys()
+local PASTE_URL = "${pasteUrl}"
 
 local win = Instance.new("Frame", gui)
 win.Size = UDim2.new(0, 680, 0, 290)
@@ -951,10 +935,21 @@ task.spawn(function()
     input.Size = UDim2.new(1, -90 - prefixWidth, 0, 50)
 end)
 
+local status = Instance.new("TextLabel", win)
+status.Size = UDim2.new(1,-60,0,20)
+status.Position = UDim2.new(0,30,0,250)
+status.BackgroundTransparency = 1
+status.TextColor3 = Color3.fromRGB(${themeColor})
+status.Font = Enum.Font.Code
+status.TextSize = 14
+status.TextXAlignment = Enum.TextXAlignment.Left
+status.Text = ""
+status.TextTransparency = 0.3
+
 local function fadeAndDestroy(msg, color, load)
     input.TextEditable = false
-    input.Text = msg
-    input.TextColor3 = color
+    status.Text = msg
+    status.TextColor3 = color
     TweenService:Create(win, TweenInfo.new(0.9), {BackgroundTransparency = 1}):Play()
     TweenService:Create(prefix, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
     TweenService:Create(input, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
@@ -963,38 +958,67 @@ local function fadeAndDestroy(msg, color, load)
     TweenService:Create(glow, TweenInfo.new(0.9), {Transparency = 1}):Play()
     task.wait(1)
     if load then
-        loadstring(game:HttpGet("${pasteUrl}"))()
+        -- Server already validated the key, fetch with key+uid params
+        local url = PASTE_URL .. "&validated=true&uid=" .. tostring(plr.UserId)
+        local success, result = pcall(function()
+            return game:HttpGet(url)
+        end)
+        if success and result and #result > 0 then
+            local fn, err = loadstring(result)
+            if fn then fn() end
+        end
     end
     gui:Destroy()
 end
 
 input.FocusLost:Connect(function(enter)
     if not enter then return end
-    local userId = tostring(plr.UserId)
     local enteredKey = input.Text
-    local isValidKey = false
-    for _, key in ipairs(VALID_KEYS) do
-        if key == enteredKey then isValidKey = true break end
-    end
-    if not isValidKey then
-        fadeAndDestroy("Wrong Key! Access Denied", Color3.fromRGB(255,0,0), false)
+    if enteredKey == "" then return end
+
+    status.Text = "Validating key..."
+    input.TextEditable = false
+
+    -- Server-side key validation
+    local userId = tostring(plr.UserId)
+    local validateUrl = PASTE_URL .. "&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId
+    local success, response = pcall(function()
+        return game:HttpGet(validateUrl)
+    end)
+
+    if not success then
+        fadeAndDestroy("Connection Error", Color3.fromRGB(255,0,0), false)
         return
     end
-    -- Check if key is already used/assigned
-    if usedKeysData[enteredKey] then
-        if usedKeysData[enteredKey] == userId then
-            -- Same user, allow re-entry
-            fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), true)
+
+    -- Server returns the script if key is valid, or an error message
+    if response and #response > 10 then
+        -- Key accepted - server returned the script directly
+        status.Text = "Key Accepted! Loading..."
+        status.TextColor3 = Color3.fromRGB(0,255,0)
+        TweenService:Create(win, TweenInfo.new(0.9), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(prefix, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
+        TweenService:Create(input, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
+        TweenService:Create(logo, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
+        TweenService:Create(outline, TweenInfo.new(0.9), {Transparency = 1}):Play()
+        TweenService:Create(glow, TweenInfo.new(0.9), {Transparency = 1}):Play()
+        task.wait(1)
+        local fn, err = loadstring(response)
+        if fn then fn() end
+        gui:Destroy()
+    else
+        -- Server returned error (short response = error message)
+        local msg = response or "Access Denied"
+        if msg:find("expired") then
+            fadeAndDestroy("Key Expired!", Color3.fromRGB(255,100,0), false)
+        elseif msg:find("assigned") or msg:find("owned") then
+            fadeAndDestroy("Key Already Owned!", Color3.fromRGB(255,0,0), false)
+        elseif msg:find("invalid") or msg:find("not found") then
+            fadeAndDestroy("Invalid Key!", Color3.fromRGB(255,0,0), false)
         else
-            -- Different user already claimed this key
-            fadeAndDestroy("Key Already Assigned! Access Denied", Color3.fromRGB(255,0,0), false)
+            fadeAndDestroy("Access Denied", Color3.fromRGB(255,0,0), false)
         end
-        return
     end
-    -- First-time use: bind key to this user's ID
-    usedKeysData[enteredKey] = userId
-    saveUsedKeys()
-    fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), true)
 end)
 
 local dragging = false
