@@ -83,14 +83,15 @@ const fakeReviewTemplates = [
 ];
 
 const fakeUsernames = [
-  "xXScript_ProXx", "lua_dev_fr", "rblx_coder42", "vxd_scripts", "altzy",
-  "nullbyte_", "hexcode_rbx", "y4kzii", "codez4life", "sxript",
-  "devmode_on", "rbxscripter", "luamaster99", "ult_fan", "codingwizard",
-  "x_nulll", "sxulzy", "rbxhub_user", "m1dnight_coder", "skidded_no",
-  "actualdev", "exploitfree", "scriptkid_nope", "realcoder_", "v3nom_rbx",
-  "ultlua_user", "xXdevXx", "codingisfun3", "scriptify_", "luvs_lua",
-  "r3tro_dev", "shadowscript", "phantom_coder", "bytemaster", "zeroday_rbx",
-  "lua4ever", "codebreaker_x", "ghostscript", "matrix_coder", "devcraft99",
+  "altzy", "y4kzii", "sxript", "sxulzy", "v3nom",
+  "devcraft", "zeroday", "bytemaster", "ghostdev", "m1dnight",
+  "phxntom", "r3tro", "hexcode", "nullbyte", "codez",
+  "luagoat", "shadowz", "matrixx", "vxdscripts", "ultfan",
+  "actualdev", "exploitfree", "realcoder", "luvsluaa", "codewiz",
+  "skidproof", "rbxhub", "devmodeon", "scriptzz", "luamaster",
+  "xnulll", "codebreak", "scriptify", "craftdev", "luaforeva",
+  "blazedev", "fr0stbyte", "n0vadev", "echocode", "synthdev",
+  "rawlua", "d3vking", "chillcoder", "rxbxpro", "voidscripts",
 ];
 
 const platforms = ["via Discord", "via Web", "via App", "via Roblox"];
