@@ -184,8 +184,8 @@ interface DashboardLayoutProps {
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
-  const location = useLocation();
   const initializedRef = useRef(false);
+  const userIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const loadUserTheme = async (userId: string) => {
@@ -207,13 +207,21 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       }
     };
 
-    const redirectIfAdmin = async (userId: string, currentPath: string) => {
+    const redirectIfAdmin = async (userId: string) => {
       const { data } = await supabase.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle();
       if (data) {
-        // Admin accounts should ONLY be on /admin - redirect once and stop
-        if (currentPath !== '/admin') {
+        // Use window.location.pathname for current path (not stale closure)
+        if (window.location.pathname !== '/admin') {
           navigate('/admin', { replace: true });
         }
+      }
+    };
+
+    const safeSetUser = (sessionUser: User) => {
+      // Only update state if user ID actually changed to prevent unnecessary re-renders
+      if (userIdRef.current !== sessionUser.id) {
+        userIdRef.current = sessionUser.id;
+        setUser(sessionUser);
       }
     };
 
@@ -223,25 +231,25 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       if (!mounted) return;
       if (!session) { resetTheme(); navigate("/auth"); }
       else {
-        setUser(session.user);
+        safeSetUser(session.user);
         if (!initializedRef.current) {
           initializedRef.current = true;
           loadUserTheme(session.user.id);
           trackLogin(session.user.id);
-          redirectIfAdmin(session.user.id, location.pathname);
+          redirectIfAdmin(session.user.id);
         }
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
-      if (!session) { resetTheme(); navigate("/auth"); }
+      if (!session) { resetTheme(); userIdRef.current = null; navigate("/auth"); }
       else {
-        setUser(session.user);
+        safeSetUser(session.user);
         if (event === 'SIGNED_IN') {
           loadUserTheme(session.user.id);
           trackLogin(session.user.id);
-          redirectIfAdmin(session.user.id, location.pathname);
+          redirectIfAdmin(session.user.id);
         }
       }
     });
