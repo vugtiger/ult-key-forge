@@ -932,151 +932,93 @@ async function handleCommand(interaction: any) {
       };
     }
 
-    case 'gamebind': {
+    case 'ai': {
       const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
-      const gameId = data.options?.find((o: any) => o.name === 'gameid')?.value;
-      const gameName = data.options?.find((o: any) => o.name === 'gamename')?.value || null;
-      if (!pasteName || !gameId) return { type: 4, data: { content: '❌ Please provide paste name and game ID.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('paste_game_bindings').upsert({ paste_id: paste.id, game_id: gameId, game_name: gameName }, { onConflict: 'paste_id,game_id' });
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ Game **${gameName || gameId}** bound to paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
-    }
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
 
-    case 'gameunbind': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
-      const gameId = data.options?.find((o: any) => o.name === 'gameid')?.value;
-      if (!pasteName || !gameId) return { type: 4, data: { content: '❌ Please provide paste name and game ID.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('paste_game_bindings').delete().eq('paste_id', paste.id).eq('game_id', gameId);
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ Game **${gameId}** unbound from paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
-    }
-
-    case 'gamerestriction': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
       const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
-      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('pastes').update({ game_restriction_enabled: enabled }).eq('id', paste.id);
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ Game restriction ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
-    }
+      const message = data.options?.find((o: any) => o.name === 'message')?.value;
 
-    case 'loadingbar': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
-      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
-      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('pastes').update({ show_loading_bar: enabled }).eq('id', paste.id);
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ Loading bar ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
-    }
+      if (enabled === false) {
+        return { type: 4, data: { content: '🤖 **AI Assistant disabled.** Use `/ai enabled:True message:"your question"` to chat with the AI.', flags: 64 } };
+      }
 
-    case 'welcomemessage': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
-      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
-      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('pastes').update({ show_welcome_message: enabled }).eq('id', paste.id);
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ Welcome message ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
-    }
+      if (!message) {
+        return { type: 4, data: { content: '❌ Please provide a message to send to the AI.\n\nExample: `/ai enabled:True message:"How do I make a Roblox script?"`', flags: 64 } };
+      }
 
-    case 'backgroundprotection': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
-      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
-      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('pastes').update({ background_protection: enabled }).eq('id', paste.id);
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ Background protection ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
-    }
+      // Call the AI chat function
+      try {
+        const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+        if (!LOVABLE_API_KEY) {
+          return { type: 4, data: { content: '❌ AI service is not configured.', flags: 64 } };
+        }
 
-    case 'iptracking': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
-      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
-      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('pastes').update({ ip_tracking_enabled: enabled }).eq('id', paste.id);
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ IP tracking ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
-    }
+        const systemPrompt = `You are a helpful AI assistant for ULT LUA PROTECTS platform. You specialize in:
 
-    case 'removewhitelist': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
-      const robloxUserId = data.options?.find((o: any) => o.name === 'userid')?.value;
-      if (!pasteName || !robloxUserId) return { type: 4, data: { content: '❌ Please provide paste name and user ID.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('paste_access_control').delete().eq('paste_id', paste.id).eq('roblox_user_id', robloxUserId).eq('access_type', 'whitelist');
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ User ID **${robloxUserId}** removed from whitelist for paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
-    }
+1. **Roblox Lua Scripting**: Help users write, debug, and optimize Roblox scripts
+2. **Web Development**: Assist with HTML, CSS, JavaScript for building websites
+3. **Key Systems**: Explain how key systems work and security best practices
+4. **Code Review**: Analyze code and provide constructive feedback
 
-    case 'removeblacklist': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
-      const robloxUserId = data.options?.find((o: any) => o.name === 'userid')?.value;
-      if (!pasteName || !robloxUserId) return { type: 4, data: { content: '❌ Please provide paste name and user ID.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('paste_access_control').delete().eq('paste_id', paste.id).eq('roblox_user_id', robloxUserId).eq('access_type', 'blacklist');
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ User ID **${robloxUserId}** removed from blacklist for paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
-    }
+Guidelines:
+- Provide clear, concise code examples
+- Explain complex concepts in simple terms
+- Always consider security and best practices
+- Be friendly and encouraging
+- Keep responses under 1800 characters for Discord
 
-    case 'deletepaste': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
-      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      // Delete related data first
-      await supabase.from('paste_access_control').delete().eq('paste_id', paste.id);
-      await supabase.from('paste_game_bindings').delete().eq('paste_id', paste.id);
-      await supabase.from('paste_executions').delete().eq('paste_id', paste.id);
-      await supabase.from('paste_access_logs').delete().eq('paste_id', paste.id);
-      const { error } = await supabase.from('pastes').delete().eq('id', paste.id);
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ Paste **${paste.title || 'Untitled'}** deleted permanently!`, flags: 64 } };
-    }
+When helping with Roblox scripts, consider game performance and security.
+When building websites, focus on clean, modern, responsive design.`;
 
-    case 'deletescript': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const scriptName = data.options?.find((o: any) => o.name === 'name')?.value;
-      if (!scriptName) return { type: 4, data: { content: '❌ Please provide script name.', flags: 64 } };
-      const { data: script } = await supabase.from('saved_scripts').select('id, name').eq('user_id', user.userId).ilike('name', scriptName).maybeSingle();
-      if (!script) return { type: 4, data: { content: `❌ Script "${scriptName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('saved_scripts').delete().eq('id', script.id);
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ Script **${script.name}** deleted!`, flags: 64 } };
+        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: message }
+            ],
+            max_tokens: 1000,
+          }),
+        });
+
+        if (!aiResponse.ok) {
+          const errorText = await aiResponse.text();
+          console.error('AI API error:', aiResponse.status, errorText);
+          
+          if (aiResponse.status === 429) {
+            return { type: 4, data: { content: '⏳ AI is busy. Please try again in a moment.', flags: 64 } };
+          }
+          
+          return { type: 4, data: { content: '❌ AI service temporarily unavailable.', flags: 64 } };
+        }
+
+        const aiData = await aiResponse.json();
+        let aiContent = aiData.choices[0]?.message?.content || 'No response generated.';
+        
+        // Truncate if too long for Discord
+        if (aiContent.length > 1900) {
+          aiContent = aiContent.substring(0, 1897) + '...';
+        }
+
+        return { 
+          type: 4, 
+          data: { 
+            content: `🤖 **AI Assistant:**\n\n${aiContent}`, 
+            flags: 0 
+          } 
+        };
+      } catch (error) {
+        console.error('AI chat error:', error);
+        return { type: 4, data: { content: '❌ Failed to get AI response. Please try again.', flags: 64 } };
+      }
     }
 
     case 'setwhitelisttime': {
@@ -1429,7 +1371,7 @@ async function handleCommand(interaction: any) {
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\`/deletescript\` - Delete a script 🆕\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/deletepaste\` - Delete a paste 🆕\n\`/scriptprotection\` - Toggle protection\n\`/publicprotection\` - Protection without whitelist\n\`/backgroundprotection\` - Anti-dump protection 🆕\n\`/hidecode\` - Hide code from raw URL\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/removewhitelist\` - Remove from whitelist 🆕\n\`/removeblacklist\` - Remove from blacklist 🆕\n\`/setwhitelisttime\` - Set expiration\n\`/stats\` - View stats\n\n**Script Settings:** 🆕\n\`/gamebind\` - Bind paste to a game\n\`/gameunbind\` - Remove game binding\n\`/gamerestriction\` - Toggle game restriction\n\`/loadingbar\` - Toggle loading bar\n\`/welcomemessage\` - Toggle welcome message\n\`/iptracking\` - Toggle IP tracking\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/genkeys\` - Generate keys (with expiration)\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist user from panel\n\`/unblacklist\` - Remove from blacklist\n\`/forceexpire\` - Force expire user access`, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/scriptprotection\` - Toggle protection\n\`/publicprotection\` - Protection without whitelist\n\`/hidecode\` - Hide code from raw URL\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/setwhitelisttime\` - Set expiration\n\`/stats\` - View stats\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/genkeys\` - Generate keys (with expiration)\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist user from panel\n\`/unblacklist\` - Remove from blacklist\n\`/forceexpire\` - Force expire user access\n\n**AI:**\n\`/ai\` - Chat with AI`, 
           flags: 0 
         }
       };

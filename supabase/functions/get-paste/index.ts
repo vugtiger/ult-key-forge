@@ -1313,38 +1313,32 @@ input.FocusLost:Connect(function(enter)
         return
     end
     
-    -- Show immediate feedback
-    input.TextEditable = false
-    input.Text = "Validating..."
-    input.TextColor3 = Color3.fromRGB(255, 255, 0)
+    -- Server-side key validation
+    local validateUrl = "${baseUrl}?slug=${slug}&key=" .. game:GetService("HttpService"):UrlEncode(enteredKey) .. "&uid=" .. userId .. "&_=" .. tostring(tick())
     
-    -- Server-side key validation (runs in background)
-    task.spawn(function()
-        local validateUrl = "${baseUrl}?slug=${slug}&key=" .. game:GetService("HttpService"):UrlEncode(enteredKey) .. "&uid=" .. userId .. "&_=" .. tostring(tick())
-        
-        local success, response = pcall(function()
-            return game:HttpGet(validateUrl)
-        end)
-        
-        if not success then
-            fadeAndDestroy("Network Error!", Color3.fromRGB(255,0,0), nil)
-            return
-        end
-        
-        -- Check response
-        if response:find("KEY_VALID") then
-            local pasteLoadUrl = response:match("KEY_VALID:(.*)")
-            fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), pasteLoadUrl)
-        elseif response:find("KEY_ASSIGNED") then
-            fadeAndDestroy("Key Already Owned By Someone Else!", Color3.fromRGB(255,0,0), nil)
-        elseif response:find("KEY_EXPIRED") then
-            fadeAndDestroy("Key Expired!", Color3.fromRGB(255,0,0), nil)
-        elseif response:find("KEY_INVALID") then
-            fadeAndDestroy("Wrong Key! Access Denied", Color3.fromRGB(255,0,0), nil)
-        else
-            fadeAndDestroy("Access Denied!", Color3.fromRGB(255,0,0), nil)
-        end
+    local success, response = pcall(function()
+        return game:HttpGet(validateUrl)
     end)
+    
+    if not success then
+        fadeAndDestroy("Network Error!", Color3.fromRGB(255,0,0), nil)
+        return
+    end
+    
+    -- Check response
+    if response:find("KEY_VALID") then
+        -- Key accepted - the response after KEY_VALID marker contains the paste URL to load
+        local pasteLoadUrl = response:match("KEY_VALID:(.*)")
+        fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), pasteLoadUrl)
+    elseif response:find("KEY_ASSIGNED") then
+        fadeAndDestroy("Key Already Owned By Someone Else!", Color3.fromRGB(255,0,0), nil)
+    elseif response:find("KEY_EXPIRED") then
+        fadeAndDestroy("Key Expired!", Color3.fromRGB(255,0,0), nil)
+    elseif response:find("KEY_INVALID") then
+        fadeAndDestroy("Wrong Key! Access Denied", Color3.fromRGB(255,0,0), nil)
+    else
+        fadeAndDestroy("Access Denied!", Color3.fromRGB(255,0,0), nil)
+    end
 end)
 
 local dragging = false
