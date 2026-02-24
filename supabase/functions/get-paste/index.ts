@@ -1669,9 +1669,17 @@ Deno.serve(async (req) => {
       await logAccess(uid, 'key_execution', true);
       await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
       
-      // Return KEY_VALID with the paste URL for loading
-      // The key GUI will call HttpGet on this URL to load the actual script
-      const loadUrl = `${baseUrl}?slug=${slug}&uid=${uid}&_=${Date.now()}`;
+      // Generate a proper token so the second fetch goes through the normal protected flow
+      const newToken = generateToken();
+      const sessionSecret = generateSessionSecret(clientIp, Date.now());
+      await supabase.from('paste_execution_tokens').insert({
+        paste_id: paste.id,
+        roblox_user_id: uid,
+        token: newToken,
+        expires_at: new Date(Date.now() + 30000).toISOString()
+      });
+      const nowTs = Math.floor(Date.now() / 1000).toString();
+      const loadUrl = `${baseUrl}?slug=${slug}&uid=${uid}&ts=${nowTs}&tk=${newToken}&ss=${sessionSecret}&_=${Date.now()}`;
       console.log(`[get-paste] KEY_VALID: access granted uid=${uid} for paste ${paste.id}`);
       return new Response(`KEY_VALID:${loadUrl}`, { status: 200, headers: textHeaders });
     }
