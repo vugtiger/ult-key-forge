@@ -1283,7 +1283,7 @@ task.spawn(function()
     input.Size = UDim2.new(1, -90 - prefixWidth, 0, 50)
 end)
 
-local function fadeAndDestroy(msg, color, loadUrl)
+local function fadeAndDestroy(msg, color, scriptCode)
     input.TextEditable = false
     input.Text = msg
     input.TextColor3 = color
@@ -1294,12 +1294,9 @@ local function fadeAndDestroy(msg, color, loadUrl)
     TweenService:Create(outline, TweenInfo.new(0.9), {Transparency = 1}):Play()
     TweenService:Create(glow, TweenInfo.new(0.9), {Transparency = 1}):Play()
     task.wait(1)
-    if loadUrl then
-        local resp = game:HttpGet(loadUrl)
-        if resp and #resp > 0 then
-            local fn, err = loadstring(resp)
-            if fn then fn() end
-        end
+    if scriptCode then
+        local fn, err = loadstring(scriptCode)
+        if fn then fn() end
     end
     gui:Destroy()
 end
@@ -1331,10 +1328,10 @@ input.FocusLost:Connect(function(enter)
             return
         end
         
-        -- Check response
-        if response:find("KEY_VALID") then
-            local pasteLoadUrl = response:match("KEY_VALID:(.*)")
-            fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), pasteLoadUrl)
+        -- Check response - KEY_VALID_SCRIPT contains the actual script code after the first line
+        if response:find("KEY_VALID_SCRIPT:") then
+            local scriptCode = response:sub(response:find("\n") + 1)
+            fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), scriptCode)
         elseif response:find("KEY_ASSIGNED") then
             fadeAndDestroy("Key Already Owned By Someone Else!", Color3.fromRGB(255,0,0), nil)
         elseif response:find("KEY_EXPIRED") then
@@ -1669,19 +1666,16 @@ Deno.serve(async (req) => {
       await logAccess(uid, 'key_execution', true);
       await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
       
-      // Generate a proper token so the second fetch goes through the normal protected flow
-      const newToken = generateToken();
-      const sessionSecret = generateSessionSecret(clientIp, Date.now());
-      await supabase.from('paste_execution_tokens').insert({
-        paste_id: paste.id,
-        roblox_user_id: uid,
-        token: newToken,
-        expires_at: new Date(Date.now() + 30000).toISOString()
-      });
-      const nowTs = Math.floor(Date.now() / 1000).toString();
-      const loadUrl = `${baseUrl}?slug=${slug}&uid=${uid}&ts=${nowTs}&tk=${newToken}&ss=${sessionSecret}&_=${Date.now()}`;
+      // Also cleanup expired keys occasionally
+      if (Math.random() < 0.05) {
+        try { await supabase.rpc('cleanup_expired_control_panel_keys'); } catch {}
+      }
+      
+      // Return the paste content directly so the Lua GUI can loadstring it immediately
+      // For non-protected pastes, return raw content
+      // For protected/public-protected pastes, return raw content too (key already validated server-side)
       console.log(`[get-paste] KEY_VALID: access granted uid=${uid} for paste ${paste.id}`);
-      return new Response(`KEY_VALID:${loadUrl}`, { status: 200, headers: textHeaders });
+      return new Response(`KEY_VALID_SCRIPT:\n${paste.content}`, { status: 200, headers: textHeaders });
     }
 
     if (shouldRedirectToDiscord()) {
