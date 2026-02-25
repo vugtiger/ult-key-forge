@@ -187,11 +187,7 @@ const commands = [
     description: "Get the bot invite link to add it to your server"
   },
 
-  // Analytics
-  {
-    name: "analytics",
-    description: "View your account analytics (pastes, executions, protection rate, etc.)"
-  },
+  // Analytics command removed
 
   // Changelog Logs
   {
