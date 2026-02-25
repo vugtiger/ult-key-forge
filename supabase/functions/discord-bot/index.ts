@@ -1051,36 +1051,7 @@ async function handleCommand(interaction: any) {
       return { type: 4, data: { content: `🤖 **Invite ULT LUA Bot to your server!**\n\nhttps://discord.com/oauth2/authorize?client_id=1407376197771595816&permissions=8&integration_type=0&scope=bot`, flags: 0 } };
     }
 
-    case 'analytics': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      
-      // Total pastes
-      const { count: totalPastes } = await supabase.from('pastes').select('*', { count: 'exact', head: true }).eq('user_id', user.userId);
-      
-      // Protected pastes
-      const { count: protectedPastes } = await supabase.from('pastes').select('*', { count: 'exact', head: true }).eq('user_id', user.userId).eq('protection_enabled', true);
-      const { count: publicProtPastes } = await supabase.from('pastes').select('*', { count: 'exact', head: true }).eq('user_id', user.userId).eq('public_protection', true);
-      
-      // Total executions
-      const { data: userPasteIds } = await supabase.from('pastes').select('id').eq('user_id', user.userId);
-      let totalExecs = 0;
-      if (userPasteIds && userPasteIds.length > 0) {
-        const ids = userPasteIds.map(p => p.id);
-        const { count } = await supabase.from('paste_executions').select('*', { count: 'exact', head: true }).in('paste_id', ids);
-        totalExecs = count || 0;
-      }
-      
-      // Key systems
-      const { count: keySystems } = await supabase.from('key_systems').select('*', { count: 'exact', head: true }).eq('user_id', user.userId);
-      
-      // Scripts
-      const { count: scripts } = await supabase.from('saved_scripts').select('*', { count: 'exact', head: true }).eq('user_id', user.userId);
-      
-      const protRate = (totalPastes || 0) > 0 ? Math.round(((protectedPastes || 0) + (publicProtPastes || 0)) / (totalPastes || 1) * 100) : 0;
-      
-      return { type: 4, data: { content: `📊 **Your Analytics**\n\n📝 **Total Pastes:** ${totalPastes || 0}\n🛡️ **Protected Pastes:** ${(protectedPastes || 0) + (publicProtPastes || 0)}\n📈 **Protection Rate:** ${protRate}%\n🚀 **Total Executions:** ${totalExecs}\n🔑 **Key Systems:** ${keySystems || 0}\n📜 **Saved Scripts:** ${scripts || 0}`, flags: 64 } };
-    }
+    /* analytics command removed */
 
     case 'consolefeedback': {
       const user = await getUser();
@@ -1667,7 +1638,7 @@ async function handleCommand(interaction: any) {
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Scripts:**\n\`/savescript\` - Save a script\n\`/scripts\` - View saved scripts\n\`/deletescript\` - Delete a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/deletepaste\` - Delete a paste\n\`/scriptprotection\` - Toggle protection\n\`/publicprotection\` - Protection without whitelist\n\`/hidecode\` - Hide code from raw URL\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/removewhitelist\` - Remove from whitelist\n\`/removeblacklist\` - Remove from blacklist\n\`/setwhitelisttime\` - Set whitelist expiration\n\`/stats\` - View paste stats\n\n**Settings:**\n\`/iptracking\` - Toggle IP tracking\n\`/setgame\` - Set game restriction + bind game\n\`/mygamelinkedpastes\` - View game-bound pastes\n\`/consolefeedback\` - Toggle loading bar + welcome msg\n\n**Key Systems:**\n\`/keysystemsetup\` - Create key system for a paste 🆕\n\`/keygen\` - Generate more keys 🆕\n\`/mykeysystemkeys\` - View key stats 🆕\n\`/keysystemwhitelist\` - Assign user to key 🆕\n\`/deletekeysystem\` - Delete key system 🆕\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist from panel\n\`/unblacklist\` - Remove from blacklist\n\`/forceexpire\` - Force expire access\n\n**Other:**\n\`/analytics\` - View your analytics 🆕\n\`/invite\` - Get bot invite link 🆕\n\`/logs\` - Set changelog notifications 🆕`, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Scripts:**\n\`/savescript\` - Save a script\n\`/scripts\` - View saved scripts\n\`/deletescript\` - Delete a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/deletepaste\` - Delete a paste\n\`/scriptprotection\` - Toggle protection\n\`/publicprotection\` - Protection without whitelist\n\`/hidecode\` - Hide code from raw URL\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/removewhitelist\` - Remove from whitelist\n\`/removeblacklist\` - Remove from blacklist\n\`/setwhitelisttime\` - Set whitelist expiration\n\`/stats\` - View paste stats\n\n**Settings:**\n\`/iptracking\` - Toggle IP tracking\n\`/setgame\` - Set game restriction + bind game\n\`/mygamelinkedpastes\` - View game-bound pastes\n\`/consolefeedback\` - Toggle loading bar + welcome msg\n\n**Key Systems:**\n\`/keysystemsetup\` - Create key system for a paste 🆕\n\`/keygen\` - Generate more keys 🆕\n\`/mykeysystemkeys\` - View key stats 🆕\n\`/keysystemwhitelist\` - Assign user to key 🆕\n\`/deletekeysystem\` - Delete key system 🆕\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist from panel\n\`/unblacklist\` - Remove from blacklist\n\`/forceexpire\` - Force expire access\n\n**Other:**\n\`/invite\` - Get bot invite link 🆕\n\`/logs\` - Set changelog notifications 🆕`, 
           flags: 0 
         }
       };

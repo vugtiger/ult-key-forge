@@ -1294,9 +1294,18 @@ local function fadeAndDestroy(msg, color, scriptCode)
     TweenService:Create(outline, TweenInfo.new(0.9), {Transparency = 1}):Play()
     TweenService:Create(glow, TweenInfo.new(0.9), {Transparency = 1}):Play()
     task.wait(1)
-    if scriptCode then
+    if scriptCode and #scriptCode > 0 then
         local fn, err = loadstring(scriptCode)
-        if fn then fn() end
+        if fn then
+            fn()
+        else
+            warn("[ULT] Script load error: " .. tostring(err))
+            -- Try wrapping in pcall as fallback
+            local ok2, err2 = pcall(function()
+                loadstring(scriptCode)()
+            end)
+            if not ok2 then warn("[ULT] Fallback error: " .. tostring(err2)) end
+        end
     end
     gui:Destroy()
 end
@@ -1657,9 +1666,9 @@ Deno.serve(async (req) => {
         }
         // Key is assigned to THIS user - allow
       } else {
-        // Key is unassigned - reject it, keys must be assigned to a user ID first
-        console.log(`[get-paste] KEY_UNASSIGNED: key has no user ID assigned, rejecting for uid=${uid}`);
-        return new Response('KEY_INVALID:This key is not assigned to any user. Ask the owner to assign it to your User ID.', { status: 200, headers: textHeaders });
+        // Key is unassigned - auto-assign to the first user who enters it
+        console.log(`[get-paste] KEY_AUTO_ASSIGN: assigning key to uid=${uid}`);
+        await supabase.from('control_panel_keys').update({ roblox_user_id: uid }).eq('id', keyData.id);
       }
       
       // Key is valid! Log execution
