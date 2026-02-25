@@ -64,43 +64,44 @@ const DiscordBot = () => {
   ];
 
   const commands = [
-    // Account Commands
     { name: "/register", description: "Create a new account", category: "Account" },
     { name: "/login", description: "Link existing account to Discord", category: "Account" },
     { name: "/logout", description: "Unlink Discord from account", category: "Account" },
     { name: "/profile", description: "View your profile and stats", category: "Account" },
     { name: "/factoryreset", description: "Wipe all data (account stays)", category: "Account" },
-    
-    // Key System Commands
-    { name: "/keysystemgen", description: "Generate a key system", category: "Key Systems" },
-    { name: "/mykeys", description: "View your key systems", category: "Key Systems" },
-    
-    // Script Commands
     { name: "/savescript", description: "Save a script to account", category: "Scripts" },
     { name: "/scripts", description: "View saved scripts", category: "Scripts" },
-    
-    // Pastebin Commands
+    { name: "/deletescript", description: "Delete a saved script", category: "Scripts" },
     { name: "/paste", description: "Create a paste", category: "Pastebin" },
     { name: "/mypastes", description: "View your pastes", category: "Pastebin" },
+    { name: "/deletepaste", description: "Delete a paste", category: "Pastebin" },
     { name: "/scriptprotection", description: "Toggle protection on paste", category: "Pastebin" },
     { name: "/publicprotection", description: "Protection without whitelist", category: "Pastebin" },
-    { name: "/hidecode", description: "Hide code from raw URL", category: "Pastebin", isNew: true },
+    { name: "/hidecode", description: "Hide code from raw URL", category: "Pastebin" },
     { name: "/whitelist", description: "Add user to whitelist", category: "Pastebin" },
     { name: "/blacklist", description: "Add user to blacklist", category: "Pastebin" },
+    { name: "/removewhitelist", description: "Remove from whitelist", category: "Pastebin" },
+    { name: "/removeblacklist", description: "Remove from blacklist", category: "Pastebin" },
     { name: "/setwhitelisttime", description: "Set whitelist expiration", category: "Pastebin" },
     { name: "/stats", description: "View paste statistics", category: "Pastebin" },
-    
-    // Control Panel Commands
+    { name: "/iptracking", description: "Toggle IP tracking", category: "Settings", isNew: true },
+    { name: "/setgame", description: "Set game restriction + bind game", category: "Settings", isNew: true },
+    { name: "/mygamelinkedpastes", description: "View game-bound pastes", category: "Settings", isNew: true },
+    { name: "/consolefeedback", description: "Toggle loading bar + welcome msg", category: "Settings", isNew: true },
+    { name: "/keysystemsetup", description: "Create key system for a paste", category: "Key Systems", isNew: true },
+    { name: "/keygen", description: "Generate more keys", category: "Key Systems", isNew: true },
+    { name: "/mykeysystemkeys", description: "View key stats for a paste", category: "Key Systems", isNew: true },
+    { name: "/keysystemwhitelist", description: "Assign user ID to a key", category: "Key Systems", isNew: true },
+    { name: "/deletekeysystem", description: "Delete key system from paste", category: "Key Systems", isNew: true },
     { name: "/panel", description: "Create control panel", category: "Control Panels" },
-    { name: "/genkeys", description: "Generate keys with expiration", category: "Control Panels" },
     { name: "/mypanels", description: "View your panels", category: "Control Panels" },
     { name: "/consoleblacklist", description: "Blacklist from panel", category: "Control Panels" },
     { name: "/unblacklist", description: "Remove from blacklist", category: "Control Panels" },
     { name: "/forceexpire", description: "Force expire access", category: "Control Panels" },
-    
-    // Other Commands
-    { name: "/ai", description: "Chat with AI assistant", category: "AI" },
-    { name: "/help", description: "Show all commands", category: "Help" }
+    { name: "/analytics", description: "View your account analytics", category: "Other", isNew: true },
+    { name: "/invite", description: "Get bot invite link", category: "Other", isNew: true },
+    { name: "/logs", description: "Set changelog notifications channel", category: "Other", isNew: true },
+    { name: "/help", description: "Show all commands", category: "Other" }
   ];
 
   // Group commands by category

@@ -36,21 +36,6 @@ const commands = [
     description: "Wipe all your data (key systems, scripts, pastes) - account stays"
   },
 
-  // Key System Commands
-  {
-    name: "keysystemgen",
-    description: "Generate a key system (DMs you the file)",
-    options: [
-      { name: "keys", description: "Number of keys to generate (1-1000)", type: 4, required: true, min_value: 1, max_value: 1000 },
-      { name: "color", description: "UI theme color RGB (e.g., 255, 0, 0)", type: 3, required: true },
-      { name: "name", description: "Key system name", type: 3, required: true }
-    ]
-  },
-  {
-    name: "mykeys",
-    description: "View your generated key systems"
-  },
-
   // Script Commands
   {
     name: "savescript",
@@ -63,6 +48,13 @@ const commands = [
   {
     name: "scripts",
     description: "View your saved scripts"
+  },
+  {
+    name: "deletescript",
+    description: "Delete one of your saved scripts",
+    options: [
+      { name: "name", description: "Script name", type: 3, required: true }
+    ]
   },
 
   // Pastebin Commands
@@ -77,6 +69,13 @@ const commands = [
   {
     name: "mypastes",
     description: "View your pastes"
+  },
+  {
+    name: "deletepaste",
+    description: "Delete one of your pastes permanently",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true }
+    ]
   },
   {
     name: "scriptprotection",
@@ -119,6 +118,22 @@ const commands = [
     ]
   },
   {
+    name: "removewhitelist",
+    description: "Remove a Roblox user ID from paste whitelist",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "userid", description: "Roblox user ID to remove", type: 3, required: true }
+    ]
+  },
+  {
+    name: "removeblacklist",
+    description: "Remove a Roblox user ID from paste blacklist",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "userid", description: "Roblox user ID to remove", type: 3, required: true }
+    ]
+  },
+  {
     name: "setwhitelisttime",
     description: "Set expiration time for a whitelisted user",
     options: [
@@ -138,6 +153,143 @@ const commands = [
     ]
   },
 
+  // IP Tracking
+  {
+    name: "iptracking",
+    description: "Toggle IP tracking on a paste",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable IP tracking", type: 5, required: true }
+    ]
+  },
+
+  // Game Restriction
+  {
+    name: "setgame",
+    description: "Set game restriction on a paste (bind to a Roblox game)",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable game restriction", type: 5, required: true },
+      { name: "gameid", description: "Roblox Game/Place ID to bind (required if enabling)", type: 3, required: false },
+      { name: "gamename", description: "Game name (optional, for display)", type: 3, required: false }
+    ]
+  },
+
+  // My Game Linked Pastes
+  {
+    name: "mygamelinkedpastes",
+    description: "View all pastes with game bindings and their bound games"
+  },
+
+  // Invite Bot
+  {
+    name: "invite",
+    description: "Get the bot invite link to add it to your server"
+  },
+
+  // Analytics
+  {
+    name: "analytics",
+    description: "View your account analytics (pastes, executions, protection rate, etc.)"
+  },
+
+  // Changelog Logs
+  {
+    name: "logs",
+    description: "Set a channel to receive changelog update notifications",
+    options: [
+      { name: "channel", description: "Channel to send changelog updates to", type: 7, required: true }
+    ]
+  },
+
+  // Key System Setup (connected to Key System Gen on website)
+  {
+    name: "keysystemsetup",
+    description: "Create a key system for a paste (like website Key System Gen)",
+    options: [
+      { name: "paste", description: "Paste name/title to link", type: 3, required: true },
+      { name: "name", description: "Key system / panel name", type: 3, required: true },
+      { name: "color", description: "UI color RGB (e.g. 255, 0, 0)", type: 3, required: true },
+      { name: "keys", description: "Number of keys to generate (1-100)", type: 4, required: true, min_value: 1, max_value: 100 },
+      {
+        name: "duration",
+        description: "Key duration",
+        type: 3,
+        required: true,
+        choices: [
+          { name: "1 Hour", value: "1h" },
+          { name: "6 Hours", value: "6h" },
+          { name: "24 Hours", value: "24h" },
+          { name: "7 Days", value: "7d" },
+          { name: "30 Days", value: "30d" },
+          { name: "Permanent", value: "permanent" }
+        ]
+      }
+    ]
+  },
+
+  // Console Feedback
+  {
+    name: "consolefeedback",
+    description: "Toggle console feedback (loading bar + welcome message) on a paste",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable console feedback", type: 5, required: true }
+    ]
+  },
+
+  // Key Gen (generate more keys for existing panel)
+  {
+    name: "keygen",
+    description: "Generate more keys for an existing key system panel",
+    options: [
+      { name: "paste", description: "Paste name/title linked to key system", type: 3, required: true },
+      { name: "amount", description: "Number of keys to generate (1-100)", type: 4, required: true, min_value: 1, max_value: 100 },
+      {
+        name: "duration",
+        description: "Key duration",
+        type: 3,
+        required: true,
+        choices: [
+          { name: "1 Hour", value: "1h" },
+          { name: "6 Hours", value: "6h" },
+          { name: "24 Hours", value: "24h" },
+          { name: "7 Days", value: "7d" },
+          { name: "30 Days", value: "30d" },
+          { name: "Permanent", value: "permanent" }
+        ]
+      }
+    ]
+  },
+
+  // My Key System Keys
+  {
+    name: "mykeysystemkeys",
+    description: "View keys for a paste linked to a key system",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true }
+    ]
+  },
+
+  // Key System Whitelist (assign user ID to a key)
+  {
+    name: "keysystemwhitelist",
+    description: "Assign a Roblox User ID to an existing generated key",
+    options: [
+      { name: "key", description: "The key value to assign", type: 3, required: true },
+      { name: "userid", description: "Roblox User ID to assign to the key", type: 3, required: true }
+    ]
+  },
+
+  // Delete Key System
+  {
+    name: "deletekeysystem",
+    description: "Delete the key system from a paste (paste stays, key system is removed)",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true }
+    ]
+  },
+
   // Control Panel Commands
   {
     name: "panel",
@@ -146,17 +298,6 @@ const commands = [
       { name: "name", description: "Control panel name", type: 3, required: true },
       { name: "paste", description: "Paste name/title to link", type: 3, required: true },
       { name: "role", description: "Role ID to assign to buyers", type: 8, required: true }
-    ]
-  },
-  {
-    name: "genkeys",
-    description: "Generate keys for a control panel (DMs you the file)",
-    options: [
-      { name: "panel", description: "Control panel name", type: 3, required: true },
-      { name: "amount", description: "Number of keys to generate (1-100)", type: 4, required: true, min_value: 1, max_value: 100 },
-      { name: "minutes", description: "Minutes until key expires", type: 4, required: false, min_value: 1 },
-      { name: "hours", description: "Hours until key expires", type: 4, required: false, min_value: 1 },
-      { name: "days", description: "Days until key expires", type: 4, required: false, min_value: 1 }
     ]
   },
   {
@@ -186,95 +327,6 @@ const commands = [
     options: [
       { name: "panel", description: "Control panel name", type: 3, required: true },
       { name: "user", description: "Discord user to force expire", type: 6, required: true }
-    ]
-  },
-
-  // Script Settings Commands
-  {
-    name: "gamebind",
-    description: "Bind a paste to a specific Roblox game (restrict execution to that game)",
-    options: [
-      { name: "paste", description: "Paste name/title", type: 3, required: true },
-      { name: "gameid", description: "Roblox Game/Place ID to bind", type: 3, required: true },
-      { name: "gamename", description: "Game name (for display)", type: 3, required: false }
-    ]
-  },
-  {
-    name: "gameunbind",
-    description: "Remove a game binding from a paste",
-    options: [
-      { name: "paste", description: "Paste name/title", type: 3, required: true },
-      { name: "gameid", description: "Roblox Game/Place ID to unbind", type: 3, required: true }
-    ]
-  },
-  {
-    name: "gamerestriction",
-    description: "Toggle game restriction on a paste (only allow bound games)",
-    options: [
-      { name: "paste", description: "Paste name/title", type: 3, required: true },
-      { name: "enabled", description: "Enable or disable game restriction", type: 5, required: true }
-    ]
-  },
-  {
-    name: "loadingbar",
-    description: "Toggle the loading bar on script execution",
-    options: [
-      { name: "paste", description: "Paste name/title", type: 3, required: true },
-      { name: "enabled", description: "Enable or disable loading bar", type: 5, required: true }
-    ]
-  },
-  {
-    name: "welcomemessage",
-    description: "Toggle welcome message on script execution",
-    options: [
-      { name: "paste", description: "Paste name/title", type: 3, required: true },
-      { name: "enabled", description: "Enable or disable welcome message", type: 5, required: true }
-    ]
-  },
-  {
-    name: "backgroundprotection",
-    description: "Toggle background protection (anti-dump, obfuscation)",
-    options: [
-      { name: "paste", description: "Paste name/title", type: 3, required: true },
-      { name: "enabled", description: "Enable or disable background protection", type: 5, required: true }
-    ]
-  },
-  {
-    name: "iptracking",
-    description: "Toggle IP tracking and Discord OAuth on paste access",
-    options: [
-      { name: "paste", description: "Paste name/title", type: 3, required: true },
-      { name: "enabled", description: "Enable or disable IP tracking", type: 5, required: true }
-    ]
-  },
-  {
-    name: "removewhitelist",
-    description: "Remove a Roblox user ID from paste whitelist",
-    options: [
-      { name: "paste", description: "Paste name/title", type: 3, required: true },
-      { name: "userid", description: "Roblox user ID to remove", type: 3, required: true }
-    ]
-  },
-  {
-    name: "removeblacklist",
-    description: "Remove a Roblox user ID from paste blacklist",
-    options: [
-      { name: "paste", description: "Paste name/title", type: 3, required: true },
-      { name: "userid", description: "Roblox user ID to remove", type: 3, required: true }
-    ]
-  },
-  {
-    name: "deletepaste",
-    description: "Delete one of your pastes permanently",
-    options: [
-      { name: "paste", description: "Paste name/title", type: 3, required: true }
-    ]
-  },
-  {
-    name: "deletescript",
-    description: "Delete one of your saved scripts",
-    options: [
-      { name: "name", description: "Script name", type: 3, required: true }
     ]
   },
 

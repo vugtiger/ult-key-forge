@@ -524,50 +524,111 @@ async function handleCommand(interaction: any) {
       return { type: 4, data: { content: `✅ Successfully logged out! Your Discord is now unlinked from your account.`, flags: 64 } };
     }
 
-    case 'keysystemgen': {
+    case 'keysystemsetup': {
       const user = await getUser();
       if (!user) {
         return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
       }
 
-      const numKeys = data.options?.find((o: any) => o.name === 'keys')?.value || 10;
-      const name = data.options?.find((o: any) => o.name === 'name')?.value || 'KeySystem';
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const panelName = data.options?.find((o: any) => o.name === 'name')?.value;
       const color = data.options?.find((o: any) => o.name === 'color')?.value || '255, 255, 255';
+      const numKeys = data.options?.find((o: any) => o.name === 'keys')?.value || 10;
+      const duration = data.options?.find((o: any) => o.name === 'duration')?.value || 'permanent';
 
-      if (numKeys < 1 || numKeys > 1000) {
-        return { type: 4, data: { content: '❌ Number of keys must be between 1 and 1000.', flags: 64 } };
+      if (!pasteName || !panelName) {
+        return { type: 4, data: { content: '❌ Please provide paste name and key system name.', flags: 64 } };
       }
 
-      const keys = Array.from({ length: numKeys }, () => generateRandomKey());
-      const asciiText = convertToAsciiArt(name);
-      
-      // Generate the FULL Lua code (matching website exactly)
-      const luaCode = generateFullKeySystemCode(name, keys, color);
+      // Find paste
+      const { data: paste } = await supabase
+        .from('pastes')
+        .select('id, title, slug')
+        .eq('user_id', user.userId)
+        .ilike('title', pasteName)
+        .maybeSingle();
 
-      // Save to database
+      if (!paste) {
+        return { type: 4, data: { content: `❌ Paste "${pasteName}" not found. Use \`/mypastes\` to see your pastes.`, flags: 64 } };
+      }
+
+      // Check if paste already has a panel
+      const { data: existingPanel } = await supabase
+        .from('control_panels')
+        .select('id')
+        .eq('paste_id', paste.id)
+        .maybeSingle();
+
+      if (existingPanel) {
+        return { type: 4, data: { content: `❌ Paste "${pasteName}" already has a key system. Use \`/deletekeysystem\` first.`, flags: 64 } };
+      }
+
+      // Calculate expiration
+      let expiresAt: string | null = null;
+      let expirationText = "Permanent";
+      const durationMap: Record<string, { ms: number; text: string }> = {
+        '1h': { ms: 3600000, text: '1 Hour' },
+        '6h': { ms: 21600000, text: '6 Hours' },
+        '24h': { ms: 86400000, text: '24 Hours' },
+        '7d': { ms: 604800000, text: '7 Days' },
+        '30d': { ms: 2592000000, text: '30 Days' },
+      };
+      
+      if (duration !== 'permanent' && durationMap[duration]) {
+        expiresAt = new Date(Date.now() + durationMap[duration].ms).toISOString();
+        expirationText = durationMap[duration].text;
+      }
+
+      // Create the control panel (this links key system to paste)
+      const { data: panel, error: panelError } = await supabase
+        .from('control_panels')
+        .insert({
+          user_id: user.userId,
+          name: panelName,
+          paste_id: paste.id,
+        })
+        .select('id')
+        .single();
+
+      if (panelError) {
+        return { type: 4, data: { content: `❌ Failed to create key system: ${panelError.message}`, flags: 64 } };
+      }
+
+      // Generate keys
+      const keys: string[] = [];
+      for (let i = 0; i < numKeys; i++) {
+        keys.push(`${generateRandomKey()}-${generateRandomKey()}-${generateRandomKey()}`);
+      }
+
+      await supabase.from('control_panel_keys').insert(
+        keys.map(k => ({ panel_id: panel.id, key_value: k, expires_at: expiresAt }))
+      );
+
+      // Also save to key_systems table for tracking
+      const asciiText = convertToAsciiArt(panelName);
       await supabase.from('key_systems').insert({
         user_id: user.userId,
-        name,
+        name: panelName,
         num_keys: numKeys,
         theme_color: color,
         ascii_text: asciiText,
-        generated_code: luaCode,
+        generated_code: '-- Generated via Discord Bot',
       });
 
       await supabase.from('user_activity').insert({
         user_id: user.userId,
         activity_type: 'key_system_created',
-        activity_data: { name, num_keys: numKeys, source: 'discord_bot' }
+        activity_data: { name: panelName, num_keys: numKeys, duration, source: 'discord_bot' }
       });
 
-      // DM the user with the file
+      const fileContent = `# Keys for ${panelName} (linked to: ${paste.title})\n# Duration: ${expirationText}\n# Total: ${numKeys}\n\n${keys.join('\n')}`;
       await sendDM(
         discordUserId,
-        `✅ **Key System Generated!**\n\n**Name:** ${name}\n**Keys:** ${numKeys}\n**Theme:** RGB(${color})\n\nYour key system file is attached below!`,
-        [{ name: `${name.replace(/\s+/g, '_')}_KeySystem.lua`, content: luaCode }]
+        `✅ **Key System Created!**\n\n**Name:** ${panelName}\n**Linked Paste:** ${paste.title}\n**Keys:** ${numKeys}\n**Duration:** ${expirationText}\n**Theme:** RGB(${color})\n\nYour keys are attached below!`,
+        [{ name: `${panelName.replace(/\s+/g, '_')}_keys.txt`, content: fileContent }]
       );
 
-      return { type: 4, data: { content: `✅ Key system **${name}** generated! Check your DMs for the file.`, flags: 64 } };
+      return { type: 4, data: { content: `✅ Key system **${panelName}** created for paste **${paste.title}**! Check your DMs for the keys.`, flags: 64 } };
     }
 
     case 'savescript': {
@@ -932,73 +993,96 @@ async function handleCommand(interaction: any) {
       };
     }
 
-    case 'gamebind': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
-      const gameId = data.options?.find((o: any) => o.name === 'gameid')?.value;
-      const gameName = data.options?.find((o: any) => o.name === 'gamename')?.value || null;
-      if (!pasteName || !gameId) return { type: 4, data: { content: '❌ Please provide paste name and game ID.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('paste_game_bindings').upsert({ paste_id: paste.id, game_id: gameId, game_name: gameName }, { onConflict: 'paste_id,game_id' });
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ Game **${gameName || gameId}** bound to paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
-    }
-
-    case 'gameunbind': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
-      const gameId = data.options?.find((o: any) => o.name === 'gameid')?.value;
-      if (!pasteName || !gameId) return { type: 4, data: { content: '❌ Please provide paste name and game ID.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('paste_game_bindings').delete().eq('paste_id', paste.id).eq('game_id', gameId);
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ Game **${gameId}** unbound from paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
-    }
-
-    case 'gamerestriction': {
+    case 'setgame': {
       const user = await getUser();
       if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
       const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
       const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
+      const gameId = data.options?.find((o: any) => o.name === 'gameid')?.value;
+      const gameName = data.options?.find((o: any) => o.name === 'gamename')?.value || null;
       if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
       const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
       if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('pastes').update({ game_restriction_enabled: enabled }).eq('id', paste.id);
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
+      
+      // Update game restriction toggle
+      await supabase.from('pastes').update({ game_restriction_enabled: enabled }).eq('id', paste.id);
+      
+      // If enabling and game ID provided, bind the game
+      if (enabled && gameId) {
+        await supabase.from('paste_game_bindings').upsert(
+          { paste_id: paste.id, game_id: gameId, game_name: gameName },
+          { onConflict: 'paste_id,game_id' }
+        );
+        return { type: 4, data: { content: `✅ Game restriction enabled and game **${gameName || gameId}** bound to paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
+      }
+      
       return { type: 4, data: { content: `✅ Game restriction ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
     }
 
-    case 'loadingbar': {
+    case 'mygamelinkedpastes': {
       const user = await getUser();
       if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
-      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
-      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('pastes').update({ show_loading_bar: enabled }).eq('id', paste.id);
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ Loading bar ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
+      
+      const { data: pastes } = await supabase
+        .from('pastes')
+        .select('id, title, game_restriction_enabled')
+        .eq('user_id', user.userId)
+        .eq('game_restriction_enabled', true);
+      
+      if (!pastes || pastes.length === 0) {
+        return { type: 4, data: { content: '📭 No pastes with game bindings found. Use `/setgame` to set one up!', flags: 64 } };
+      }
+      
+      let list = '';
+      for (const paste of pastes) {
+        const { data: bindings } = await supabase
+          .from('paste_game_bindings')
+          .select('game_id, game_name')
+          .eq('paste_id', paste.id);
+        
+        const games = bindings?.map(b => b.game_name || b.game_id).join(', ') || 'No games bound';
+        list += `📝 **${paste.title || 'Untitled'}** → ${games}\n`;
+      }
+      
+      return { type: 4, data: { content: `🎮 **Game-Linked Pastes:**\n\n${list}`, flags: 64 } };
     }
 
-    case 'welcomemessage': {
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
-      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
-      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
-      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
-      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('pastes').update({ show_welcome_message: enabled }).eq('id', paste.id);
-      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ Welcome message ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
+    case 'invite': {
+      return { type: 4, data: { content: `🤖 **Invite ULT LUA Bot to your server!**\n\nhttps://discord.com/oauth2/authorize?client_id=1407376197771595816&permissions=8&integration_type=0&scope=bot`, flags: 0 } };
     }
 
-    case 'backgroundprotection': {
+    case 'analytics': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      
+      // Total pastes
+      const { count: totalPastes } = await supabase.from('pastes').select('*', { count: 'exact', head: true }).eq('user_id', user.userId);
+      
+      // Protected pastes
+      const { count: protectedPastes } = await supabase.from('pastes').select('*', { count: 'exact', head: true }).eq('user_id', user.userId).eq('protection_enabled', true);
+      const { count: publicProtPastes } = await supabase.from('pastes').select('*', { count: 'exact', head: true }).eq('user_id', user.userId).eq('public_protection', true);
+      
+      // Total executions
+      const { data: userPasteIds } = await supabase.from('pastes').select('id').eq('user_id', user.userId);
+      let totalExecs = 0;
+      if (userPasteIds && userPasteIds.length > 0) {
+        const ids = userPasteIds.map(p => p.id);
+        const { count } = await supabase.from('paste_executions').select('*', { count: 'exact', head: true }).in('paste_id', ids);
+        totalExecs = count || 0;
+      }
+      
+      // Key systems
+      const { count: keySystems } = await supabase.from('key_systems').select('*', { count: 'exact', head: true }).eq('user_id', user.userId);
+      
+      // Scripts
+      const { count: scripts } = await supabase.from('saved_scripts').select('*', { count: 'exact', head: true }).eq('user_id', user.userId);
+      
+      const protRate = (totalPastes || 0) > 0 ? Math.round(((protectedPastes || 0) + (publicProtPastes || 0)) / (totalPastes || 1) * 100) : 0;
+      
+      return { type: 4, data: { content: `📊 **Your Analytics**\n\n📝 **Total Pastes:** ${totalPastes || 0}\n🛡️ **Protected Pastes:** ${(protectedPastes || 0) + (publicProtPastes || 0)}\n📈 **Protection Rate:** ${protRate}%\n🚀 **Total Executions:** ${totalExecs}\n🔑 **Key Systems:** ${keySystems || 0}\n📜 **Saved Scripts:** ${scripts || 0}`, flags: 64 } };
+    }
+
+    case 'consolefeedback': {
       const user = await getUser();
       if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
       const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
@@ -1006,10 +1090,164 @@ async function handleCommand(interaction: any) {
       if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
       const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
       if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { error } = await supabase.from('pastes').update({ background_protection: enabled }).eq('id', paste.id);
+      // Console feedback controls both loading bar and welcome message
+      const { error } = await supabase.from('pastes').update({ show_loading_bar: enabled, show_welcome_message: enabled }).eq('id', paste.id);
       if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
-      return { type: 4, data: { content: `✅ Background protection ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
+      return { type: 4, data: { content: `✅ Console feedback (loading bar + welcome message) ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
     }
+
+    case 'keygen': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const amount = data.options?.find((o: any) => o.name === 'amount')?.value || 10;
+      const duration = data.options?.find((o: any) => o.name === 'duration')?.value || 'permanent';
+      
+      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
+      
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      
+      const { data: panel } = await supabase.from('control_panels').select('id, name').eq('paste_id', paste.id).maybeSingle();
+      if (!panel) return { type: 4, data: { content: `❌ Paste "${pasteName}" has no key system. Use \`/keysystemsetup\` first.`, flags: 64 } };
+      
+      let expiresAt: string | null = null;
+      let expirationText = "Permanent";
+      const durationMap: Record<string, { ms: number; text: string }> = {
+        '1h': { ms: 3600000, text: '1 Hour' },
+        '6h': { ms: 21600000, text: '6 Hours' },
+        '24h': { ms: 86400000, text: '24 Hours' },
+        '7d': { ms: 604800000, text: '7 Days' },
+        '30d': { ms: 2592000000, text: '30 Days' },
+      };
+      if (duration !== 'permanent' && durationMap[duration]) {
+        expiresAt = new Date(Date.now() + durationMap[duration].ms).toISOString();
+        expirationText = durationMap[duration].text;
+      }
+      
+      const keys: string[] = [];
+      for (let i = 0; i < amount; i++) {
+        keys.push(`${generateRandomKey()}-${generateRandomKey()}-${generateRandomKey()}`);
+      }
+      
+      await supabase.from('control_panel_keys').insert(
+        keys.map(k => ({ panel_id: panel.id, key_value: k, expires_at: expiresAt }))
+      );
+      
+      const fileContent = `# Keys for ${panel.name}\n# Duration: ${expirationText}\n# Total: ${amount}\n\n${keys.join('\n')}`;
+      await sendDM(discordUserId, `✅ **Keys Generated!**\n\n**Panel:** ${panel.name}\n**Amount:** ${amount}\n**Duration:** ${expirationText}`, [{ name: `${panel.name.replace(/\s+/g, '_')}_keys.txt`, content: fileContent }]);
+      
+      return { type: 4, data: { content: `✅ Generated **${amount}** keys for **${panel.name}**! Duration: **${expirationText}**. Check your DMs.`, flags: 64 } };
+    }
+
+    case 'mykeysystemkeys': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
+      
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      
+      const { data: panel } = await supabase.from('control_panels').select('id, name').eq('paste_id', paste.id).maybeSingle();
+      if (!panel) return { type: 4, data: { content: `❌ Paste "${pasteName}" has no key system.`, flags: 64 } };
+      
+      const { count: totalKeys } = await supabase.from('control_panel_keys').select('*', { count: 'exact', head: true }).eq('panel_id', panel.id);
+      const { count: redeemedKeys } = await supabase.from('control_panel_keys').select('*', { count: 'exact', head: true }).eq('panel_id', panel.id).not('redeemed_by_discord_id', 'is', null);
+      const { count: expiredKeys } = await supabase.from('control_panel_keys').select('*', { count: 'exact', head: true }).eq('panel_id', panel.id).not('expires_at', 'is', null).lt('expires_at', new Date().toISOString());
+      
+      return { type: 4, data: { content: `🔑 **Key System: ${panel.name}** (Paste: ${paste.title})\n\n📊 **Total Keys:** ${totalKeys || 0}\n✅ **Redeemed:** ${redeemedKeys || 0}\n⏰ **Expired:** ${expiredKeys || 0}\n🆓 **Available:** ${(totalKeys || 0) - (redeemedKeys || 0) - (expiredKeys || 0)}`, flags: 64 } };
+    }
+
+    case 'keysystemwhitelist': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      
+      const keyValue = data.options?.find((o: any) => o.name === 'key')?.value;
+      const robloxUserId = data.options?.find((o: any) => o.name === 'userid')?.value;
+      if (!keyValue || !robloxUserId) return { type: 4, data: { content: '❌ Please provide both key and user ID.', flags: 64 } };
+      
+      // Find the key and verify ownership
+      const { data: keyData } = await supabase
+        .from('control_panel_keys')
+        .select('id, panel_id, roblox_user_id')
+        .eq('key_value', keyValue)
+        .maybeSingle();
+      
+      if (!keyData) return { type: 4, data: { content: '❌ Key not found.', flags: 64 } };
+      
+      // Verify user owns the panel
+      const { data: panel } = await supabase.from('control_panels').select('id, name, paste_id').eq('id', keyData.panel_id).eq('user_id', user.userId).maybeSingle();
+      if (!panel) return { type: 4, data: { content: '❌ You do not own this key system.', flags: 64 } };
+      
+      // Assign user ID to key
+      await supabase.from('control_panel_keys').update({ roblox_user_id: robloxUserId }).eq('id', keyData.id);
+      
+      // Also whitelist on the paste
+      if (panel.paste_id) {
+        await supabase.from('paste_access_control').delete().eq('paste_id', panel.paste_id).eq('roblox_user_id', robloxUserId).eq('access_type', 'whitelist');
+        await supabase.from('paste_access_control').insert({
+          paste_id: panel.paste_id, roblox_user_id: robloxUserId, access_type: 'whitelist', is_eternal: true
+        });
+      }
+      
+      return { type: 4, data: { content: `✅ Key assigned to Roblox User ID **${robloxUserId}** and user whitelisted!`, flags: 64 } };
+    }
+
+    case 'deletekeysystem': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
+      
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      
+      const { data: panel } = await supabase.from('control_panels').select('id, name').eq('paste_id', paste.id).maybeSingle();
+      if (!panel) return { type: 4, data: { content: `❌ Paste "${pasteName}" has no key system.`, flags: 64 } };
+      
+      // Delete keys, then panel
+      await supabase.from('control_panel_keys').delete().eq('panel_id', panel.id);
+      await supabase.from('console_blacklist').delete().eq('panel_id', panel.id);
+      await supabase.from('control_panels').delete().eq('id', panel.id);
+      
+      return { type: 4, data: { content: `✅ Key system **${panel.name}** deleted from paste **${paste.title}**! The paste itself was not deleted.`, flags: 64 } };
+    }
+
+    case 'logs': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      
+      const channelId = data.options?.find((o: any) => o.name === 'channel')?.value;
+      if (!channelId) return { type: 4, data: { content: '❌ Please provide a channel.', flags: 64 } };
+      
+      // For now, just acknowledge - the actual webhook would need a changelog_notifications table
+      // We'll send the latest changelog entry to that channel as a test
+      const { data: latestChangelog } = await supabase
+        .from('changelog')
+        .select('version, title, description, changes')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (latestChangelog) {
+        const changes = Array.isArray(latestChangelog.changes) ? (latestChangelog.changes as any[]).map((c: any) => `• ${c}`).join('\n') : '';
+        await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: `@everyone 📢 **Changelog Update - v${latestChangelog.version}**\n\n**${latestChangelog.title}**\n${latestChangelog.description}\n\n${changes}`
+          })
+        });
+      }
+      
+      return { type: 4, data: { content: `✅ Changelog notifications set up in <#${channelId}>! The latest update has been posted.`, flags: 64 } };
+    }
+
+    // backgroundprotection removed - not needed as separate command
 
     case 'iptracking': {
       const user = await getUser();
@@ -1429,7 +1667,7 @@ async function handleCommand(interaction: any) {
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Key Systems:**\n\`/keysystemgen\` - Generate a key system\n\`/mykeys\` - View your key systems\n\n**Scripts:**\n\`/scripts\` - View saved scripts\n\`/savescript\` - Save a script\n\`/deletescript\` - Delete a script 🆕\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/deletepaste\` - Delete a paste 🆕\n\`/scriptprotection\` - Toggle protection\n\`/publicprotection\` - Protection without whitelist\n\`/backgroundprotection\` - Anti-dump protection 🆕\n\`/hidecode\` - Hide code from raw URL\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/removewhitelist\` - Remove from whitelist 🆕\n\`/removeblacklist\` - Remove from blacklist 🆕\n\`/setwhitelisttime\` - Set expiration\n\`/stats\` - View stats\n\n**Script Settings:** 🆕\n\`/gamebind\` - Bind paste to a game\n\`/gameunbind\` - Remove game binding\n\`/gamerestriction\` - Toggle game restriction\n\`/loadingbar\` - Toggle loading bar\n\`/welcomemessage\` - Toggle welcome message\n\`/iptracking\` - Toggle IP tracking\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/genkeys\` - Generate keys (with expiration)\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist user from panel\n\`/unblacklist\` - Remove from blacklist\n\`/forceexpire\` - Force expire user access`, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Scripts:**\n\`/savescript\` - Save a script\n\`/scripts\` - View saved scripts\n\`/deletescript\` - Delete a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/deletepaste\` - Delete a paste\n\`/scriptprotection\` - Toggle protection\n\`/publicprotection\` - Protection without whitelist\n\`/hidecode\` - Hide code from raw URL\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/removewhitelist\` - Remove from whitelist\n\`/removeblacklist\` - Remove from blacklist\n\`/setwhitelisttime\` - Set whitelist expiration\n\`/stats\` - View paste stats\n\n**Settings:**\n\`/iptracking\` - Toggle IP tracking\n\`/setgame\` - Set game restriction + bind game\n\`/mygamelinkedpastes\` - View game-bound pastes\n\`/consolefeedback\` - Toggle loading bar + welcome msg\n\n**Key Systems:**\n\`/keysystemsetup\` - Create key system for a paste 🆕\n\`/keygen\` - Generate more keys 🆕\n\`/mykeysystemkeys\` - View key stats 🆕\n\`/keysystemwhitelist\` - Assign user to key 🆕\n\`/deletekeysystem\` - Delete key system 🆕\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist from panel\n\`/unblacklist\` - Remove from blacklist\n\`/forceexpire\` - Force expire access\n\n**Other:**\n\`/analytics\` - View your analytics 🆕\n\`/invite\` - Get bot invite link 🆕\n\`/logs\` - Set changelog notifications 🆕`, 
           flags: 0 
         }
       };

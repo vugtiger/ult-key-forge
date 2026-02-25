@@ -1069,6 +1069,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_control_panel_keys: { Args: never; Returns: undefined }
       cleanup_expired_discord_oauth: { Args: never; Returns: undefined }
       cleanup_expired_tokens: { Args: never; Returns: undefined }
       has_role: {
