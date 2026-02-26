@@ -1622,32 +1622,59 @@ Deno.serve(async (req) => {
       return true;
     };
 
+    const getKeyPanelsForPaste = async (): Promise<Array<{ id: string; name: string; created_at: string }>> => {
+      const { data: panels, error } = await supabase
+        .from('control_panels')
+        .select('id, name, created_at')
+        .eq('paste_id', paste.id)
+        .order('created_at', { ascending: false });
+
+      if (error || !panels || panels.length === 0) return [];
+      return panels;
+    };
+
+    const getPreferredKeyPanel = async () => {
+      const panels = await getKeyPanelsForPaste();
+      if (panels.length <= 1) return panels[0] ?? null;
+
+      const panelIds = panels.map((panel) => panel.id);
+      const { data: keyedPanels } = await supabase
+        .from('control_panel_keys')
+        .select('panel_id')
+        .in('panel_id', panelIds)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (keyedPanels?.[0]?.panel_id) {
+        const match = panels.find((panel) => panel.id === keyedPanels[0].panel_id);
+        if (match) return match;
+      }
+
+      return panels[0];
+    };
+
     // ===== KEY SYSTEM VALIDATION =====
     // When ?key=xxx&uid=xxx is provided, validate the key server-side
     if (keyParam && uid) {
       console.log(`[get-paste] KEY VALIDATION slug=${slug} key=${keyParam.substring(0, 8)}... uid=${uid} ip=${clientIp}`);
       
-      // Find control panel for this paste
-      const { data: panel } = await supabase
-        .from('control_panels')
-        .select('id, name')
-        .eq('paste_id', paste.id)
-        .maybeSingle();
-      
-      if (!panel) {
+      const keyPanels = await getKeyPanelsForPaste();
+      if (keyPanels.length === 0) {
         return new Response('KEY_INVALID:No key system on this paste', { status: 200, headers: textHeaders });
       }
-      
-      // Find the key
-      const { data: keyData } = await supabase
+
+      const panelIds = keyPanels.map((panel) => panel.id);
+      const { data: keyMatches } = await supabase
         .from('control_panel_keys')
         .select('*')
-        .eq('panel_id', panel.id)
+        .in('panel_id', panelIds)
         .eq('key_value', keyParam)
-        .maybeSingle();
-      
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const keyData = keyMatches?.[0];
       if (!keyData) {
-        console.log(`[get-paste] KEY_INVALID: key not found for panel ${panel.id}`);
+        console.log(`[get-paste] KEY_INVALID: key not found for paste ${paste.id}`);
         return new Response('KEY_INVALID:Wrong key', { status: 200, headers: textHeaders });
       }
       
@@ -1724,12 +1751,7 @@ Deno.serve(async (req) => {
 
     // ===== NON-PROTECTED PASTE (no protection, no public_protection) =====
     if (!paste.protection_enabled && !paste.public_protection) {
-      // Check if paste has a key system linked
-      const { data: keyPanel } = await supabase
-        .from('control_panels')
-        .select('id, name')
-        .eq('paste_id', paste.id)
-        .maybeSingle();
+      const keyPanel = await getPreferredKeyPanel();
       
       if (keyPanel && !uid && !tk && !isLikelyBrowser) {
         // Paste has a key system - return key system GUI
@@ -1764,12 +1786,7 @@ Deno.serve(async (req) => {
         return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
       }
 
-      // Check if paste has a key system - show key GUI instead of loader
-      const { data: keyPanel } = await supabase
-        .from('control_panels')
-        .select('id, name')
-        .eq('paste_id', paste.id)
-        .maybeSingle();
+      const keyPanel = await getPreferredKeyPanel();
       
       if (keyPanel) {
         console.log(`[get-paste] Returning key system GUI for protected paste: ${paste.id} panel: ${keyPanel.name}`);
