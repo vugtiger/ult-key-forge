@@ -1707,10 +1707,29 @@ Deno.serve(async (req) => {
         try { await supabase.rpc('cleanup_expired_control_panel_keys'); } catch {}
       }
       
-      // Return the paste content directly so the Lua GUI can loadstring it immediately
+      // Key is valid - return content appropriately
+      console.log(`[get-paste] KEY_VALID: access granted uid=${uid} for paste ${paste.id} prot=${paste.protection_enabled} pub=${paste.public_protection}`);
+      
+      // For protected pastes, generate a secure loader instead of raw content
+      if (paste.protection_enabled || paste.public_protection) {
+        const newToken = generateToken();
+        const sessionSecret = generateSessionSecret(clientIp, Date.now());
+        const serverNonce = generateServerNonce();
+        const trustLevel = getTrustScore(clientIp);
+        await supabase.from('paste_execution_tokens').insert({
+          paste_id: paste.id, roblox_user_id: uid, token: newToken,
+          expires_at: new Date(Date.now() + 30000).toISOString()
+        });
+        const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
+          showConsoleFeedback: paste.show_loading_bar !== false,
+          serverNonce,
+          trustLevel,
+        });
+        console.log(`[get-paste] KEY_VALID: returning secure loader for protected paste ${paste.id}`);
+        return new Response(`KEY_VALID_SCRIPT:\n${loader}`, { status: 200, headers: textHeaders });
+      }
+      
       // For non-protected pastes, return raw content
-      // For protected/public-protected pastes, return raw content too (key already validated server-side)
-      console.log(`[get-paste] KEY_VALID: access granted uid=${uid} for paste ${paste.id}`);
       return new Response(`KEY_VALID_SCRIPT:\n${paste.content}`, { status: 200, headers: textHeaders });
     }
 
