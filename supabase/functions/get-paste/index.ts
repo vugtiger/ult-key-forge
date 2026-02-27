@@ -1419,6 +1419,7 @@ Deno.serve(async (req) => {
     const pid = url.searchParams.get('pid');
     const ex = url.searchParams.get('ex');
     const keyParam = url.searchParams.get('key'); // v9: Key system validation
+    const kbt = url.searchParams.get('kbt'); // Key bypass token - skips key system after validation
     const entropy = url.searchParams.get('entropy');
     const snonce = url.searchParams.get('snonce');
     const oauthTs = url.searchParams.get('oauth_ts');
@@ -1710,26 +1711,24 @@ Deno.serve(async (req) => {
       // Key is valid - return content appropriately
       console.log(`[get-paste] KEY_VALID: access granted uid=${uid} for paste ${paste.id} prot=${paste.protection_enabled} pub=${paste.public_protection}`);
       
-      // For protected pastes, generate a secure loader instead of raw content
+      // For protected pastes, generate a bypass token and redirect
+      // This keeps key system completely separate from the protection flow
       if (paste.protection_enabled || paste.public_protection) {
-        const newToken = generateToken();
-        const sessionSecret = generateSessionSecret(clientIp, Date.now());
-        const serverNonce = generateServerNonce();
-        const trustLevel = getTrustScore(clientIp);
+        const bypassToken = generateToken();
         await supabase.from('paste_execution_tokens').insert({
-          paste_id: paste.id, roblox_user_id: uid, token: newToken,
+          paste_id: paste.id, roblox_user_id: uid, token: bypassToken,
           expires_at: new Date(Date.now() + 30000).toISOString()
         });
-        const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
-          showConsoleFeedback: paste.show_loading_bar !== false,
-          serverNonce,
-          trustLevel,
-        });
-        console.log(`[get-paste] KEY_VALID: returning secure loader for protected paste ${paste.id}`);
-        return new Response(`KEY_VALID_SCRIPT:\n${loader}`, { status: 200, headers: textHeaders });
+        // Return a simple script that re-fetches the paste with the bypass token
+        // The paste URL will then skip the key system and serve the normal protection loader
+        const redirectScript = `-- Key validated, loading protected script...
+local _url = "${baseUrl}?slug=${slugStr}&uid=${uid}&kbt=${bypassToken}&_=" .. tostring(tick())
+loadstring(game:HttpGet(_url))()`;
+        console.log(`[get-paste] KEY_VALID: returning bypass redirect for protected paste ${paste.id}`);
+        return new Response(`KEY_VALID_SCRIPT:\n${redirectScript}`, { status: 200, headers: textHeaders });
       }
       
-      // For non-protected pastes, return raw content
+      // For non-protected pastes, return raw content directly
       return new Response(`KEY_VALID_SCRIPT:\n${paste.content}`, { status: 200, headers: textHeaders });
     }
 
@@ -1800,6 +1799,45 @@ Deno.serve(async (req) => {
 
     // ===== PROTECTED PASTE - needs loader =====
     if (!uid || !ts || !tk) {
+      // ===== KEY BYPASS TOKEN - comes from key system after validation =====
+      if (kbt && uid && /^\d+$/.test(uid)) {
+        // Validate the bypass token
+        const { data: bypassData } = await supabase
+          .from('paste_execution_tokens')
+          .select('*')
+          .eq('token', kbt)
+          .eq('paste_id', paste.id)
+          .is('used_at', null)
+          .maybeSingle();
+
+        if (bypassData && new Date(bypassData.expires_at) > new Date()) {
+          // Mark bypass token as used
+          await supabase.from('paste_execution_tokens')
+            .update({ used_at: new Date().toISOString() })
+            .eq('id', bypassData.id);
+
+          // Now serve the normal protection loader (completely separate from key system)
+          console.log(`[get-paste] KBT_VALID: serving protection loader for uid=${uid} paste=${paste.id}`);
+          const newToken = generateToken();
+          const sessionSecret = generateSessionSecret(clientIp, Date.now());
+          const serverNonce = generateServerNonce();
+          const trustLevel = getTrustScore(clientIp);
+          await supabase.from('paste_execution_tokens').insert({
+            paste_id: paste.id, roblox_user_id: uid, token: newToken,
+            expires_at: new Date(Date.now() + 30000).toISOString()
+          });
+          const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
+            showConsoleFeedback: paste.show_loading_bar !== false,
+            serverNonce,
+            trustLevel,
+          });
+          return new Response(loader, { status: 200, headers: textHeaders });
+        } else {
+          console.log(`[get-paste] KBT_INVALID: expired or used bypass token for paste ${paste.id}`);
+          return new Response(generateKickPlain('Session expired, please try again'), { status: 200, headers: textHeaders });
+        }
+      }
+
       if (isLikelyBrowser && !isRobloxRequest) {
         await logAccess(null, 'browser');
         return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
