@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Zap, ChevronRight, ChevronLeft, Check, Copy, Download, Key, Clock, Hash, Users,
-  Link2, Settings, Trash2, Plus, Save, BarChart2, AlertTriangle, RefreshCw, Upload, Image
+  Link2, Settings, Trash2, Plus, Save, BarChart2, AlertTriangle, RefreshCw, Timer
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -125,9 +125,7 @@ const Dashboard = () => {
   const [generatedKeys, setGeneratedKeys] = useState<GeneratedKey[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingPastes, setLoadingPastes] = useState(true);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [decalId, setDecalId] = useState('');
 
   // ── Manage tab state ──────────────────────────────────────────────
   const [managePasteId, setManagePasteId] = useState('');
@@ -142,6 +140,8 @@ const Dashboard = () => {
   const [keyInputs, setKeyInputs] = useState<Record<string, string>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [searchKey, setSearchKey] = useState('');
+  const [extendDuration, setExtendDuration] = useState('24h');
+  const [extendingKey, setExtendingKey] = useState<string | null>(null);
 
   // ── Fetch pastes ──────────────────────────────────────────────────
   useEffect(() => {
@@ -222,20 +222,8 @@ const Dashboard = () => {
       const selectedPasteObj = pastes.find(p => p.id === selectedPaste);
       const pasteUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-paste?slug=${selectedPasteObj?.slug}`;
 
-      // Upload logo if provided
-      let logoUrl: string | null = null;
-      if (logoFile) {
-        const fileExt = logoFile.name.split('.').pop();
-        const filePath = `${user.id}/${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('keysystem-logos')
-          .upload(filePath, logoFile);
-        if (uploadError) throw uploadError;
-        const { data: urlData } = supabase.storage
-          .from('keysystem-logos')
-          .getPublicUrl(filePath);
-        logoUrl = urlData.publicUrl;
-      }
+      // Use decal ID if provided
+      const logoUrl = decalId.trim() || null;
 
       const keys: GeneratedKey[] = Array.from({ length: count }, () => ({
         key: generateRandomKey(),
@@ -403,6 +391,34 @@ const Dashboard = () => {
     }
   };
 
+  // ── Manage: extend key time ───────────────────────────────────────
+  const handleExtendKey = async (keyId: string) => {
+    const key = manageKeys.find(k => k.id === keyId);
+    if (!key) return;
+    setExtendingKey(keyId);
+    try {
+      const durationConfig = KEY_DURATIONS.find(d => d.value === extendDuration);
+      if (!durationConfig || durationConfig.ms === 0) {
+        const { error } = await supabase.from('control_panel_keys').update({ expires_at: null }).eq('id', keyId);
+        if (error) throw error;
+        toast({ title: "Key made permanent" });
+      } else {
+        const base = key.expires_at && new Date(key.expires_at) > new Date() 
+          ? new Date(key.expires_at).getTime() 
+          : Date.now();
+        const newExpiry = new Date(base + durationConfig.ms).toISOString();
+        const { error } = await supabase.from('control_panel_keys').update({ expires_at: newExpiry }).eq('id', keyId);
+        if (error) throw error;
+        toast({ title: `Extended by ${durationConfig.label}` });
+      }
+      await fetchManageData(managePasteId);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setExtendingKey(null);
+    }
+  };
+
   // ── Manage: delete integration ────────────────────────────────────
   const handleDeleteIntegration = async () => {
     if (!managePanel) return;
@@ -454,7 +470,7 @@ const Dashboard = () => {
     setStep(0); setSelectedPaste(''); setKeySystemName('');
     setThemeColor('255, 255, 255'); setNumKeys('10');
     setDuration('permanent'); setRobloxIds(''); setGeneratedKeys([]);
-    setLogoFile(null); setLogoPreview(null);
+    setDecalId('');
   };
 
   const canProceed = () => {
@@ -553,47 +569,19 @@ const Dashboard = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Logo (Optional)</Label>
-                  <input
-                    type="file"
-                    ref={logoInputRef}
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setLogoFile(file);
-                        setLogoPreview(URL.createObjectURL(file));
-                      }
-                    }}
+                  <Label>Roblox Decal ID (Optional)</Label>
+                  <Input
+                    placeholder="e.g., 12345678"
+                    value={decalId}
+                    onChange={(e) => setDecalId(e.target.value.replace(/\D/g, ''))}
                   />
-                  <div className="flex items-center gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => logoInputRef.current?.click()}
-                      className="gap-2"
-                    >
-                      <Upload size={14} />
-                      {logoFile ? 'Change Logo' : 'Upload Logo'}
-                    </Button>
-                    {logoPreview && (
-                      <div className="flex items-center gap-2">
-                        <img src={logoPreview} alt="Logo preview" className="w-8 h-8 rounded object-contain bg-muted/30" />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => { setLogoFile(null); setLogoPreview(null); }}
-                          className="text-xs text-muted-foreground"
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Shows in the top-left of the key system UI</p>
+                  <p className="text-xs text-muted-foreground">Enter a Roblox decal/image asset ID to show as logo on the key system UI</p>
+                  {decalId && (
+                    <div className="flex items-center gap-2 p-2 rounded bg-muted/30">
+                      <img src={`https://www.roblox.com/asset-thumbnail/image?assetId=${decalId}&width=50&height=50&format=Png`} alt="Decal preview" className="w-8 h-8 rounded object-contain" />
+                      <span className="text-xs text-muted-foreground">Decal ID: {decalId}</span>
+                    </div>
+                  )}
                 </div>
               </Card>
             )}
@@ -862,12 +850,34 @@ const Dashboard = () => {
                               </Button>
                             </div>
                           </div>
-                          <div className="text-right shrink-0">
+                          <div className="text-right shrink-0 space-y-1">
                             {key.expires_at && (
-                              <div className="text-[10px] text-muted-foreground mb-1">
+                              <div className="text-[10px] text-muted-foreground">
                                 {new Date(key.expires_at) > new Date()
                                   ? `exp ${new Date(key.expires_at).toLocaleDateString()}`
                                   : 'expired'}
+                              </div>
+                            )}
+                            {key.expires_at && (
+                              <div className="flex items-center gap-1">
+                                <Select value={extendDuration} onValueChange={setExtendDuration}>
+                                  <SelectTrigger className="h-6 w-20 text-[10px] px-1">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {KEY_DURATIONS.map(d => <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 px-1.5 text-[10px]"
+                                  disabled={extendingKey === key.id}
+                                  onClick={() => handleExtendKey(key.id)}
+                                >
+                                  <Timer size={10} className="mr-0.5" />
+                                  {extendingKey === key.id ? '...' : '+'}
+                                </Button>
                               </div>
                             )}
                             <Button
@@ -915,207 +925,13 @@ const Dashboard = () => {
   );
 };
 
-// ── Lua code generator ────────────────────────────────────────────────
-function generateLuaCode(name: string, asciiText: string, themeColor: string, _keyList: string, pasteUrl: string): string {
-  // Keys are validated server-side now - no embedded keys in Lua code
-  return `-- // ULT LUA KEY SYSTEM - Generated for ${name} \\ --
--- Keys are validated server-side. Copy this script and share it with your users.
+// ── Lua code generator (v2 - matches server-generated GUI) ─────────
+function generateLuaCode(name: string, _asciiText: string, themeColor: string, _keyList: string, pasteUrl: string): string {
+  return `-- // ULT Key System v2 - ${name} \\ --
+-- Keys are validated server-side. Run this script in your Roblox executor.
+-- The key system UI will appear automatically.
 
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local TextService = game:GetService("TextService")
-local HttpService = game:GetService("HttpService")
-
-local plr = Players.LocalPlayer
-local gui = Instance.new("ScreenGui", plr:WaitForChild("PlayerGui"))
-gui.ResetOnSpawn = false
-gui.DisplayOrder = 999999999
-
-local PASTE_URL = "${pasteUrl}"
-
-local win = Instance.new("Frame", gui)
-win.Size = UDim2.new(0, 680, 0, 290)
-win.Position = UDim2.new(0.5, -340, 0.5, -145)
-win.BackgroundColor3 = Color3.fromRGB(20,20,20)
-win.BackgroundTransparency = 0.25
-win.BorderSizePixel = 0
-win.ClipsDescendants = true
-
-local outline = Instance.new("UIStroke", win)
-outline.Thickness = 2
-outline.Color = Color3.fromRGB(${themeColor})
-local glow = Instance.new("UIStroke", win)
-glow.Thickness = 6
-glow.Transparency = 0.65
-glow.Color = Color3.fromRGB(${themeColor})
-
-local logo = Instance.new("TextLabel", win)
-logo.Size = UDim2.new(1,0,0,125)
-logo.Position = UDim2.new(0,0,0,10)
-logo.BackgroundTransparency = 1
-logo.TextColor3 = Color3.fromRGB(${themeColor})
-logo.TextTransparency = 1
-logo.Font = Enum.Font.Code
-logo.TextSize = 18
-logo.Text = [[
-${asciiText}
-]]
-
-task.spawn(function()
-    task.wait(0.3)
-    for i = 1, 30 do
-        logo.TextTransparency = math.random(20,80)/100
-        task.wait(0.04)
-    end
-    TweenService:Create(logo, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-end)
-
-local prefix = Instance.new("TextLabel", win)
-prefix.Size = UDim2.new(1,-60,0,50)
-prefix.Position = UDim2.new(0,30,0,200)
-prefix.BackgroundTransparency = 1
-prefix.Text = "Enter your key > "
-prefix.TextColor3 = Color3.fromRGB(${themeColor})
-prefix.Font = Enum.Font.Code
-prefix.TextSize = 28
-prefix.TextXAlignment = Enum.TextXAlignment.Left
-prefix.TextTransparency = 1
-
-local input = Instance.new("TextBox", win)
-input.Size = UDim2.new(1,-60,0,50)
-input.Position = UDim2.new(0,30,0,200)
-input.BackgroundTransparency = 1
-input.Text = ""
-input.TextColor3 = Color3.fromRGB(${themeColor})
-input.Font = Enum.Font.Code
-input.TextSize = 28
-input.TextXAlignment = Enum.TextXAlignment.Left
-input.ClearTextOnFocus = false
-
-local prefixWidth = 0
-task.spawn(function()
-    task.wait()
-    prefixWidth = TextService:GetTextSize(prefix.Text, 28, Enum.Font.Code, Vector2.new(10000,10000)).X
-    input.Position = UDim2.new(0, 30 + prefixWidth, 0, 200)
-    input.Size = UDim2.new(1, -90 - prefixWidth, 0, 50)
-end)
-
-local status = Instance.new("TextLabel", win)
-status.Size = UDim2.new(1,-60,0,20)
-status.Position = UDim2.new(0,30,0,250)
-status.BackgroundTransparency = 1
-status.TextColor3 = Color3.fromRGB(${themeColor})
-status.Font = Enum.Font.Code
-status.TextSize = 14
-status.TextXAlignment = Enum.TextXAlignment.Left
-status.Text = ""
-status.TextTransparency = 0.3
-
-local function fadeAndDestroy(msg, color, load)
-    input.TextEditable = false
-    status.Text = msg
-    status.TextColor3 = color
-    TweenService:Create(win, TweenInfo.new(0.9), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(prefix, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
-    TweenService:Create(input, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
-    TweenService:Create(logo, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
-    TweenService:Create(outline, TweenInfo.new(0.9), {Transparency = 1}):Play()
-    TweenService:Create(glow, TweenInfo.new(0.9), {Transparency = 1}):Play()
-    task.wait(1)
-    if load then
-        -- Server already validated the key, fetch with key+uid params
-        local url = PASTE_URL .. "&validated=true&uid=" .. tostring(plr.UserId)
-        local success, result = pcall(function()
-            return game:HttpGet(url)
-        end)
-        if success and result and #result > 0 then
-            local fn, err = loadstring(result)
-            if fn then fn() end
-        end
-    end
-    gui:Destroy()
-end
-
-input.FocusLost:Connect(function(enter)
-    if not enter then return end
-    local enteredKey = input.Text
-    if enteredKey == "" then return end
-
-    status.Text = "Validating key..."
-    input.TextEditable = false
-
-    -- Server-side key validation
-    local userId = tostring(plr.UserId)
-    local validateUrl = PASTE_URL .. "&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId
-    local success, response = pcall(function()
-        return game:HttpGet(validateUrl)
-    end)
-
-    if not success then
-        fadeAndDestroy("Connection Error", Color3.fromRGB(255,0,0), false)
-        return
-    end
-
-    -- Server returns the script if key is valid, or an error message
-    if response and #response > 10 then
-        -- Key accepted - server returned the script directly
-        status.Text = "Key Accepted! Loading..."
-        status.TextColor3 = Color3.fromRGB(0,255,0)
-        TweenService:Create(win, TweenInfo.new(0.9), {BackgroundTransparency = 1}):Play()
-        TweenService:Create(prefix, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
-        TweenService:Create(input, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
-        TweenService:Create(logo, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
-        TweenService:Create(outline, TweenInfo.new(0.9), {Transparency = 1}):Play()
-        TweenService:Create(glow, TweenInfo.new(0.9), {Transparency = 1}):Play()
-        task.wait(1)
-        local fn, err = loadstring(response)
-        if fn then fn() end
-        gui:Destroy()
-    else
-        -- Server returned error (short response = error message)
-        local msg = response or "Access Denied"
-        if msg:find("expired") then
-            fadeAndDestroy("Key Expired!", Color3.fromRGB(255,100,0), false)
-        elseif msg:find("assigned") or msg:find("owned") then
-            fadeAndDestroy("Key Already Owned!", Color3.fromRGB(255,0,0), false)
-        elseif msg:find("invalid") or msg:find("not found") then
-            fadeAndDestroy("Invalid Key!", Color3.fromRGB(255,0,0), false)
-        else
-            fadeAndDestroy("Access Denied", Color3.fromRGB(255,0,0), false)
-        end
-    end
-end)
-
-local dragging = false
-local dragStart, startPos
-local lastClickTime = 0
-win.InputBegan:Connect(function(inputObj)
-    if inputObj.UserInputType == Enum.UserInputType.MouseButton1 then
-        local now = tick()
-        if now - lastClickTime < 0.35 then
-            fadeAndDestroy("Closed.", Color3.fromRGB(200,200,200), false)
-            return
-        end
-        lastClickTime = now
-        dragging = true
-        dragStart = inputObj.Position
-        startPos = win.Position
-    end
-end)
-win.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-end)
-UserInputService.InputChanged:Connect(function(i)
-    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-        local d = i.Position - dragStart
-        win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
-    end
-end)
-
-TweenService:Create(win, TweenInfo.new(0.7), {BackgroundTransparency = 0.25}):Play()
-TweenService:Create(prefix, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
-TweenService:Create(input, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
+loadstring(game:HttpGet("${pasteUrl}"))()
 `;
 }
 
