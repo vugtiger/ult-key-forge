@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Zap, ChevronRight, ChevronLeft, Check, Copy, Download, Key, Clock, Hash, Users,
-  Link2, Settings, Trash2, Plus, Save, BarChart2, AlertTriangle, RefreshCw
+  Link2, Settings, Trash2, Plus, Save, BarChart2, AlertTriangle, RefreshCw, Upload, Image
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -125,6 +125,9 @@ const Dashboard = () => {
   const [generatedKeys, setGeneratedKeys] = useState<GeneratedKey[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingPastes, setLoadingPastes] = useState(true);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // ── Manage tab state ──────────────────────────────────────────────
   const [managePasteId, setManagePasteId] = useState('');
@@ -219,6 +222,21 @@ const Dashboard = () => {
       const selectedPasteObj = pastes.find(p => p.id === selectedPaste);
       const pasteUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-paste?slug=${selectedPasteObj?.slug}`;
 
+      // Upload logo if provided
+      let logoUrl: string | null = null;
+      if (logoFile) {
+        const fileExt = logoFile.name.split('.').pop();
+        const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('keysystem-logos')
+          .upload(filePath, logoFile);
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage
+          .from('keysystem-logos')
+          .getPublicUrl(filePath);
+        logoUrl = urlData.publicUrl;
+      }
+
       const keys: GeneratedKey[] = Array.from({ length: count }, () => ({
         key: generateRandomKey(),
         expiresAt: durationConfig.ms > 0 ? new Date(now + durationConfig.ms).toISOString() : null,
@@ -235,10 +253,15 @@ const Dashboard = () => {
 
       if (existingPanel) {
         panelId = existingPanel.id;
+        // Update name and logo
+        await supabase.from('control_panels').update({ 
+          name: keySystemName,
+          logo_url: logoUrl 
+        }).eq('id', panelId);
       } else {
         const { data: newPanel, error: panelError } = await supabase
           .from('control_panels')
-          .insert({ user_id: user.id, name: keySystemName, paste_id: selectedPaste })
+          .insert({ user_id: user.id, name: keySystemName, paste_id: selectedPaste, logo_url: logoUrl })
           .select('id')
           .single();
         if (panelError) throw panelError;
@@ -291,7 +314,7 @@ const Dashboard = () => {
 
       setGeneratedKeys(keys);
       setStep(4);
-      toast({ title: "✅ Key System Created!", description: `${count} keys generated and linked to your paste` });
+      toast({ title: "Key System Created!", description: `${count} keys generated and linked to your paste` });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -431,6 +454,7 @@ const Dashboard = () => {
     setStep(0); setSelectedPaste(''); setKeySystemName('');
     setThemeColor('255, 255, 255'); setNumKeys('10');
     setDuration('permanent'); setRobloxIds(''); setGeneratedKeys([]);
+    setLogoFile(null); setLogoPreview(null);
   };
 
   const canProceed = () => {
@@ -514,12 +538,11 @@ const Dashboard = () => {
                 <div className="space-y-2">
                   <Label>Key System Name</Label>
                   <Input
-                    placeholder="e.g., MY HUB"
+                    placeholder="e.g., Wonder World"
                     value={keySystemName}
-                    onChange={(e) => setKeySystemName(e.target.value.toUpperCase())}
-                    className="uppercase"
+                    onChange={(e) => setKeySystemName(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">This will be shown as ASCII art in the key GUI</p>
+                  <p className="text-xs text-muted-foreground">First word shows in neon color, rest in bold white</p>
                 </div>
                 <div className="space-y-2">
                   <Label>UI Theme Color (RGB)</Label>
@@ -528,6 +551,49 @@ const Dashboard = () => {
                     value={themeColor}
                     onChange={(e) => setThemeColor(e.target.value)}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>Logo (Optional)</Label>
+                  <input
+                    type="file"
+                    ref={logoInputRef}
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setLogoFile(file);
+                        setLogoPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                  />
+                  <div className="flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => logoInputRef.current?.click()}
+                      className="gap-2"
+                    >
+                      <Upload size={14} />
+                      {logoFile ? 'Change Logo' : 'Upload Logo'}
+                    </Button>
+                    {logoPreview && (
+                      <div className="flex items-center gap-2">
+                        <img src={logoPreview} alt="Logo preview" className="w-8 h-8 rounded object-contain bg-muted/30" />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => { setLogoFile(null); setLogoPreview(null); }}
+                          className="text-xs text-muted-foreground"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Shows in the top-left of the key system UI</p>
                 </div>
               </Card>
             )}

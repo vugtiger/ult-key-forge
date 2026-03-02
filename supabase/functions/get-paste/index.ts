@@ -1161,227 +1161,416 @@ end
 `;
 }
 
-// ===== KEY SYSTEM GUI GENERATOR =====
-// Generated server-side so keys are never exposed to the client
-function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, themeColor: string): string {
-  // Convert panel name to ASCII art
-  const asciiChars: Record<string, string[]> = {
-    'A': ['█████╗ ', '██╔══██╗', '███████║', '██╔══██║', '██║  ██║', '╚═╝  ╚═╝'],
-    'B': ['██████╗ ', '██╔══██╗', '██████╔╝', '██╔══██╗', '██████╔╝', '╚═════╝ '],
-    'C': ['██████╗', '██╔════╝', '██║     ', '██║     ', '╚██████╗', ' ╚═════╝'],
-    'D': ['██████╗ ', '██╔══██╗', '██║  ██║', '██║  ██║', '██████╔╝', '╚═════╝ '],
-    'E': ['███████╗', '██╔════╝', '█████╗  ', '██╔══╝  ', '███████╗', '╚══════╝'],
-    'F': ['███████╗', '██╔════╝', '█████╗  ', '██╔══╝  ', '██║     ', '╚═╝     '],
-    'G': ['██████╗ ', '██╔════╝ ', '██║  ███╗', '██║   ██║', '╚██████╔╝', ' ╚═════╝ '],
-    'H': ['██╗  ██╗', '██║  ██║', '███████║', '██╔══██║', '██║  ██║', '╚═╝  ╚═╝'],
-    'I': ['██╗', '██║', '██║', '██║', '██║', '╚═╝'],
-    'J': ['     ██╗', '     ██║', '     ██║', '██   ██║', '╚█████╔╝', ' ╚════╝ '],
-    'K': ['██╗  ██╗', '██║ ██╔╝', '█████╔╝ ', '██╔═██╗ ', '██║  ██╗', '╚═╝  ╚═╝'],
-    'L': ['██╗     ', '██║     ', '██║     ', '██║     ', '███████╗', '╚══════╝'],
-    'M': ['███╗   ███╗', '████╗ ████║', '██╔████╔██║', '██║╚██╔╝██║', '██║ ╚═╝ ██║', '╚═╝     ╚═╝'],
-    'N': ['███╗   ██╗', '████╗  ██║', '██╔██╗ ██║', '██║╚██╗██║', '██║ ╚████║', '╚═╝  ╚═══╝'],
-    'O': ['██████╗ ', '██╔═══██╗', '██║   ██║', '██║   ██║', '╚██████╔╝', ' ╚═════╝ '],
-    'P': ['██████╗ ', '██╔══██╗', '██████╔╝', '██╔═══╝ ', '██║     ', '╚═╝     '],
-    'Q': ['██████╗ ', '██╔═══██╗', '██║   ██║', '██║▄▄ ██║', '╚██████╔╝', ' ╚══▀▀═╝ '],
-    'R': ['██████╗ ', '██╔══██╗', '██████╔╝', '██╔══██╗', '██║  ██║', '╚═╝  ╚═╝'],
-    'S': ['███████╗', '██╔════╝', '███████╗', '╚════██║', '███████║', '╚══════╝'],
-    'T': ['████████╗', '╚══██╔══╝', '   ██║   ', '   ██║   ', '   ██║   ', '   ╚═╝   '],
-    'U': ['██╗   ██╗', '██║   ██║', '██║   ██║', '██║   ██║', '╚██████╔╝', ' ╚═════╝ '],
-    'V': ['██╗   ██╗', '██║   ██║', '██║   ██║', '╚██╗ ██╔╝', ' ╚████╔╝ ', '  ╚═══╝  '],
-    'W': ['██╗    ██╗', '██║    ██║', '██║ █╗ ██║', '██║███╗██║', '╚███╔███╔╝', ' ╚══╝╚══╝ '],
-    'X': ['██╗  ██╗', '╚██╗██╔╝', ' ╚███╔╝ ', ' ██╔██╗ ', '██╔╝ ██╗', '╚═╝  ╚═╝'],
-    'Y': ['██╗   ██╗', '╚██╗ ██╔╝', ' ╚████╔╝ ', '  ╚██╔╝  ', '   ██║   ', '   ╚═╝   '],
-    'Z': ['███████╗', '╚══███╔╝', '  ███╔╝ ', ' ███╔╝  ', '███████╗', '╚══════╝'],
-    ' ': ['   ', '   ', '   ', '   ', '   ', '   '],
-  };
+// ===== KEY SYSTEM GUI GENERATOR v2 =====
+// Redesigned: black/white UI, title bar with close/minimize, textbox panel,
+// blurred background, draggable, smooth edges, logo support, split-color name
+function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, themeColor: string, logoUrl?: string): string {
+  // Split the name: first word = neon color, rest = bold white
+  const words = panelName.trim().split(/\s+/);
+  const firstWord = words[0] || panelName;
+  const restWords = words.slice(1).join(' ');
+  
+  // Parse theme color for neon glow
+  const colorParts = (themeColor || '255, 255, 255').split(',').map(s => s.trim());
+  const r = colorParts[0] || '255';
+  const g = colorParts[1] || '255';
+  const b = colorParts[2] || '255';
 
-  const upperName = panelName.toUpperCase();
-  const lines: string[] = ['', '', '', '', '', ''];
-  for (const char of upperName) {
-    const asciiChar = asciiChars[char] || asciiChars[' '];
-    for (let i = 0; i < 6; i++) lines[i] += asciiChar[i] || '   ';
-  }
-  const asciiArt = lines.join('\n');
+  const logoSection = logoUrl ? `
+-- Logo image (top-left)
+local logoImg = Instance.new("ImageLabel", titleBar)
+logoImg.Size = UDim2.new(0, 22, 0, 22)
+logoImg.Position = UDim2.new(0, 8, 0.5, -11)
+logoImg.BackgroundTransparency = 1
+logoImg.Image = "${logoUrl}"
+logoImg.ScaleType = Enum.ScaleType.Fit
+` : '';
 
-  return `-- ULT Key System GUI (Server-Generated)
--- Keys are validated server-side - no keys exposed in client code
+  const titleOffset = logoUrl ? 38 : 10;
 
+  return `-- ULT Key System v2 (Server-Generated)
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local TextService = game:GetService("TextService")
+local HttpService = game:GetService("HttpService")
 
 local plr = Players.LocalPlayer
-local gui = Instance.new("ScreenGui", plr:WaitForChild("PlayerGui"))
+if not plr then plr = Players.PlayerAdded:Wait() end
+
+local pgui = plr:WaitForChild("PlayerGui")
+
+-- Screen GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "ULTKeySystem"
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 999999999
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = pgui
 
+-- Blur background
+local blur = Instance.new("BlurEffect")
+blur.Size = 0
+blur.Parent = game:GetService("Lighting")
+TweenService:Create(blur, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {Size = 24}):Play()
+
+-- Main window frame (centered, draggable, smooth edges)
 local win = Instance.new("Frame", gui)
-win.Size = UDim2.new(0, 680, 0, 290)
-win.Position = UDim2.new(0.5, -340, 0.5, -145)
-win.BackgroundColor3 = Color3.fromRGB(20,20,20)
-win.BackgroundTransparency = 0.25
+win.Name = "MainWindow"
+win.Size = UDim2.new(0, 420, 0, 260)
+win.Position = UDim2.new(0.5, -210, 0.5, -130)
+win.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 win.BorderSizePixel = 0
-win.ClipsDescendants = true
+win.BackgroundTransparency = 1
 
-local outline = Instance.new("UIStroke", win)
-outline.Thickness = 2
-outline.Color = Color3.fromRGB(${themeColor || '255, 255, 255'})
-local glow = Instance.new("UIStroke", win)
-glow.Thickness = 6
-glow.Transparency = 0.65
-glow.Color = Color3.fromRGB(${themeColor || '255, 255, 255'})
+local winCorner = Instance.new("UICorner", win)
+winCorner.CornerRadius = UDim.new(0, 10)
 
-local logo = Instance.new("TextLabel", win)
-logo.Size = UDim2.new(1,0,0,125)
-logo.Position = UDim2.new(0,0,0,10)
-logo.BackgroundTransparency = 1
-logo.TextColor3 = Color3.fromRGB(${themeColor || '255, 255, 255'})
-logo.TextTransparency = 1
-logo.Font = Enum.Font.Code
-logo.TextSize = 18
-logo.Text = [[
-${asciiArt}
-]]
+local winStroke = Instance.new("UIStroke", win)
+winStroke.Thickness = 1
+winStroke.Color = Color3.fromRGB(60, 60, 60)
+winStroke.Transparency = 1
 
-task.spawn(function()
-    task.wait(0.3)
-    for i = 1, 30 do
-        logo.TextTransparency = math.random(20,80)/100
-        task.wait(0.04)
-    end
-    TweenService:Create(logo, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+-- Title bar
+local titleBar = Instance.new("Frame", win)
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 36)
+titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+titleBar.BorderSizePixel = 0
+
+local tbCorner = Instance.new("UICorner", titleBar)
+tbCorner.CornerRadius = UDim.new(0, 10)
+
+-- Fill bottom corners of title bar
+local tbFill = Instance.new("Frame", titleBar)
+tbFill.Size = UDim2.new(1, 0, 0, 12)
+tbFill.Position = UDim2.new(0, 0, 1, -12)
+tbFill.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+tbFill.BorderSizePixel = 0
+
+${logoSection}
+
+-- Title text: first word neon, rest bold white
+local titleNeon = Instance.new("TextLabel", titleBar)
+titleNeon.Size = UDim2.new(0, 200, 1, 0)
+titleNeon.Position = UDim2.new(0, ${titleOffset}, 0, 0)
+titleNeon.BackgroundTransparency = 1
+titleNeon.Text = "${firstWord}"
+titleNeon.TextColor3 = Color3.fromRGB(${r}, ${g}, ${b})
+titleNeon.Font = Enum.Font.GothamBold
+titleNeon.TextSize = 14
+titleNeon.TextXAlignment = Enum.TextXAlignment.Left
+titleNeon.TextTransparency = 1
+
+${restWords ? `
+local titleRest = Instance.new("TextLabel", titleBar)
+titleRest.Size = UDim2.new(0, 200, 1, 0)
+titleRest.BackgroundTransparency = 1
+titleRest.Text = " ${restWords}"
+titleRest.TextColor3 = Color3.fromRGB(220, 220, 220)
+titleRest.Font = Enum.Font.GothamBold
+titleRest.TextSize = 14
+titleRest.TextXAlignment = Enum.TextXAlignment.Left
+titleRest.TextTransparency = 1
+
+-- Position rest text right after neon text
+task.defer(function()
+    local ts = game:GetService("TextService")
+    local neonW = ts:GetTextSize("${firstWord}", 14, Enum.Font.GothamBold, Vector2.new(400, 36)).X
+    titleRest.Position = UDim2.new(0, ${titleOffset} + neonW, 0, 0)
 end)
+` : ''}
 
-local prefix = Instance.new("TextLabel", win)
-prefix.Size = UDim2.new(1,-60,0,50)
-prefix.Position = UDim2.new(0,30,0,200)
-prefix.BackgroundTransparency = 1
-prefix.Text = "Enter your key > "
-prefix.TextColor3 = Color3.fromRGB(${themeColor || '255, 255, 255'})
-prefix.Font = Enum.Font.Code
-prefix.TextSize = 28
-prefix.TextXAlignment = Enum.TextXAlignment.Left
-prefix.TextTransparency = 1
+-- Close button (X)
+local closeBtn = Instance.new("TextButton", titleBar)
+closeBtn.Size = UDim2.new(0, 36, 0, 36)
+closeBtn.Position = UDim2.new(1, -36, 0, 0)
+closeBtn.BackgroundTransparency = 1
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 14
 
-local input = Instance.new("TextBox", win)
-input.Size = UDim2.new(1,-60,0,50)
-input.Position = UDim2.new(0,30,0,200)
+-- Minimize button (-)
+local minBtn = Instance.new("TextButton", titleBar)
+minBtn.Size = UDim2.new(0, 36, 0, 36)
+minBtn.Position = UDim2.new(1, -72, 0, 0)
+minBtn.BackgroundTransparency = 1
+minBtn.Text = "-"
+minBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+minBtn.Font = Enum.Font.GothamBold
+minBtn.TextSize = 18
+
+-- Content panel (lighter black)
+local contentPanel = Instance.new("Frame", win)
+contentPanel.Name = "ContentPanel"
+contentPanel.Size = UDim2.new(1, -24, 0, 150)
+contentPanel.Position = UDim2.new(0, 12, 0, 48)
+contentPanel.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+contentPanel.BorderSizePixel = 0
+
+local cpCorner = Instance.new("UICorner", contentPanel)
+cpCorner.CornerRadius = UDim.new(0, 8)
+
+local cpStroke = Instance.new("UIStroke", contentPanel)
+cpStroke.Thickness = 1
+cpStroke.Color = Color3.fromRGB(45, 45, 45)
+cpStroke.Transparency = 1
+
+-- Key input label
+local keyLabel = Instance.new("TextLabel", contentPanel)
+keyLabel.Size = UDim2.new(1, -24, 0, 24)
+keyLabel.Position = UDim2.new(0, 12, 0, 16)
+keyLabel.BackgroundTransparency = 1
+keyLabel.Text = "Enter your key"
+keyLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+keyLabel.Font = Enum.Font.Gotham
+keyLabel.TextSize = 12
+keyLabel.TextXAlignment = Enum.TextXAlignment.Left
+keyLabel.TextTransparency = 1
+
+-- Key input box
+local inputFrame = Instance.new("Frame", contentPanel)
+inputFrame.Size = UDim2.new(1, -24, 0, 38)
+inputFrame.Position = UDim2.new(0, 12, 0, 44)
+inputFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+inputFrame.BorderSizePixel = 0
+
+local ifCorner = Instance.new("UICorner", inputFrame)
+ifCorner.CornerRadius = UDim.new(0, 6)
+
+local ifStroke = Instance.new("UIStroke", inputFrame)
+ifStroke.Thickness = 1
+ifStroke.Color = Color3.fromRGB(55, 55, 55)
+
+local input = Instance.new("TextBox", inputFrame)
+input.Size = UDim2.new(1, -16, 1, 0)
+input.Position = UDim2.new(0, 8, 0, 0)
 input.BackgroundTransparency = 1
 input.Text = ""
-input.TextColor3 = Color3.fromRGB(${themeColor || '255, 255, 255'})
-input.Font = Enum.Font.Code
-input.TextSize = 28
+input.PlaceholderText = "XXXXX-XXXXX-XXXXX"
+input.PlaceholderColor3 = Color3.fromRGB(80, 80, 80)
+input.TextColor3 = Color3.fromRGB(220, 220, 220)
+input.Font = Enum.Font.GothamMedium
+input.TextSize = 14
 input.TextXAlignment = Enum.TextXAlignment.Left
 input.ClearTextOnFocus = false
+input.TextTransparency = 1
 
-local prefixWidth = 0
-task.spawn(function()
-    task.wait()
-    prefixWidth = TextService:GetTextSize(prefix.Text, 28, Enum.Font.Code, Vector2.new(10000,10000)).X
-    input.Position = UDim2.new(0, 30 + prefixWidth, 0, 200)
-    input.Size = UDim2.new(1, -90 - prefixWidth, 0, 50)
-end)
+-- Submit button
+local submitBtn = Instance.new("TextButton", contentPanel)
+submitBtn.Size = UDim2.new(1, -24, 0, 34)
+submitBtn.Position = UDim2.new(0, 12, 0, 92)
+submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
+submitBtn.BorderSizePixel = 0
+submitBtn.Text = "Validate Key"
+submitBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+submitBtn.Font = Enum.Font.GothamBold
+submitBtn.TextSize = 13
+submitBtn.AutoButtonColor = true
+submitBtn.TextTransparency = 1
 
-local function fadeAndDestroy(msg, color, scriptCode)
-    input.TextEditable = false
-    input.Text = msg
-    input.TextColor3 = color
-    TweenService:Create(win, TweenInfo.new(0.9), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(prefix, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
-    TweenService:Create(input, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
-    TweenService:Create(logo, TweenInfo.new(0.9), {TextTransparency = 1}):Play()
-    TweenService:Create(outline, TweenInfo.new(0.9), {Transparency = 1}):Play()
-    TweenService:Create(glow, TweenInfo.new(0.9), {Transparency = 1}):Play()
-    task.wait(1)
-    if scriptCode and #scriptCode > 0 then
-        local fn, err = loadstring(scriptCode)
-        if fn then
-            fn()
-        else
-            warn("[ULT] Script load error: " .. tostring(err))
-            -- Try wrapping in pcall as fallback
-            local ok2, err2 = pcall(function()
-                loadstring(scriptCode)()
-            end)
-            if not ok2 then warn("[ULT] Fallback error: " .. tostring(err2)) end
-        end
-    end
-    gui:Destroy()
-end
+local sbCorner = Instance.new("UICorner", submitBtn)
+sbCorner.CornerRadius = UDim.new(0, 6)
 
-input.FocusLost:Connect(function(enter)
-    if not enter then return end
-    local userId = tostring(plr.UserId)
-    local enteredKey = input.Text
-    if #enteredKey < 3 then
-        fadeAndDestroy("Invalid Key!", Color3.fromRGB(255,0,0), nil)
-        return
-    end
-    
-    -- Show immediate feedback
-    input.TextEditable = false
-    input.Text = "Validating..."
-    input.TextColor3 = Color3.fromRGB(255, 255, 0)
-    
-    -- Server-side key validation (runs in background)
-    task.spawn(function()
-        local validateUrl = "${baseUrl}?slug=${slug}&key=" .. game:GetService("HttpService"):UrlEncode(enteredKey) .. "&uid=" .. userId .. "&_=" .. tostring(tick())
-        
-        local success, response = pcall(function()
-            return game:HttpGet(validateUrl)
-        end)
-        
-        if not success then
-            fadeAndDestroy("Network Error!", Color3.fromRGB(255,0,0), nil)
-            return
-        end
-        
-        -- Check response - KEY_VALID_SCRIPT contains the actual script code after the first line
-        if response:find("KEY_VALID_SCRIPT:") then
-            local scriptCode = response:sub(response:find("\n") + 1)
-            fadeAndDestroy("Key Accepted! Loading...", Color3.fromRGB(0,255,0), scriptCode)
-        elseif response:find("KEY_ASSIGNED") then
-            fadeAndDestroy("Key Already Owned By Someone Else!", Color3.fromRGB(255,0,0), nil)
-        elseif response:find("KEY_EXPIRED") then
-            fadeAndDestroy("Key Expired!", Color3.fromRGB(255,0,0), nil)
-        elseif response:find("KEY_INVALID") then
-            fadeAndDestroy("Wrong Key! Access Denied", Color3.fromRGB(255,0,0), nil)
-        else
-            fadeAndDestroy("Access Denied!", Color3.fromRGB(255,0,0), nil)
-        end
-    end)
-end)
+-- Status label
+local statusLabel = Instance.new("TextLabel", contentPanel)
+statusLabel.Size = UDim2.new(1, -24, 0, 18)
+statusLabel.Position = UDim2.new(0, 12, 0, 130)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = ""
+statusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextSize = 11
+statusLabel.TextTransparency = 1
 
+-- ====== ANIMATIONS ======
+
+-- Fade in everything
+local fadeIn = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+TweenService:Create(win, fadeIn, {BackgroundTransparency = 0}):Play()
+TweenService:Create(winStroke, fadeIn, {Transparency = 0}):Play()
+TweenService:Create(cpStroke, fadeIn, {Transparency = 0}):Play()
+TweenService:Create(titleNeon, fadeIn, {TextTransparency = 0}):Play()
+TweenService:Create(keyLabel, fadeIn, {TextTransparency = 0}):Play()
+TweenService:Create(input, fadeIn, {TextTransparency = 0}):Play()
+TweenService:Create(submitBtn, fadeIn, {TextTransparency = 0}):Play()
+${restWords ? 'TweenService:Create(titleRest, fadeIn, {TextTransparency = 0}):Play()' : ''}
+
+-- ====== DRAGGING ======
 local dragging = false
 local dragStart, startPos
-local lastClickTime = 0
-win.InputBegan:Connect(function(inputObj)
-    if inputObj.UserInputType == Enum.UserInputType.MouseButton1 then
-        local now = tick()
-        if now - lastClickTime < 0.35 then
-            fadeAndDestroy("Closed.", Color3.fromRGB(200,200,200), nil)
-            return
-        end
-        lastClickTime = now
+
+titleBar.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
         dragging = true
-        dragStart = inputObj.Position
+        dragStart = i.Position
         startPos = win.Position
     end
 end)
-win.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+
+titleBar.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
 end)
+
 UserInputService.InputChanged:Connect(function(i)
-    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
         local d = i.Position - dragStart
         win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
     end
 end)
 
-TweenService:Create(win, TweenInfo.new(0.7), {BackgroundTransparency = 0.25}):Play()
-TweenService:Create(prefix, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
-TweenService:Create(input, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
+-- ====== MINIMIZE ======
+local minimized = false
+minBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    local targetSize = minimized and UDim2.new(0, 420, 0, 36) or UDim2.new(0, 420, 0, 260)
+    TweenService:Create(win, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = targetSize}):Play()
+    contentPanel.Visible = not minimized
+end)
+
+-- ====== CLOSE / DESTROY ======
+local function smoothDestroy(msg, color, scriptCode)
+    input.TextEditable = false
+    statusLabel.Text = msg or ""
+    statusLabel.TextColor3 = color or Color3.fromRGB(200, 200, 200)
+    
+    local fadeOut = TweenInfo.new(0.6, Enum.EasingStyle.Quad)
+    TweenService:Create(win, fadeOut, {BackgroundTransparency = 1}):Play()
+    TweenService:Create(winStroke, fadeOut, {Transparency = 1}):Play()
+    TweenService:Create(titleBar, fadeOut, {BackgroundTransparency = 1}):Play()
+    TweenService:Create(tbFill, fadeOut, {BackgroundTransparency = 1}):Play()
+    TweenService:Create(contentPanel, fadeOut, {BackgroundTransparency = 1}):Play()
+    TweenService:Create(cpStroke, fadeOut, {Transparency = 1}):Play()
+    TweenService:Create(titleNeon, fadeOut, {TextTransparency = 1}):Play()
+    TweenService:Create(keyLabel, fadeOut, {TextTransparency = 1}):Play()
+    TweenService:Create(input, fadeOut, {TextTransparency = 1}):Play()
+    TweenService:Create(submitBtn, fadeOut, {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+    TweenService:Create(statusLabel, fadeOut, {TextTransparency = 1}):Play()
+    TweenService:Create(closeBtn, fadeOut, {TextTransparency = 1}):Play()
+    TweenService:Create(minBtn, fadeOut, {TextTransparency = 1}):Play()
+    TweenService:Create(ifStroke, fadeOut, {Transparency = 1}):Play()
+    TweenService:Create(inputFrame, fadeOut, {BackgroundTransparency = 1}):Play()
+    ${restWords ? 'TweenService:Create(titleRest, fadeOut, {TextTransparency = 1}):Play()' : ''}
+    ${logoUrl ? 'TweenService:Create(logoImg, fadeOut, {ImageTransparency = 1}):Play()' : ''}
+    TweenService:Create(blur, TweenInfo.new(0.6), {Size = 0}):Play()
+    
+    task.wait(0.7)
+    
+    if scriptCode and #scriptCode > 0 then
+        local ok, fn = pcall(function()
+            return loadstring(scriptCode)
+        end)
+        if ok and fn then
+            local ok2, err2 = pcall(fn)
+            if not ok2 then
+                warn("[ULT] Execution error: " .. tostring(err2))
+            end
+        else
+            warn("[ULT] Compile error: " .. tostring(fn))
+        end
+    end
+    
+    blur:Destroy()
+    gui:Destroy()
+end
+
+closeBtn.MouseButton1Click:Connect(function()
+    smoothDestroy("Closed", Color3.fromRGB(150, 150, 150), nil)
+end)
+
+-- ====== KEY VALIDATION ======
+local validating = false
+
+local function validateKey()
+    if validating then return end
+    local enteredKey = input.Text
+    if #enteredKey < 3 then
+        statusLabel.Text = "Key too short"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+        return
+    end
+    
+    validating = true
+    input.TextEditable = false
+    submitBtn.Text = "Validating..."
+    submitBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    statusLabel.Text = ""
+    
+    task.spawn(function()
+        local userId = tostring(plr.UserId)
+        local url = "${baseUrl}?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId .. "&_=" .. tostring(tick())
+        
+        local success, response = pcall(function()
+            return game:HttpGet(url)
+        end)
+        
+        if not success then
+            statusLabel.Text = "Network error - try again"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+            submitBtn.Text = "Validate Key"
+            submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
+            input.TextEditable = true
+            validating = false
+            return
+        end
+        
+        if not response or #response == 0 then
+            statusLabel.Text = "Empty response - try again"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+            submitBtn.Text = "Validate Key"
+            submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
+            input.TextEditable = true
+            validating = false
+            return
+        end
+        
+        -- Check response
+        if response:sub(1, 17) == "KEY_VALID_SCRIPT:" then
+            local scriptCode = response:sub(19) -- after "KEY_VALID_SCRIPT:\\n"
+            statusLabel.Text = "Key accepted! Loading..."
+            statusLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
+            submitBtn.Text = "Success!"
+            submitBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 40)
+            task.wait(0.5)
+            smoothDestroy("Loaded!", Color3.fromRGB(80, 255, 80), scriptCode)
+        elseif response:find("KEY_ASSIGNED") then
+            statusLabel.Text = "This key belongs to another user"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+            submitBtn.Text = "Validate Key"
+            submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
+            input.TextEditable = true
+            validating = false
+        elseif response:find("KEY_EXPIRED") then
+            statusLabel.Text = "Key has expired"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 150, 50)
+            submitBtn.Text = "Validate Key"
+            submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
+            input.TextEditable = true
+            validating = false
+        elseif response:find("KEY_INVALID") then
+            statusLabel.Text = "Invalid key"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+            submitBtn.Text = "Validate Key"
+            submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
+            input.TextEditable = true
+            validating = false
+        else
+            statusLabel.Text = "Access denied"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+            submitBtn.Text = "Validate Key"
+            submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
+            input.TextEditable = true
+            validating = false
+        end
+    end)
+end
+
+submitBtn.MouseButton1Click:Connect(validateKey)
+input.FocusLost:Connect(function(enter)
+    if enter then validateKey() end
+end)
 `;
 }
 
@@ -1774,7 +1963,9 @@ loadstring(game:HttpGet(_url))()`;
       if (keyPanel && !uid && !tk && !isLikelyBrowser) {
         // Paste has a key system - return key system GUI
         console.log(`[get-paste] Returning key system GUI for paste: ${paste.id} panel: ${keyPanel.name}`);
-        const gui = generateKeySystemGui(slugStr, baseUrl, keyPanel.name, '255, 255, 255');
+        // Fetch panel details for logo_url
+        const { data: panelDetails } = await supabase.from('control_panels').select('logo_url').eq('id', keyPanel.id).single();
+        const gui = generateKeySystemGui(slugStr, baseUrl, keyPanel.name, '255, 255, 255', panelDetails?.logo_url || undefined);
         return new Response(gui, { status: 200, headers: textHeaders });
       }
       
@@ -1847,7 +2038,8 @@ loadstring(game:HttpGet(_url))()`;
       
       if (keyPanel) {
         console.log(`[get-paste] Returning key system GUI for protected paste: ${paste.id} panel: ${keyPanel.name}`);
-        const gui = generateKeySystemGui(slugStr, baseUrl, keyPanel.name, '255, 255, 255');
+        const { data: panelDetails } = await supabase.from('control_panels').select('logo_url').eq('id', keyPanel.id).single();
+        const gui = generateKeySystemGui(slugStr, baseUrl, keyPanel.name, '255, 255, 255', panelDetails?.logo_url || undefined);
         return new Response(gui, { status: 200, headers: textHeaders });
       }
 
