@@ -1161,45 +1161,47 @@ end
 `;
 }
 
-// ===== KEY SYSTEM GUI GENERATOR v2 =====
-// Redesigned: black/white UI, title bar with close/minimize, textbox panel,
-// blurred background, draggable, smooth edges, logo support, split-color name
-function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, themeColor: string, logoUrl?: string): string {
-  // Split the name: first word = neon color, rest = bold white
+// ===== KEY SYSTEM GUI GENERATOR v3 =====
+// Clean, polished UI. Decal ID for logo. Split-color title. Draggable. Blur bg.
+function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, themeColor: string, decalId?: string): string {
   const words = panelName.trim().split(/\s+/);
   const firstWord = words[0] || panelName;
   const restWords = words.slice(1).join(' ');
   
-  // Parse theme color for neon glow
   const colorParts = (themeColor || '255, 255, 255').split(',').map(s => s.trim());
   const r = colorParts[0] || '255';
   const g = colorParts[1] || '255';
   const b = colorParts[2] || '255';
 
-  const logoSection = logoUrl ? `
--- Logo image (top-left)
+  const logoSection = decalId ? `
+-- Logo from Roblox decal
 local logoImg = Instance.new("ImageLabel", titleBar)
-logoImg.Size = UDim2.new(0, 22, 0, 22)
-logoImg.Position = UDim2.new(0, 8, 0.5, -11)
+logoImg.Size = UDim2.new(0, 24, 0, 24)
+logoImg.Position = UDim2.new(0, 10, 0.5, -12)
 logoImg.BackgroundTransparency = 1
-logoImg.Image = "${logoUrl}"
+logoImg.Image = "rbxassetid://${decalId}"
 logoImg.ScaleType = Enum.ScaleType.Fit
+logoImg.ImageTransparency = 1
+TweenService:Create(logoImg, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {ImageTransparency = 0}):Play()
 ` : '';
 
-  const titleOffset = logoUrl ? 38 : 10;
+  const titleOffset = decalId ? 42 : 12;
 
-  return `-- ULT Key System v2 (Server-Generated)
+  return `-- ULT Key System v3
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
 
 local plr = Players.LocalPlayer
 if not plr then plr = Players.PlayerAdded:Wait() end
-
 local pgui = plr:WaitForChild("PlayerGui")
 
--- Screen GUI
+-- Remove any existing key system GUI
+local old = pgui:FindFirstChild("ULTKeySystem")
+if old then old:Destroy() end
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "ULTKeySystem"
 gui.ResetOnSpawn = false
@@ -1207,49 +1209,78 @@ gui.DisplayOrder = 999999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.Parent = pgui
 
--- Blur background
+-- Blur
 local blur = Instance.new("BlurEffect")
+blur.Name = "ULTBlur"
 blur.Size = 0
-blur.Parent = game:GetService("Lighting")
-TweenService:Create(blur, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {Size = 24}):Play()
+blur.Parent = Lighting
+TweenService:Create(blur, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {Size = 20}):Play()
 
--- Main window frame (centered, draggable, smooth edges)
+-- Dim overlay
+local overlay = Instance.new("Frame", gui)
+overlay.Name = "Overlay"
+overlay.Size = UDim2.new(1, 0, 1, 0)
+overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+overlay.BackgroundTransparency = 1
+overlay.BorderSizePixel = 0
+overlay.ZIndex = 1
+TweenService:Create(overlay, TweenInfo.new(0.4), {BackgroundTransparency = 0.4}):Play()
+
+-- Shadow behind window
+local shadow = Instance.new("ImageLabel", gui)
+shadow.Name = "Shadow"
+shadow.Size = UDim2.new(0, 460, 0, 300)
+shadow.Position = UDim2.new(0.5, -230, 0.5, -140)
+shadow.BackgroundTransparency = 1
+shadow.Image = "rbxassetid://5554236805"
+shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+shadow.ImageTransparency = 0.5
+shadow.ScaleType = Enum.ScaleType.Slice
+shadow.SliceCenter = Rect.new(23, 23, 277, 277)
+shadow.ZIndex = 2
+
+-- Main window
 local win = Instance.new("Frame", gui)
 win.Name = "MainWindow"
-win.Size = UDim2.new(0, 420, 0, 260)
-win.Position = UDim2.new(0.5, -210, 0.5, -130)
-win.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+win.Size = UDim2.new(0, 380, 0, 240)
+win.Position = UDim2.new(0.5, -190, 0.5, -120)
+win.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
 win.BorderSizePixel = 0
 win.BackgroundTransparency = 1
+win.ZIndex = 3
 
 local winCorner = Instance.new("UICorner", win)
-winCorner.CornerRadius = UDim.new(0, 10)
-
-local winStroke = Instance.new("UIStroke", win)
-winStroke.Thickness = 1
-winStroke.Color = Color3.fromRGB(60, 60, 60)
-winStroke.Transparency = 1
+winCorner.CornerRadius = UDim.new(0, 8)
 
 -- Title bar
 local titleBar = Instance.new("Frame", win)
 titleBar.Name = "TitleBar"
-titleBar.Size = UDim2.new(1, 0, 0, 36)
-titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+titleBar.Size = UDim2.new(1, 0, 0, 32)
+titleBar.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
 titleBar.BorderSizePixel = 0
+titleBar.ZIndex = 4
 
 local tbCorner = Instance.new("UICorner", titleBar)
-tbCorner.CornerRadius = UDim.new(0, 10)
+tbCorner.CornerRadius = UDim.new(0, 8)
 
--- Fill bottom corners of title bar
 local tbFill = Instance.new("Frame", titleBar)
-tbFill.Size = UDim2.new(1, 0, 0, 12)
-tbFill.Position = UDim2.new(0, 0, 1, -12)
-tbFill.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+tbFill.Size = UDim2.new(1, 0, 0, 10)
+tbFill.Position = UDim2.new(0, 0, 1, -10)
+tbFill.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
 tbFill.BorderSizePixel = 0
+tbFill.ZIndex = 4
+
+-- Subtle separator line
+local sep = Instance.new("Frame", win)
+sep.Size = UDim2.new(1, -16, 0, 1)
+sep.Position = UDim2.new(0, 8, 0, 32)
+sep.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+sep.BorderSizePixel = 0
+sep.ZIndex = 4
 
 ${logoSection}
 
--- Title text: first word neon, rest bold white
+-- Title: first word = neon, rest = white bold
 local titleNeon = Instance.new("TextLabel", titleBar)
 titleNeon.Size = UDim2.new(0, 200, 1, 0)
 titleNeon.Position = UDim2.new(0, ${titleOffset}, 0, 0)
@@ -1257,144 +1288,185 @@ titleNeon.BackgroundTransparency = 1
 titleNeon.Text = "${firstWord}"
 titleNeon.TextColor3 = Color3.fromRGB(${r}, ${g}, ${b})
 titleNeon.Font = Enum.Font.GothamBold
-titleNeon.TextSize = 14
+titleNeon.TextSize = 13
 titleNeon.TextXAlignment = Enum.TextXAlignment.Left
 titleNeon.TextTransparency = 1
+titleNeon.ZIndex = 5
 
 ${restWords ? `
 local titleRest = Instance.new("TextLabel", titleBar)
 titleRest.Size = UDim2.new(0, 200, 1, 0)
 titleRest.BackgroundTransparency = 1
 titleRest.Text = " ${restWords}"
-titleRest.TextColor3 = Color3.fromRGB(220, 220, 220)
+titleRest.TextColor3 = Color3.fromRGB(200, 200, 200)
 titleRest.Font = Enum.Font.GothamBold
-titleRest.TextSize = 14
+titleRest.TextSize = 13
 titleRest.TextXAlignment = Enum.TextXAlignment.Left
 titleRest.TextTransparency = 1
+titleRest.ZIndex = 5
 
--- Position rest text right after neon text
 task.defer(function()
     local ts = game:GetService("TextService")
-    local neonW = ts:GetTextSize("${firstWord}", 14, Enum.Font.GothamBold, Vector2.new(400, 36)).X
-    titleRest.Position = UDim2.new(0, ${titleOffset} + neonW, 0, 0)
+    local nW = ts:GetTextSize("${firstWord}", 13, Enum.Font.GothamBold, Vector2.new(400, 32)).X
+    titleRest.Position = UDim2.new(0, ${titleOffset} + nW, 0, 0)
 end)
 ` : ''}
 
--- Close button (X)
-local closeBtn = Instance.new("TextButton", titleBar)
-closeBtn.Size = UDim2.new(0, 36, 0, 36)
-closeBtn.Position = UDim2.new(1, -36, 0, 0)
-closeBtn.BackgroundTransparency = 1
-closeBtn.Text = "X"
-closeBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 14
+-- Window control dots (macOS style)
+local function makeDot(parent, pos, col, action)
+    local dot = Instance.new("TextButton", parent)
+    dot.Size = UDim2.new(0, 12, 0, 12)
+    dot.Position = pos
+    dot.BackgroundColor3 = col
+    dot.BorderSizePixel = 0
+    dot.Text = ""
+    dot.AutoButtonColor = false
+    dot.ZIndex = 6
+    local dc = Instance.new("UICorner", dot)
+    dc.CornerRadius = UDim.new(1, 0)
+    dot.MouseButton1Click:Connect(action)
+    dot.MouseEnter:Connect(function()
+        TweenService:Create(dot, TweenInfo.new(0.15), {Size = UDim2.new(0, 14, 0, 14)}):Play()
+    end)
+    dot.MouseLeave:Connect(function()
+        TweenService:Create(dot, TweenInfo.new(0.15), {Size = UDim2.new(0, 12, 0, 12)}):Play()
+    end)
+    return dot
+end
 
--- Minimize button (-)
-local minBtn = Instance.new("TextButton", titleBar)
-minBtn.Size = UDim2.new(0, 36, 0, 36)
-minBtn.Position = UDim2.new(1, -72, 0, 0)
-minBtn.BackgroundTransparency = 1
-minBtn.Text = "-"
-minBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-minBtn.Font = Enum.Font.GothamBold
-minBtn.TextSize = 18
+local minimized = false
 
--- Content panel (lighter black)
+-- Content panel
 local contentPanel = Instance.new("Frame", win)
-contentPanel.Name = "ContentPanel"
-contentPanel.Size = UDim2.new(1, -24, 0, 150)
-contentPanel.Position = UDim2.new(0, 12, 0, 48)
-contentPanel.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+contentPanel.Name = "Content"
+contentPanel.Size = UDim2.new(1, -20, 0, 160)
+contentPanel.Position = UDim2.new(0, 10, 0, 42)
+contentPanel.BackgroundColor3 = Color3.fromRGB(26, 26, 26)
 contentPanel.BorderSizePixel = 0
+contentPanel.ZIndex = 4
 
 local cpCorner = Instance.new("UICorner", contentPanel)
-cpCorner.CornerRadius = UDim.new(0, 8)
+cpCorner.CornerRadius = UDim.new(0, 6)
 
 local cpStroke = Instance.new("UIStroke", contentPanel)
 cpStroke.Thickness = 1
-cpStroke.Color = Color3.fromRGB(45, 45, 45)
+cpStroke.Color = Color3.fromRGB(38, 38, 38)
 cpStroke.Transparency = 1
 
--- Key input label
+-- Key label
 local keyLabel = Instance.new("TextLabel", contentPanel)
-keyLabel.Size = UDim2.new(1, -24, 0, 24)
-keyLabel.Position = UDim2.new(0, 12, 0, 16)
+keyLabel.Size = UDim2.new(1, -20, 0, 20)
+keyLabel.Position = UDim2.new(0, 10, 0, 12)
 keyLabel.BackgroundTransparency = 1
 keyLabel.Text = "Enter your key"
-keyLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+keyLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
 keyLabel.Font = Enum.Font.Gotham
-keyLabel.TextSize = 12
+keyLabel.TextSize = 11
 keyLabel.TextXAlignment = Enum.TextXAlignment.Left
 keyLabel.TextTransparency = 1
+keyLabel.ZIndex = 5
 
--- Key input box
+-- Input frame
 local inputFrame = Instance.new("Frame", contentPanel)
-inputFrame.Size = UDim2.new(1, -24, 0, 38)
-inputFrame.Position = UDim2.new(0, 12, 0, 44)
-inputFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+inputFrame.Size = UDim2.new(1, -20, 0, 34)
+inputFrame.Position = UDim2.new(0, 10, 0, 36)
+inputFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 14)
 inputFrame.BorderSizePixel = 0
+inputFrame.ZIndex = 5
 
 local ifCorner = Instance.new("UICorner", inputFrame)
-ifCorner.CornerRadius = UDim.new(0, 6)
+ifCorner.CornerRadius = UDim.new(0, 5)
 
 local ifStroke = Instance.new("UIStroke", inputFrame)
 ifStroke.Thickness = 1
-ifStroke.Color = Color3.fromRGB(55, 55, 55)
+ifStroke.Color = Color3.fromRGB(50, 50, 50)
 
 local input = Instance.new("TextBox", inputFrame)
-input.Size = UDim2.new(1, -16, 1, 0)
-input.Position = UDim2.new(0, 8, 0, 0)
+input.Size = UDim2.new(1, -14, 1, 0)
+input.Position = UDim2.new(0, 7, 0, 0)
 input.BackgroundTransparency = 1
 input.Text = ""
 input.PlaceholderText = "XXXXX-XXXXX-XXXXX"
-input.PlaceholderColor3 = Color3.fromRGB(80, 80, 80)
-input.TextColor3 = Color3.fromRGB(220, 220, 220)
+input.PlaceholderColor3 = Color3.fromRGB(60, 60, 60)
+input.TextColor3 = Color3.fromRGB(210, 210, 210)
 input.Font = Enum.Font.GothamMedium
-input.TextSize = 14
+input.TextSize = 13
 input.TextXAlignment = Enum.TextXAlignment.Left
 input.ClearTextOnFocus = false
 input.TextTransparency = 1
+input.ZIndex = 6
 
 -- Submit button
 local submitBtn = Instance.new("TextButton", contentPanel)
-submitBtn.Size = UDim2.new(1, -24, 0, 34)
-submitBtn.Position = UDim2.new(0, 12, 0, 92)
+submitBtn.Size = UDim2.new(1, -20, 0, 32)
+submitBtn.Position = UDim2.new(0, 10, 0, 80)
 submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
 submitBtn.BorderSizePixel = 0
-submitBtn.Text = "Validate Key"
-submitBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+submitBtn.Text = "Validate"
+submitBtn.TextColor3 = Color3.fromRGB(10, 10, 10)
 submitBtn.Font = Enum.Font.GothamBold
-submitBtn.TextSize = 13
-submitBtn.AutoButtonColor = true
+submitBtn.TextSize = 12
+submitBtn.AutoButtonColor = false
 submitBtn.TextTransparency = 1
+submitBtn.ZIndex = 5
 
 local sbCorner = Instance.new("UICorner", submitBtn)
-sbCorner.CornerRadius = UDim.new(0, 6)
+sbCorner.CornerRadius = UDim.new(0, 5)
 
--- Status label
+-- Hover effect for submit
+submitBtn.MouseEnter:Connect(function()
+    TweenService:Create(submitBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.15}):Play()
+end)
+submitBtn.MouseLeave:Connect(function()
+    TweenService:Create(submitBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0}):Play()
+end)
+
+-- Status
 local statusLabel = Instance.new("TextLabel", contentPanel)
-statusLabel.Size = UDim2.new(1, -24, 0, 18)
-statusLabel.Position = UDim2.new(0, 12, 0, 130)
+statusLabel.Size = UDim2.new(1, -20, 0, 16)
+statusLabel.Position = UDim2.new(0, 10, 0, 118)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = ""
-statusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+statusLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
 statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextSize = 11
+statusLabel.TextSize = 10
 statusLabel.TextTransparency = 1
+statusLabel.ZIndex = 5
+
+-- Powered by label
+local poweredBy = Instance.new("TextLabel", contentPanel)
+poweredBy.Size = UDim2.new(1, -20, 0, 14)
+poweredBy.Position = UDim2.new(0, 10, 0, 140)
+poweredBy.BackgroundTransparency = 1
+poweredBy.Text = "powered by ULT"
+poweredBy.TextColor3 = Color3.fromRGB(50, 50, 50)
+poweredBy.Font = Enum.Font.Gotham
+poweredBy.TextSize = 9
+poweredBy.TextXAlignment = Enum.TextXAlignment.Right
+poweredBy.TextTransparency = 1
+poweredBy.ZIndex = 5
 
 -- ====== ANIMATIONS ======
-
--- Fade in everything
-local fadeIn = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local fadeIn = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 TweenService:Create(win, fadeIn, {BackgroundTransparency = 0}):Play()
-TweenService:Create(winStroke, fadeIn, {Transparency = 0}):Play()
 TweenService:Create(cpStroke, fadeIn, {Transparency = 0}):Play()
 TweenService:Create(titleNeon, fadeIn, {TextTransparency = 0}):Play()
 TweenService:Create(keyLabel, fadeIn, {TextTransparency = 0}):Play()
 TweenService:Create(input, fadeIn, {TextTransparency = 0}):Play()
 TweenService:Create(submitBtn, fadeIn, {TextTransparency = 0}):Play()
+TweenService:Create(statusLabel, fadeIn, {TextTransparency = 0}):Play()
+TweenService:Create(poweredBy, fadeIn, {TextTransparency = 0}):Play()
 ${restWords ? 'TweenService:Create(titleRest, fadeIn, {TextTransparency = 0}):Play()' : ''}
+
+-- Create dots after content is set up
+local closeDot = makeDot(titleBar, UDim2.new(1, -42, 0.5, -6), Color3.fromRGB(255, 95, 87), function() end)
+local minDot = makeDot(titleBar, UDim2.new(1, -58, 0.5, -6), Color3.fromRGB(255, 189, 46), function()
+    minimized = not minimized
+    local tgt = minimized and UDim2.new(0, 380, 0, 32) or UDim2.new(0, 380, 0, 240)
+    TweenService:Create(win, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Size = tgt}):Play()
+    contentPanel.Visible = not minimized
+    sep.Visible = not minimized
+end)
 
 -- ====== DRAGGING ======
 local dragging = false
@@ -1417,46 +1489,44 @@ end)
 UserInputService.InputChanged:Connect(function(i)
     if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
         local d = i.Position - dragStart
-        win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        win.Position = newPos
+        shadow.Position = UDim2.new(0, newPos.X.Offset + win.AbsoluteSize.X/2 - 230, 0, newPos.Y.Offset + win.AbsoluteSize.Y/2 - 140)
     end
-end)
-
--- ====== MINIMIZE ======
-local minimized = false
-minBtn.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    local targetSize = minimized and UDim2.new(0, 420, 0, 36) or UDim2.new(0, 420, 0, 260)
-    TweenService:Create(win, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = targetSize}):Play()
-    contentPanel.Visible = not minimized
 end)
 
 -- ====== CLOSE / DESTROY ======
 local function smoothDestroy(msg, color, scriptCode)
     input.TextEditable = false
-    statusLabel.Text = msg or ""
-    statusLabel.TextColor3 = color or Color3.fromRGB(200, 200, 200)
+    if msg then
+        statusLabel.Text = msg
+        statusLabel.TextColor3 = color or Color3.fromRGB(200, 200, 200)
+    end
     
-    local fadeOut = TweenInfo.new(0.6, Enum.EasingStyle.Quad)
+    local fadeOut = TweenInfo.new(0.5, Enum.EasingStyle.Quad)
     TweenService:Create(win, fadeOut, {BackgroundTransparency = 1}):Play()
-    TweenService:Create(winStroke, fadeOut, {Transparency = 1}):Play()
     TweenService:Create(titleBar, fadeOut, {BackgroundTransparency = 1}):Play()
     TweenService:Create(tbFill, fadeOut, {BackgroundTransparency = 1}):Play()
     TweenService:Create(contentPanel, fadeOut, {BackgroundTransparency = 1}):Play()
     TweenService:Create(cpStroke, fadeOut, {Transparency = 1}):Play()
+    TweenService:Create(sep, fadeOut, {BackgroundTransparency = 1}):Play()
     TweenService:Create(titleNeon, fadeOut, {TextTransparency = 1}):Play()
     TweenService:Create(keyLabel, fadeOut, {TextTransparency = 1}):Play()
     TweenService:Create(input, fadeOut, {TextTransparency = 1}):Play()
     TweenService:Create(submitBtn, fadeOut, {BackgroundTransparency = 1, TextTransparency = 1}):Play()
     TweenService:Create(statusLabel, fadeOut, {TextTransparency = 1}):Play()
-    TweenService:Create(closeBtn, fadeOut, {TextTransparency = 1}):Play()
-    TweenService:Create(minBtn, fadeOut, {TextTransparency = 1}):Play()
-    TweenService:Create(ifStroke, fadeOut, {Transparency = 1}):Play()
+    TweenService:Create(poweredBy, fadeOut, {TextTransparency = 1}):Play()
     TweenService:Create(inputFrame, fadeOut, {BackgroundTransparency = 1}):Play()
+    TweenService:Create(ifStroke, fadeOut, {Transparency = 1}):Play()
+    TweenService:Create(closeDot, fadeOut, {BackgroundTransparency = 1}):Play()
+    TweenService:Create(minDot, fadeOut, {BackgroundTransparency = 1}):Play()
+    TweenService:Create(overlay, fadeOut, {BackgroundTransparency = 1}):Play()
+    TweenService:Create(shadow, fadeOut, {ImageTransparency = 1}):Play()
     ${restWords ? 'TweenService:Create(titleRest, fadeOut, {TextTransparency = 1}):Play()' : ''}
-    ${logoUrl ? 'TweenService:Create(logoImg, fadeOut, {ImageTransparency = 1}):Play()' : ''}
-    TweenService:Create(blur, TweenInfo.new(0.6), {Size = 0}):Play()
+    ${decalId ? 'TweenService:Create(logoImg, fadeOut, {ImageTransparency = 1}):Play()' : ''}
+    TweenService:Create(blur, TweenInfo.new(0.5), {Size = 0}):Play()
     
-    task.wait(0.7)
+    task.wait(0.6)
     
     if scriptCode and #scriptCode > 0 then
         local ok, fn = pcall(function()
@@ -1464,9 +1534,7 @@ local function smoothDestroy(msg, color, scriptCode)
         end)
         if ok and fn then
             local ok2, err2 = pcall(fn)
-            if not ok2 then
-                warn("[ULT] Execution error: " .. tostring(err2))
-            end
+            if not ok2 then warn("[ULT] Exec error: " .. tostring(err2)) end
         else
             warn("[ULT] Compile error: " .. tostring(fn))
         end
@@ -1476,8 +1544,8 @@ local function smoothDestroy(msg, color, scriptCode)
     gui:Destroy()
 end
 
-closeBtn.MouseButton1Click:Connect(function()
-    smoothDestroy("Closed", Color3.fromRGB(150, 150, 150), nil)
+closeDot.MouseButton1Click:Connect(function()
+    smoothDestroy("Closed", Color3.fromRGB(120, 120, 120), nil)
 end)
 
 -- ====== KEY VALIDATION ======
@@ -1495,7 +1563,7 @@ local function validateKey()
     validating = true
     input.TextEditable = false
     submitBtn.Text = "Validating..."
-    submitBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    TweenService:Create(submitBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
     statusLabel.Text = ""
     
     task.spawn(function()
@@ -1506,63 +1574,51 @@ local function validateKey()
             return game:HttpGet(url)
         end)
         
-        if not success then
-            statusLabel.Text = "Network error - try again"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-            submitBtn.Text = "Validate Key"
-            submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
+        local function resetBtn()
+            submitBtn.Text = "Validate"
+            TweenService:Create(submitBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})}):Play()
             input.TextEditable = true
             validating = false
+        end
+        
+        if not success then
+            statusLabel.Text = "Network error"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+            resetBtn()
             return
         end
         
         if not response or #response == 0 then
-            statusLabel.Text = "Empty response - try again"
+            statusLabel.Text = "Empty response"
             statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-            submitBtn.Text = "Validate Key"
-            submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
-            input.TextEditable = true
-            validating = false
+            resetBtn()
             return
         end
         
-        -- Check response
         if response:sub(1, 17) == "KEY_VALID_SCRIPT:" then
-            local scriptCode = response:sub(19) -- after "KEY_VALID_SCRIPT:\\n"
-            statusLabel.Text = "Key accepted! Loading..."
+            local scriptCode = response:sub(19)
+            statusLabel.Text = "Key accepted!"
             statusLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
-            submitBtn.Text = "Success!"
-            submitBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 40)
-            task.wait(0.5)
-            smoothDestroy("Loaded!", Color3.fromRGB(80, 255, 80), scriptCode)
+            submitBtn.Text = "✓"
+            TweenService:Create(submitBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 160, 40)}):Play()
+            task.wait(0.4)
+            smoothDestroy("Loading...", Color3.fromRGB(80, 255, 80), scriptCode)
         elseif response:find("KEY_ASSIGNED") then
-            statusLabel.Text = "This key belongs to another user"
+            statusLabel.Text = "Key belongs to another user"
             statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-            submitBtn.Text = "Validate Key"
-            submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
-            input.TextEditable = true
-            validating = false
+            resetBtn()
         elseif response:find("KEY_EXPIRED") then
             statusLabel.Text = "Key has expired"
             statusLabel.TextColor3 = Color3.fromRGB(255, 150, 50)
-            submitBtn.Text = "Validate Key"
-            submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
-            input.TextEditable = true
-            validating = false
+            resetBtn()
         elseif response:find("KEY_INVALID") then
             statusLabel.Text = "Invalid key"
             statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-            submitBtn.Text = "Validate Key"
-            submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
-            input.TextEditable = true
-            validating = false
+            resetBtn()
         else
             statusLabel.Text = "Access denied"
             statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-            submitBtn.Text = "Validate Key"
-            submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
-            input.TextEditable = true
-            validating = false
+            resetBtn()
         end
     end)
 end
@@ -1571,7 +1627,15 @@ submitBtn.MouseButton1Click:Connect(validateKey)
 input.FocusLost:Connect(function(enter)
     if enter then validateKey() end
 end)
-`;
+
+-- Focus input on click
+input.Focused:Connect(function()
+    TweenService:Create(ifStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(${r}, ${g}, ${b})}):Play()
+end)
+input.FocusLost:Connect(function()
+    TweenService:Create(ifStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(50, 50, 50)}):Play()
+end)
+`; 
 }
 
 function generateKickPlain(reason: string): string {
