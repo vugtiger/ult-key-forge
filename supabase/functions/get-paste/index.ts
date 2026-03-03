@@ -1216,7 +1216,7 @@ blur.Size = 0
 blur.Parent = Lighting
 TweenService:Create(blur, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {Size = 20}):Play()
 
--- Dim overlay
+-- Full-screen black overlay
 local overlay = Instance.new("Frame", gui)
 overlay.Name = "Overlay"
 overlay.Size = UDim2.new(1, 0, 1, 0)
@@ -1224,20 +1224,7 @@ overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 overlay.BackgroundTransparency = 1
 overlay.BorderSizePixel = 0
 overlay.ZIndex = 1
-TweenService:Create(overlay, TweenInfo.new(0.4), {BackgroundTransparency = 0.4}):Play()
-
--- Shadow behind window
-local shadow = Instance.new("ImageLabel", gui)
-shadow.Name = "Shadow"
-shadow.Size = UDim2.new(0, 460, 0, 300)
-shadow.Position = UDim2.new(0.5, -230, 0.5, -140)
-shadow.BackgroundTransparency = 1
-shadow.Image = "rbxassetid://5554236805"
-shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-shadow.ImageTransparency = 0.5
-shadow.ScaleType = Enum.ScaleType.Slice
-shadow.SliceCenter = Rect.new(23, 23, 277, 277)
-shadow.ZIndex = 2
+TweenService:Create(overlay, TweenInfo.new(0.4), {BackgroundTransparency = 0.1}):Play()
 
 -- Main window
 local win = Instance.new("Frame", gui)
@@ -1248,6 +1235,19 @@ win.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
 win.BorderSizePixel = 0
 win.BackgroundTransparency = 1
 win.ZIndex = 3
+
+-- Drop shadow (child of win so it moves with it)
+local shadow = Instance.new("ImageLabel", win)
+shadow.Name = "Shadow"
+shadow.Size = UDim2.new(1, 80, 1, 60)
+shadow.Position = UDim2.new(0, -40, 0, -20)
+shadow.BackgroundTransparency = 1
+shadow.Image = "rbxassetid://5554236805"
+shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+shadow.ImageTransparency = 0.5
+shadow.ScaleType = Enum.ScaleType.Slice
+shadow.SliceCenter = Rect.new(23, 23, 277, 277)
+shadow.ZIndex = 2
 
 local winCorner = Instance.new("UICorner", win)
 winCorner.CornerRadius = UDim.new(0, 8)
@@ -1489,9 +1489,7 @@ end)
 UserInputService.InputChanged:Connect(function(i)
     if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
         local d = i.Position - dragStart
-        local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
-        win.Position = newPos
-        shadow.Position = UDim2.new(0, newPos.X.Offset + win.AbsoluteSize.X/2 - 230, 0, newPos.Y.Offset + win.AbsoluteSize.Y/2 - 140)
+        win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
     end
 end)
 
@@ -1938,19 +1936,18 @@ Deno.serve(async (req) => {
         return new Response('KEY_EXPIRED:Key has expired', { status: 200, headers: textHeaders });
       }
       
-      // Check user ID assignment
-      if (keyData.roblox_user_id) {
-        if (keyData.roblox_user_id !== uid) {
-          // Key is assigned to a different user
-          console.log(`[get-paste] KEY_ASSIGNED: key belongs to ${keyData.roblox_user_id}, not ${uid}`);
-          return new Response('KEY_ASSIGNED:Key belongs to another user', { status: 200, headers: textHeaders });
-        }
-        // Key is assigned to THIS user - allow
-      } else {
-        // Key is unassigned - auto-assign to the first user who enters it
-        console.log(`[get-paste] KEY_AUTO_ASSIGN: assigning key to uid=${uid}`);
-        await supabase.from('control_panel_keys').update({ roblox_user_id: uid }).eq('id', keyData.id);
+      // Check user ID assignment - keys MUST be pre-assigned to a Roblox User ID
+      if (!keyData.roblox_user_id) {
+        // Key is not assigned to any user - reject
+        console.log(`[get-paste] KEY_UNASSIGNED: key has no user assigned, rejecting uid=${uid}`);
+        return new Response('KEY_INVALID:Key not assigned to any user', { status: 200, headers: textHeaders });
       }
+      if (keyData.roblox_user_id !== uid) {
+        // Key is assigned to a different user
+        console.log(`[get-paste] KEY_ASSIGNED: key belongs to ${keyData.roblox_user_id}, not ${uid}`);
+        return new Response('KEY_ASSIGNED:Key belongs to another user', { status: 200, headers: textHeaders });
+      }
+      // Key is assigned to THIS user - allow
       
       // Key is valid! Log execution
       await logAccess(uid, 'key_execution', true);
