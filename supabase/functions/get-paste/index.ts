@@ -1216,15 +1216,8 @@ blur.Size = 0
 blur.Parent = Lighting
 TweenService:Create(blur, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {Size = 20}):Play()
 
--- Full-screen black overlay
-local overlay = Instance.new("Frame", gui)
-overlay.Name = "Overlay"
-overlay.Size = UDim2.new(1, 0, 1, 0)
-overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-overlay.BackgroundTransparency = 1
-overlay.BorderSizePixel = 0
-overlay.ZIndex = 1
-TweenService:Create(overlay, TweenInfo.new(0.4), {BackgroundTransparency = 0}):Play()
+
+
 
 -- Main window
 local win = Instance.new("Frame", gui)
@@ -1506,7 +1499,7 @@ local function smoothDestroy(msg, color, scriptCode)
     TweenService:Create(ifStroke, fadeOut, {Transparency = 1}):Play()
     TweenService:Create(closeDot, fadeOut, {BackgroundTransparency = 1}):Play()
     TweenService:Create(minDot, fadeOut, {BackgroundTransparency = 1}):Play()
-    TweenService:Create(overlay, fadeOut, {BackgroundTransparency = 1}):Play()
+    
     
     ${restWords ? 'TweenService:Create(titleRest, fadeOut, {TextTransparency = 1}):Play()' : ''}
     ${decalId ? 'TweenService:Create(logoImg, fadeOut, {ImageTransparency = 1}):Play()' : ''}
