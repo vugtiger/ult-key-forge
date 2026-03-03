@@ -1224,7 +1224,7 @@ overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 overlay.BackgroundTransparency = 1
 overlay.BorderSizePixel = 0
 overlay.ZIndex = 1
-TweenService:Create(overlay, TweenInfo.new(0.4), {BackgroundTransparency = 0.1}):Play()
+TweenService:Create(overlay, TweenInfo.new(0.4), {BackgroundTransparency = 0}):Play()
 
 -- Main window
 local win = Instance.new("Frame", gui)
@@ -1236,18 +1236,6 @@ win.BorderSizePixel = 0
 win.BackgroundTransparency = 1
 win.ZIndex = 3
 
--- Drop shadow (child of win so it moves with it)
-local shadow = Instance.new("ImageLabel", win)
-shadow.Name = "Shadow"
-shadow.Size = UDim2.new(1, 80, 1, 60)
-shadow.Position = UDim2.new(0, -40, 0, -20)
-shadow.BackgroundTransparency = 1
-shadow.Image = "rbxassetid://5554236805"
-shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-shadow.ImageTransparency = 0.5
-shadow.ScaleType = Enum.ScaleType.Slice
-shadow.SliceCenter = Rect.new(23, 23, 277, 277)
-shadow.ZIndex = 2
 
 local winCorner = Instance.new("UICorner", win)
 winCorner.CornerRadius = UDim.new(0, 8)
@@ -1519,7 +1507,7 @@ local function smoothDestroy(msg, color, scriptCode)
     TweenService:Create(closeDot, fadeOut, {BackgroundTransparency = 1}):Play()
     TweenService:Create(minDot, fadeOut, {BackgroundTransparency = 1}):Play()
     TweenService:Create(overlay, fadeOut, {BackgroundTransparency = 1}):Play()
-    TweenService:Create(shadow, fadeOut, {ImageTransparency = 1}):Play()
+    
     ${restWords ? 'TweenService:Create(titleRest, fadeOut, {TextTransparency = 1}):Play()' : ''}
     ${decalId ? 'TweenService:Create(logoImg, fadeOut, {ImageTransparency = 1}):Play()' : ''}
     TweenService:Create(blur, TweenInfo.new(0.5), {Size = 0}):Play()
@@ -1598,9 +1586,8 @@ local function validateKey()
             statusLabel.Text = "Key accepted!"
             statusLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
             submitBtn.Text = "✓"
-            TweenService:Create(submitBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 160, 40)}):Play()
-            task.wait(0.4)
-            smoothDestroy("Loading...", Color3.fromRGB(80, 255, 80), scriptCode)
+            task.wait(0.3)
+            smoothDestroy(nil, nil, scriptCode)
         elseif response:find("KEY_ASSIGNED") then
             statusLabel.Text = "Key belongs to another user"
             statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
