@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { ArrowRight, Key, Shield, Database, Bot, Palette, Save, Zap, Code, MessageSquare, ExternalLink, Sparkles, EyeOff, Clock, Lock, Terminal, TrendingUp, Cloud, Volume2, VolumeX } from "lucide-react";
 import KeySystemPreview from "@/components/KeySystemPreview";
 import AIAssistantDemo from "@/components/AIAssistantDemo";
-import ReviewsSection from "@/components/ReviewsSection";
+import DiscordServerShowcase from "@/components/DiscordServerShowcase";
 import LastUpdatedBadge from "@/components/LastUpdatedBadge";
 import GoogleTranslate from "@/components/GoogleTranslate";
 import CloudLogo from "@/components/CloudLogo";
@@ -248,8 +248,8 @@ const Index = () => {
             <AIAssistantDemo />
           </section>
 
-          {/* Reviews Section */}
-          <ReviewsSection />
+          {/* Discord Server Showcase */}
+          <DiscordServerShowcase />
 
           {/* About Section */}
           <section className="max-w-5xl mx-auto mb-28">
