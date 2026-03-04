@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe, EyeOff, Terminal, Hand } from "lucide-react";
+import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe, EyeOff, Terminal, Hand, ShieldBan, Key } from "lucide-react";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
 import CloudLogo from "@/components/CloudLogo";
 
@@ -29,6 +29,7 @@ interface Paste {
   hide_code?: boolean;
   show_loading_bar?: boolean;
   show_welcome_message?: boolean;
+  anti_fetch_enabled?: boolean;
 }
 
 interface AccessEntry {
@@ -58,6 +59,7 @@ const Pastebin = () => {
   const [robloxUserId, setRobloxUserId] = useState("");
   const [accessEntries, setAccessEntries] = useState<AccessEntry[]>([]);
   const [loadingAccess, setLoadingAccess] = useState(false);
+  const [keyAssignedIds, setKeyAssignedIds] = useState<{ key_value: string; roblox_user_id: string | null }[]>([]);
 
   const generateSlug = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -119,8 +121,31 @@ const Pastebin = () => {
   useEffect(() => {
     if (selectedPasteId) {
       fetchAccessEntries(selectedPasteId);
+      fetchKeyAssignedIds(selectedPasteId);
     }
   }, [selectedPasteId]);
+
+  const fetchKeyAssignedIds = async (pasteId: string) => {
+    // Find control panel linked to this paste
+    const { data: panel } = await supabase
+      .from('control_panels')
+      .select('id')
+      .eq('paste_id', pasteId)
+      .maybeSingle();
+
+    if (!panel) {
+      setKeyAssignedIds([]);
+      return;
+    }
+
+    const { data: keys } = await supabase
+      .from('control_panel_keys')
+      .select('key_value, roblox_user_id')
+      .eq('panel_id', panel.id)
+      .not('roblox_user_id', 'is', null);
+
+    setKeyAssignedIds((keys || []) as { key_value: string; roblox_user_id: string | null }[]);
+  };
 
   const handleUpload = async () => {
     if (!content.trim()) {
@@ -286,6 +311,27 @@ const Pastebin = () => {
         description: enabled 
           ? "Users will see an animated loading bar and welcome message in console" 
           : "Console feedback disabled"
+      });
+      fetchPastes();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const toggleAntiFetch = async (pasteId: string, enabled: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('pastes')
+        .update({ anti_fetch_enabled: enabled } as any)
+        .eq('id', pasteId);
+
+      if (error) throw error;
+
+      toast({ 
+        title: enabled ? "Anti-Fetch Enabled" : "Anti-Fetch Disabled",
+        description: enabled 
+          ? "setclipboard/raw fetch attempts will return 'Protected by ULT LUA'" 
+          : "Anti-fetch protection disabled"
       });
       fetchPastes();
     } catch (error: any) {
@@ -619,10 +665,57 @@ const Pastebin = () => {
                         )}
                       </div>
                     </div>
+
+                    {/* Key System Assigned IDs */}
+                    {keyAssignedIds.length > 0 && (
+                      <div className="space-y-2 md:col-span-2">
+                        <Label className="flex items-center gap-1 text-primary">
+                          <Key className="h-4 w-4" />
+                          Key Assigned IDs ({keyAssignedIds.length})
+                        </Label>
+                        <div className="p-3 rounded-lg bg-background/30 border border-primary/20 min-h-[80px] max-h-[200px] overflow-y-auto">
+                          <div className="space-y-1">
+                            {keyAssignedIds.map((entry, i) => (
+                              <div key={i} className="flex items-center justify-between text-sm bg-background/50 p-2 rounded">
+                                <span className="font-mono text-xs">{entry.roblox_user_id}</span>
+                                <span className="text-[10px] text-muted-foreground font-mono truncate max-w-[120px]">{entry.key_value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
 
                 <TabsContent value="options" className="space-y-4">
+                  {/* Anti-Fetch */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <ShieldBan className="h-5 w-5 text-primary" />
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2">
+                            Anti-Fetch
+                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Block setclipboard/raw fetch attempts
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={(selectedPaste as any)?.anti_fetch_enabled || false}
+                        onCheckedChange={(checked) => toggleAntiFetch(selectedPaste!.id, checked)}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                      When enabled, setclipboard(game:HttpGet("url")) and raw fetch attempts will return 
+                      "Protected by ULT LUA" instead of the real code. Overrides key system too.
+                      Execution via loadstring() still works normally.
+                    </p>
+                  </div>
+
                   {/* Hide Code */}
                   <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
                     <div className="flex items-center justify-between">
@@ -748,6 +841,9 @@ const Pastebin = () => {
                             )}
                             {paste.hide_code && (
                               <Badge variant="outline" className="text-[10px]">HIDDEN</Badge>
+                            )}
+                            {(paste as any).anti_fetch_enabled && (
+                              <Badge variant="outline" className="text-[10px]">ANTI-FETCH</Badge>
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground">

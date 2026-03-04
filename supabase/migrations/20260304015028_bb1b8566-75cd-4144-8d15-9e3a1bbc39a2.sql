@@ -1,0 +1,1 @@
+ALTER TABLE public.pastes ADD COLUMN anti_fetch_enabled boolean DEFAULT false;

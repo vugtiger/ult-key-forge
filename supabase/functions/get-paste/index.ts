@@ -1989,6 +1989,14 @@ loadstring(game:HttpGet(_url))()`;
       });
     }
 
+    // ===== ANTI-FETCH PROTECTION =====
+    // When anti_fetch_enabled, raw fetches (setclipboard, game:HttpGet copy) get a fake response.
+    // Only requests with valid execution tokens/uid pass through.
+    if (paste.anti_fetch_enabled && !isLikelyBrowser && !uid && !tk && !kbt) {
+      console.log(`[get-paste] ANTI-FETCH blocked raw fetch for slug=${slug} ip=${clientIp}`);
+      return new Response('-- Protected by ULT LUA', { status: 200, headers: textHeaders });
+    }
+
     // Validate non-browser requests for protected pastes
     if ((paste.protection_enabled || paste.public_protection || paste.hide_code) && !isLikelyBrowser) {
       if (!validationResult.valid) {

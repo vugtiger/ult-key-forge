@@ -575,6 +575,7 @@ export type Database = {
       }
       pastes: {
         Row: {
+          anti_fetch_enabled: boolean | null
           background_protection: boolean | null
           content: string
           created_at: string
@@ -592,6 +593,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          anti_fetch_enabled?: boolean | null
           background_protection?: boolean | null
           content: string
           created_at?: string
@@ -609,6 +611,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          anti_fetch_enabled?: boolean | null
           background_protection?: boolean | null
           content?: string
           created_at?: string
