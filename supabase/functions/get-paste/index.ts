@@ -2013,8 +2013,28 @@ loadstring(game:HttpGet(_url))()`;
     if (!paste.protection_enabled && !paste.public_protection) {
       const keyPanel = await getPreferredKeyPanel();
       
-      if (keyPanel && !uid && !tk && !isLikelyBrowser) {
+      // ANTI-FETCH + KEY SYSTEM: When anti-fetch is enabled and there's a key system,
+      // return a mini loader instead of the raw key system GUI.
+      // setclipboard(game:HttpGet("url")) copies the mini loader (useless text)
+      // loadstring(game:HttpGet("url"))() executes the loader which re-fetches with uid to get the real GUI
+      if (paste.anti_fetch_enabled && keyPanel && !uid && !tk && !kbt && !keyParam && !isLikelyBrowser) {
+        console.log(`[get-paste] ANTI-FETCH: returning mini loader for keysystem paste slug=${slug} ip=${clientIp}`);
+        const miniLoader = `-- Protected by ULT LUA
+local _p = game:GetService("Players").LocalPlayer
+if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
+loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())))()`;
+        return new Response(miniLoader, { status: 200, headers: textHeaders });
+      }
+
+      // ANTI-FETCH without key system: block raw fetch when no uid
+      if (paste.anti_fetch_enabled && !keyPanel && !uid && !tk && !kbt && !isLikelyBrowser) {
+        console.log(`[get-paste] ANTI-FETCH blocked raw fetch for slug=${slug} ip=${clientIp}`);
+        return new Response('-- Protected by ULT LUA', { status: 200, headers: textHeaders });
+      }
+      
+      if (keyPanel && !tk && !kbt && !isLikelyBrowser && !keyParam) {
         // Paste has a key system - return key system GUI
+        // This fires when uid IS provided (from mini loader) or when anti-fetch is off
         console.log(`[get-paste] Returning key system GUI for paste: ${paste.id} panel: ${keyPanel.name}`);
         // Fetch panel details for logo_url
         const { data: panelDetails } = await supabase.from('control_panels').select('logo_url').eq('id', keyPanel.id).single();
@@ -2037,13 +2057,6 @@ loadstring(game:HttpGet(_url))()`;
       if (uid && /^\d+$/.test(uid)) {
         await logAccess(uid, 'execution', true);
         await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
-      }
-
-      // ANTI-FETCH: Block raw content fetch for non-protected pastes without key systems
-      // At this point, if there's no uid, it's a raw fetch (setclipboard pattern)
-      if (paste.anti_fetch_enabled && !isLikelyBrowser && !uid) {
-        console.log(`[get-paste] ANTI-FETCH blocked raw fetch for non-protected paste slug=${slug} ip=${clientIp}`);
-        return new Response('-- Protected by ULT LUA', { status: 200, headers: textHeaders });
       }
 
       return new Response(paste.content, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
