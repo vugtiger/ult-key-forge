@@ -1990,12 +1990,16 @@ loadstring(game:HttpGet(_url))()`;
     }
 
     // ===== ANTI-FETCH PROTECTION =====
-    // When anti_fetch_enabled, raw fetches (setclipboard, game:HttpGet copy) get a fake response.
-    // Only requests with valid execution tokens/uid pass through.
-    if (paste.anti_fetch_enabled && !isLikelyBrowser && !uid && !tk && !kbt) {
-      console.log(`[get-paste] ANTI-FETCH blocked raw fetch for slug=${slug} ip=${clientIp}`);
-      return new Response('-- Protected by ULT LUA', { status: 200, headers: textHeaders });
-    }
+    // When anti_fetch_enabled, block raw fetches that have NO execution context.
+    // Allow through: browser requests, requests with uid (loadstring execution), 
+    // requests with tk (token-based auth), requests with kbt (key bypass token).
+    // This means loadstring(game:HttpGet("url"))() still works because:
+    //   - First request (no uid) returns loader/key system GUI (those paths are handled BELOW)
+    //   - Second request from loader has uid+tk, so it passes through here
+    // But setclipboard(game:HttpGet("url")) gets blocked because it never sends uid/tk.
+    // NOTE: We only block here for NON-protected, NON-keysystem pastes.
+    // Protected pastes already return a loader (not raw content) when uid is missing.
+    // Key system pastes return the key GUI when uid is missing.
 
     // Validate non-browser requests for protected pastes
     if ((paste.protection_enabled || paste.public_protection || paste.hide_code) && !isLikelyBrowser) {
@@ -2034,6 +2038,14 @@ loadstring(game:HttpGet(_url))()`;
         await logAccess(uid, 'execution', true);
         await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
       }
+
+      // ANTI-FETCH: Block raw content fetch for non-protected pastes without key systems
+      // At this point, if there's no uid, it's a raw fetch (setclipboard pattern)
+      if (paste.anti_fetch_enabled && !isLikelyBrowser && !uid) {
+        console.log(`[get-paste] ANTI-FETCH blocked raw fetch for non-protected paste slug=${slug} ip=${clientIp}`);
+        return new Response('-- Protected by ULT LUA', { status: 200, headers: textHeaders });
+      }
+
       return new Response(paste.content, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
