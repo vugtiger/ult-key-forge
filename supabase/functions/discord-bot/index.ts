@@ -586,7 +586,6 @@ async function handleCommand(interaction: any) {
           user_id: user.userId,
           name: panelName,
           paste_id: paste.id,
-          is_keysystem: true,
         })
         .select('id')
         .single();

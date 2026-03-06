@@ -151,7 +151,6 @@ export type Database = {
           discord_message_id: string | null
           discord_role_id: string | null
           id: string
-          is_keysystem: boolean
           logo_url: string | null
           name: string
           paste_id: string | null
@@ -163,7 +162,6 @@ export type Database = {
           discord_message_id?: string | null
           discord_role_id?: string | null
           id?: string
-          is_keysystem?: boolean
           logo_url?: string | null
           name: string
           paste_id?: string | null
@@ -175,7 +173,6 @@ export type Database = {
           discord_message_id?: string | null
           discord_role_id?: string | null
           id?: string
-          is_keysystem?: boolean
           logo_url?: string | null
           name?: string
           paste_id?: string | null
