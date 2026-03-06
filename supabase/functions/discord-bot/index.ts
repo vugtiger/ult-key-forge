@@ -2421,22 +2421,126 @@ serve(async (req) => {
     });
   }
 
-  // Handle button interactions (type 3)
+// Handle button interactions (type 3) - use deferred response
   if (interaction.type === 3) {
-    try {
-      const response = await handleButton(interaction);
-      return new Response(JSON.stringify(response), {
-        headers: { "Content-Type": "application/json" }
-      });
-    } catch (error) {
-      console.error("Button error:", error);
-      return new Response(JSON.stringify({
-        type: 4,
-        data: { content: "❌ An error occurred.", flags: 64 }
-      }), {
-        headers: { "Content-Type": "application/json" }
-      });
+    const DISCORD_APPLICATION_ID = Deno.env.get("DISCORD_APPLICATION_ID")!;
+    const interactionToken = interaction.token;
+    
+    (async () => {
+      try {
+        const response = await handleButton(interaction);
+        // If it's a modal response (type 9), we can't send it as followup - but modals must be immediate
+        if (response?.type === 9) {
+          // Modal responses can't be deferred, but they're fast (no DB work)
+          // This case is handled below
+          return;
+        }
+        const content = response?.data?.content || "✅ Done!";
+        const flags = response?.data?.flags;
+        const components = response?.data?.components;
+        const embeds = response?.data?.embeds;
+        
+        const followupBody: any = { content };
+        if (flags) followupBody.flags = flags;
+        if (components) followupBody.components = components;
+        if (embeds) followupBody.embeds = embeds;
+        
+        await fetch(
+          `https://discord.com/api/v10/webhooks/${DISCORD_APPLICATION_ID}/${interactionToken}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(followupBody),
+          }
+        );
+      } catch (error) {
+        console.error("Button followup error:", error);
+        try {
+          await fetch(
+            `https://discord.com/api/v10/webhooks/${DISCORD_APPLICATION_ID}/${interactionToken}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: "❌ An error occurred.", flags: 64 }),
+            }
+          );
+        } catch (e) {
+          console.error("Failed to send button error followup:", e);
+        }
+      }
+    })();
+
+    // Check if this button needs a modal response (must be immediate)
+    const customId = interaction.data?.custom_id || '';
+    if (customId.startsWith('redeem_key:')) {
+      // Modal must be returned immediately - handle synchronously
+      try {
+        const response = await handleButton(interaction);
+        return new Response(JSON.stringify(response), {
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (error) {
+        console.error("Modal button error:", error);
+        return new Response(JSON.stringify({
+          type: 4,
+          data: { content: "❌ An error occurred.", flags: 64 }
+        }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      }
     }
+
+    return new Response(JSON.stringify({ type: 5, data: { flags: 64 } }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  // Handle modal submissions (type 5) - use deferred response
+  if (interaction.type === 5) {
+    const DISCORD_APPLICATION_ID = Deno.env.get("DISCORD_APPLICATION_ID")!;
+    const interactionToken = interaction.token;
+    
+    (async () => {
+      try {
+        const response = await handleModal(interaction);
+        const content = response?.data?.content || "✅ Done!";
+        const flags = response?.data?.flags;
+        const components = response?.data?.components;
+        const embeds = response?.data?.embeds;
+        
+        const followupBody: any = { content };
+        if (flags) followupBody.flags = flags;
+        if (components) followupBody.components = components;
+        if (embeds) followupBody.embeds = embeds;
+        
+        await fetch(
+          `https://discord.com/api/v10/webhooks/${DISCORD_APPLICATION_ID}/${interactionToken}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(followupBody),
+          }
+        );
+      } catch (error) {
+        console.error("Modal followup error:", error);
+        try {
+          await fetch(
+            `https://discord.com/api/v10/webhooks/${DISCORD_APPLICATION_ID}/${interactionToken}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: "❌ An error occurred.", flags: 64 }),
+            }
+          );
+        } catch (e) {
+          console.error("Failed to send modal error followup:", e);
+        }
+      }
+    })();
+
+    return new Response(JSON.stringify({ type: 5, data: { flags: 64 } }), {
+      headers: { "Content-Type": "application/json" }
+    });
   }
 
   // Handle modal submissions (type 5)
