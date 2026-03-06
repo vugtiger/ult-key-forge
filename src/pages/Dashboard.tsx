@@ -168,7 +168,6 @@ const Dashboard = () => {
         .select('*')
         .eq('paste_id', pasteId)
         .eq('user_id', user.id)
-        .eq('is_keysystem', true)
         .maybeSingle();
 
       setManagePanel(panel || null);
@@ -250,7 +249,7 @@ const Dashboard = () => {
       } else {
         const { data: newPanel, error: panelError } = await supabase
           .from('control_panels')
-          .insert({ user_id: user.id, name: keySystemName, paste_id: selectedPaste, logo_url: logoUrl, is_keysystem: true })
+          .insert({ user_id: user.id, name: keySystemName, paste_id: selectedPaste, logo_url: logoUrl })
           .select('id')
           .single();
         if (panelError) throw panelError;
@@ -282,9 +281,22 @@ const Dashboard = () => {
         await supabase.from('paste_access_control').upsert(accessInserts, { onConflict: 'paste_id,roblox_user_id' });
       }
 
+      const asciiText = convertToAsciiArt(keySystemName);
+      const keyList = keys.map(k => `"${k.key}"`).join(', ');
+      const luaCode = generateLuaCode(keySystemName, asciiText, themeColor, keyList, pasteUrl);
+
+      await supabase.from('key_systems').insert({
+        user_id: user.id,
+        name: keySystemName,
+        num_keys: count,
+        theme_color: themeColor,
+        ascii_text: asciiText,
+        generated_code: luaCode,
+      });
+
       await supabase.from('user_activity').insert({
         user_id: user.id,
-        activity_type: 'panel_created',
+        activity_type: 'key_system_created',
         activity_data: { name: keySystemName, num_keys: count, paste_id: selectedPaste, duration }
       });
 
