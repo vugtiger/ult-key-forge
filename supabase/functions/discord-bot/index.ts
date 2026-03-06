@@ -2421,20 +2421,35 @@ serve(async (req) => {
     });
   }
 
-// Handle button interactions (type 3) - use deferred response
+// Handle button interactions (type 3)
   if (interaction.type === 3) {
+    const customId = interaction.data?.custom_id || '';
+    
+    // Modal responses (type 9) MUST be returned immediately - can't defer
+    if (customId.startsWith('redeem_key:')) {
+      try {
+        const response = await handleButton(interaction);
+        return new Response(JSON.stringify(response), {
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (error) {
+        console.error("Modal button error:", error);
+        return new Response(JSON.stringify({
+          type: 4,
+          data: { content: "❌ An error occurred.", flags: 64 }
+        }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
+
+    // All other buttons: defer and followup
     const DISCORD_APPLICATION_ID = Deno.env.get("DISCORD_APPLICATION_ID")!;
     const interactionToken = interaction.token;
     
     (async () => {
       try {
         const response = await handleButton(interaction);
-        // If it's a modal response (type 9), we can't send it as followup - but modals must be immediate
-        if (response?.type === 9) {
-          // Modal responses can't be deferred, but they're fast (no DB work)
-          // This case is handled below
-          return;
-        }
         const content = response?.data?.content || "✅ Done!";
         const flags = response?.data?.flags;
         const components = response?.data?.components;
@@ -2469,26 +2484,6 @@ serve(async (req) => {
         }
       }
     })();
-
-    // Check if this button needs a modal response (must be immediate)
-    const customId = interaction.data?.custom_id || '';
-    if (customId.startsWith('redeem_key:')) {
-      // Modal must be returned immediately - handle synchronously
-      try {
-        const response = await handleButton(interaction);
-        return new Response(JSON.stringify(response), {
-          headers: { "Content-Type": "application/json" }
-        });
-      } catch (error) {
-        console.error("Modal button error:", error);
-        return new Response(JSON.stringify({
-          type: 4,
-          data: { content: "❌ An error occurred.", flags: 64 }
-        }), {
-          headers: { "Content-Type": "application/json" }
-        });
-      }
-    }
 
     return new Response(JSON.stringify({ type: 5, data: { flags: 64 } }), {
       headers: { "Content-Type": "application/json" }
@@ -2541,24 +2536,6 @@ serve(async (req) => {
     return new Response(JSON.stringify({ type: 5, data: { flags: 64 } }), {
       headers: { "Content-Type": "application/json" }
     });
-  }
-
-  // Handle modal submissions (type 5)
-  if (interaction.type === 5) {
-    try {
-      const response = await handleModal(interaction);
-      return new Response(JSON.stringify(response), {
-        headers: { "Content-Type": "application/json" }
-      });
-    } catch (error) {
-      console.error("Modal error:", error);
-      return new Response(JSON.stringify({
-        type: 4,
-        data: { content: "❌ An error occurred.", flags: 64 }
-      }), {
-        headers: { "Content-Type": "application/json" }
-      });
-    }
   }
 
   return new Response(JSON.stringify({ type: 1 }), {
