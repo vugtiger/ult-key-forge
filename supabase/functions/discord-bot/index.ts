@@ -2370,22 +2370,55 @@ serve(async (req) => {
     });
   }
 
-  // Handle slash commands (type 2)
+// Handle slash commands (type 2) - use deferred response to avoid 3s timeout
   if (interaction.type === 2) {
-    try {
-      const response = await handleCommand(interaction);
-      return new Response(JSON.stringify(response), {
-        headers: { "Content-Type": "application/json" }
-      });
-    } catch (error) {
-      console.error("Command error:", error);
-      return new Response(JSON.stringify({
-        type: 4,
-        data: { content: "❌ An error occurred processing your command.", flags: 64 }
-      }), {
-        headers: { "Content-Type": "application/json" }
-      });
-    }
+    // Process command in background after sending deferred response
+    const DISCORD_APPLICATION_ID = Deno.env.get("DISCORD_APPLICATION_ID")!;
+    const interactionToken = interaction.token;
+    
+    // Fire and forget: process command and send followup
+    (async () => {
+      try {
+        const response = await handleCommand(interaction);
+        const content = response?.data?.content || "✅ Done!";
+        const flags = response?.data?.flags;
+        const components = response?.data?.components;
+        const embeds = response?.data?.embeds;
+        
+        const followupBody: any = { content };
+        if (flags) followupBody.flags = flags;
+        if (components) followupBody.components = components;
+        if (embeds) followupBody.embeds = embeds;
+        
+        await fetch(
+          `https://discord.com/api/v10/webhooks/${DISCORD_APPLICATION_ID}/${interactionToken}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(followupBody),
+          }
+        );
+      } catch (error) {
+        console.error("Command followup error:", error);
+        try {
+          await fetch(
+            `https://discord.com/api/v10/webhooks/${DISCORD_APPLICATION_ID}/${interactionToken}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: "❌ An error occurred processing your command.", flags: 64 }),
+            }
+          );
+        } catch (e) {
+          console.error("Failed to send error followup:", e);
+        }
+      }
+    })();
+
+    // Immediately return deferred response (type 5 = DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE)
+    return new Response(JSON.stringify({ type: 5, data: { flags: 64 } }), {
+      headers: { "Content-Type": "application/json" }
+    });
   }
 
   // Handle button interactions (type 3)
