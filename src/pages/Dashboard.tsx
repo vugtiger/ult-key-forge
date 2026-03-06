@@ -249,7 +249,7 @@ const Dashboard = () => {
       } else {
         const { data: newPanel, error: panelError } = await supabase
           .from('control_panels')
-          .insert({ user_id: user.id, name: keySystemName, paste_id: selectedPaste, logo_url: logoUrl })
+          .insert({ user_id: user.id, name: keySystemName, paste_id: selectedPaste, logo_url: logoUrl, is_keysystem: true })
           .select('id')
           .single();
         if (panelError) throw panelError;
