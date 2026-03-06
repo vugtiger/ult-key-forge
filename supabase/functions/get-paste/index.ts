@@ -1990,16 +1990,12 @@ loadstring(game:HttpGet(_url))()`;
     }
 
     // ===== ANTI-FETCH PROTECTION =====
-    // When anti_fetch_enabled, block raw fetches that have NO execution context.
-    // Allow through: browser requests, requests with uid (loadstring execution), 
-    // requests with tk (token-based auth), requests with kbt (key bypass token).
-    // This means loadstring(game:HttpGet("url"))() still works because:
-    //   - First request (no uid) returns loader/key system GUI (those paths are handled BELOW)
-    //   - Second request from loader has uid+tk, so it passes through here
-    // But setclipboard(game:HttpGet("url")) gets blocked because it never sends uid/tk.
-    // NOTE: We only block here for NON-protected, NON-keysystem pastes.
-    // Protected pastes already return a loader (not raw content) when uid is missing.
-    // Key system pastes return the key GUI when uid is missing.
+    // When anti_fetch_enabled, raw fetches (setclipboard, game:HttpGet copy) get a fake response.
+    // Only requests with valid execution tokens/uid pass through.
+    if (paste.anti_fetch_enabled && !isLikelyBrowser && !uid && !tk && !kbt) {
+      console.log(`[get-paste] ANTI-FETCH blocked raw fetch for slug=${slug} ip=${clientIp}`);
+      return new Response('-- Protected by ULT LUA', { status: 200, headers: textHeaders });
+    }
 
     // Validate non-browser requests for protected pastes
     if ((paste.protection_enabled || paste.public_protection || paste.hide_code) && !isLikelyBrowser) {
@@ -2009,27 +2005,12 @@ loadstring(game:HttpGet(_url))()`;
       }
     }
 
-    // ===== GLOBAL ANTI-FETCH PROTECTION =====
-    // This runs for ALL paste types (protected, public-protection, non-protected).
-    // When anti_fetch_enabled is on and there's no execution context (no uid, no tk, no kbt, no key),
-    // return a mini loader. setclipboard copies "-- Protected by ULT LUA" (useless).
-    // loadstring executes the loader which re-fetches with uid to get the real content.
-    if (paste.anti_fetch_enabled && !uid && !tk && !kbt && !keyParam && !isLikelyBrowser) {
-      console.log(`[get-paste] ANTI-FETCH: returning mini loader for slug=${slug} ip=${clientIp}`);
-      const miniLoader = `-- Protected by ULT LUA
-local _p = game:GetService("Players").LocalPlayer
-if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
-loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())))()`;
-      return new Response(miniLoader, { status: 200, headers: textHeaders });
-    }
-
     // ===== NON-PROTECTED PASTE (no protection, no public_protection) =====
     if (!paste.protection_enabled && !paste.public_protection) {
       const keyPanel = await getPreferredKeyPanel();
       
-      if (keyPanel && !tk && !kbt && !isLikelyBrowser && !keyParam) {
+      if (keyPanel && !uid && !tk && !isLikelyBrowser) {
         // Paste has a key system - return key system GUI
-        // This fires when uid IS provided (from mini loader) or when anti-fetch is off
         console.log(`[get-paste] Returning key system GUI for paste: ${paste.id} panel: ${keyPanel.name}`);
         // Fetch panel details for logo_url
         const { data: panelDetails } = await supabase.from('control_panels').select('logo_url').eq('id', keyPanel.id).single();
@@ -2053,7 +2034,6 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         await logAccess(uid, 'execution', true);
         await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
       }
-
       return new Response(paste.content, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
