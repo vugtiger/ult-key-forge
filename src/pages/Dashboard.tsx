@@ -168,6 +168,7 @@ const Dashboard = () => {
         .select('*')
         .eq('paste_id', pasteId)
         .eq('user_id', user.id)
+        .eq('is_keysystem', true)
         .maybeSingle();
 
       setManagePanel(panel || null);
