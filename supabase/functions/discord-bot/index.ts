@@ -586,6 +586,7 @@ async function handleCommand(interaction: any) {
           user_id: user.userId,
           name: panelName,
           paste_id: paste.id,
+          is_keysystem: true,
         })
         .select('id')
         .single();
@@ -1634,11 +1635,77 @@ async function handleCommand(interaction: any) {
       return { type: 4, data: { content: `🎮 **Your Control Panels:**\n\n${list}\n\n*Use panel name with /genkeys command*`, flags: 64 } };
     }
 
+    case 'viewpanelkeys': {
+      const user = await getUser();
+      if (!user) {
+        return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      }
+
+      const panelName = data.options?.find((o: any) => o.name === 'panel')?.value;
+      if (!panelName) {
+        return { type: 4, data: { content: '❌ Please provide a panel name.', flags: 64 } };
+      }
+
+      const { data: panel } = await supabase
+        .from('control_panels')
+        .select('id, name')
+        .eq('user_id', user.userId)
+        .ilike('name', panelName)
+        .maybeSingle();
+
+      if (!panel) {
+        return { type: 4, data: { content: `❌ Panel "${panelName}" not found. Use \`/mypanels\` to see your panels.`, flags: 64 } };
+      }
+
+      const { data: keys } = await supabase
+        .from('control_panel_keys')
+        .select('key_value, expires_at, redeemed_at, redeemed_by_discord_id, roblox_user_id')
+        .eq('panel_id', panel.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (!keys || keys.length === 0) {
+        return { type: 4, data: { content: `📭 No keys found for panel **${panel.name}**. Use \`/genkeys\` to generate some!`, flags: 64 } };
+      }
+
+      const now = new Date();
+      const keyLines = keys.map((k, i) => {
+        const isExpired = k.expires_at && new Date(k.expires_at) < now;
+        const isRedeemed = !!k.redeemed_by_discord_id;
+        let status = '🆓 Available';
+        if (isExpired) status = '⏰ Expired';
+        else if (isRedeemed) status = `✅ Redeemed by <@${k.redeemed_by_discord_id}>`;
+        
+        const userIdTag = k.roblox_user_id ? ` | RBXID: ${k.roblox_user_id}` : '';
+        return `\`${k.key_value}\` — ${status}${userIdTag}`;
+      }).join('\n');
+
+      // If too long for one message, send as file
+      if (keyLines.length > 1800) {
+        const fileContent = keys.map((k, i) => {
+          const isExpired = k.expires_at && new Date(k.expires_at) < now;
+          const isRedeemed = !!k.redeemed_by_discord_id;
+          let status = 'Available';
+          if (isExpired) status = 'Expired';
+          else if (isRedeemed) status = `Redeemed by ${k.redeemed_by_discord_id}`;
+          const userIdTag = k.roblox_user_id ? ` | RBXID: ${k.roblox_user_id}` : '';
+          return `${k.key_value} — ${status}${userIdTag}`;
+        }).join('\n');
+
+        await sendDM(discordUserId, `🔑 **Keys for panel: ${panel.name}** (${keys.length} keys)`, [
+          { name: `${panel.name.replace(/\s+/g, '_')}_keys_status.txt`, content: fileContent }
+        ]);
+        return { type: 4, data: { content: `✅ Key list for **${panel.name}** sent to your DMs (too many to display here).`, flags: 64 } };
+      }
+
+      return { type: 4, data: { content: `🔑 **Keys for ${panel.name}** (${keys.length} total):\n\n${keyLines}`, flags: 64 } };
+    }
+
     case 'help': {
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Scripts:**\n\`/savescript\` - Save a script\n\`/scripts\` - View saved scripts\n\`/deletescript\` - Delete a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/deletepaste\` - Delete a paste\n\`/scriptprotection\` - Toggle protection\n\`/publicprotection\` - Protection without whitelist\n\`/hidecode\` - Hide code from raw URL\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/removewhitelist\` - Remove from whitelist\n\`/removeblacklist\` - Remove from blacklist\n\`/setwhitelisttime\` - Set whitelist expiration\n\`/stats\` - View paste stats\n\n**Settings:**\n\`/iptracking\` - Toggle IP tracking\n\`/setgame\` - Set game restriction + bind game\n\`/mygamelinkedpastes\` - View game-bound pastes\n\`/consolefeedback\` - Toggle loading bar + welcome msg\n\n**Key Systems:**\n\`/keysystemsetup\` - Create key system for a paste 🆕\n\`/keygen\` - Generate more keys 🆕\n\`/mykeysystemkeys\` - View key stats 🆕\n\`/keysystemwhitelist\` - Assign user to key 🆕\n\`/deletekeysystem\` - Delete key system 🆕\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/mypanels\` - View panels\n\`/consoleblacklist\` - Blacklist from panel\n\`/unblacklist\` - Remove from blacklist\n\`/forceexpire\` - Force expire access\n\n**Other:**\n\`/invite\` - Get bot invite link 🆕\n\`/logs\` - Set changelog notifications 🆕`, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` - Create new account\n\`/login\` - Link existing account\n\`/logout\` - Unlink Discord\n\`/profile\` - View your profile\n\`/factoryreset\` - Wipe all your data\n\n**Scripts:**\n\`/savescript\` - Save a script\n\`/scripts\` - View saved scripts\n\`/deletescript\` - Delete a script\n\n**Pastebin:**\n\`/paste\` - Create a paste\n\`/mypastes\` - View your pastes\n\`/deletepaste\` - Delete a paste\n\`/scriptprotection\` - Toggle protection\n\`/publicprotection\` - Protection without whitelist\n\`/hidecode\` - Hide code from raw URL\n\`/whitelist\` - Add to whitelist\n\`/blacklist\` - Add to blacklist\n\`/removewhitelist\` - Remove from whitelist\n\`/removeblacklist\` - Remove from blacklist\n\`/setwhitelisttime\` - Set whitelist expiration\n\`/stats\` - View paste stats\n\n**Settings:**\n\`/iptracking\` - Toggle IP tracking\n\`/setgame\` - Set game restriction + bind game\n\`/mygamelinkedpastes\` - View game-bound pastes\n\`/consolefeedback\` - Toggle loading bar + welcome msg\n\n**Key Systems:**\n\`/keysystemsetup\` - Create key system for a paste\n\`/keygen\` - Generate more keys for key system\n\`/mykeysystemkeys\` - View key stats\n\`/keysystemwhitelist\` - Assign user to key\n\`/deletekeysystem\` - Delete key system\n\n**Control Panels:**\n\`/panel\` - Create control panel\n\`/mypanels\` - View panels\n\`/genkeys\` - Generate keys for a panel 🆕\n\`/viewpanelkeys\` - View all panel keys 🆕\n\`/consoleblacklist\` - Blacklist from panel\n\`/unblacklist\` - Remove from blacklist\n\`/forceexpire\` - Force expire access\n\n**Other:**\n\`/invite\` - Get bot invite link\n\`/logs\` - Set changelog notifications`, 
           flags: 0 
         }
       };
@@ -2303,58 +2370,172 @@ serve(async (req) => {
     });
   }
 
-  // Handle slash commands (type 2)
+// Handle slash commands (type 2) - use deferred response to avoid 3s timeout
   if (interaction.type === 2) {
-    try {
-      const response = await handleCommand(interaction);
-      return new Response(JSON.stringify(response), {
-        headers: { "Content-Type": "application/json" }
-      });
-    } catch (error) {
-      console.error("Command error:", error);
-      return new Response(JSON.stringify({
-        type: 4,
-        data: { content: "❌ An error occurred processing your command.", flags: 64 }
-      }), {
-        headers: { "Content-Type": "application/json" }
-      });
-    }
+    // Process command in background after sending deferred response
+    const DISCORD_APPLICATION_ID = Deno.env.get("DISCORD_APPLICATION_ID")!;
+    const interactionToken = interaction.token;
+    
+    // Fire and forget: process command and send followup
+    (async () => {
+      try {
+        const response = await handleCommand(interaction);
+        const content = response?.data?.content || "✅ Done!";
+        const flags = response?.data?.flags;
+        const components = response?.data?.components;
+        const embeds = response?.data?.embeds;
+        
+        const followupBody: any = { content };
+        if (flags) followupBody.flags = flags;
+        if (components) followupBody.components = components;
+        if (embeds) followupBody.embeds = embeds;
+        
+        await fetch(
+          `https://discord.com/api/v10/webhooks/${DISCORD_APPLICATION_ID}/${interactionToken}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(followupBody),
+          }
+        );
+      } catch (error) {
+        console.error("Command followup error:", error);
+        try {
+          await fetch(
+            `https://discord.com/api/v10/webhooks/${DISCORD_APPLICATION_ID}/${interactionToken}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: "❌ An error occurred processing your command.", flags: 64 }),
+            }
+          );
+        } catch (e) {
+          console.error("Failed to send error followup:", e);
+        }
+      }
+    })();
+
+    // Immediately return deferred response (type 5 = DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE)
+    return new Response(JSON.stringify({ type: 5, data: { flags: 64 } }), {
+      headers: { "Content-Type": "application/json" }
+    });
   }
 
-  // Handle button interactions (type 3)
+// Handle button interactions (type 3)
   if (interaction.type === 3) {
-    try {
-      const response = await handleButton(interaction);
-      return new Response(JSON.stringify(response), {
-        headers: { "Content-Type": "application/json" }
-      });
-    } catch (error) {
-      console.error("Button error:", error);
-      return new Response(JSON.stringify({
-        type: 4,
-        data: { content: "❌ An error occurred.", flags: 64 }
-      }), {
-        headers: { "Content-Type": "application/json" }
-      });
+    const customId = interaction.data?.custom_id || '';
+    
+    // Modal responses (type 9) MUST be returned immediately - can't defer
+    if (customId.startsWith('redeem_key:')) {
+      try {
+        const response = await handleButton(interaction);
+        return new Response(JSON.stringify(response), {
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (error) {
+        console.error("Modal button error:", error);
+        return new Response(JSON.stringify({
+          type: 4,
+          data: { content: "❌ An error occurred.", flags: 64 }
+        }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      }
     }
+
+    // All other buttons: defer and followup
+    const DISCORD_APPLICATION_ID = Deno.env.get("DISCORD_APPLICATION_ID")!;
+    const interactionToken = interaction.token;
+    
+    (async () => {
+      try {
+        const response = await handleButton(interaction);
+        const content = response?.data?.content || "✅ Done!";
+        const flags = response?.data?.flags;
+        const components = response?.data?.components;
+        const embeds = response?.data?.embeds;
+        
+        const followupBody: any = { content };
+        if (flags) followupBody.flags = flags;
+        if (components) followupBody.components = components;
+        if (embeds) followupBody.embeds = embeds;
+        
+        await fetch(
+          `https://discord.com/api/v10/webhooks/${DISCORD_APPLICATION_ID}/${interactionToken}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(followupBody),
+          }
+        );
+      } catch (error) {
+        console.error("Button followup error:", error);
+        try {
+          await fetch(
+            `https://discord.com/api/v10/webhooks/${DISCORD_APPLICATION_ID}/${interactionToken}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: "❌ An error occurred.", flags: 64 }),
+            }
+          );
+        } catch (e) {
+          console.error("Failed to send button error followup:", e);
+        }
+      }
+    })();
+
+    return new Response(JSON.stringify({ type: 5, data: { flags: 64 } }), {
+      headers: { "Content-Type": "application/json" }
+    });
   }
 
-  // Handle modal submissions (type 5)
+  // Handle modal submissions (type 5) - use deferred response
   if (interaction.type === 5) {
-    try {
-      const response = await handleModal(interaction);
-      return new Response(JSON.stringify(response), {
-        headers: { "Content-Type": "application/json" }
-      });
-    } catch (error) {
-      console.error("Modal error:", error);
-      return new Response(JSON.stringify({
-        type: 4,
-        data: { content: "❌ An error occurred.", flags: 64 }
-      }), {
-        headers: { "Content-Type": "application/json" }
-      });
-    }
+    const DISCORD_APPLICATION_ID = Deno.env.get("DISCORD_APPLICATION_ID")!;
+    const interactionToken = interaction.token;
+    
+    (async () => {
+      try {
+        const response = await handleModal(interaction);
+        const content = response?.data?.content || "✅ Done!";
+        const flags = response?.data?.flags;
+        const components = response?.data?.components;
+        const embeds = response?.data?.embeds;
+        
+        const followupBody: any = { content };
+        if (flags) followupBody.flags = flags;
+        if (components) followupBody.components = components;
+        if (embeds) followupBody.embeds = embeds;
+        
+        await fetch(
+          `https://discord.com/api/v10/webhooks/${DISCORD_APPLICATION_ID}/${interactionToken}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(followupBody),
+          }
+        );
+      } catch (error) {
+        console.error("Modal followup error:", error);
+        try {
+          await fetch(
+            `https://discord.com/api/v10/webhooks/${DISCORD_APPLICATION_ID}/${interactionToken}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: "❌ An error occurred.", flags: 64 }),
+            }
+          );
+        } catch (e) {
+          console.error("Failed to send modal error followup:", e);
+        }
+      }
+    })();
+
+    return new Response(JSON.stringify({ type: 5, data: { flags: 64 } }), {
+      headers: { "Content-Type": "application/json" }
+    });
   }
 
   return new Response(JSON.stringify({ type: 1 }), {

@@ -334,7 +334,9 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   showConsoleFeedback?: boolean;
   serverNonce?: string;
   trustLevel?: number; // 0-100
+  vmConfig?: ReturnType<typeof createVMConfig>;
 }): string {
+  const vmConfig = options?.vmConfig || createVMConfig(vmSeedFromStr(token));
   const tokenParts = [];
   for (let i = 0; i < token.length; i += 8) {
     tokenParts.push(token.slice(i, i + 8));
@@ -363,7 +365,8 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
      'splitExec','chunkCompile','antiWritefile','dumpTrap',
      'runtimeEntropy','entropyCollect','frameTiming','proofHash',
      'fetchGuard','intentCheck','dumpPoison','silentDegrade',
-     'fragA','fragB','fragC','reassemble','decayTimer'
+     'fragA','fragB','fragC','reassemble','decayTimer',
+     'vmDec','vmS','vmBuf','vmPc','vmOp','vmM','vmL','vmD','vmCode'
     ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
   );
   
@@ -1024,32 +1027,39 @@ ${v.memWipe}(${v.tokenParts})
 -- Build request URL with v9 runtime proof
 local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&entropy=" .. (fp.entropy or "0") .. "&snonce=" .. fp.nonce .. "&_=" .. tostring(tick())
 
--- Decryption utilities
-local ${v.hexBytes} = function(h)
-  local o = table.create(math.floor(#h / 2))
-  local j = 1
-  for i = 1, #h, 2 do
-    o[j] = tonumber(h:sub(i, i + 1), 16) or 0
-    j += 1
+-- VM Decode Engine v10
+local ${v.vmDec} = function(data, method, keyb)
+  local out = table.create(#data)
+  if method == 0 then
+    for i = 1, #data do out[i] = bit32.bxor(data[i], keyb[((i-1) % #keyb) + 1]) end
+  elseif method == 1 then
+    for i = 1, #data do
+      local dv = bit32.bxor(data[i], bit32.band(((i-1)*7+3), 0xFF))
+      out[i] = bit32.band(dv - keyb[((i-1) % #keyb) + 1], 0xFF)
+    end
+  elseif method == 2 then
+    for i = 1, #data do
+      local dv = bit32.bxor(data[i], keyb[((i-1) % #keyb) + 1])
+      out[i] = bit32.band(bit32.bor(bit32.rshift(dv, 3), bit32.lshift(dv, 5)), 0xFF)
+    end
+  elseif method == 3 then
+    local tmp = table.create(#data)
+    for i = 1, #data do tmp[i] = bit32.bxor(data[i], keyb[((i-1) % #keyb) + 1]) end
+    for i = 1, #tmp - 1, 2 do tmp[i], tmp[i+1] = tmp[i+1], tmp[i] end
+    out = tmp
+  elseif method == 4 then
+    for i = 1, #data do
+      local dv = data[i]
+      dv = bit32.band(bit32.bor(bit32.rshift(dv, 1), bit32.lshift(dv, 7)), 0xFF)
+      dv = bit32.bxor(dv, bit32.band(((i-1)*13+37), 0xFF))
+      out[i] = bit32.band(dv - keyb[((i-1) % #keyb) + 1], 0xFF)
+    end
+  else
+    for i = 1, #data do out[i] = bit32.bxor(data[i], keyb[((i-1) % #keyb) + 1]) end
   end
-  return o
-end
-
-local ${v.xorBytes} = function(b, k)
-  local o = table.create(#b)
-  local kl = #k
-  for i = 1, #b do
-    o[i] = bit32.bxor(b[i], k[((i - 1) % kl) + 1])
-  end
-  return o
-end
-
-local ${v.bytesToString} = function(b)
-  local c = table.create(#b)
-  for i = 1, #b do
-    c[i] = string.char(b[i])
-  end
-  return table.concat(c)
+  local chars = table.create(#out)
+  for i = 1, #out do chars[i] = string.char(out[i]) end
+  return table.concat(chars)
 end
 
 -- v9: Generate decryption key with runtime entropy binding
@@ -1110,44 +1120,83 @@ if s and r then
     return
   end
 
-  -- Handle encrypted response
+  -- Handle VM-compiled response
   if ${v.isHex}(r) then
-    local ${v.decPayload} = ${v.antiGC}(${v.bytesToString}(${v.xorBytes}(${v.hexBytes}(r), kb)))
-    
-    -- v9: Final security sweep - dump poison instead of block
+    -- Convert hex to byte array
+    local ${v.vmS} = {}
+    for i = 1, #r, 2 do
+      ${v.vmS}[#${v.vmS} + 1] = tonumber(r:sub(i, i+1), 16) or 0
+    end
+    r = nil
+
+    -- Final security sweep
     if not ${v.antiHook}() or not ${v.antiEnvLog}() or not ${v.antiLogger}() or not ${v.antiDump}() then
       ${v.silentDegrade}()
     end
-    
-${options?.showConsoleFeedback ? `    pcall(function()
-      local function ultBar(msg, pct)
-        local barLen = 20
-        local filled = math.floor(barLen * pct / 100)
-        local empty = barLen - filled
-        print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
-      end
-      ultBar("Script loaded successfully.", 100)
-      local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v9.0")
-    end)
+
+    -- VM Interpreter Loop
+    local ${v.vmBuf} = {}
+    local ${v.vmPc} = 1
+
+    while ${v.vmPc} <= #${v.vmS} do
+      local ${v.vmOp} = ${v.vmS}[${v.vmPc}]
+
+      if ${v.vmOp} == ${vmConfig.LOAD} then
+        local ${v.vmM} = ${v.vmS}[${v.vmPc} + 1]
+        local ${v.vmL} = ${v.vmS}[${v.vmPc} + 2] * 256 + ${v.vmS}[${v.vmPc} + 3]
+        local ${v.vmD} = table.create(${v.vmL})
+        for j = 1, ${v.vmL} do ${v.vmD}[j] = ${v.vmS}[${v.vmPc} + 3 + j] end
+        ${v.vmBuf}[#${v.vmBuf} + 1] = ${v.vmDec}(${v.vmD}, ${v.vmM}, kb)
+        ${v.vmPc} = ${v.vmPc} + 4 + ${v.vmL}
+
+      elseif ${v.vmOp} == ${vmConfig.EXEC} then
+        local ${v.vmCode} = ${v.antiGC}(table.concat(${v.vmBuf}))
+        for i = 1, #${v.vmBuf} do ${v.vmBuf}[i] = nil end
+
+${options?.showConsoleFeedback ? `        pcall(function()
+          local function ultBar(msg, pct)
+            local barLen = 20
+            local filled = math.floor(barLen * pct / 100)
+            local empty = barLen - filled
+            print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
+          end
+          ultBar("Script loaded successfully.", 100)
+          local pName = ${v.player}.DisplayName or ${v.player}.Name
+          print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
+          print("[ULT PROTECTION] Protected by ULT VM Protection v10.0")
+        end)
 ` : ''}
-    -- Use sandboxed execution (v9: dump poisoning enabled)
-    local ${v.execFunc}, execErr = ${v.execSandbox}(${v.decPayload})
-    
-    -- Wipe decrypted payload from memory immediately
-    ${v.decPayload} = nil
-    r = nil
-    
-    if ${v.execFunc} then
-      ${v.execFunc}()
-      ${v.execFunc} = nil
-    else
-      if execErr == "hook_detected" or execErr == "env_logger_detected" or execErr == "logger_detected" then
-        return
+        local ${v.execFunc}, execErr = ${v.execSandbox}(${v.vmCode})
+        ${v.vmCode} = nil
+        if ${v.execFunc} then
+          ${v.execFunc}()
+          ${v.execFunc} = nil
+        else
+          if execErr ~= "hook_detected" and execErr ~= "env_logger_detected" and execErr ~= "logger_detected" then
+            warn("E:" .. tostring(execErr))
+          end
+        end
+        ${v.vmPc} = ${v.vmPc} + 1
+
+      elseif ${v.vmOp} == ${vmConfig.NOP} then
+        ${v.vmPc} = ${v.vmPc} + 1
+
+      elseif ${v.vmOp} == ${vmConfig.VERIFY} then
+        if not ${v.antiHook}() then ${v.silentDegrade}() end
+        if not ${v.antiEnvLog}() then ${v.silentDegrade}() end
+        ${v.vmPc} = ${v.vmPc} + 1
+
+      elseif ${v.vmOp} == ${vmConfig.END} then
+        break
+
+      else
+        ${v.vmPc} = ${v.vmPc} + 1
       end
-      warn("E:" .. tostring(execErr))
     end
+
+    -- Wipe VM state
+    for i = 1, #${v.vmS} do ${v.vmS}[i] = nil end
+    ${v.vmS} = nil
     return
   end
 
@@ -1215,6 +1264,92 @@ blur.Name = "ULTBlur"
 blur.Size = 0
 blur.Parent = Lighting
 TweenService:Create(blur, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {Size = 20}):Play()
+
+// ===== VM PROTECTION COMPILER v10.0 =====
+// Replaces simple XOR with multi-method VM opcode compilation
+// Each session gets unique opcode assignments, making static analysis impossible
+
+function vmSeedFromStr(str: string): number {
+  let seed = 0;
+  for (let i = 0; i < str.length; i++) {
+    seed = ((seed << 5) - seed + str.charCodeAt(i)) & 0x7fffffff;
+  }
+  return Math.max(seed, 1);
+}
+
+function createVMConfig(seed: number) {
+  const rng = (s: number) => ((s * 1103515245 + 12345) & 0x7fffffff);
+  let s = seed;
+  const used = new Set<number>();
+  const getUnique = (): number => {
+    let v: number;
+    do { s = rng(s); v = (s % 250) + 1; } while (used.has(v));
+    used.add(v);
+    return v;
+  };
+  return { LOAD: getUnique(), EXEC: getUnique(), NOP: getUnique(), VERIFY: getUnique(), END: getUnique() };
+}
+
+function encodeVMChunk(chunk: string, method: number, keyBytes: number[]): number[] {
+  const data = Array.from(new TextEncoder().encode(chunk));
+  switch (method % 5) {
+    case 0: return data.map((b, i) => b ^ keyBytes[i % keyBytes.length]);
+    case 1: return data.map((b, i) => ((b + keyBytes[i % keyBytes.length]) & 0xFF) ^ ((i * 7 + 3) & 0xFF));
+    case 2: return data.map((b, i) => (((b << 3) | (b >> 5)) & 0xFF) ^ keyBytes[i % keyBytes.length]);
+    case 3: {
+      const rev = [...data];
+      for (let i = 0; i < rev.length - 1; i += 2) [rev[i], rev[i + 1]] = [rev[i + 1], rev[i]];
+      return rev.map((b, i) => b ^ keyBytes[i % keyBytes.length]);
+    }
+    case 4: return data.map((b, i) => {
+      let v = (b + keyBytes[i % keyBytes.length]) & 0xFF;
+      v = v ^ ((i * 13 + 37) & 0xFF);
+      return ((v << 1) | (v >> 7)) & 0xFF;
+    });
+    default: return data.map((b, i) => b ^ keyBytes[i % keyBytes.length]);
+  }
+}
+
+function compileToVM(source: string, token: string, keyStr: string): string {
+  const seed = vmSeedFromStr(token);
+  const config = createVMConfig(seed);
+  const keyBytes = Array.from(new TextEncoder().encode(keyStr));
+
+  // Split source into variable-size chunks
+  const chunks: string[] = [];
+  let pos = 0;
+  let ci = 0;
+  while (pos < source.length) {
+    const cseed = vmSeedFromStr(token + ci.toString());
+    const size = Math.min(30 + (cseed % 50), source.length - pos);
+    chunks.push(source.substring(pos, pos + size));
+    pos += size;
+    ci++;
+  }
+
+  const stream: number[] = [];
+  for (let i = 0; i < chunks.length; i++) {
+    const method = i % 5;
+    const encoded = encodeVMChunk(chunks[i], method, keyBytes);
+    if (Math.random() > 0.6) stream.push(config.NOP);
+    stream.push(config.LOAD, method, (encoded.length >> 8) & 0xFF, encoded.length & 0xFF, ...encoded);
+    if (Math.random() > 0.75) stream.push(config.VERIFY);
+  }
+  stream.push(config.EXEC, config.END);
+  return stream.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function poisonSource(content: string): string {
+  const chars = content.split('');
+  const mutations = Math.floor(chars.length * 0.02);
+  for (let i = 0; i < mutations; i++) {
+    const idx = Math.floor(Math.random() * chars.length);
+    if (/[a-zA-Z0-9]/.test(chars[idx])) {
+      chars[idx] = 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)];
+    }
+  }
+  return chars.join('');
+}
 
 
 
@@ -1769,6 +1904,7 @@ Deno.serve(async (req) => {
       const sessionSecret = generateSessionSecret(clientIp, Date.now());
       const serverNonce = generateServerNonce();
       const trustLevel = getTrustScore(clientIp);
+      const freshVmConfig = createVMConfig(vmSeedFromStr(newToken));
       await supabase.from('paste_execution_tokens').insert({
         paste_id: paste.id,
         roblox_user_id: '0',
@@ -1779,6 +1915,7 @@ Deno.serve(async (req) => {
         showConsoleFeedback: paste.show_loading_bar !== false,
         serverNonce,
         trustLevel,
+        vmConfig: freshVmConfig,
       });
       console.log(`Refreshed loader for paste: ${paste.id} from IP: ${clientIp}`);
       return new Response(loader, { status: 200, headers: textHeaders });
@@ -1859,6 +1996,7 @@ Deno.serve(async (req) => {
         .from('control_panels')
         .select('id, name, created_at')
         .eq('paste_id', paste.id)
+        .eq('is_keysystem', true)
         .order('created_at', { ascending: false });
 
       if (error || !panels || panels.length === 0) return [];
@@ -1990,12 +2128,16 @@ loadstring(game:HttpGet(_url))()`;
     }
 
     // ===== ANTI-FETCH PROTECTION =====
-    // When anti_fetch_enabled, raw fetches (setclipboard, game:HttpGet copy) get a fake response.
-    // Only requests with valid execution tokens/uid pass through.
-    if (paste.anti_fetch_enabled && !isLikelyBrowser && !uid && !tk && !kbt) {
-      console.log(`[get-paste] ANTI-FETCH blocked raw fetch for slug=${slug} ip=${clientIp}`);
-      return new Response('-- Protected by ULT LUA', { status: 200, headers: textHeaders });
-    }
+    // When anti_fetch_enabled, block raw fetches that have NO execution context.
+    // Allow through: browser requests, requests with uid (loadstring execution), 
+    // requests with tk (token-based auth), requests with kbt (key bypass token).
+    // This means loadstring(game:HttpGet("url"))() still works because:
+    //   - First request (no uid) returns loader/key system GUI (those paths are handled BELOW)
+    //   - Second request from loader has uid+tk, so it passes through here
+    // But setclipboard(game:HttpGet("url")) gets blocked because it never sends uid/tk.
+    // NOTE: We only block here for NON-protected, NON-keysystem pastes.
+    // Protected pastes already return a loader (not raw content) when uid is missing.
+    // Key system pastes return the key GUI when uid is missing.
 
     // Validate non-browser requests for protected pastes
     if ((paste.protection_enabled || paste.public_protection || paste.hide_code) && !isLikelyBrowser) {
@@ -2005,12 +2147,27 @@ loadstring(game:HttpGet(_url))()`;
       }
     }
 
+    // ===== GLOBAL ANTI-FETCH PROTECTION =====
+    // This runs for ALL paste types (protected, public-protection, non-protected).
+    // When anti_fetch_enabled is on and there's no execution context (no uid, no tk, no kbt, no key),
+    // return a mini loader. setclipboard copies "-- Protected by ULT LUA" (useless).
+    // loadstring executes the loader which re-fetches with uid to get the real content.
+    if (paste.anti_fetch_enabled && !uid && !tk && !kbt && !keyParam && !isLikelyBrowser) {
+      console.log(`[get-paste] ANTI-FETCH: returning mini loader for slug=${slug} ip=${clientIp}`);
+      const miniLoader = `-- Protected by ULT LUA
+local _p = game:GetService("Players").LocalPlayer
+if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
+loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())))()`;
+      return new Response(miniLoader, { status: 200, headers: textHeaders });
+    }
+
     // ===== NON-PROTECTED PASTE (no protection, no public_protection) =====
     if (!paste.protection_enabled && !paste.public_protection) {
       const keyPanel = await getPreferredKeyPanel();
       
-      if (keyPanel && !uid && !tk && !isLikelyBrowser) {
+      if (keyPanel && !tk && !kbt && !isLikelyBrowser && !keyParam) {
         // Paste has a key system - return key system GUI
+        // This fires when uid IS provided (from mini loader) or when anti-fetch is off
         console.log(`[get-paste] Returning key system GUI for paste: ${paste.id} panel: ${keyPanel.name}`);
         // Fetch panel details for logo_url
         const { data: panelDetails } = await supabase.from('control_panels').select('logo_url').eq('id', keyPanel.id).single();
@@ -2034,6 +2191,7 @@ loadstring(game:HttpGet(_url))()`;
         await logAccess(uid, 'execution', true);
         await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
       }
+
       return new Response(paste.content, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
@@ -2062,6 +2220,7 @@ loadstring(game:HttpGet(_url))()`;
           const sessionSecret = generateSessionSecret(clientIp, Date.now());
           const serverNonce = generateServerNonce();
           const trustLevel = getTrustScore(clientIp);
+          const kbtVmConfig = createVMConfig(vmSeedFromStr(newToken));
           await supabase.from('paste_execution_tokens').insert({
             paste_id: paste.id, roblox_user_id: uid, token: newToken,
             expires_at: new Date(Date.now() + 30000).toISOString()
@@ -2070,6 +2229,7 @@ loadstring(game:HttpGet(_url))()`;
             showConsoleFeedback: paste.show_loading_bar !== false,
             serverNonce,
             trustLevel,
+            vmConfig: kbtVmConfig,
           });
           return new Response(loader, { status: 200, headers: textHeaders });
         } else {
@@ -2102,6 +2262,7 @@ loadstring(game:HttpGet(_url))()`;
       const sessionSecret = generateSessionSecret(clientIp, Date.now());
       const serverNonce = generateServerNonce();
       const trustLevel = getTrustScore(clientIp);
+      const mainVmConfig = createVMConfig(vmSeedFromStr(newToken));
       await supabase.from('paste_execution_tokens').insert({
         paste_id: paste.id, roblox_user_id: '0', token: newToken,
         expires_at: new Date(Date.now() + 30000).toISOString()
@@ -2110,8 +2271,9 @@ loadstring(game:HttpGet(_url))()`;
         showConsoleFeedback: paste.show_loading_bar !== false,
         serverNonce,
         trustLevel,
+        vmConfig: mainVmConfig,
       });
-      console.log(`Generated secure loader v9 for paste: ${paste.id} from IP: ${clientIp}`);
+      console.log(`Generated VM loader v10 for paste: ${paste.id} from IP: ${clientIp}`);
       return new Response(loader, { status: 200, headers: textHeaders });
     }
 
@@ -2210,15 +2372,15 @@ loadstring(game:HttpGet(_url))()`;
       await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
       console.log(`Public protection access granted: ${uid} for paste: ${paste.id}`);
       
-      // v9: Use runtime-bound key with entropy
+      // v10: VM-compiled delivery with runtime-bound key
       const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
       
       if (shouldPoison) {
-        console.log(`[get-paste] POISONING payload for low-trust ip=${clientIp} trust=${trustLevel}`);
-        return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
+        console.log(`[get-paste] POISONING VM payload for low-trust ip=${clientIp} trust=${trustLevel}`);
+        return new Response(compileToVM(poisonSource(paste.content), tk, key), { status: 200, headers: textHeaders });
       }
       
-      return new Response(xorToHex(paste.content, key), { status: 200, headers: textHeaders });
+      return new Response(compileToVM(paste.content, tk, key), { status: 200, headers: textHeaders });
     }
 
     const { data: accessList } = await supabase
@@ -2267,15 +2429,15 @@ loadstring(game:HttpGet(_url))()`;
     await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
     console.log(`Access granted: ${uid} for paste: ${paste.id}`);
 
-    // v9: Runtime-bound encryption key
+    // v10: VM-compiled delivery with runtime-bound key
     const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
     
     if (shouldPoison) {
-      console.log(`[get-paste] POISONING payload for low-trust ip=${clientIp} trust=${trustLevel}`);
-      return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
+      console.log(`[get-paste] POISONING VM payload for low-trust ip=${clientIp} trust=${trustLevel}`);
+      return new Response(compileToVM(poisonSource(paste.content), tk, key), { status: 200, headers: textHeaders });
     }
     
-    return new Response(xorToHex(paste.content, key), {
+    return new Response(compileToVM(paste.content, tk, key), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
     });
 

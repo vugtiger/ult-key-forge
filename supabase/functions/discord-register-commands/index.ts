@@ -326,6 +326,28 @@ const commands = [
     ]
   },
 
+  // Generate Keys for Control Panel
+  {
+    name: "genkeys",
+    description: "Generate keys for an existing control panel",
+    options: [
+      { name: "panel", description: "Control panel name", type: 3, required: true },
+      { name: "amount", description: "Number of keys to generate (1-100)", type: 4, required: true, min_value: 1, max_value: 100 },
+      { name: "minutes", description: "Minutes until keys expire", type: 4, required: false },
+      { name: "hours", description: "Hours until keys expire", type: 4, required: false },
+      { name: "days", description: "Days until keys expire", type: 4, required: false }
+    ]
+  },
+
+  // View Panel Keys
+  {
+    name: "viewpanelkeys",
+    description: "View all keys for a control panel with their status",
+    options: [
+      { name: "panel", description: "Control panel name", type: 3, required: true }
+    ]
+  },
+
   // Help Command
   {
     name: "help",

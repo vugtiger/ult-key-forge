@@ -1,0 +1,1 @@
+ALTER TABLE public.control_panels ADD COLUMN is_keysystem boolean NOT NULL DEFAULT false;
