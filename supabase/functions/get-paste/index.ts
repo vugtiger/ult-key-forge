@@ -1859,6 +1859,7 @@ Deno.serve(async (req) => {
         .from('control_panels')
         .select('id, name, created_at')
         .eq('paste_id', paste.id)
+        .eq('is_keysystem', true)
         .order('created_at', { ascending: false });
 
       if (error || !panels || panels.length === 0) return [];
