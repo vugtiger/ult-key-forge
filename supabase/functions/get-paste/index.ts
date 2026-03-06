@@ -2009,28 +2009,23 @@ loadstring(game:HttpGet(_url))()`;
       }
     }
 
-    // ===== NON-PROTECTED PASTE (no protection, no public_protection) =====
-    if (!paste.protection_enabled && !paste.public_protection) {
-      const keyPanel = await getPreferredKeyPanel();
-      
-      // ANTI-FETCH + KEY SYSTEM: When anti-fetch is enabled and there's a key system,
-      // return a mini loader instead of the raw key system GUI.
-      // setclipboard(game:HttpGet("url")) copies the mini loader (useless text)
-      // loadstring(game:HttpGet("url"))() executes the loader which re-fetches with uid to get the real GUI
-      if (paste.anti_fetch_enabled && keyPanel && !uid && !tk && !kbt && !keyParam && !isLikelyBrowser) {
-        console.log(`[get-paste] ANTI-FETCH: returning mini loader for keysystem paste slug=${slug} ip=${clientIp}`);
-        const miniLoader = `-- Protected by ULT LUA
+    // ===== GLOBAL ANTI-FETCH PROTECTION =====
+    // This runs for ALL paste types (protected, public-protection, non-protected).
+    // When anti_fetch_enabled is on and there's no execution context (no uid, no tk, no kbt, no key),
+    // return a mini loader. setclipboard copies "-- Protected by ULT LUA" (useless).
+    // loadstring executes the loader which re-fetches with uid to get the real content.
+    if (paste.anti_fetch_enabled && !uid && !tk && !kbt && !keyParam && !isLikelyBrowser) {
+      console.log(`[get-paste] ANTI-FETCH: returning mini loader for slug=${slug} ip=${clientIp}`);
+      const miniLoader = `-- Protected by ULT LUA
 local _p = game:GetService("Players").LocalPlayer
 if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
 loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())))()`;
-        return new Response(miniLoader, { status: 200, headers: textHeaders });
-      }
+      return new Response(miniLoader, { status: 200, headers: textHeaders });
+    }
 
-      // ANTI-FETCH without key system: block raw fetch when no uid
-      if (paste.anti_fetch_enabled && !keyPanel && !uid && !tk && !kbt && !isLikelyBrowser) {
-        console.log(`[get-paste] ANTI-FETCH blocked raw fetch for slug=${slug} ip=${clientIp}`);
-        return new Response('-- Protected by ULT LUA', { status: 200, headers: textHeaders });
-      }
+    // ===== NON-PROTECTED PASTE (no protection, no public_protection) =====
+    if (!paste.protection_enabled && !paste.public_protection) {
+      const keyPanel = await getPreferredKeyPanel();
       
       if (keyPanel && !tk && !kbt && !isLikelyBrowser && !keyParam) {
         // Paste has a key system - return key system GUI
