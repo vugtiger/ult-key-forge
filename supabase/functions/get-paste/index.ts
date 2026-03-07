@@ -363,8 +363,8 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
      'splitExec','chunkCompile','antiWritefile','dumpTrap',
      'runtimeEntropy','entropyCollect','frameTiming','proofHash',
      'fetchGuard','intentCheck','dumpPoison','silentDegrade',
-     'fragA','fragB','fragC','reassemble','decayTimer',
-     'vmDec','vmS','vmBuf','vmPc','vmOp','vmM','vmL','vmD','vmCode'
+      'fragA','fragB','fragC','reassemble','decayTimer',
+      'hexBytes','xorBytes','bytesToString'
     ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
   );
   
