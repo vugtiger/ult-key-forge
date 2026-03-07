@@ -2232,7 +2232,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       
       if (shouldPoison) {
         console.log(`[get-paste] POISONING payload for low-trust ip=${clientIp} trust=${trustLevel}`);
-        return new Response(xorToHex(generatePoisonedPayload(paste.content, key), key), { status: 200, headers: textHeaders });
+        return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
       }
       
       return new Response(xorToHex(paste.content, key), { status: 200, headers: textHeaders });
@@ -2288,7 +2288,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
     
     if (shouldPoison) {
       console.log(`[get-paste] POISONING payload for low-trust ip=${clientIp} trust=${trustLevel}`);
-      return new Response(xorToHex(generatePoisonedPayload(paste.content, key), key), { status: 200, headers: textHeaders });
+      return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
     }
     
     return new Response(xorToHex(paste.content, key), {
