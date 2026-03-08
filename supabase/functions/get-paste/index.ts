@@ -156,7 +156,7 @@ function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const limit = rateLimits.get(ip);
   const suspicious = suspiciousIps.get(ip);
-  if (suspicious && suspicious.strikes >= 5) {
+  if (suspicious && suspicious.strikes >= 3) {
     if (now - suspicious.lastStrike < 3600000) return false;
     suspiciousIps.delete(ip);
   }
@@ -164,13 +164,49 @@ function checkRateLimit(ip: string): boolean {
     rateLimits.set(ip, { count: 1, resetTime: now + 60000, blocked: false });
     return true;
   }
-  if (limit.count >= 20) {
+  if (limit.count >= 10) { // reduced from 20 to 10 per minute
     const currentStrikes = suspicious?.strikes || 0;
     suspiciousIps.set(ip, { strikes: currentStrikes + 1, lastStrike: now });
     return false;
   }
   limit.count++;
   return true;
+}
+
+function checkSlugThrottle(ip: string, slug: string): boolean {
+  const key = `${ip}:${slug}`;
+  const now = Date.now();
+  const entry = slugThrottle.get(key);
+  if (!entry || now > entry.resetTime) {
+    slugThrottle.set(key, { count: 1, resetTime: now + SLUG_THROTTLE_WINDOW });
+    return true;
+  }
+  if (entry.count >= SLUG_THROTTLE_MAX) return false;
+  entry.count++;
+  return true;
+}
+
+function checkGlobalLoad(): boolean {
+  const now = Date.now();
+  if (now > globalResetTime) {
+    globalRequestCount = 0;
+    globalResetTime = now + 10_000;
+  }
+  globalRequestCount++;
+  return globalRequestCount <= GLOBAL_MAX_RPS;
+}
+
+// Periodic cleanup of stale maps (every 5 min)
+let lastCleanup = Date.now();
+function cleanupMaps() {
+  const now = Date.now();
+  if (now - lastCleanup < 300_000) return;
+  lastCleanup = now;
+  for (const [k, v] of rateLimits) { if (now > v.resetTime) rateLimits.delete(k); }
+  for (const [k, v] of suspiciousIps) { if (now - v.lastStrike > 3600000) suspiciousIps.delete(k); }
+  for (const [k, v] of slugThrottle) { if (now > v.resetTime) slugThrottle.delete(k); }
+  for (const [k, v] of trustScores) { if (now - v.lastUpdate > 3600000) trustScores.delete(k); }
+  for (const [k, v] of pasteCache) { if (now - v.timestamp > PASTE_CACHE_TTL) pasteCache.delete(k); }
 }
 
 // v9: Behavioral trust scoring
