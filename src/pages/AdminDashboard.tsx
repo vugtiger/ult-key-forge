@@ -314,6 +314,11 @@ const AdminDashboard = () => {
             </TabsList>
           </div>
 
+          {/* ===== JARVIS ===== */}
+          <TabsContent value="jarvis" className="mt-6">
+            <JarvisAI />
+          </TabsContent>
+
           {/* ===== THREATS ===== */}
           <TabsContent value="threats" className="mt-6">
             <Section>
