@@ -291,7 +291,7 @@ const AdminDashboard = () => {
           <div className="border-b border-border/10 -mx-6 px-6">
             <TabsList className="bg-transparent h-auto p-0 gap-0 rounded-none">
               {[
-                { value: "jarvis", icon: Bot, label: "J.A.R.V.I.S" },
+                
                 { value: "threats", icon: Crosshair, label: "Threats", badge: unresolvedThreats.length || undefined },
                 { value: "global-bans", icon: ShieldAlert, label: "Bans" },
                 { value: "users", icon: Users, label: "Users" },
