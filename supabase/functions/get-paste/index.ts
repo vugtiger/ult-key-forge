@@ -81,6 +81,42 @@ function logThreat(type: string, ip: string | null, robloxId: string | null, dis
   }).then(() => {}).catch(e => console.error('Threat log failed:', e));
 }
 
+// ===== AUTO-BAN: When a globally banned user connects from a new IP, ban that IP too =====
+// In-memory set to avoid duplicate insert attempts within same isolate
+const autoBannedIpsThisSession = new Set<string>();
+
+function autoBanNewIp(ip: string, reason: string, robloxId: string | null, discordId: string | null) {
+  if (!ip || ip === 'unknown') return;
+  // Already in cache or already auto-banned this session? Skip.
+  if (globalBanCache.ips.has(ip) || autoBannedIpsThisSession.has(ip)) return;
+  // Check subnets too
+  for (const subnet of globalBanCache.subnets) {
+    if (ip.startsWith(subnet)) return; // Already covered by subnet ban
+  }
+  
+  autoBannedIpsThisSession.add(ip);
+  // Add to in-memory cache immediately so it's blocked for subsequent requests
+  globalBanCache.ips.add(ip);
+  
+  const banReason = `Auto-banned: ${reason}${robloxId ? ` (roblox:${robloxId})` : ''}${discordId ? ` (discord:${discordId})` : ''}`;
+  
+  // Insert into DB (fire-and-forget, upsert to avoid conflicts)
+  supabase.from('global_bans').upsert({
+    ban_type: 'ip',
+    ban_value: ip,
+    reason: banReason,
+    is_active: true,
+  }, { onConflict: 'ban_type,ban_value' })
+    .then(() => console.log(`[AUTO-BAN] IP ${ip} banned: ${banReason}`))
+    .catch(e => console.error('Auto-ban insert failed:', e));
+  
+  // Log threat
+  logThreat('auto_ban_vpn_ip', ip, robloxId, discordId, { 
+    action: 'new_ip_auto_banned', 
+    reason: banReason 
+  }, 'high');
+}
+
 // Enhanced rate limiting with IP tracking (persists within isolate lifetime)
 const rateLimits = new Map<string, { count: number; resetTime: number; blocked: boolean }>();
 const suspiciousIps = new Map<string, { strikes: number; lastStrike: number }>();
