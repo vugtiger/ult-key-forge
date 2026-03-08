@@ -2311,23 +2311,54 @@ Deno.serve(async (req) => {
       console.log(`[get-paste] SUSPICIOUS fetch timing from ${clientIp}`);
     }
     
+    // ===== BOT DETECTION + AUTO-BAN =====
     if (!validationResult.valid && validationResult.reason !== 'browser_headers' && 
         validationResult.reason !== 'html_accept' && validationResult.reason !== 'origin_referer') {
-      console.log(`[get-paste] BLOCKED: ${validationResult.reason} from ${clientIp}`);
-      const strikes = (suspiciousIps.get(clientIp)?.strikes || 0) + 2;
-      suspiciousIps.set(clientIp, { strikes, lastStrike: Date.now() });
+      console.log(`[get-paste] BLOCKED+BANNED: ${validationResult.reason} from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
+      // Auto-ban the IP for bot/tool access attempts
+      autoBanNewIp(clientIp, `bot_detected_${validationResult.reason}`, uid || null, null);
+      logThreat('bot_access_attempt', clientIp, uid || null, null, { 
+        reason: validationResult.reason, 
+        user_agent: userAgent.substring(0, 200),
+        slug: slug || 'none',
+        action: 'instant_ip_ban',
+      }, 'critical');
       return new Response(generateHoneypot(), { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
     
-    // Block spoofed Roblox-Id
+    // ===== SPOOFED ROBLOX UA DETECTION =====
+    const spoofCheck = isSpookedRobloxRequest(req.headers);
+    if (spoofCheck.spoofed) {
+      console.log(`[get-paste] SPOOFED ROBLOX DETECTED: ${spoofCheck.reason} from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
+      autoBanNewIp(clientIp, `spoofed_roblox_${spoofCheck.reason}`, uid || null, null);
+      logThreat('spoofed_roblox_ua', clientIp, uid || null, null, {
+        reason: spoofCheck.reason,
+        user_agent: userAgent.substring(0, 200),
+        slug: slug || 'none',
+        action: 'instant_ip_ban',
+      }, 'critical');
+      return new Response(generateHoneypot(), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+    
+    // Block spoofed Roblox-Id header + auto-ban
     const robloxIdHeader = req.headers.get('roblox-id') || req.headers.get('Roblox-Id') || '';
     if (robloxIdHeader) {
       const robloxIdNum = parseInt(robloxIdHeader, 10);
       if (isNaN(robloxIdNum) || robloxIdNum < 1000) {
-        console.log(`[get-paste] BLOCKED: spoofed Roblox-Id="${robloxIdHeader}" from ${clientIp}`);
+        console.log(`[get-paste] BLOCKED+BANNED: spoofed Roblox-Id="${robloxIdHeader}" from ${clientIp}`);
+        autoBanNewIp(clientIp, 'spoofed_roblox_id_header', null, null);
+        logThreat('spoofed_roblox_id', clientIp, null, null, {
+          roblox_id_header: robloxIdHeader,
+          user_agent: userAgent.substring(0, 200),
+          slug: slug || 'none',
+          action: 'instant_ip_ban',
+        }, 'critical');
         return new Response(generateHoneypot(), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
@@ -2335,10 +2366,31 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Block curl/wget
+    // Block curl/wget + auto-ban
     const uaLower = userAgent.toLowerCase();
     if (uaLower.includes('curl') || uaLower.includes('wget') || uaLower.includes('libcurl')) {
-      console.log(`[get-paste] BLOCKED: curl/wget tool detected ua="${userAgent}" from ${clientIp}`);
+      console.log(`[get-paste] BLOCKED+BANNED: curl/wget detected ua="${userAgent}" from ${clientIp}`);
+      autoBanNewIp(clientIp, 'curl_wget_access', null, null);
+      logThreat('curl_tool_access', clientIp, null, null, {
+        user_agent: userAgent.substring(0, 200),
+        slug: slug || 'none',
+        action: 'instant_ip_ban',
+      }, 'high');
+      return new Response(generateHoneypot(), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+    
+    // ===== DISCORD BOT SPECIFIC DETECTION (even if UA passed basic checks) =====
+    if (isDiscordBotRequest(req.headers)) {
+      console.log(`[get-paste] DISCORD BOT DETECTED+BANNED: from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
+      autoBanNewIp(clientIp, 'discord_bot_access', uid || null, null);
+      logThreat('discord_bot_access', clientIp, uid || null, null, {
+        user_agent: userAgent.substring(0, 200),
+        slug: slug || 'none',
+        action: 'instant_ip_ban',
+      }, 'critical');
       return new Response(generateHoneypot(), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
