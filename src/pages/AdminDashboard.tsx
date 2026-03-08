@@ -9,9 +9,11 @@ import {
   Shield, Trash2, Search, Ban, Copy, Download, Users, FileCode, Globe,
   RefreshCw, Activity, Star, Clock, Database, Eye, EyeOff, XCircle,
   AlertTriangle, ShieldAlert, ShieldCheck, Crosshair, Skull, LogOut,
-  ChevronRight, Zap, Lock, Unlock, Bot
+  ChevronRight, Zap, Lock, Unlock, Bot, ShieldBan
 } from "lucide-react";
 import JarvisAI from "@/components/JarvisAI";
+import BannedUsersTab from "@/components/access-monitor/BannedUsersTab";
+import BannedIPsTab from "@/components/access-monitor/BannedIPsTab";
 import { useNavigate } from "react-router-dom";
 
 // Types
@@ -143,6 +145,9 @@ const AdminDashboard = () => {
   const [newBanType, setNewBanType] = useState("ip");
   const [newBanValue, setNewBanValue] = useState("");
   const [newBanReason, setNewBanReason] = useState("");
+  const [bannedUsers, setBannedUsers] = useState<any[]>([]);
+  const [bannedIps, setBannedIps] = useState<any[]>([]);
+  const [bansLoading, setBansLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -181,6 +186,7 @@ const AdminDashboard = () => {
   const fetchReviews = async () => { setDbLoading(true); try { const data = await adminCall('list_reviews'); setReviews(data.reviews || []); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } finally { setDbLoading(false); } };
   const fetchGlobalBans = async () => { try { const data = await adminCall('list_global_bans'); setGlobalBans(data.bans || []); } catch (e: any) { console.error(e); } };
   const fetchThreats = async () => { try { const data = await adminCall('list_threats'); setThreats(data.threats || []); } catch (e: any) { console.error(e); } };
+  const fetchOwnerBans = async () => { setBansLoading(true); try { const { data: { session } } = await supabase.auth.getSession(); if (!session) return; const response = await supabase.functions.invoke('owner-bans', { headers: { Authorization: `Bearer ${session.access_token}` } }); if (response.data) { setBannedUsers(response.data.banned_users || []); setBannedIps(response.data.banned_ips || []); } } catch (e) { console.error(e); } finally { setBansLoading(false); } };
 
   const handleDeleteUser = async (userId: string) => { if (!confirm('Permanently delete this user and all their data?')) return; try { await adminCall('delete_user', { target_user_id: userId }); toast({ title: "User Deleted" }); fetchUsers(); fetchPastes(); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } };
   const handleBanUser = async (userId: string) => { if (!banReason.trim()) { toast({ title: "Error", description: "Provide a ban reason", variant: "destructive" }); return; } try { await adminCall('ban_user', { target_user_id: userId, reason: banReason }); toast({ title: "User Banned" }); setBanReason(""); setSelectedUserId(null); fetchUsers(); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } };
@@ -294,6 +300,8 @@ const AdminDashboard = () => {
                 { value: "sessions", icon: Clock, label: "Sessions", onClick: fetchSessions },
                 { value: "activity", icon: Activity, label: "Activity", onClick: fetchActivity },
                 { value: "reviews", icon: Star, label: "Reviews", onClick: fetchReviews },
+                { value: "banned-users", icon: ShieldBan, label: "Banned Users", onClick: fetchOwnerBans },
+                { value: "banned-ips", icon: Globe, label: "Banned IPs", onClick: fetchOwnerBans },
               ].map(tab => (
                 <TabsTrigger
                   key={tab.value}
@@ -646,6 +654,16 @@ const AdminDashboard = () => {
                 </div>
               )}
             </Section>
+          </TabsContent>
+
+          {/* ===== BANNED USERS ===== */}
+          <TabsContent value="banned-users" className="mt-6">
+            <BannedUsersTab users={bannedUsers} loading={bansLoading} />
+          </TabsContent>
+
+          {/* ===== BANNED IPS ===== */}
+          <TabsContent value="banned-ips" className="mt-6">
+            <BannedIPsTab ips={bannedIps} loading={bansLoading} />
           </TabsContent>
         </Tabs>
       </main>
