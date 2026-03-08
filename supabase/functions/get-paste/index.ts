@@ -1211,7 +1211,7 @@ local ${v.execSandbox} = function(code)
   end
   
   if not ${v.antiHook}() then
-    ${v.silentDegrade}()
+    _reportBypass("hook_in_sandbox", "hook_detected_at_exec")
     if ${v.dumpPoison} then
       local fn, err = ${v.indirectExec}(code)
       return fn, err
@@ -1219,7 +1219,7 @@ local ${v.execSandbox} = function(code)
     return nil, "hook_detected"
   end
   if not ${v.antiEnvLog}() then
-    ${v.silentDegrade}()
+    _reportBypass("env_logger_sandbox", "env_logger_at_exec")
     if ${v.dumpPoison} then
       local fn, err = ${v.indirectExec}(code)
       return fn, err
@@ -1227,7 +1227,7 @@ local ${v.execSandbox} = function(code)
     return nil, "env_logger_detected"
   end
   if not ${v.antiLogger}() then
-    ${v.silentDegrade}()
+    _reportBypass("logger_sandbox", "logger_at_exec")
     if ${v.dumpPoison} then
       local fn, err = ${v.indirectExec}(code)
       return fn, err
