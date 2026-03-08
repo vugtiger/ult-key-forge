@@ -585,7 +585,7 @@ const AdminDashboard = () => {
           {/* ===== ACCESS LOGS ===== */}
           <TabsContent value="access-logs" className="mt-6">
             <Section>
-              <SectionHeader icon={Database} title="Access Logs" subtitle={`${filteredLogs.length} entries`} />
+              <SectionHeader icon={Database} title="Access Logs" subtitle={`${filteredLogs.length} entries`} actions={accessLogs.length > 0 ? <Button onClick={handleClearAllLogs} variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive"><Trash2 className="h-3 w-3 mr-1" />Clear All</Button> : undefined} />
               <SearchBar value={logSearch} onChange={setLogSearch} placeholder="Search by IP, Roblox user, paste..." onRefresh={fetchAccessLogs} />
               {dbLoading ? (
                 <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
