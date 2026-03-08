@@ -334,7 +334,13 @@ const AdminDashboard = () => {
         </div>
 
         {/* Main tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={(val) => {
+          setActiveTab(val);
+          // Auto-fetch data for lazy-loaded tabs
+          if (val === 'access-logs' && accessLogs.length === 0) fetchAccessLogs();
+          if (val === 'sessions' && sessions.length === 0) fetchSessions();
+          if (val === 'activity' && activity.length === 0) fetchActivity();
+        }} className="w-full">
           <div className="border-b border-border/10 -mx-6 px-6">
             <TabsList className="bg-transparent h-auto p-0 gap-0 rounded-none">
               {[
