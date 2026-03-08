@@ -287,6 +287,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             {children}
           </main>
         </div>
+        <JarvisVoice />
       </div>
     </SidebarProvider>
   );
