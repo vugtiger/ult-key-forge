@@ -1,5 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// MODULE-LEVEL Supabase client — reused across requests in the same isolate
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -8,11 +13,34 @@ const corsHeaders = {
   Expires: '0',
 };
 
-// Enhanced rate limiting with IP tracking
+// Enhanced rate limiting with IP tracking (persists within isolate lifetime)
 const rateLimits = new Map<string, { count: number; resetTime: number; blocked: boolean }>();
 const suspiciousIps = new Map<string, { strikes: number; lastStrike: number }>();
 // v9: Session trust scores - tracks behavioral scoring per IP
 const trustScores = new Map<string, { score: number; lastUpdate: number; requestTimes: number[] }>();
+
+// Response cache — cache paste lookups to avoid hammering DB
+const pasteCache = new Map<string, { data: any; timestamp: number }>();
+const PASTE_CACHE_TTL = 10_000; // 10 seconds
+
+function getCachedPaste(slug: string): any | null {
+  const cached = pasteCache.get(slug);
+  if (!cached) return null;
+  if (Date.now() - cached.timestamp > PASTE_CACHE_TTL) {
+    pasteCache.delete(slug);
+    return null;
+  }
+  return cached.data;
+}
+
+function setCachedPaste(slug: string, data: any) {
+  // Keep cache small
+  if (pasteCache.size > 100) {
+    const oldest = pasteCache.keys().next().value;
+    if (oldest) pasteCache.delete(oldest);
+  }
+  pasteCache.set(slug, { data, timestamp: Date.now() });
+}
 
 // ===== ANTI-FETCH PROTECTION =====
 const BLOCKED_USER_AGENTS = [
