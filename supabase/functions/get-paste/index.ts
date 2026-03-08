@@ -2255,7 +2255,7 @@ Deno.serve(async (req) => {
         logThreat('bypass_attempt_auto_ban', earlyIp, reportUid, null, {
           reason: reportReason, details: reportDetails,
           action: 'instant_global_ban', ips_banned: uniqueIps.length,
-        }, 'critical');
+        }, 'critical', true);
         
         // Force refresh bans cache
         globalBanCache.lastRefresh = 0;
