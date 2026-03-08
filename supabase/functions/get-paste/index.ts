@@ -115,7 +115,7 @@ function autoBanNewIp(ip: string, reason: string, robloxId: string | null, disco
   logThreat('auto_ban_vpn_ip', ip, robloxId, discordId, { 
     action: 'new_ip_auto_banned', 
     reason: banReason 
-  }, 'high');
+  }, 'high', true);
 }
 
 // Enhanced rate limiting with IP tracking (persists within isolate lifetime)
