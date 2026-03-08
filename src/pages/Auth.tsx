@@ -18,7 +18,9 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const banReason = (location.state as any)?.banReason;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
