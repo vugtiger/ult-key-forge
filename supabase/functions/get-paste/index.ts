@@ -1818,9 +1818,18 @@ Deno.serve(async (req) => {
       return new Response('Missing slug', { status: 400, headers: corsHeaders });
     }
 
+    // Per-IP-per-slug throttle — stop one IP from hammering the same paste
+    if (!checkSlugThrottle(clientIp, slug)) {
+      console.log(`Slug throttled: ${clientIp} on ${slug}`);
+      return new Response(generateKickPlain('Too many requests for this script - slow down'), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+
     // Supabase client is now module-level (reused across requests)
 
-    if (Math.random() < 0.01) {
+    if (Math.random() < 0.005) {
       try { await supabase.rpc('cleanup_expired_tokens'); } catch {}
     }
 
