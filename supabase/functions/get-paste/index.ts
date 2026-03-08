@@ -2340,7 +2340,7 @@ Deno.serve(async (req) => {
         user_agent: userAgent.substring(0, 200),
         slug: slug || 'none',
         action: 'instant_ip_ban',
-      }, 'critical');
+      }, 'critical', true);
       return new Response(generateHoneypot(), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
