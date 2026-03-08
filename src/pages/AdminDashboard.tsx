@@ -11,7 +11,7 @@ import {
   AlertTriangle, ShieldAlert, ShieldCheck, Crosshair, Skull, LogOut,
   ChevronRight, Zap, Lock, Unlock, Bot, ShieldBan
 } from "lucide-react";
-import JarvisAI from "@/components/JarvisAI";
+import JarvisVoice from "@/components/JarvisVoice";
 import BannedUsersTab from "@/components/access-monitor/BannedUsersTab";
 import BannedIPsTab from "@/components/access-monitor/BannedIPsTab";
 import { useNavigate } from "react-router-dom";
