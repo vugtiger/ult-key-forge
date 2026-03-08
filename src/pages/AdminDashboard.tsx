@@ -11,7 +11,7 @@ import {
   AlertTriangle, ShieldAlert, ShieldCheck, Crosshair, Skull, LogOut,
   ChevronRight, Zap, Lock, Unlock, Bot, ShieldBan
 } from "lucide-react";
-import JarvisAI from "@/components/JarvisAI";
+import JarvisVoice from "@/components/JarvisVoice";
 import BannedUsersTab from "@/components/access-monitor/BannedUsersTab";
 import BannedIPsTab from "@/components/access-monitor/BannedIPsTab";
 import { useNavigate } from "react-router-dom";
@@ -287,11 +287,11 @@ const AdminDashboard = () => {
         </div>
 
         {/* Main tabs */}
-        <Tabs defaultValue="jarvis" className="w-full">
+        <Tabs defaultValue="threats" className="w-full">
           <div className="border-b border-border/10 -mx-6 px-6">
             <TabsList className="bg-transparent h-auto p-0 gap-0 rounded-none">
               {[
-                { value: "jarvis", icon: Bot, label: "J.A.R.V.I.S" },
+                
                 { value: "threats", icon: Crosshair, label: "Threats", badge: unresolvedThreats.length || undefined },
                 { value: "global-bans", icon: ShieldAlert, label: "Bans" },
                 { value: "users", icon: Users, label: "Users" },
@@ -322,10 +322,6 @@ const AdminDashboard = () => {
             </TabsList>
           </div>
 
-          {/* ===== JARVIS ===== */}
-          <TabsContent value="jarvis" className="mt-6">
-            <JarvisAI />
-          </TabsContent>
 
           {/* ===== THREATS ===== */}
           <TabsContent value="threats" className="mt-6">
@@ -633,6 +629,7 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
+      <JarvisVoice />
     </div>
   );
 };
