@@ -1191,12 +1191,11 @@ async function handleCommand(interaction: any) {
 
     case 'logs': {
       const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      if (!user) return { type: 4, data: { content: 'Please `/register` or `/login` first.', flags: 64 } };
       
       const channelId = data.options?.find((o: any) => o.name === 'channel')?.value;
-      if (!channelId) return { type: 4, data: { content: '❌ Please provide a channel.', flags: 64 } };
+      if (!channelId) return { type: 4, data: { content: 'Please provide a channel.', flags: 64 } };
       
-      // Save channel for future auto-posting
       const guildId = interaction.guild_id || 'dm';
       await supabase.from('changelog_channels').upsert({
         user_id: user.id,
@@ -1204,32 +1203,7 @@ async function handleCommand(interaction: any) {
         channel_id: channelId,
       }, { onConflict: 'user_id,guild_id' });
       
-      // Send the latest changelog entry to that channel
-      const { data: latestChangelog } = await supabase
-        .from('changelog')
-        .select('version, title, description, changes')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (latestChangelog) {
-        const changes = Array.isArray(latestChangelog.changes) ? (latestChangelog.changes as any[]).map((c: any) => `• ${c}`).join('\n') : '';
-        await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            embeds: [{
-              title: `Changelog v${latestChangelog.version} — ${latestChangelog.title}`,
-              description: `${latestChangelog.description}\n\n${changes}`,
-              color: 0xFFFFFF,
-              footer: { text: 'ULT LUA PROTECTS' },
-              timestamp: new Date().toISOString(),
-            }]
-          })
-        });
-      }
-      
-      return { type: 4, data: { content: `✅ Changelog notifications set up in <#${channelId}>! The latest update has been posted. New updates will be automatically sent to this channel.`, flags: 64 } };
+      return { type: 4, data: { content: `Changelog notifications set up in <#${channelId}>! When the owner sends /sendlogs, updates will be posted there.`, flags: 64 } };
     }
 
     // backgroundprotection removed - not needed as separate command
