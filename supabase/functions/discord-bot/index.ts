@@ -651,6 +651,19 @@ async function handleCommand(interaction: any) {
         return { type: 4, data: { content: '❌ Please upload a file.', flags: 64 } };
       }
 
+      // Validate file size (max 1MB) and type
+      if (attachment.size && attachment.size > 1_000_000) {
+        return { type: 4, data: { content: '❌ File too large (max 1MB).', flags: 64 } };
+      }
+      const allowedExts = ['.lua', '.txt', '.luau', '.rbxs'];
+      const fileExt = (attachment.filename || '').toLowerCase().match(/\.[^.]+$/)?.[0] || '';
+      if (fileExt && !allowedExts.includes(fileExt)) {
+        return { type: 4, data: { content: `❌ Only script files allowed (${allowedExts.join(', ')}).`, flags: 64 } };
+      }
+      if (attachment.content_type && !attachment.content_type.startsWith('text/') && attachment.content_type !== 'application/octet-stream') {
+        return { type: 4, data: { content: '❌ Only text files allowed.', flags: 64 } };
+      }
+
       // Fetch file content
       const scriptContent = await fetchAttachment(attachment.url);
 
