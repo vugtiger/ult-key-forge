@@ -1481,7 +1481,7 @@ if s and r then
 
     -- Final security sweep
     if not ${v.antiHook}() or not ${v.antiEnvLog}() or not ${v.antiLogger}() or not ${v.antiDump}() then
-      ${v.silentDegrade}()
+      _reportBypass("final_sweep", "bypass_detected_at_decrypt")
     end
 
     local decoded = ${v.xorBytes}(rawBytes, kb)
