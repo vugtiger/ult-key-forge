@@ -131,6 +131,23 @@ const AccessMonitor = () => {
     }
   };
 
+  const clearAllLogs = async () => {
+    if (!selectedPasteId) return;
+    setClearing(true);
+    try {
+      const { error } = await supabase
+        .from('paste_access_logs')
+        .delete()
+        .eq('paste_id', selectedPasteId);
+      if (!error) {
+        setAccessLogs([]);
+        toast({ title: "Cleared", description: "All access logs cleared (bans are unaffected)" });
+      }
+    } finally {
+      setClearing(false);
+    }
+  };
+
   return (
     <Card className="cyber-border bg-card/50 backdrop-blur-xl">
       <CardHeader>
