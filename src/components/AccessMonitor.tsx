@@ -3,12 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import { Shield, Eye, Radio } from "lucide-react";
+import { Shield, Eye, Radio, Trash2 } from "lucide-react";
 import AccessLogRow from "@/components/access-monitor/AccessLogRow";
 import type { AccessLog, PasteOption } from "@/components/access-monitor/types";
 import { groupForDisplay, mergeAccessLog } from "@/components/access-monitor/utils";
+import { useToast } from "@/hooks/use-toast";
 
 const AccessMonitor = () => {
   const [pastes, setPastes] = useState<PasteOption[]>([]);
