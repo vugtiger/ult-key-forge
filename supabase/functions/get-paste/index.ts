@@ -1761,19 +1761,25 @@ Deno.serve(async (req) => {
       return new Response('Missing slug', { status: 400, headers: corsHeaders });
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Supabase client is now module-level (reused across requests)
 
     if (Math.random() < 0.01) {
       try { await supabase.rpc('cleanup_expired_tokens'); } catch {}
     }
 
-    const { data: paste, error } = await supabase
-      .from('pastes')
-      .select('*')
-      .eq('slug', slug)
-      .single();
+    // Use cached paste data to avoid hammering DB
+    let paste = getCachedPaste(slug);
+    let error = null;
+    if (!paste) {
+      const result = await supabase
+        .from('pastes')
+        .select('*')
+        .eq('slug', slug)
+        .single();
+      paste = result.data;
+      error = result.error;
+      if (paste) setCachedPaste(slug, paste);
+    }
 
     if (error || !paste) {
       return new Response('Paste not found', { status: 404, headers: corsHeaders });
