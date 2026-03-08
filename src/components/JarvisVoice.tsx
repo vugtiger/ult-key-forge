@@ -7,9 +7,10 @@ type JarvisState = "idle" | "listening" | "processing" | "speaking";
 
 interface JarvisVoiceProps {
   onTabChange?: (tab: string) => void;
+  onRefreshData?: () => void;
 }
 
-const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
+const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
   const [state, setState] = useState<JarvisState>("idle");
   const [wakeWordActive, setWakeWordActive] = useState(false);
   const [lastTranscript, setLastTranscript] = useState("");
@@ -21,10 +22,8 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
   const location = useLocation();
   const { toast } = useToast();
 
-  // Get the best British male voice available
   const getBritishVoice = useCallback(() => {
     const voices = window.speechSynthesis.getVoices();
-    // Priority order for JARVIS-like voice
     const preferred = [
       "Daniel", "Google UK English Male", "Microsoft George",
       "Microsoft Ryan", "Arthur", "James", "Oliver"
@@ -33,14 +32,11 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
       const found = voices.find(v => v.name.includes(name));
       if (found) return found;
     }
-    // Fallback: any British English voice
     const british = voices.find(v => v.lang === "en-GB" || v.lang === "en_GB");
     if (british) return british;
-    // Fallback: any English male-sounding voice
     return voices.find(v => v.lang.startsWith("en")) || voices[0];
   }, []);
 
-  // Speak with JARVIS voice
   const speak = useCallback((text: string) => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
@@ -55,7 +51,6 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     utterance.onstart = () => setState("speaking");
     utterance.onend = () => {
       setState("idle");
-      // Restart wake word listening after speaking
       if (wakeWordActive) startWakeWordListening();
     };
     utterance.onerror = () => setState("idle");
@@ -64,75 +59,173 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     window.speechSynthesis.speak(utterance);
   }, [getBritishVoice, wakeWordActive]);
 
-  // Map page paths to admin dashboard tab names
+  // Call admin-api edge function
+  const callAdminApi = useCallback(async (action: string, params: Record<string, any> = {}) => {
+    console.log('[JARVIS] Calling admin-api:', action, params);
+    const { data, error } = await supabase.functions.invoke('admin-api', {
+      body: { action, ...params },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    return data;
+  }, []);
+
+  // Map paths to tab names
   const pathToTab: Record<string, string> = {
-    "/analytics": "activity",
-    "/admin": "threats",
-    "/scripts": "pastes",
-    "/settings": "users",
-    "analytics": "activity",
-    "activity": "activity",
-    "threats": "threats",
-    "users": "users",
-    "pastes": "pastes",
-    "access-logs": "access-logs",
-    "sessions": "sessions",
-    "global-bans": "global-bans",
-    "banned-users": "banned-users",
-    "banned-ips": "banned-ips",
-    "bans": "global-bans",
-    "logs": "access-logs",
+    "/analytics": "activity", "/admin": "threats", "/scripts": "pastes", "/settings": "users",
+    "analytics": "activity", "activity": "activity", "threats": "threats", "users": "users",
+    "pastes": "pastes", "access-logs": "access-logs", "sessions": "sessions",
+    "global-bans": "global-bans", "banned-users": "banned-users", "banned-ips": "banned-ips",
+    "bans": "global-bans", "logs": "access-logs",
   };
 
   // Execute JARVIS action
-  const executeAction = useCallback((action: any) => {
+  const executeAction = useCallback(async (action: any) => {
     if (!action) return;
     
     console.log('[JARVIS] Executing action:', JSON.stringify(action));
     
-    switch (action.type) {
-      case "switch_tab":
-        if (action.params?.tab && onTabChange) {
-          const tab = action.params.tab.toLowerCase();
-          const mapped = pathToTab[tab] || tab;
-          console.log('[JARVIS] Switching to tab:', mapped);
-          onTabChange(mapped);
-        }
-        break;
-      case "navigate":
-        // Fallback: convert navigation attempts to tab switches
-        if (onTabChange && action.params?.path) {
-          const path = action.params.path.toLowerCase().replace(/^\//, '');
-          const mapped = pathToTab[action.params.path] || pathToTab[path] || path;
-          console.log('[JARVIS] Converting navigate to tab switch:', mapped);
-          onTabChange(mapped);
-        }
-        break;
-      case "toggle_protection":
-        if (action.params?.slug) {
-          supabase.from('pastes')
-            .update({ protection_enabled: action.params.enabled })
-            .eq('slug', action.params.slug)
-            .then(({ error }) => {
-              if (error) console.error('Protection toggle error:', error);
+    try {
+      switch (action.type) {
+        case "switch_tab":
+          if (action.params?.tab && onTabChange) {
+            const tab = action.params.tab.toLowerCase();
+            const mapped = pathToTab[tab] || tab;
+            onTabChange(mapped);
+          }
+          break;
+
+        case "navigate":
+          // Fallback: convert navigation to tab switch
+          if (onTabChange && action.params?.path) {
+            const path = action.params.path.toLowerCase().replace(/^\//, '');
+            const mapped = pathToTab[action.params.path] || pathToTab[path] || path;
+            onTabChange(mapped);
+          }
+          break;
+
+        case "ban_user":
+          if (action.params?.target_user_id) {
+            await callAdminApi('ban_user', {
+              target_user_id: action.params.target_user_id,
+              reason: action.params.reason || 'Banned by JARVIS',
             });
-        }
-        break;
-      case "toggle_tracking":
-        if (action.params?.slug) {
-          supabase.from('pastes')
-            .update({ ip_tracking_enabled: action.params.enabled })
-            .eq('slug', action.params.slug)
-            .then(({ error }) => {
-              if (error) console.error('Tracking toggle error:', error);
+            toast({ title: "User banned", description: "JARVIS executed the ban." });
+            onRefreshData?.();
+          }
+          break;
+
+        case "unban_user":
+          if (action.params?.target_user_id) {
+            await callAdminApi('unban_user', { target_user_id: action.params.target_user_id });
+            toast({ title: "User unbanned" });
+            onRefreshData?.();
+          }
+          break;
+
+        case "add_global_ban":
+          if (action.params?.ban_type && action.params?.ban_value) {
+            await callAdminApi('add_global_ban', {
+              ban_type: action.params.ban_type,
+              ban_value: action.params.ban_value,
+              reason: action.params.reason || 'Banned by JARVIS',
             });
-        }
-        break;
-      case "create_paste":
-        navigate("/pastebin");
-        break;
+            toast({ title: "Global ban added" });
+            onRefreshData?.();
+          }
+          break;
+
+        case "remove_global_ban":
+          if (action.params?.ban_id) {
+            await callAdminApi('remove_global_ban', { ban_id: action.params.ban_id });
+            toast({ title: "Global ban removed" });
+            onRefreshData?.();
+          }
+          break;
+
+        case "resolve_threat":
+          if (action.params?.threat_id) {
+            await callAdminApi('resolve_threat', { threat_id: action.params.threat_id });
+            toast({ title: "Threat resolved" });
+            onRefreshData?.();
+          }
+          break;
+
+        case "resolve_all_threats":
+          // Resolve all threats one by one isn't efficient, use clear_threats to mark all resolved
+          await callAdminApi('clear_threats');
+          toast({ title: "All threats cleared" });
+          onRefreshData?.();
+          break;
+
+        case "delete_paste":
+          if (action.params?.paste_id) {
+            await callAdminApi('delete_paste', { paste_id: action.params.paste_id });
+            toast({ title: "Paste deleted" });
+            onRefreshData?.();
+          }
+          break;
+
+        case "delete_user":
+          if (action.params?.target_user_id) {
+            await callAdminApi('delete_user', { target_user_id: action.params.target_user_id });
+            toast({ title: "User deleted" });
+            onRefreshData?.();
+          }
+          break;
+
+        case "toggle_protection":
+          if (action.params?.slug) {
+            await supabase.from('pastes')
+              .update({ protection_enabled: action.params.enabled })
+              .eq('slug', action.params.slug);
+            toast({ title: `Protection ${action.params.enabled ? 'enabled' : 'disabled'}` });
+            onRefreshData?.();
+          }
+          break;
+
+        case "toggle_tracking":
+          if (action.params?.slug) {
+            await supabase.from('pastes')
+              .update({ ip_tracking_enabled: action.params.enabled })
+              .eq('slug', action.params.slug);
+            toast({ title: `Tracking ${action.params.enabled ? 'enabled' : 'disabled'}` });
+            onRefreshData?.();
+          }
+          break;
+
+        case "clear_threats":
+          await callAdminApi('clear_threats');
+          toast({ title: "Threats cleared" });
+          onRefreshData?.();
+          break;
+
+        case "clear_logs":
+          await callAdminApi('clear_access_logs');
+          toast({ title: "Access logs cleared" });
+          onRefreshData?.();
+          break;
+
+        case "clear_sessions":
+          await callAdminApi('clear_sessions');
+          toast({ title: "Sessions cleared" });
+          onRefreshData?.();
+          break;
+
+        case "clear_activity":
+          await callAdminApi('clear_activity');
+          toast({ title: "Activity cleared" });
+          onRefreshData?.();
+          break;
+
+        default:
+          console.warn('[JARVIS] Unknown action type:', action.type);
+      }
+    } catch (err: any) {
+      console.error('[JARVIS] Action execution error:', err);
+      toast({ title: "Action failed", description: err.message, variant: "destructive" });
     }
-  }, [navigate, onTabChange]);
+  }, [navigate, onTabChange, onRefreshData, callAdminApi, toast]);
 
   // Send command to JARVIS backend
   const processCommand = useCallback(async (text: string) => {
@@ -141,12 +234,6 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     setShowPulse(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
-
       const { data, error } = await supabase.functions.invoke('jarvis-voice', {
         body: { 
           message: text,
@@ -160,7 +247,7 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
       const action = data?.action || null;
 
       // Execute action first, then speak
-      if (action) executeAction(action);
+      if (action) await executeAction(action);
       speak(speech);
       
     } catch (err: any) {
@@ -169,7 +256,7 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     }
   }, [location.pathname, executeAction, speak]);
 
-  // Active listening (push-to-talk or after wake word)
+  // Active listening
   const startActiveListening = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -177,7 +264,6 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
       return;
     }
 
-    // Stop wake word listening while actively listening
     wakeRecognitionRef.current?.stop();
 
     const recognition = new SpeechRecognition();
@@ -207,7 +293,6 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     recognition.start();
     setState("listening");
     
-    // Play a subtle activation sound
     try {
       const ctx = new AudioContext();
       const osc = ctx.createOscillator();
@@ -222,7 +307,7 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     } catch {}
   }, [processCommand, wakeWordActive, toast, state]);
 
-  // Wake word listening (continuous, low-key)
+  // Wake word listening
   const startWakeWordListening = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return;
@@ -238,15 +323,12 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript.toLowerCase().trim();
         if (transcript.includes("jarvis") || transcript.includes("jarv")) {
-          // Stop wake word listening, start active listening
           recognition.stop();
           
-          // Check if there's a command after "jarvis"
           const afterJarvis = transcript.split(/jarv(?:is)?/i).pop()?.trim();
           if (afterJarvis && afterJarvis.length > 3 && event.results[i].isFinal) {
             processCommand(afterJarvis);
           } else {
-            // Just heard the wake word, start listening for command
             speak("Yes, sir?");
             setTimeout(() => startActiveListening(), 800);
           }
@@ -262,7 +344,6 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     };
 
     recognition.onend = () => {
-      // Restart if still in wake word mode
       if (wakeWordActive) {
         setTimeout(() => {
           try { recognition.start(); } catch {}
@@ -274,7 +355,6 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     try { recognition.start(); } catch {}
   }, [wakeWordActive, processCommand, speak, startActiveListening]);
 
-  // Toggle wake word
   const toggleWakeWord = useCallback(() => {
     if (wakeWordActive) {
       setWakeWordActive(false);
@@ -286,7 +366,6 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     }
   }, [wakeWordActive, toast]);
 
-  // Start/stop wake word listening when toggled
   useEffect(() => {
     if (wakeWordActive) {
       startWakeWordListening();
@@ -298,7 +377,6 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     };
   }, [wakeWordActive, startWakeWordListening]);
 
-  // Load voices
   useEffect(() => {
     window.speechSynthesis?.getVoices();
     window.speechSynthesis?.addEventListener?.('voiceschanged', () => {
@@ -306,7 +384,6 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     });
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       try { recognitionRef.current?.stop(); } catch {}
@@ -315,7 +392,6 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     };
   }, []);
 
-  // Hide pulse after animation
   useEffect(() => {
     if (showPulse) {
       const t = setTimeout(() => setShowPulse(false), 3000);
@@ -323,7 +399,6 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     }
   }, [showPulse]);
 
-  // Push-to-talk handler
   const handleOrbClick = useCallback(() => {
     if (state === "listening") {
       recognitionRef.current?.stop();
@@ -352,16 +427,13 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
 
   return (
     <>
-      {/* Floating JARVIS Orb */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-center gap-2">
-        {/* Status text */}
         {state !== "idle" && (
           <div className="px-3 py-1.5 rounded-lg bg-background/90 backdrop-blur-xl border border-cyan-500/20 text-[10px] font-mono tracking-widest text-cyan-400/80 uppercase animate-in fade-in slide-in-from-bottom-2 duration-200">
             {state === "listening" ? "Listening..." : state === "processing" ? "Processing..." : "Speaking..."}
           </div>
         )}
 
-        {/* Last transcript */}
         {lastTranscript && showPulse && (
           <div className="px-3 py-1.5 rounded-lg bg-background/80 backdrop-blur-xl border border-border/30 text-xs text-muted-foreground max-w-[200px] truncate animate-in fade-in slide-in-from-bottom-2 duration-200">
             "{lastTranscript}"
@@ -369,7 +441,6 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
         )}
 
         <div className="flex items-center gap-2">
-          {/* Wake word toggle */}
           <button
             onClick={toggleWakeWord}
             className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 text-[10px] font-bold tracking-wider border ${
@@ -382,23 +453,19 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
             W
           </button>
 
-          {/* Main orb */}
           <button
             onClick={handleOrbClick}
             className={`relative w-14 h-14 rounded-full bg-gradient-to-br ${stateColors[state]} border-2 shadow-lg ${glowColors[state]} transition-all duration-500 hover:scale-105 active:scale-95`}
             title={state === "idle" ? "Click to talk to JARVIS" : state === "listening" ? "Click to cancel" : "JARVIS is active"}
           >
-            {/* Outer ring */}
             <div className={`absolute inset-0 rounded-full border border-cyan-400/20 ${
               state === "listening" || state === "speaking" ? "animate-spin" : ""
             }`} style={{ animationDuration: "4s" }} />
             
-            {/* Inner ring */}
             <div className={`absolute inset-1 rounded-full border border-cyan-400/15 ${
               state === "speaking" ? "animate-spin" : ""
             }`} style={{ animationDuration: "3s", animationDirection: "reverse" }} />
 
-            {/* Core */}
             <div className={`absolute inset-3 rounded-full bg-gradient-to-br from-cyan-400/30 to-blue-500/20 flex items-center justify-center transition-all duration-300 ${
               state === "listening" ? "from-cyan-400/50 to-blue-400/40" :
               state === "speaking" ? "from-cyan-300/60 to-blue-300/40" :
@@ -412,7 +479,6 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
               }`} />
             </div>
 
-            {/* Pulse rings */}
             {(state === "listening" || state === "speaking") && (
               <>
                 <div className="absolute inset-0 rounded-full border border-cyan-400/20 animate-ping" style={{ animationDuration: "2s" }} />
