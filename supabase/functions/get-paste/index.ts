@@ -1778,11 +1778,14 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Refresh global bans cache from DB (non-blocking after first load)
+  await refreshGlobalBans();
+
   // ===== PERMANENT BAN CHECK — first thing, zero processing =====
   const earlyIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                   req.headers.get('cf-connecting-ip') || 'unknown';
   if (isPermanentlyBanned(earlyIp)) {
-    // Return empty response - no Lua, no error, nothing useful. Silent death.
+    logThreat('banned_ip_access', earlyIp, null, null, { action: 'blocked_at_gate' }, 'high');
     return new Response('', { status: 403, headers: { ...corsHeaders } });
   }
 
