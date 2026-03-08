@@ -68,6 +68,30 @@ export type Database = {
         }
         Relationships: []
       }
+      changelog_channels: {
+        Row: {
+          channel_id: string
+          created_at: string | null
+          guild_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string | null
+          guild_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string | null
+          guild_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       console_blacklist: {
         Row: {
           blacklisted_at: string
