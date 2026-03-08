@@ -167,6 +167,12 @@ const BLOCKED_USER_AGENTS = [
   'crawler', 'spider', 'scraper',
   'postman', 'insomnia', 'thunder client', 'hoppscotch', 'paw/',
   'luajit', 'resty', 'openresty',
+  // Additional bot frameworks
+  'd.js', 'oceanic.js', 'discordeno', 'harmony', 'droff',
+  'sapphire', 'klasa', 'commando', 'akairo',
+  'revolt.js', 'guilded.js',
+  'fetch/', 'http-client', 'rest-client',
+  'bot/', 'spider/', 'scrape',
 ];
 
 const SUSPICIOUS_UA_PATTERNS = [
@@ -198,6 +204,17 @@ const DISCORD_BOT_PATTERNS = [
   /bun\//i,
   /node\//i,
   /cloudflare-workers/i,
+  // Catch common bot library UAs
+  /^undici\//i,
+  /^got\//i,
+  /^axios\//i,
+  /^node-fetch/i,
+];
+
+// Known Discord/bot hosting datacenter IP ranges (common prefixes)
+const BOT_HOSTING_INDICATORS = [
+  // Headers that indicate a proxied/bot request
+  'cf-worker', 'x-discord', 'x-bot', 'x-automation',
 ];
 
 function isBlockedUserAgent(ua: string): boolean {
@@ -219,7 +236,51 @@ function isDiscordBotRequest(headers: Headers): boolean {
   const via = headers.get('via') || '';
   const xForwardedFor = headers.get('x-forwarded-for') || '';
   if (via.toLowerCase().includes('discord') || xForwardedFor.includes('discord')) return true;
+  // Check for bot hosting indicators in headers
+  for (const indicator of BOT_HOSTING_INDICATORS) {
+    if (headers.get(indicator)) return true;
+  }
   return false;
+}
+
+// Detect if a "Roblox" request is actually a spoofed bot
+function isSpookedRobloxRequest(headers: Headers): { spoofed: boolean; reason: string } {
+  const ua = headers.get('user-agent') || '';
+  const uaLower = ua.toLowerCase();
+  
+  // Real Roblox requests have specific UA patterns
+  const isRobloxUA = uaLower.includes('roblox') || ua.includes('HttpService') || ua.includes('WinInet');
+  if (!isRobloxUA) return { spoofed: false, reason: 'not_roblox' };
+  
+  // Check 1: Real Roblox UAs include version numbers and platform info
+  // e.g. "Roblox/WinInetRobloxApp/0.711.589.7111137" or contains "ROBLOX Android App"
+  const hasVersionInfo = /Roblox\/.+\/\d+\.\d+/i.test(ua) || /ROBLOX.*App.*\d+\.\d+/i.test(ua) || /RobloxApp\/\d+/i.test(ua);
+  const isMinimalRobloxUA = ua.length < 30; // Real Roblox UAs are long
+  
+  // Check 2: Extremely short "Roblox" UA = spoofed (e.g. "Roblox/WinInet" without version)
+  if (isMinimalRobloxUA && !hasVersionInfo) {
+    return { spoofed: true, reason: 'minimal_roblox_ua' };
+  }
+  
+  // Check 3: Roblox UA combined with bot-like patterns
+  if (uaLower.includes('curl') || uaLower.includes('wget') || uaLower.includes('python') || 
+      uaLower.includes('node') || uaLower.includes('deno') || uaLower.includes('bun')) {
+    return { spoofed: true, reason: 'roblox_with_bot_ua' };
+  }
+  
+  // Check 4: Real Roblox requests don't have certain headers
+  const authorization = headers.get('authorization');
+  if (authorization && !authorization.includes('supabase')) {
+    return { spoofed: true, reason: 'roblox_with_auth_header' };
+  }
+  
+  // Check 5: Content-Type on GET requests is suspicious
+  const contentType = headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return { spoofed: true, reason: 'roblox_with_json_content_type' };
+  }
+  
+  return { spoofed: false, reason: 'legitimate_roblox' };
 }
 
 function validateRobloxExecutor(headers: Headers): { valid: boolean; reason: string } {
@@ -2250,23 +2311,54 @@ Deno.serve(async (req) => {
       console.log(`[get-paste] SUSPICIOUS fetch timing from ${clientIp}`);
     }
     
+    // ===== BOT DETECTION + AUTO-BAN =====
     if (!validationResult.valid && validationResult.reason !== 'browser_headers' && 
         validationResult.reason !== 'html_accept' && validationResult.reason !== 'origin_referer') {
-      console.log(`[get-paste] BLOCKED: ${validationResult.reason} from ${clientIp}`);
-      const strikes = (suspiciousIps.get(clientIp)?.strikes || 0) + 2;
-      suspiciousIps.set(clientIp, { strikes, lastStrike: Date.now() });
+      console.log(`[get-paste] BLOCKED+BANNED: ${validationResult.reason} from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
+      // Auto-ban the IP for bot/tool access attempts
+      autoBanNewIp(clientIp, `bot_detected_${validationResult.reason}`, uid || null, null);
+      logThreat('bot_access_attempt', clientIp, uid || null, null, { 
+        reason: validationResult.reason, 
+        user_agent: userAgent.substring(0, 200),
+        slug: slug || 'none',
+        action: 'instant_ip_ban',
+      }, 'critical');
       return new Response(generateHoneypot(), { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
     
-    // Block spoofed Roblox-Id
+    // ===== SPOOFED ROBLOX UA DETECTION =====
+    const spoofCheck = isSpookedRobloxRequest(req.headers);
+    if (spoofCheck.spoofed) {
+      console.log(`[get-paste] SPOOFED ROBLOX DETECTED: ${spoofCheck.reason} from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
+      autoBanNewIp(clientIp, `spoofed_roblox_${spoofCheck.reason}`, uid || null, null);
+      logThreat('spoofed_roblox_ua', clientIp, uid || null, null, {
+        reason: spoofCheck.reason,
+        user_agent: userAgent.substring(0, 200),
+        slug: slug || 'none',
+        action: 'instant_ip_ban',
+      }, 'critical');
+      return new Response(generateHoneypot(), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+    
+    // Block spoofed Roblox-Id header + auto-ban
     const robloxIdHeader = req.headers.get('roblox-id') || req.headers.get('Roblox-Id') || '';
     if (robloxIdHeader) {
       const robloxIdNum = parseInt(robloxIdHeader, 10);
       if (isNaN(robloxIdNum) || robloxIdNum < 1000) {
-        console.log(`[get-paste] BLOCKED: spoofed Roblox-Id="${robloxIdHeader}" from ${clientIp}`);
+        console.log(`[get-paste] BLOCKED+BANNED: spoofed Roblox-Id="${robloxIdHeader}" from ${clientIp}`);
+        autoBanNewIp(clientIp, 'spoofed_roblox_id_header', null, null);
+        logThreat('spoofed_roblox_id', clientIp, null, null, {
+          roblox_id_header: robloxIdHeader,
+          user_agent: userAgent.substring(0, 200),
+          slug: slug || 'none',
+          action: 'instant_ip_ban',
+        }, 'critical');
         return new Response(generateHoneypot(), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
@@ -2274,10 +2366,31 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Block curl/wget
+    // Block curl/wget + auto-ban
     const uaLower = userAgent.toLowerCase();
     if (uaLower.includes('curl') || uaLower.includes('wget') || uaLower.includes('libcurl')) {
-      console.log(`[get-paste] BLOCKED: curl/wget tool detected ua="${userAgent}" from ${clientIp}`);
+      console.log(`[get-paste] BLOCKED+BANNED: curl/wget detected ua="${userAgent}" from ${clientIp}`);
+      autoBanNewIp(clientIp, 'curl_wget_access', null, null);
+      logThreat('curl_tool_access', clientIp, null, null, {
+        user_agent: userAgent.substring(0, 200),
+        slug: slug || 'none',
+        action: 'instant_ip_ban',
+      }, 'high');
+      return new Response(generateHoneypot(), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+    
+    // ===== DISCORD BOT SPECIFIC DETECTION (even if UA passed basic checks) =====
+    if (isDiscordBotRequest(req.headers)) {
+      console.log(`[get-paste] DISCORD BOT DETECTED+BANNED: from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
+      autoBanNewIp(clientIp, 'discord_bot_access', uid || null, null);
+      logThreat('discord_bot_access', clientIp, uid || null, null, {
+        user_agent: userAgent.substring(0, 200),
+        slug: slug || 'none',
+        action: 'instant_ip_ban',
+      }, 'critical');
       return new Response(generateHoneypot(), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
@@ -2722,7 +2835,22 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
 
       // Block spoofed uid
       if (uid && /^\d+$/.test(uid) && parseInt(uid) < 1000 && parseInt(uid) !== 0) {
-        console.log(`[get-paste] BLOCKED: spoofed uid=${uid} slug=${slug} ip=${clientIp}`);
+        console.log(`[get-paste] BLOCKED+BANNED: spoofed uid=${uid} slug=${slug} ip=${clientIp}`);
+        autoBanNewIp(clientIp, 'spoofed_uid_on_protected_paste', uid, null);
+        logThreat('spoofed_uid', clientIp, uid, null, {
+          slug, user_agent: userAgent.substring(0, 200), action: 'instant_ip_ban',
+        }, 'critical');
+        return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
+      }
+
+      // ===== CRITICAL: Before serving the protection loader, verify request legitimacy =====
+      // A non-browser, non-Roblox request should NEVER get the loader
+      if (!isLikelyBrowser && !isRobloxRequest) {
+        console.log(`[get-paste] BLOCKED+BANNED: non-roblox non-browser requesting loader slug=${slug} ip=${clientIp} ua="${userAgent.substring(0, 80)}"`);
+        autoBanNewIp(clientIp, 'unknown_client_loader_request', uid || null, null);
+        logThreat('unknown_client_loader', clientIp, uid || null, null, {
+          slug, user_agent: userAgent.substring(0, 200), action: 'instant_ip_ban',
+        }, 'critical');
         return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
       }
 
