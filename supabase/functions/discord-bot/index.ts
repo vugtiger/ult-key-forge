@@ -1196,8 +1196,15 @@ async function handleCommand(interaction: any) {
       const channelId = data.options?.find((o: any) => o.name === 'channel')?.value;
       if (!channelId) return { type: 4, data: { content: '❌ Please provide a channel.', flags: 64 } };
       
-      // For now, just acknowledge - the actual webhook would need a changelog_notifications table
-      // We'll send the latest changelog entry to that channel as a test
+      // Save channel for future auto-posting
+      const guildId = interaction.guild_id || 'dm';
+      await supabase.from('changelog_channels').upsert({
+        user_id: user.id,
+        guild_id: guildId,
+        channel_id: channelId,
+      }, { onConflict: 'user_id,guild_id' });
+      
+      // Send the latest changelog entry to that channel
       const { data: latestChangelog } = await supabase
         .from('changelog')
         .select('version, title, description, changes')
@@ -1211,12 +1218,18 @@ async function handleCommand(interaction: any) {
           method: 'POST',
           headers: { 'Authorization': `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            content: `@everyone 📢 **Changelog Update - v${latestChangelog.version}**\n\n**${latestChangelog.title}**\n${latestChangelog.description}\n\n${changes}`
+            embeds: [{
+              title: `Changelog v${latestChangelog.version} — ${latestChangelog.title}`,
+              description: `${latestChangelog.description}\n\n${changes}`,
+              color: 0xFFFFFF,
+              footer: { text: 'ULT LUA PROTECTS' },
+              timestamp: new Date().toISOString(),
+            }]
           })
         });
       }
       
-      return { type: 4, data: { content: `✅ Changelog notifications set up in <#${channelId}>! The latest update has been posted.`, flags: 64 } };
+      return { type: 4, data: { content: `✅ Changelog notifications set up in <#${channelId}>! The latest update has been posted. New updates will be automatically sent to this channel.`, flags: 64 } };
     }
 
     // backgroundprotection removed - not needed as separate command
