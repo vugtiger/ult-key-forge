@@ -9,8 +9,9 @@ import {
   Shield, Trash2, Search, Ban, Copy, Download, Users, FileCode, Globe,
   RefreshCw, Activity, Star, Clock, Database, Eye, EyeOff, XCircle,
   AlertTriangle, ShieldAlert, ShieldCheck, Crosshair, Skull, LogOut,
-  ChevronRight, Zap, Lock, Unlock
+  ChevronRight, Zap, Lock, Unlock, Bot
 } from "lucide-react";
+import JarvisAI from "@/components/JarvisAI";
 import { useNavigate } from "react-router-dom";
 
 // Types
