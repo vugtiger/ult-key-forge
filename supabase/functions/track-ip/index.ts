@@ -30,6 +30,35 @@ serve(async (req) => {
 
     console.log(`IP tracking for user ${user_id ?? 'anon'}, action: ${action}, IP: ${ip}`);
 
+    // ===== AUTH VALIDATION for privileged actions =====
+    const privilegedActions = ['register', 'login', 'verify'];
+    if (privilegedActions.includes(action) && user_id) {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      // Validate the JWT and ensure user_id matches the authenticated user
+      const anonKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY')!;
+      const authClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+      const { data: { user }, error: authError } = await authClient.auth.getUser();
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      // Prevent user_id spoofing: override with authenticated user's ID
+      if (user.id !== user_id) {
+        console.warn(`[track-ip] user_id mismatch: body=${user_id} auth=${user.id}`);
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // ===== BAN CHECK =====
     if (action === 'check_ban') {
       // Check profile ban
@@ -260,8 +289,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     console.error('Error in track-ip function:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ error: 'Internal error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

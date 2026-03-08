@@ -232,8 +232,17 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     console.error('Admin API error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
+    // Sanitize error messages - never expose internal DB details
+    let safeMessage = 'An error occurred';
+    if (error instanceof Error) {
+      const msg = error.message.toLowerCase();
+      if (msg.includes('duplicate key')) safeMessage = 'Duplicate entry detected';
+      else if (msg.includes('foreign key')) safeMessage = 'Invalid reference';
+      else if (msg.includes('not-null')) safeMessage = 'Required field missing';
+      else if (msg.includes('permission denied')) safeMessage = 'Access denied';
+      else safeMessage = 'Operation failed';
+    }
+    return new Response(JSON.stringify({ error: safeMessage }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
