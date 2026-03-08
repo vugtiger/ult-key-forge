@@ -1401,12 +1401,12 @@ for i = 1, #ks do
 end
 
 -- Re-verify protections before network request
-if not ${v.antiHook}() then ${v.silentDegrade}() end
-if not ${v.antiEnvLog}() then ${v.silentDegrade}() end
+if not ${v.antiHook}() then _reportBypass("pre_fetch_hook", "hook_before_network") end
+if not ${v.antiEnvLog}() then _reportBypass("pre_fetch_env", "env_logger_before_network") end
 
 -- v9.5: Re-verify loadstring integrity before fetch
-if not ${v.verified} then ${v.silentDegrade}() end
-if ${v.hookcheckLS} and not ${v.clonedLS} then ${v.silentDegrade}() end
+if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_failed") end
+if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
 ${options?.showConsoleFeedback ? `
 local function ${v.junk5}(msg, pct)
