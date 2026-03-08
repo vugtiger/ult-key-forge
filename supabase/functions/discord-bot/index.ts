@@ -1236,12 +1236,9 @@ async function handleCommand(interaction: any) {
 
     case 'sendlogs': {
       // Broadcast latest changelog to ALL saved changelog channels
-      const user = await getUser();
-      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      
-      // Check admin
-      const { data: roleCheck } = await supabase.from('user_roles').select('role').eq('user_id', user.userId).eq('role', 'admin').maybeSingle();
-      if (!roleCheck) return { type: 4, data: { content: '❌ Admin only command.', flags: 64 } };
+      // Owner-only: locked to specific Discord ID
+      const OWNER_DISCORD_ID = '1259874564469424201';
+      if (discordUserId !== OWNER_DISCORD_ID) return { type: 4, data: { content: 'This command is owner-only.', flags: 64 } };
       
       const { data: latestChangelog } = await supabase
         .from('changelog')
