@@ -2283,7 +2283,7 @@ Deno.serve(async (req) => {
     if (uid && isRobloxIdBanned(uid)) {
       // Auto-ban this new IP so even VPN hopping gets caught
       autoBanNewIp(earlyIp, 'banned_roblox_user_new_ip', uid, null);
-      logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned', ip_auto_banned: true }, 'high');
+      logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned', ip_auto_banned: true }, 'high', true);
       return new Response('', { status: 403, headers: { ...corsHeaders } });
     }
 
