@@ -58,6 +58,25 @@ const Auth = () => {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         
+        // Check ban status before allowing access
+        try {
+          const { data: banCheck } = await supabase.functions.invoke('track-ip', {
+            body: { user_id: data.user.id, action: 'check_ban' }
+          });
+          if (banCheck?.banned) {
+            await supabase.auth.signOut();
+            toast({
+              title: "Account Banned",
+              description: banCheck.reason || "Your account has been banned.",
+              variant: "destructive",
+            });
+            setLoading(false);
+            return;
+          }
+        } catch (banErr) {
+          console.warn('Ban check skipped:', banErr);
+        }
+
         // Track IP in background (non-blocking)
         supabase.functions.invoke('track-ip', {
           body: { user_id: data.user.id, action: 'login' }
