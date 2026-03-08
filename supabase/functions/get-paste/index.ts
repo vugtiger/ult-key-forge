@@ -1732,6 +1732,14 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // ===== PERMANENT BAN CHECK — first thing, zero processing =====
+  const earlyIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                  req.headers.get('cf-connecting-ip') || 'unknown';
+  if (isPermanentlyBanned(earlyIp)) {
+    // Return empty response - no Lua, no error, nothing useful. Silent death.
+    return new Response('', { status: 403, headers: { ...corsHeaders } });
+  }
+
   // Periodic map cleanup
   cleanupMaps();
 
