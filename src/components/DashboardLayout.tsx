@@ -205,6 +205,22 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         .catch((error) => console.warn('IP tracking skipped:', error?.message));
     };
 
+    const checkBanStatus = async (userId: string) => {
+      try {
+        const { data } = await supabase.functions.invoke('track-ip', {
+          body: { user_id: userId, action: 'check_ban' }
+        });
+        if (data?.banned) {
+          resetTheme();
+          await supabase.auth.signOut();
+          localStorage.removeItem('sb-iyfvpnjrghsownkpazec-auth-token');
+          navigate("/auth", { state: { banReason: data.reason || 'Your account has been banned.' } });
+        }
+      } catch (err) {
+        console.warn('Ban check skipped:', err);
+      }
+    };
+
     // Admin redirect removed — admin page is fully standalone
 
     const safeSetUser = (sessionUser: User) => {
