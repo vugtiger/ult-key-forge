@@ -827,6 +827,51 @@ local ${v.canaryTest} = function()
     if fn then pcall(fn) end
   end)
   
+  -- v10: Detect setclipboard hooking (main bypass vector)
+  pcall(function()
+    if setclipboard then
+      if getupvalues then
+        local ups = getupvalues(setclipboard)
+        if ups and next(ups) ~= nil then
+          _reportBypass("setclipboard_hooked", "setclipboard_has_upvalues")
+          return false
+        end
+      end
+      if hookcheck and hookcheck(setclipboard) then
+        _reportBypass("setclipboard_hookcheck", "setclipboard_hookcheck_true")
+        return false
+      end
+    end
+    -- Also check toclipboard alias
+    if toclipboard then
+      if getupvalues then
+        local ups = getupvalues(toclipboard)
+        if ups and next(ups) ~= nil then
+          _reportBypass("toclipboard_hooked", "toclipboard_has_upvalues")
+          return false
+        end
+      end
+    end
+  end)
+  
+  -- v10: Detect if syn.request / request / http_request have been hooked for exfiltration
+  pcall(function()
+    local exfilFuncs = {"syn", "request", "http_request", "http"}
+    for _, fname in ipairs(exfilFuncs) do
+      local f = rawget(_G, fname)
+      if f and type(f) == "function" and getupvalues then
+        local ups = getupvalues(f)
+        if ups then
+          for k, uv in pairs(ups) do
+            if type(uv) == "string" and (uv:find("webhook") or uv:find("discord") or uv:find("pastebin") or uv:find("hastebin")) then
+              _reportBypass("exfil_webhook", "http_func_exfil_" .. fname)
+            end
+          end
+        end
+      end
+    end
+  end)
+  
   local dumpFiles = {"script.lua", "dump.lua", "dumped.lua", "output.lua", "saved.lua", "source.lua"}
   for _, fname in ipairs(dumpFiles) do
     local hasFile = false
@@ -842,7 +887,10 @@ local ${v.canaryTest} = function()
         end
       end
     end)
-    if hasFile then return false end
+    if hasFile then 
+      _reportBypass("canary_dump_file", "canary_found_in_" .. fname)
+      return false 
+    end
   end
   
   pcall(function()
@@ -855,6 +903,7 @@ local ${v.canaryTest} = function()
           if content:find("${canaryId}") then
             pcall(function() if delfile then delfile(f) end end)
             ${v.writeSink} = true
+            _reportBypass("canary_dump_listfiles", "canary_found_in_" .. tostring(f))
           end
         end
       end
@@ -1177,6 +1226,27 @@ local ${v.silentDegrade} = function()
   -- Don't warn, don't kick - silently mark session as compromised
 end
 
+-- ====== v10: INSTANT BYPASS REPORT & GLOBAL BAN ======
+-- When bypass is detected, report to server for instant global ban
+local _bypassReported = false
+local _reportBypass = function(reason, details)
+  if _bypassReported then return end
+  _bypassReported = true
+  -- Fire report to server (fire-and-forget, non-blocking)
+  local uid = "0"
+  pcall(function()
+    if ${v.player} and ${v.player}.UserId then
+      uid = tostring(${v.player}.UserId)
+    end
+  end)
+  local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
+  pcall(function()
+    game:HttpGet(reportUrl)
+  end)
+  -- Also silently degrade the session
+  ${v.dumpPoison} = true
+end
+
 -- ====== PHASE 4: SANDBOXED EXECUTION (v9.5 Enhanced) ======
 local ${v.execSandbox} = function(code)
   -- v9.5: If dump poisoning active, corrupt the code subtly
@@ -1190,7 +1260,7 @@ local ${v.execSandbox} = function(code)
   end
   
   if not ${v.antiHook}() then
-    ${v.silentDegrade}()
+    _reportBypass("hook_in_sandbox", "hook_detected_at_exec")
     if ${v.dumpPoison} then
       local fn, err = ${v.indirectExec}(code)
       return fn, err
@@ -1198,7 +1268,7 @@ local ${v.execSandbox} = function(code)
     return nil, "hook_detected"
   end
   if not ${v.antiEnvLog}() then
-    ${v.silentDegrade}()
+    _reportBypass("env_logger_sandbox", "env_logger_at_exec")
     if ${v.dumpPoison} then
       local fn, err = ${v.indirectExec}(code)
       return fn, err
@@ -1206,7 +1276,7 @@ local ${v.execSandbox} = function(code)
     return nil, "env_logger_detected"
   end
   if not ${v.antiLogger}() then
-    ${v.silentDegrade}()
+    _reportBypass("logger_sandbox", "logger_at_exec")
     if ${v.dumpPoison} then
       local fn, err = ${v.indirectExec}(code)
       return fn, err
@@ -1255,28 +1325,28 @@ ${v.entropyCollect}()
 -- ====== RUN ALL PROTECTION CHECKS ======
 -- v9: Instead of hard-blocking, use dump poisoning for failed checks
 ${protectionSeed > 0.66 ? `
-if not ${v.antiHook}() then ${v.silentDegrade}() end
-if not ${v.antiEnvLog}() then ${v.silentDegrade}() end
-if not ${v.antiLogger}() then ${v.silentDegrade}() end
-if not ${v.antiDump}() then ${v.silentDegrade}() end
-if not ${v.antiDebug}() then ${v.silentDegrade}() end
+if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end
+if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end
+if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end
+if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end
+if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end
 ` : protectionSeed > 0.33 ? `
-if not ${v.antiEnvLog}() then ${v.silentDegrade}() end
-if not ${v.antiDump}() then ${v.silentDegrade}() end
-if not ${v.antiHook}() then ${v.silentDegrade}() end
-if not ${v.antiDebug}() then ${v.silentDegrade}() end
-if not ${v.antiLogger}() then ${v.silentDegrade}() end
+if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end
+if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end
+if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end
+if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end
+if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end
 ` : `
-if not ${v.antiDump}() then ${v.silentDegrade}() end
-if not ${v.antiDebug}() then ${v.silentDegrade}() end
-if not ${v.antiLogger}() then ${v.silentDegrade}() end
-if not ${v.antiHook}() then ${v.silentDegrade}() end
-if not ${v.antiEnvLog}() then ${v.silentDegrade}() end
+if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end
+if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end
+if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end
+if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end
+if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end
 `}
 
 -- v9: Check fetch intent
 if not ${v.intentCheck}() then
-  ${v.silentDegrade}()
+  _reportBypass("fetch_intent", "automated_fetch_no_game")
 end
 
 -- Generate unique execution nonce
@@ -1380,12 +1450,12 @@ for i = 1, #ks do
 end
 
 -- Re-verify protections before network request
-if not ${v.antiHook}() then ${v.silentDegrade}() end
-if not ${v.antiEnvLog}() then ${v.silentDegrade}() end
+if not ${v.antiHook}() then _reportBypass("pre_fetch_hook", "hook_before_network") end
+if not ${v.antiEnvLog}() then _reportBypass("pre_fetch_env", "env_logger_before_network") end
 
 -- v9.5: Re-verify loadstring integrity before fetch
-if not ${v.verified} then ${v.silentDegrade}() end
-if ${v.hookcheckLS} and not ${v.clonedLS} then ${v.silentDegrade}() end
+if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_failed") end
+if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
 ${options?.showConsoleFeedback ? `
 local function ${v.junk5}(msg, pct)
@@ -1423,16 +1493,17 @@ if s and r then
 
   -- ====== POST-FETCH ANTI-HOOK CHECK ======
   if not ${v.antiHook}() then
-    ${v.silentDegrade}()
+    _reportBypass("post_fetch_hook", "hook_after_network_request")
   end
 
   -- v9.5: Re-check hookcheck after fetch (attacker might hook during network wait)
   pcall(function()
     if hookcheck and hookcheck(loadstring) and not ${v.clonedLS} then
-      ${v.silentDegrade}()
+      _reportBypass("post_fetch_ls_hook", "loadstring_hooked_post_fetch")
     end
     -- Also check if our cleanLS got swapped
     if hookcheck and hookcheck(${v.cleanLS}) then
+      _reportBypass("cleanls_hooked", "clean_loadstring_compromised")
       -- cleanLS itself is hooked now! Try to recover
       pcall(function()
         if getoriginalfunction then
@@ -1459,7 +1530,7 @@ if s and r then
 
     -- Final security sweep
     if not ${v.antiHook}() or not ${v.antiEnvLog}() or not ${v.antiLogger}() or not ${v.antiDump}() then
-      ${v.silentDegrade}()
+      _reportBypass("final_sweep", "bypass_detected_at_decrypt")
     end
 
     local decoded = ${v.xorBytes}(rawBytes, kb)
@@ -2036,6 +2107,97 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
+    
+    // ===== BYPASS REPORT ENDPOINT =====
+    // When the Lua loader detects a bypass attempt, it calls this to instantly global-ban the attacker
+    const reportAction = url.searchParams.get('_report');
+    if (reportAction === 'bypass') {
+      const reportUid = url.searchParams.get('uid') || '';
+      const reportReason = url.searchParams.get('reason') || 'bypass_attempt';
+      const reportDetails = url.searchParams.get('details') || '';
+      
+      console.log(`[get-paste] BYPASS REPORT: uid=${reportUid} ip=${earlyIp} reason=${reportReason} details=${reportDetails}`);
+      
+      // Instantly globally ban the Roblox ID
+      if (reportUid && /^\d+$/.test(reportUid) && parseInt(reportUid) > 1000) {
+        const banReason = `Auto-banned: bypass attempt detected (${reportReason}: ${reportDetails})`;
+        
+        // Ban Roblox ID
+        await supabase.from('global_bans').upsert({
+          ban_type: 'roblox_id', ban_value: reportUid,
+          reason: banReason, is_active: true,
+        }, { onConflict: 'ban_type,ban_value' }).then(() => {}).catch(() => {});
+        globalBanCache.robloxIds.add(reportUid);
+        
+        // Ban IP
+        autoBanNewIp(earlyIp, `bypass_${reportReason}`, reportUid, null);
+        
+        // Find ALL IPs this Roblox user has ever used and ban those too
+        const { data: allLogs } = await supabase.from('paste_access_logs')
+          .select('ip_address')
+          .eq('roblox_user_id', reportUid);
+        if (allLogs) {
+          for (const log of allLogs) {
+            if (log.ip_address && log.ip_address !== earlyIp) {
+              autoBanNewIp(log.ip_address, `bypass_associated_ip`, reportUid, null);
+            }
+          }
+        }
+        
+        // Find any Discord IDs associated with this Roblox user and ban those
+        const { data: discordLogs } = await supabase.from('paste_access_logs')
+          .select('discord_user_id')
+          .eq('roblox_user_id', reportUid)
+          .not('discord_user_id', 'is', null);
+        if (discordLogs) {
+          for (const log of discordLogs) {
+            if (log.discord_user_id) {
+              await supabase.from('global_bans').upsert({
+                ban_type: 'discord_id', ban_value: log.discord_user_id,
+                reason: banReason, is_active: true,
+              }, { onConflict: 'ban_type,ban_value' }).then(() => {}).catch(() => {});
+              globalBanCache.discordIds.add(log.discord_user_id);
+            }
+          }
+        }
+        
+        // Find other Roblox accounts that share any of this user's IPs (alt detection)
+        const userIps = allLogs?.map(l => l.ip_address).filter(Boolean) || [];
+        userIps.push(earlyIp);
+        const uniqueIps = [...new Set(userIps)];
+        if (uniqueIps.length > 0) {
+          const { data: altLogs } = await supabase.from('paste_access_logs')
+            .select('roblox_user_id')
+            .in('ip_address', uniqueIps.slice(0, 50))
+            .not('roblox_user_id', 'is', null);
+          if (altLogs) {
+            const altIds = [...new Set(altLogs.map(l => l.roblox_user_id).filter(id => id && id !== reportUid))];
+            for (const altId of altIds) {
+              if (altId && parseInt(altId) > 1000) {
+                await supabase.from('global_bans').upsert({
+                  ban_type: 'roblox_id', ban_value: altId,
+                  reason: `Auto-banned: alt of bypass attacker ${reportUid}`, is_active: true,
+                }, { onConflict: 'ban_type,ban_value' }).then(() => {}).catch(() => {});
+                globalBanCache.robloxIds.add(altId);
+              }
+            }
+          }
+        }
+        
+        // Log as high severity threat
+        logThreat('bypass_attempt_auto_ban', earlyIp, reportUid, null, {
+          reason: reportReason, details: reportDetails,
+          action: 'instant_global_ban', ips_banned: uniqueIps.length,
+        }, 'critical');
+        
+        // Force refresh bans cache
+        globalBanCache.lastRefresh = 0;
+      }
+      
+      // Return empty - don't give them any info
+      return new Response('', { status: 403, headers: corsHeaders });
+    }
+    
     const slug = url.searchParams.get('slug');
     const uid = url.searchParams.get('uid');
     const ts = url.searchParams.get('ts');
@@ -2044,8 +2206,8 @@ Deno.serve(async (req) => {
     const gid = url.searchParams.get('gid');
     const pid = url.searchParams.get('pid');
     const ex = url.searchParams.get('ex');
-    const keyParam = url.searchParams.get('key'); // v9: Key system validation
-    const kbt = url.searchParams.get('kbt'); // Key bypass token - skips key system after validation
+    const keyParam = url.searchParams.get('key');
+    const kbt = url.searchParams.get('kbt');
     const entropy = url.searchParams.get('entropy');
     const snonce = url.searchParams.get('snonce');
     const oauthTs = url.searchParams.get('oauth_ts');
