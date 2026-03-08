@@ -146,7 +146,6 @@ const AdminDashboard = () => {
   const [newBanValue, setNewBanValue] = useState("");
   const [newBanReason, setNewBanReason] = useState("");
   const { toast } = useToast();
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
