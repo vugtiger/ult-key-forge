@@ -147,6 +147,16 @@ const Auth = () => {
           Back to Home
         </Button>
 
+        {banReason && (
+          <div className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-xl flex items-start gap-3">
+            <ShieldAlert className="text-destructive mt-0.5 shrink-0" size={20} />
+            <div>
+              <p className="text-sm font-semibold text-destructive">Account Banned</p>
+              <p className="text-xs text-muted-foreground mt-1">{banReason}</p>
+            </div>
+          </div>
+        )}
+
         <Card className="p-8 bg-card/50 backdrop-blur-xl border-border/30 relative overflow-hidden rounded-2xl">
           <div className="relative">
             <div className="text-center mb-8">
