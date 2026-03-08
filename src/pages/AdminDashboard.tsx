@@ -145,9 +145,6 @@ const AdminDashboard = () => {
   const [newBanType, setNewBanType] = useState("ip");
   const [newBanValue, setNewBanValue] = useState("");
   const [newBanReason, setNewBanReason] = useState("");
-  const [bannedUsers, setBannedUsers] = useState<any[]>([]);
-  const [bannedIps, setBannedIps] = useState<any[]>([]);
-  const [bansLoading, setBansLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -186,7 +183,56 @@ const AdminDashboard = () => {
   const fetchReviews = async () => { setDbLoading(true); try { const data = await adminCall('list_reviews'); setReviews(data.reviews || []); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } finally { setDbLoading(false); } };
   const fetchGlobalBans = async () => { try { const data = await adminCall('list_global_bans'); setGlobalBans(data.bans || []); } catch (e: any) { console.error(e); } };
   const fetchThreats = async () => { try { const data = await adminCall('list_threats'); setThreats(data.threats || []); } catch (e: any) { console.error(e); } };
-  const fetchOwnerBans = async () => { setBansLoading(true); try { const { data: { session } } = await supabase.auth.getSession(); if (!session) return; const response = await supabase.functions.invoke('owner-bans', { headers: { Authorization: `Bearer ${session.access_token}` } }); if (response.data) { setBannedUsers(response.data.banned_users || []); setBannedIps(response.data.banned_ips || []); } } catch (e) { console.error(e); } finally { setBansLoading(false); } };
+
+  // Derive banned users/IPs directly from globalBans state
+  const bannedUsers = globalBans.filter(b => b.is_active && (b.ban_type === 'roblox_id' || b.ban_type === 'discord_id')).map(b => ({
+    roblox_user_id: b.ban_type === 'roblox_id' ? b.ban_value : null,
+    roblox_username: null, roblox_display_name: null, roblox_avatar_url: null,
+    roblox_created_at: null, roblox_is_banned: null,
+    discord_user_id: b.ban_type === 'discord_id' ? b.ban_value : null,
+    discord_username: null, discord_avatar: null, discord_created_at: null,
+    ip_address: null, last_seen_at: null,
+    ban_reason: b.reason || 'Global ban', banned_at: b.banned_at,
+  }));
+  const bannedIps = globalBans.filter(b => b.is_active && (b.ban_type === 'ip' || b.ban_type === 'subnet')).map(b => ({
+    ip_address: b.ban_value,
+    roblox_user_id: null, roblox_username: null, roblox_avatar_url: null,
+    discord_user_id: null, discord_username: null, discord_avatar: null, discord_created_at: null,
+    last_seen_at: null, ban_reason: b.reason || 'Global ban', banned_at: b.banned_at, access_type: null,
+  }));
+
+  const handleClearAllThreats = async () => {
+    if (!confirm('Clear all threat logs? This cannot be undone.')) return;
+    try {
+      await adminCall('clear_threats');
+      setThreats([]);
+      toast({ title: "All threats cleared" });
+    } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+  };
+  const handleClearAllLogs = async () => {
+    if (!confirm('Clear all access logs? This cannot be undone.')) return;
+    try {
+      await adminCall('clear_access_logs');
+      setAccessLogs([]);
+      toast({ title: "All access logs cleared" });
+    } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+  };
+  const handleClearAllSessions = async () => {
+    if (!confirm('Clear all sessions? This cannot be undone.')) return;
+    try {
+      await adminCall('clear_sessions');
+      setSessions([]);
+      toast({ title: "All sessions cleared" });
+    } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+  };
+  const handleClearAllActivity = async () => {
+    if (!confirm('Clear all activity logs? This cannot be undone.')) return;
+    try {
+      await adminCall('clear_activity');
+      setActivity([]);
+      toast({ title: "All activity cleared" });
+    } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+  };
 
   const handleDeleteUser = async (userId: string) => { if (!confirm('Permanently delete this user and all their data?')) return; try { await adminCall('delete_user', { target_user_id: userId }); toast({ title: "User Deleted" }); fetchUsers(); fetchPastes(); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } };
   const handleBanUser = async (userId: string) => { if (!banReason.trim()) { toast({ title: "Error", description: "Provide a ban reason", variant: "destructive" }); return; } try { await adminCall('ban_user', { target_user_id: userId, reason: banReason }); toast({ title: "User Banned" }); setBanReason(""); setSelectedUserId(null); fetchUsers(); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } };
@@ -300,8 +346,8 @@ const AdminDashboard = () => {
                 { value: "sessions", icon: Clock, label: "Sessions", onClick: fetchSessions },
                 { value: "activity", icon: Activity, label: "Activity", onClick: fetchActivity },
                 
-                { value: "banned-users", icon: ShieldBan, label: "Banned Users", onClick: fetchOwnerBans },
-                { value: "banned-ips", icon: Globe, label: "Banned IPs", onClick: fetchOwnerBans },
+                { value: "banned-users", icon: ShieldBan, label: "Banned Users" },
+                { value: "banned-ips", icon: Globe, label: "Banned IPs" },
               ].map(tab => (
                 <TabsTrigger
                   key={tab.value}
@@ -330,7 +376,7 @@ const AdminDashboard = () => {
                 icon={Crosshair}
                 title="Threat Detection"
                 subtitle={`${unresolvedThreats.length} unresolved · ${threats.length} total`}
-                actions={<Button onClick={fetchThreats} variant="ghost" size="sm" className="text-xs text-muted-foreground"><RefreshCw className="h-3 w-3 mr-1" />Refresh</Button>}
+                actions={<div className="flex gap-2">{threats.length > 0 && <Button onClick={handleClearAllThreats} variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive"><Trash2 className="h-3 w-3 mr-1" />Clear All</Button>}<Button onClick={fetchThreats} variant="ghost" size="sm" className="text-xs text-muted-foreground"><RefreshCw className="h-3 w-3 mr-1" />Refresh</Button></div>}
               />
               {threats.length === 0 ? (
                 <EmptyState icon={ShieldCheck} title="All Clear" subtitle="No threats have been detected" />
@@ -539,7 +585,7 @@ const AdminDashboard = () => {
           {/* ===== ACCESS LOGS ===== */}
           <TabsContent value="access-logs" className="mt-6">
             <Section>
-              <SectionHeader icon={Database} title="Access Logs" subtitle={`${filteredLogs.length} entries`} />
+              <SectionHeader icon={Database} title="Access Logs" subtitle={`${filteredLogs.length} entries`} actions={accessLogs.length > 0 ? <Button onClick={handleClearAllLogs} variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive"><Trash2 className="h-3 w-3 mr-1" />Clear All</Button> : undefined} />
               <SearchBar value={logSearch} onChange={setLogSearch} placeholder="Search by IP, Roblox user, paste..." onRefresh={fetchAccessLogs} />
               {dbLoading ? (
                 <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
@@ -575,7 +621,7 @@ const AdminDashboard = () => {
           {/* ===== SESSIONS ===== */}
           <TabsContent value="sessions" className="mt-6">
             <Section>
-              <SectionHeader icon={Clock} title="Active Sessions" subtitle={`${filteredSessions.length} sessions`} />
+              <SectionHeader icon={Clock} title="Active Sessions" subtitle={`${filteredSessions.length} sessions`} actions={sessions.length > 0 ? <Button onClick={handleClearAllSessions} variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive"><Trash2 className="h-3 w-3 mr-1" />Clear All</Button> : undefined} />
               <SearchBar value={sessionSearch} onChange={setSessionSearch} placeholder="Search sessions..." onRefresh={fetchSessions} />
               {dbLoading ? (
                 <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
@@ -597,7 +643,7 @@ const AdminDashboard = () => {
           {/* ===== ACTIVITY ===== */}
           <TabsContent value="activity" className="mt-6">
             <Section>
-              <SectionHeader icon={Activity} title="User Activity" subtitle={`${filteredActivity.length} events`} />
+              <SectionHeader icon={Activity} title="User Activity" subtitle={`${filteredActivity.length} events`} actions={activity.length > 0 ? <Button onClick={handleClearAllActivity} variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive"><Trash2 className="h-3 w-3 mr-1" />Clear All</Button> : undefined} />
               <SearchBar value={activitySearch} onChange={setActivitySearch} placeholder="Search activity..." onRefresh={fetchActivity} />
               {dbLoading ? (
                 <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
@@ -620,12 +666,12 @@ const AdminDashboard = () => {
 
           {/* ===== BANNED USERS ===== */}
           <TabsContent value="banned-users" className="mt-6">
-            <BannedUsersTab users={bannedUsers} loading={bansLoading} />
+            <BannedUsersTab users={bannedUsers} loading={loading} />
           </TabsContent>
 
           {/* ===== BANNED IPS ===== */}
           <TabsContent value="banned-ips" className="mt-6">
-            <BannedIPsTab ips={bannedIps} loading={bansLoading} />
+            <BannedIPsTab ips={bannedIps} loading={loading} />
           </TabsContent>
         </Tabs>
       </main>
