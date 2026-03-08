@@ -231,7 +231,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
-      if (!session) { resetTheme(); userIdRef.current = null; redirectedRef.current = false; navigate("/auth"); }
+      if (!session) { resetTheme(); userIdRef.current = null; navigate("/auth"); }
       else {
         safeSetUser(session.user);
         // Only do these on actual fresh sign-ins, NOT on token refresh or initial session restore
