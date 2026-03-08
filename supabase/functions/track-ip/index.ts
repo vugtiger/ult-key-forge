@@ -289,8 +289,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     console.error('Error in track-ip function:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ error: 'Internal error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

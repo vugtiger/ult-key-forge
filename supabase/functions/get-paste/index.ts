@@ -2557,17 +2557,21 @@ Deno.serve(async (req) => {
     }
     
     // ===== COMPUTE BROWSER/ROBLOX FLAGS EARLY =====
-    const isRobloxRequest = userAgent.toLowerCase().includes('roblox') || 
-                            userAgent.includes('HttpService');
+    const uaLowerFull = userAgent.toLowerCase();
+    const isRobloxRequest = uaLowerFull.includes('roblox') || 
+                            userAgent.includes('HttpService') ||
+                            // Roblox mobile UAs: "Mozilla/5.0 (XXXXmb; WIDTHxHEIGHT; ..." with device specs
+                            /^Mozilla\/5\.0 \(\d+MB;/.test(userAgent);
 
-    const isLikelyBrowser =
+    const isLikelyBrowser = !isRobloxRequest && (
       Boolean(secFetchMode) ||
       Boolean(secFetchDest) ||
       accept.includes('text/html') ||
       Boolean(origin) ||
       Boolean(referer) ||
       // Fallback: common browser UA patterns (in case sec-fetch headers are stripped)
-      (/Mozilla\/\d/.test(userAgent) && /AppleWebKit|Gecko|Chrome|Safari|Firefox|Edge/.test(userAgent));
+      (/Mozilla\/\d/.test(userAgent) && /AppleWebKit|Gecko|Chrome|Safari|Firefox|Edge/.test(userAgent))
+    );
 
     // ===== BOT DETECTION + AUTO-BAN =====
     // SKIP for browsers and Roblox requests — only target actual bots/tools
