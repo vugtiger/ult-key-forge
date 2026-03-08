@@ -5,7 +5,11 @@ import { useToast } from "@/hooks/use-toast";
 
 type JarvisState = "idle" | "listening" | "processing" | "speaking";
 
-const JarvisVoice = () => {
+interface JarvisVoiceProps {
+  onTabChange?: (tab: string) => void;
+}
+
+const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
   const [state, setState] = useState<JarvisState>("idle");
   const [wakeWordActive, setWakeWordActive] = useState(false);
   const [lastTranscript, setLastTranscript] = useState("");
@@ -65,9 +69,9 @@ const JarvisVoice = () => {
     if (!action) return;
     
     switch (action.type) {
-      case "navigate":
-        if (action.params?.path) {
-          navigate(action.params.path);
+      case "switch_tab":
+        if (action.params?.tab && onTabChange) {
+          onTabChange(action.params.tab);
         }
         break;
       case "toggle_protection":
@@ -94,7 +98,7 @@ const JarvisVoice = () => {
         navigate("/pastebin");
         break;
     }
-  }, [navigate]);
+  }, [navigate, onTabChange]);
 
   // Send command to JARVIS backend
   const processCommand = useCallback(async (text: string) => {
