@@ -86,8 +86,34 @@ function logThreat(type: string, ip: string | null, robloxId: string | null, dis
 // In-memory set to avoid duplicate insert attempts within same isolate
 const autoBannedIpsThisSession = new Set<string>();
 
+// In-memory admin IP whitelist (refreshed with global bans)
+let adminIpWhitelist = new Set<string>();
+
+async function refreshAdminIps() {
+  try {
+    const { data } = await supabase
+      .from('user_ips')
+      .select('ip_address, user_id')
+      .in('user_id', 
+        (await supabase.from('user_roles').select('user_id').eq('role', 'admin')).data?.map(r => r.user_id) || []
+      );
+    adminIpWhitelist = new Set((data || []).map(d => d.ip_address));
+  } catch (e) {
+    console.error('Failed to refresh admin IPs:', e);
+  }
+}
+
+function isAdminIp(ip: string): boolean {
+  return adminIpWhitelist.has(ip);
+}
+
 function autoBanNewIp(ip: string, reason: string, robloxId: string | null, discordId: string | null) {
   if (!ip || ip === 'unknown') return;
+  // NEVER ban admin IPs
+  if (isAdminIp(ip)) {
+    console.log(`[AUTO-BAN] SKIPPED: ${ip} is an admin IP`);
+    return;
+  }
   // Already in cache or already auto-banned this session? Skip.
   if (globalBanCache.ips.has(ip) || autoBannedIpsThisSession.has(ip)) return;
   // Check subnets too
