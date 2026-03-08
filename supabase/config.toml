@@ -21,3 +21,15 @@ verify_jwt = false
 
 [functions.discord-bot-guilds]
 verify_jwt = false
+
+[functions.jarvis-voice]
+verify_jwt = false
+
+[functions.owner-bans]
+verify_jwt = false
+
+[functions.heartbeat]
+verify_jwt = false
+
+[functions.discord-identify]
+verify_jwt = false
