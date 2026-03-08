@@ -300,6 +300,8 @@ const AdminDashboard = () => {
                 { value: "sessions", icon: Clock, label: "Sessions", onClick: fetchSessions },
                 { value: "activity", icon: Activity, label: "Activity", onClick: fetchActivity },
                 { value: "reviews", icon: Star, label: "Reviews", onClick: fetchReviews },
+                { value: "banned-users", icon: ShieldBan, label: "Banned Users", onClick: fetchOwnerBans },
+                { value: "banned-ips", icon: Globe, label: "Banned IPs", onClick: fetchOwnerBans },
               ].map(tab => (
                 <TabsTrigger
                   key={tab.value}
