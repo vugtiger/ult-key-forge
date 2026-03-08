@@ -1816,6 +1816,12 @@ Deno.serve(async (req) => {
     const snonce = url.searchParams.get('snonce');
     const oauthTs = url.searchParams.get('oauth_ts');
 
+    // Check if this Roblox user ID is globally banned
+    if (uid && isRobloxIdBanned(uid)) {
+      logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned' }, 'high');
+      return new Response('', { status: 403, headers: { ...corsHeaders } });
+    }
+
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                      req.headers.get('cf-connecting-ip') || 
                      'unknown';
