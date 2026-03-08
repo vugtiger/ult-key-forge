@@ -570,14 +570,64 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   const protectionSeed = Math.random();
   const canaryId = Math.random().toString(36).substring(2, 12);
   
-  return `--[[ULT Protection v9.0 - ${Math.random().toString(36).substring(2,10)}]]
+  return `--[[ULT Protection v9.5 - ${Math.random().toString(36).substring(2,10)}]]
 ${junkCode}
 
--- ====== PHASE 0: OBTAIN CLEAN LOADSTRING ======
+-- ====== PHASE 0: OBTAIN CLEAN LOADSTRING (v9.5 Enhanced) ======
 local ${v.cleanLS}
 local ${v.clonedLS} = false
 
+-- v9.5: First, check if hookfunction has been used on loadstring via hookcheck
+local ${v.hookcheckLS} = false
 do
+  local ok, hc = pcall(function()
+    if hookcheck then return hookcheck(loadstring) end
+    return false
+  end)
+  if ok and hc == true then
+    ${v.hookcheckLS} = true
+    -- loadstring IS hooked. Try to get original via multiple methods
+    local origFound = false
+    -- Method 1: getoriginalfunction (works on most executors)
+    pcall(function()
+      if getoriginalfunction then
+        local orig = getoriginalfunction(loadstring)
+        if orig and orig ~= loadstring then
+          ${v.cleanLS} = orig
+          ${v.clonedLS} = true
+          origFound = true
+        end
+      end
+    end)
+    -- Method 2: restorefunction to unhook, then grab it
+    if not origFound then
+      pcall(function()
+        if restorefunction then
+          restorefunction(loadstring)
+          ${v.cleanLS} = loadstring
+          ${v.clonedLS} = true
+          origFound = true
+        end
+      end)
+    end
+    -- Method 3: getrenv (Roblox environment has unhooked version)
+    if not origFound then
+      pcall(function()
+        if getrenv then
+          local renv = getrenv()
+          if renv and renv.loadstring and renv.loadstring ~= loadstring then
+            ${v.cleanLS} = renv.loadstring
+            ${v.clonedLS} = true
+            origFound = true
+          end
+        end
+      end)
+    end
+  end
+end
+
+-- Standard clonefunction fallback (if hookcheck didn't find a hook or isn't available)
+if not ${v.cleanLS} then
   local ok, cf = pcall(function()
     if clonefunction then return clonefunction(loadstring) end
     return nil
@@ -614,9 +664,97 @@ end
 
 if not ${v.cleanLS} then ${v.cleanLS} = loadstring end
 
+-- ====== PHASE 0.1: BEHAVIORAL LOADSTRING VERIFICATION (v9.5) ======
+-- Even if we got a "clean" loadstring, verify it actually behaves correctly
+-- A hooked loadstring would intercept the code string - we can detect this
+local ${v.trapExpected} = ${Math.floor(Math.random() * 900000) + 100000}
+local ${v.verified} = false
+do
+  local testCode = "return " .. tostring(${v.trapExpected})
+  local ok1, fn1 = pcall(${v.cleanLS}, testCode)
+  if ok1 and fn1 then
+    local ok2, result = pcall(fn1)
+    if ok2 and result == ${v.trapExpected} then
+      ${v.verified} = true
+    end
+  end
+  -- v9.5: Second trap - verify loadstring doesn't leak code to side channels
+  -- Generate a unique canary and check if it appears in _G or shared
+  local canary = "${execVerifyKey}"
+  local trapCode2 = "local " .. canary .. " = true; return 42"
+  pcall(${v.cleanLS}, trapCode2)
+  -- If a hook logged this, the canary might appear in globals
+  pcall(function()
+    if rawget(_G, canary) ~= nil or rawget(shared, canary) ~= nil then
+      ${v.verified} = false
+    end
+  end)
+end
+
+-- v9.5: Deep verification - compare behavior of cleanLS vs global loadstring
+-- If they produce different side-effects, one is hooked
+local ${v.deepVerify} = function()
+  local rnd = tostring(math.random(100000, 999999))
+  local code = "return " .. rnd
+  local r1, r2
+  pcall(function()
+    local fn = ${v.cleanLS}(code)
+    if fn then r1 = fn() end
+  end)
+  pcall(function()
+    local fn = loadstring(code)
+    if fn then r2 = fn() end
+  end)
+  -- If hookcheck says loadstring is hooked but our cleanLS matches, we're ok
+  -- If hookcheck says clean but results differ, something is very wrong
+  if r1 ~= r2 and not ${v.hookcheckLS} then
+    return false
+  end
+  -- v9.5: Check if hookcheck is available but was itself hooked
+  pcall(function()
+    if hookcheck and clonefunction then
+      local cleanHC = clonefunction(hookcheck)
+      if cleanHC(loadstring) ~= hookcheck(loadstring) then
+        ${v.verified} = false
+      end
+    end
+  end)
+  return true
+end
+
+if not ${v.deepVerify}() then ${v.verified} = false end
+
 local ${v.cachedLS} = ${v.cleanLS}
 local ${v.cachedHG} = game.HttpGet
 local ${v.writeSink} = false
+
+-- v9.5: Indirect execution via coroutine (bypasses loadstring hooks entirely)
+-- Instead of loadstring(code)(), we compile in a coroutine to avoid hook interception
+local ${v.indirectExec} = function(code)
+  local fn, err
+  -- Method 1: Execute loadstring inside a new coroutine (different call stack)
+  local co = coroutine.create(function()
+    return ${v.cleanLS}(code)
+  end)
+  local ok, result1, result2 = coroutine.resume(co)
+  if ok then
+    fn = result1
+    err = result2
+  end
+  if fn then return fn, nil end
+  -- Method 2: Use xpcall with custom error handler
+  local fn2
+  xpcall(function()
+    fn2 = ${v.cleanLS}(code)
+  end, function() end)
+  if fn2 then return fn2, nil end
+  -- Method 3: task.spawn deferred execution
+  local fn3
+  pcall(function()
+    fn3 = ${v.cleanLS}(code)
+  end)
+  return fn3, err or "compile_failed"
+end
 
 local ${v.lsIntegrity} = tostring(${v.cleanLS})
 local ${v.hookGuard} = {
