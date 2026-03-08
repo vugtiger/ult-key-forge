@@ -655,6 +655,16 @@ const AdminDashboard = () => {
               )}
             </Section>
           </TabsContent>
+
+          {/* ===== BANNED USERS ===== */}
+          <TabsContent value="banned-users" className="mt-6">
+            <BannedUsersTab users={bannedUsers} loading={bansLoading} />
+          </TabsContent>
+
+          {/* ===== BANNED IPS ===== */}
+          <TabsContent value="banned-ips" className="mt-6">
+            <BannedIPsTab ips={bannedIps} loading={bansLoading} />
+          </TabsContent>
         </Tabs>
       </main>
     </div>
