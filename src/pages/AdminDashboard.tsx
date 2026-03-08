@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import DashboardLayout from "@/components/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Shield, Trash2, Search, Ban, Copy, Download, Users, FileCode, Globe,
   RefreshCw, Activity, Star, Clock, Database, Eye, EyeOff, XCircle,
-  AlertTriangle, Zap, Server, ShieldAlert, ShieldCheck, Lock, Unlock,
-  Crosshair, Wifi, WifiOff, BarChart3, TrendingUp, Skull
+  AlertTriangle, ShieldAlert, ShieldCheck, Crosshair, Skull, LogOut
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAdminStatus } from "@/hooks/useAdminStatus";
 
 // Types
 interface AdminUser {
@@ -82,6 +79,8 @@ const AdminDashboard = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [expandedPaste, setExpandedPaste] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   // Global ban form
   const [newBanType, setNewBanType] = useState("ip");
   const [newBanValue, setNewBanValue] = useState("");
@@ -89,21 +88,32 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Standalone auth — no DashboardLayout, no shared hooks
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setCurrentUserId(session.user.id);
+    let mounted = true;
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+      if (!session) { navigate("/auth"); return; }
+      
+      setCurrentUserId(session.user.id);
+      
+      // Check admin role directly
+      const { data } = await supabase.from('user_roles').select('role')
+        .eq('user_id', session.user.id).eq('role', 'admin').maybeSingle();
+      
+      if (!mounted) return;
+      if (!data) { navigate("/dashboard"); return; }
+      
+      setIsAdmin(true);
+      setAuthReady(true);
     });
-  }, []);
 
-  const { isAdmin, loading: adminLoading } = useAdminStatus(currentUserId || undefined);
-
-  useEffect(() => {
-    if (!adminLoading && !isAdmin && currentUserId) navigate("/dashboard");
-  }, [isAdmin, adminLoading, currentUserId, navigate]);
+    return () => { mounted = false; };
+  }, [navigate]);
 
   useEffect(() => {
-    if (isAdmin) { fetchUsers(); fetchPastes(); fetchGlobalBans(); fetchThreats(); }
-  }, [isAdmin]);
+    if (authReady && isAdmin) { fetchUsers(); fetchPastes(); fetchGlobalBans(); fetchThreats(); }
+  }, [authReady, isAdmin]);
 
   const adminCall = async (action: string, params: Record<string, any> = {}) => {
     const { data, error } = await supabase.functions.invoke('admin-api', { body: { action, ...params } });
@@ -224,11 +234,29 @@ const AdminDashboard = () => {
   const unresolvedThreats = threats.filter(t => !t.resolved);
   const criticalThreats = unresolvedThreats.filter(t => t.severity === 'critical');
 
-  if (adminLoading || !isAdmin) return null;
+  if (!authReady || !isAdmin) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Standalone header */}
+      <header className="h-14 border-b border-border/30 flex items-center px-6 sticky top-0 bg-background/80 backdrop-blur-xl z-10">
+        <Shield className="h-5 w-5 text-primary mr-2" />
+        <span className="font-bold">ULT CLOUD — Command Center</span>
+        <div className="flex-1" />
+        <Button variant="ghost" size="sm" onClick={handleLogout}><LogOut className="h-4 w-4 mr-1" />Logout</Button>
+      </header>
+      <main className="p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3">
           <Shield className="h-8 w-8 text-primary" />
@@ -598,8 +626,8 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
-    </DashboardLayout>
+      </main>
+    </div>
   );
 };
 
