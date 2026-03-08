@@ -1197,11 +1197,14 @@ async function handleCommand(interaction: any) {
       if (!channelId) return { type: 4, data: { content: 'Please provide a channel.', flags: 64 } };
       
       const guildId = interaction.guild_id || 'dm';
-      await supabase.from('changelog_channels').upsert({
-        user_id: user.id,
+      
+      // Delete existing entry for this guild, then insert fresh
+      await supabase.from('changelog_channels').delete().eq('guild_id', guildId);
+      await supabase.from('changelog_channels').insert({
+        user_id: user.userId,
         guild_id: guildId,
         channel_id: channelId,
-      }, { onConflict: 'user_id,guild_id' });
+      });
       
       return { type: 4, data: { content: `Changelog notifications set up in <#${channelId}>! When the owner sends /sendlogs, updates will be posted there.`, flags: 64 } };
     }
