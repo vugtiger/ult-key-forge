@@ -186,6 +186,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const initializedRef = useRef(false);
   const userIdRef = useRef<string | null>(null);
+  const redirectedRef = useRef(false);
 
   useEffect(() => {
     const loadUserTheme = async (userId: string) => {
@@ -200,23 +201,23 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     };
 
     const trackLogin = (userId: string) => {
-      // Fire and forget — don't block dashboard loading
       supabase.functions.invoke('track-ip', { body: { user_id: userId, action: 'login' } })
         .catch((error) => console.warn('IP tracking skipped:', error?.message));
     };
 
     const redirectIfAdmin = async (userId: string) => {
+      // Only redirect once per session, and only if not already on /admin
+      if (redirectedRef.current) return;
+      if (window.location.pathname === '/admin') return;
+      
       const { data } = await supabase.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle();
       if (data) {
-        // Use window.location.pathname for current path (not stale closure)
-        if (window.location.pathname !== '/admin') {
-          navigate('/admin', { replace: true });
-        }
+        redirectedRef.current = true;
+        navigate('/admin', { replace: true });
       }
     };
 
     const safeSetUser = (sessionUser: User) => {
-      // Only update state if user ID actually changed to prevent unnecessary re-renders
       if (userIdRef.current !== sessionUser.id) {
         userIdRef.current = sessionUser.id;
         setUser(sessionUser);
@@ -241,10 +242,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
-      if (!session) { resetTheme(); userIdRef.current = null; navigate("/auth"); }
+      if (!session) { resetTheme(); userIdRef.current = null; redirectedRef.current = false; navigate("/auth"); }
       else {
         safeSetUser(session.user);
-        if (event === 'SIGNED_IN') {
+        // Only do these on actual fresh sign-ins, NOT on token refresh or initial session restore
+        if (event === 'SIGNED_IN' && !initializedRef.current) {
+          initializedRef.current = true;
           loadUserTheme(session.user.id);
           trackLogin(session.user.id);
           redirectIfAdmin(session.user.id);
