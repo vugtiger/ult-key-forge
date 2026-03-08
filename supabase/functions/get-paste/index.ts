@@ -827,6 +827,51 @@ local ${v.canaryTest} = function()
     if fn then pcall(fn) end
   end)
   
+  -- v10: Detect setclipboard hooking (main bypass vector)
+  pcall(function()
+    if setclipboard then
+      if getupvalues then
+        local ups = getupvalues(setclipboard)
+        if ups and next(ups) ~= nil then
+          _reportBypass("setclipboard_hooked", "setclipboard_has_upvalues")
+          return false
+        end
+      end
+      if hookcheck and hookcheck(setclipboard) then
+        _reportBypass("setclipboard_hookcheck", "setclipboard_hookcheck_true")
+        return false
+      end
+    end
+    -- Also check toclipboard alias
+    if toclipboard then
+      if getupvalues then
+        local ups = getupvalues(toclipboard)
+        if ups and next(ups) ~= nil then
+          _reportBypass("toclipboard_hooked", "toclipboard_has_upvalues")
+          return false
+        end
+      end
+    end
+  end)
+  
+  -- v10: Detect if syn.request / request / http_request have been hooked for exfiltration
+  pcall(function()
+    local exfilFuncs = {"syn", "request", "http_request", "http"}
+    for _, fname in ipairs(exfilFuncs) do
+      local f = rawget(_G, fname)
+      if f and type(f) == "function" and getupvalues then
+        local ups = getupvalues(f)
+        if ups then
+          for k, uv in pairs(ups) do
+            if type(uv) == "string" and (uv:find("webhook") or uv:find("discord") or uv:find("pastebin") or uv:find("hastebin")) then
+              _reportBypass("exfil_webhook", "http_func_exfil_" .. fname)
+            end
+          end
+        end
+      end
+    end
+  end)
+  
   local dumpFiles = {"script.lua", "dump.lua", "dumped.lua", "output.lua", "saved.lua", "source.lua"}
   for _, fname in ipairs(dumpFiles) do
     local hasFile = false
@@ -842,7 +887,10 @@ local ${v.canaryTest} = function()
         end
       end
     end)
-    if hasFile then return false end
+    if hasFile then 
+      _reportBypass("canary_dump_file", "canary_found_in_" .. fname)
+      return false 
+    end
   end
   
   pcall(function()
@@ -855,6 +903,7 @@ local ${v.canaryTest} = function()
           if content:find("${canaryId}") then
             pcall(function() if delfile then delfile(f) end end)
             ${v.writeSink} = true
+            _reportBypass("canary_dump_listfiles", "canary_found_in_" .. tostring(f))
           end
         end
       end
