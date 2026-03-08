@@ -199,12 +199,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       }
     };
 
-    const trackLogin = async (userId: string) => {
-      try {
-        await supabase.functions.invoke('track-ip', { body: { user_id: userId, action: 'login' } });
-      } catch (error) {
-        console.error('Error tracking IP:', error);
-      }
+    const trackLogin = (userId: string) => {
+      // Fire and forget — don't block dashboard loading
+      supabase.functions.invoke('track-ip', { body: { user_id: userId, action: 'login' } })
+        .catch((error) => console.warn('IP tracking skipped:', error?.message));
     };
 
     const redirectIfAdmin = async (userId: string) => {

@@ -38,34 +38,44 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        // Check login rate limit before attempting
-        const { data: loginRateCheck } = await supabase.functions.invoke('track-ip', {
-          body: { action: 'check_rate_limit', limit_action: 'login' }
-        });
-        if (loginRateCheck?.allowed === false) {
-          throw new Error('Too many login attempts. Please wait before trying again.');
+        // Check login rate limit (non-blocking — don't let failures prevent login)
+        try {
+          const ratePromise = supabase.functions.invoke('track-ip', {
+            body: { action: 'check_rate_limit', limit_action: 'login' }
+          });
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
+          const { data: loginRateCheck } = await Promise.race([ratePromise, timeoutPromise]) as any;
+          if (loginRateCheck?.allowed === false) {
+            throw new Error('Too many login attempts. Please wait before trying again.');
+          }
+        } catch (rateErr: any) {
+          if (rateErr?.message?.includes('Too many login')) throw rateErr;
+          console.warn('Rate limit check skipped:', rateErr?.message);
         }
 
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         
-        const { data: ipCheck } = await supabase.functions.invoke('track-ip', {
+        // Track IP in background (non-blocking)
+        supabase.functions.invoke('track-ip', {
           body: { user_id: data.user.id, action: 'login' }
-        });
-        
-        if (ipCheck?.blocked) {
-          await supabase.auth.signOut();
-          throw new Error('This device has been blocked from this account');
-        }
+        }).catch(() => {});
         
         navigate("/dashboard");
       } else {
-        // Check signup rate limit (24h cooldown per IP)
-        const { data: signupRateCheck } = await supabase.functions.invoke('track-ip', {
-          body: { action: 'check_rate_limit', limit_action: 'signup' }
-        });
-        if (signupRateCheck?.allowed === false) {
-          throw new Error('You must wait 24 hours before creating another account from this location.');
+        // Check signup rate limit (non-blocking)
+        try {
+          const ratePromise = supabase.functions.invoke('track-ip', {
+            body: { action: 'check_rate_limit', limit_action: 'signup' }
+          });
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
+          const { data: signupRateCheck } = await Promise.race([ratePromise, timeoutPromise]) as any;
+          if (signupRateCheck?.allowed === false) {
+            throw new Error('You must wait 24 hours before creating another account from this location.');
+          }
+        } catch (rateErr: any) {
+          if (rateErr?.message?.includes('wait 24 hours')) throw rateErr;
+          console.warn('Rate limit check skipped:', rateErr?.message);
         }
 
         const { data: signupData, error } = await supabase.auth.signUp({
@@ -75,14 +85,14 @@ const Auth = () => {
         });
         if (error) throw error;
         
-        // Record signup for rate limiting + capture IP
+        // Record signup in background (non-blocking)
         if (signupData.user) {
-          await supabase.functions.invoke('track-ip', {
+          supabase.functions.invoke('track-ip', {
             body: { user_id: signupData.user.id, action: 'register' }
-          });
-          await supabase.functions.invoke('track-ip', {
+          }).catch(() => {});
+          supabase.functions.invoke('track-ip', {
             body: { action: 'record_signup' }
-          });
+          }).catch(() => {});
         }
         
         toast({
