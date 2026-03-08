@@ -682,7 +682,9 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
-      <JarvisVoice onTabChange={setActiveTab} />
+      <JarvisVoice onTabChange={setActiveTab} onRefreshData={() => {
+        fetchUsers(); fetchPastes(); fetchGlobalBans(); fetchThreats();
+      }} />
     </div>
   );
 };
