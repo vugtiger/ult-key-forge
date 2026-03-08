@@ -505,9 +505,11 @@ async function fetchRobloxProfile(userId: string): Promise<{
   return result;
 }
 
-// ===== ULT PROTECTION v9.0 =====
+// ===== ULT PROTECTION v9.5 =====
 // Runtime-bound encryption, dump poisoning, fetch intent detection,
-// behavioral scoring, enhanced anti-env logger, anti-hookfunction
+// behavioral scoring, enhanced anti-env logger, anti-hookfunction,
+// v9.5: Advanced anti-loadstring-hook with hookcheck, behavioral traps,
+// indirect execution via coroutine/xpcall, chunked code assembly
 function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string, options?: { 
   showConsoleFeedback?: boolean;
   serverNonce?: string;
@@ -529,6 +531,9 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   const serverNonce = options?.serverNonce || generateServerNonce();
   const trustLevel = options?.trustLevel ?? 100;
   
+  // v9.5: Server-side execution key for indirect execution verification
+  const execVerifyKey = Math.random().toString(36).substring(2, 18);
+  
   // Generate random variable names
   const v = Object.fromEntries(
     ['player','nonce','fingerprint','tokenParts','reconstruct','isHex','session',
@@ -542,7 +547,11 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
      'runtimeEntropy','entropyCollect','frameTiming','proofHash',
      'fetchGuard','intentCheck','dumpPoison','silentDegrade',
       'fragA','fragB','fragC','reassemble','decayTimer',
-      'hexBytes','xorBytes','bytesToString'
+      'hexBytes','xorBytes','bytesToString',
+      // v9.5 new vars
+      'hookcheckLS','lsBehavior','indirectExec','coroExec','xpExec',
+      'chunkAssemble','reXor','splitPoints','codeChunks','verified',
+      'trapResult','trapExpected','lsFingerprint','deepVerify'
     ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
   );
   
