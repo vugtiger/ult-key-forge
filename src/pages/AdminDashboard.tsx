@@ -9,8 +9,9 @@ import {
   Shield, Trash2, Search, Ban, Copy, Download, Users, FileCode, Globe,
   RefreshCw, Activity, Star, Clock, Database, Eye, EyeOff, XCircle,
   AlertTriangle, ShieldAlert, ShieldCheck, Crosshair, Skull, LogOut,
-  ChevronRight, Zap, Lock, Unlock
+  ChevronRight, Zap, Lock, Unlock, Bot
 } from "lucide-react";
+import JarvisAI from "@/components/JarvisAI";
 import { useNavigate } from "react-router-dom";
 
 // Types
@@ -280,10 +281,11 @@ const AdminDashboard = () => {
         </div>
 
         {/* Main tabs */}
-        <Tabs defaultValue="threats" className="w-full">
+        <Tabs defaultValue="jarvis" className="w-full">
           <div className="border-b border-border/10 -mx-6 px-6">
             <TabsList className="bg-transparent h-auto p-0 gap-0 rounded-none">
               {[
+                { value: "jarvis", icon: Bot, label: "J.A.R.V.I.S" },
                 { value: "threats", icon: Crosshair, label: "Threats", badge: unresolvedThreats.length || undefined },
                 { value: "global-bans", icon: ShieldAlert, label: "Bans" },
                 { value: "users", icon: Users, label: "Users" },
@@ -311,6 +313,11 @@ const AdminDashboard = () => {
               ))}
             </TabsList>
           </div>
+
+          {/* ===== JARVIS ===== */}
+          <TabsContent value="jarvis" className="mt-6">
+            <JarvisAI />
+          </TabsContent>
 
           {/* ===== THREATS ===== */}
           <TabsContent value="threats" className="mt-6">
