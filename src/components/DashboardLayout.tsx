@@ -205,17 +205,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         .catch((error) => console.warn('IP tracking skipped:', error?.message));
     };
 
-    const redirectIfAdmin = async (userId: string) => {
-      // Only redirect once per session, and only if not already on /admin
-      if (redirectedRef.current) return;
-      if (window.location.pathname === '/admin') return;
-      
-      const { data } = await supabase.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle();
-      if (data) {
-        redirectedRef.current = true;
-        navigate('/admin', { replace: true });
-      }
-    };
+    // Admin redirect removed — admin page is fully standalone
 
     const safeSetUser = (sessionUser: User) => {
       if (userIdRef.current !== sessionUser.id) {
