@@ -1234,6 +1234,57 @@ async function handleCommand(interaction: any) {
 
     // backgroundprotection removed - not needed as separate command
 
+    case 'sendlogs': {
+      // Broadcast latest changelog to ALL saved changelog channels
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      
+      // Check admin
+      const { data: roleCheck } = await supabase.from('user_roles').select('role').eq('user_id', user.userId).eq('role', 'admin').maybeSingle();
+      if (!roleCheck) return { type: 4, data: { content: '❌ Admin only command.', flags: 64 } };
+      
+      const { data: latestChangelog } = await supabase
+        .from('changelog')
+        .select('version, title, description, changes')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (!latestChangelog) return { type: 4, data: { content: '❌ No changelog entries found.', flags: 64 } };
+      
+      const { data: channels } = await supabase.from('changelog_channels').select('channel_id');
+      if (!channels || channels.length === 0) return { type: 4, data: { content: '❌ No channels have been set up with /logs yet.', flags: 64 } };
+      
+      const changes = Array.isArray(latestChangelog.changes) ? (latestChangelog.changes as any[]).map((c: any) => `• ${c}`).join('\n') : '';
+      let sent = 0;
+      let failed = 0;
+      
+      for (const ch of channels) {
+        try {
+          const res = await fetch(`https://discord.com/api/v10/channels/${ch.channel_id}/messages`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: '@everyone',
+              embeds: [{
+                title: `Changelog v${latestChangelog.version} — ${latestChangelog.title}`,
+                description: `${latestChangelog.description}\n\n${changes}`,
+                color: 0xFFFFFF,
+                footer: { text: 'ULT LUA PROTECTS' },
+                timestamp: new Date().toISOString(),
+              }]
+            })
+          });
+          if (res.ok) sent++;
+          else failed++;
+        } catch {
+          failed++;
+        }
+      }
+      
+      return { type: 4, data: { content: `✅ Changelog v${latestChangelog.version} broadcasted to ${sent} channel(s)${failed > 0 ? ` (${failed} failed)` : ''}.`, flags: 64 } };
+    }
+
     case 'iptracking': {
       const user = await getUser();
       if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
