@@ -74,10 +74,11 @@ function isDiscordIdBanned(discordUserId: string): boolean {
 }
 
 // Log threat to DB (fire-and-forget)
-function logThreat(type: string, ip: string | null, robloxId: string | null, discordId: string | null, details: any, severity: string) {
+function logThreat(type: string, ip: string | null, robloxId: string | null, discordId: string | null, details: any, severity: string, autoResolve = false) {
   supabase.from('threat_log').insert({
     threat_type: type, source_ip: ip, roblox_user_id: robloxId,
     discord_user_id: discordId, details, severity,
+    resolved: autoResolve, auto_banned: autoResolve,
   }).then(() => {}).catch(e => console.error('Threat log failed:', e));
 }
 
