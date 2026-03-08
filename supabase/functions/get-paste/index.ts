@@ -13,6 +13,28 @@ const corsHeaders = {
   Expires: '0',
 };
 
+// ===== PERMANENT IP BAN LIST =====
+// These IPs are permanently blocked from ALL access. Even VPN won't help if we catch their new IPs.
+const PERMANENTLY_BANNED_IPS = new Set([
+  '79.177.154.169',
+  '79.181.155.63',   // Same ISP range, likely same person
+  '89.234.244.240',  // Frequent abuser from logs
+]);
+
+// Subnet bans - block entire /24 ranges for persistent abusers
+const BANNED_SUBNETS = [
+  '79.177.154.',   // Full subnet of the main abuser
+  '79.181.155.',   // Related subnet
+];
+
+function isPermanentlyBanned(ip: string): boolean {
+  if (PERMANENTLY_BANNED_IPS.has(ip)) return true;
+  for (const subnet of BANNED_SUBNETS) {
+    if (ip.startsWith(subnet)) return true;
+  }
+  return false;
+}
+
 // Enhanced rate limiting with IP tracking (persists within isolate lifetime)
 const rateLimits = new Map<string, { count: number; resetTime: number; blocked: boolean }>();
 const suspiciousIps = new Map<string, { strikes: number; lastStrike: number }>();
