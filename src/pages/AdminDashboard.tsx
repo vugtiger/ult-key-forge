@@ -621,7 +621,7 @@ const AdminDashboard = () => {
           {/* ===== SESSIONS ===== */}
           <TabsContent value="sessions" className="mt-6">
             <Section>
-              <SectionHeader icon={Clock} title="Active Sessions" subtitle={`${filteredSessions.length} sessions`} />
+              <SectionHeader icon={Clock} title="Active Sessions" subtitle={`${filteredSessions.length} sessions`} actions={sessions.length > 0 ? <Button onClick={handleClearAllSessions} variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive"><Trash2 className="h-3 w-3 mr-1" />Clear All</Button> : undefined} />
               <SearchBar value={sessionSearch} onChange={setSessionSearch} placeholder="Search sessions..." onRefresh={fetchSessions} />
               {dbLoading ? (
                 <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
