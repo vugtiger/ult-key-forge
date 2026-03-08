@@ -64,14 +64,48 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     window.speechSynthesis.speak(utterance);
   }, [getBritishVoice, wakeWordActive]);
 
+  // Map page paths to admin dashboard tab names
+  const pathToTab: Record<string, string> = {
+    "/analytics": "activity",
+    "/admin": "threats",
+    "/scripts": "pastes",
+    "/settings": "users",
+    "analytics": "activity",
+    "activity": "activity",
+    "threats": "threats",
+    "users": "users",
+    "pastes": "pastes",
+    "access-logs": "access-logs",
+    "sessions": "sessions",
+    "global-bans": "global-bans",
+    "banned-users": "banned-users",
+    "banned-ips": "banned-ips",
+    "bans": "global-bans",
+    "logs": "access-logs",
+  };
+
   // Execute JARVIS action
   const executeAction = useCallback((action: any) => {
     if (!action) return;
     
+    console.log('[JARVIS] Executing action:', JSON.stringify(action));
+    
     switch (action.type) {
       case "switch_tab":
         if (action.params?.tab && onTabChange) {
-          onTabChange(action.params.tab);
+          const tab = action.params.tab.toLowerCase();
+          const mapped = pathToTab[tab] || tab;
+          console.log('[JARVIS] Switching to tab:', mapped);
+          onTabChange(mapped);
+        }
+        break;
+      case "navigate":
+        // Fallback: convert navigation attempts to tab switches
+        if (onTabChange && action.params?.path) {
+          const path = action.params.path.toLowerCase().replace(/^\//, '');
+          const mapped = pathToTab[action.params.path] || pathToTab[path] || path;
+          console.log('[JARVIS] Converting navigate to tab switch:', mapped);
+          onTabChange(mapped);
         }
         break;
       case "toggle_protection":
