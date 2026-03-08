@@ -18,6 +18,8 @@ const AccessMonitor = () => {
   const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchPastes();
