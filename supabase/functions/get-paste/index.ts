@@ -2515,7 +2515,7 @@ Deno.serve(async (req) => {
           // Check if this Discord user is globally banned — auto-ban IP too
           if (isDiscordIdBanned(discordSession.discord_user_id)) {
             autoBanNewIp(clientIp, 'banned_discord_user_new_ip', robloxUserId, discordSession.discord_user_id);
-            logThreat('banned_discord_access', clientIp, robloxUserId, discordSession.discord_user_id, { action: 'discord_id_banned', ip_auto_banned: true }, 'high');
+            logThreat('banned_discord_access', clientIp, robloxUserId, discordSession.discord_user_id, { action: 'discord_id_banned', ip_auto_banned: true }, 'high', true);
             // Don't return here — still block silently by not serving content
           }
           discordData = {
