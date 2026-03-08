@@ -19,9 +19,19 @@ const suspiciousIps = new Map<string, { strikes: number; lastStrike: number }>()
 // v9: Session trust scores - tracks behavioral scoring per IP
 const trustScores = new Map<string, { score: number; lastUpdate: number; requestTimes: number[] }>();
 
+// Per-IP-per-slug throttle: max 3 requests per 30 seconds for the same slug from same IP
+const slugThrottle = new Map<string, { count: number; resetTime: number }>();
+const SLUG_THROTTLE_MAX = 3;
+const SLUG_THROTTLE_WINDOW = 30_000; // 30 seconds
+
+// Global request counter to shed load when overwhelmed
+let globalRequestCount = 0;
+let globalResetTime = Date.now() + 10_000;
+const GLOBAL_MAX_RPS = 50; // max 50 requests per 10 seconds across ALL IPs
+
 // Response cache — cache paste lookups to avoid hammering DB
 const pasteCache = new Map<string, { data: any; timestamp: number }>();
-const PASTE_CACHE_TTL = 10_000; // 10 seconds
+const PASTE_CACHE_TTL = 30_000; // 30 seconds (increased from 10s)
 
 function getCachedPaste(slug: string): any | null {
   const cached = pasteCache.get(slug);
@@ -146,7 +156,7 @@ function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const limit = rateLimits.get(ip);
   const suspicious = suspiciousIps.get(ip);
-  if (suspicious && suspicious.strikes >= 5) {
+  if (suspicious && suspicious.strikes >= 3) {
     if (now - suspicious.lastStrike < 3600000) return false;
     suspiciousIps.delete(ip);
   }
@@ -154,13 +164,49 @@ function checkRateLimit(ip: string): boolean {
     rateLimits.set(ip, { count: 1, resetTime: now + 60000, blocked: false });
     return true;
   }
-  if (limit.count >= 20) {
+  if (limit.count >= 10) { // reduced from 20 to 10 per minute
     const currentStrikes = suspicious?.strikes || 0;
     suspiciousIps.set(ip, { strikes: currentStrikes + 1, lastStrike: now });
     return false;
   }
   limit.count++;
   return true;
+}
+
+function checkSlugThrottle(ip: string, slug: string): boolean {
+  const key = `${ip}:${slug}`;
+  const now = Date.now();
+  const entry = slugThrottle.get(key);
+  if (!entry || now > entry.resetTime) {
+    slugThrottle.set(key, { count: 1, resetTime: now + SLUG_THROTTLE_WINDOW });
+    return true;
+  }
+  if (entry.count >= SLUG_THROTTLE_MAX) return false;
+  entry.count++;
+  return true;
+}
+
+function checkGlobalLoad(): boolean {
+  const now = Date.now();
+  if (now > globalResetTime) {
+    globalRequestCount = 0;
+    globalResetTime = now + 10_000;
+  }
+  globalRequestCount++;
+  return globalRequestCount <= GLOBAL_MAX_RPS;
+}
+
+// Periodic cleanup of stale maps (every 5 min)
+let lastCleanup = Date.now();
+function cleanupMaps() {
+  const now = Date.now();
+  if (now - lastCleanup < 300_000) return;
+  lastCleanup = now;
+  for (const [k, v] of rateLimits) { if (now > v.resetTime) rateLimits.delete(k); }
+  for (const [k, v] of suspiciousIps) { if (now - v.lastStrike > 3600000) suspiciousIps.delete(k); }
+  for (const [k, v] of slugThrottle) { if (now > v.resetTime) slugThrottle.delete(k); }
+  for (const [k, v] of trustScores) { if (now - v.lastUpdate > 3600000) trustScores.delete(k); }
+  for (const [k, v] of pasteCache) { if (now - v.timestamp > PASTE_CACHE_TTL) pasteCache.delete(k); }
 }
 
 // v9: Behavioral trust scoring
@@ -1664,6 +1710,17 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Periodic map cleanup
+  cleanupMaps();
+
+  // GLOBAL LOAD SHEDDING — protect DB from being overwhelmed
+  if (!checkGlobalLoad()) {
+    return new Response('-- Server busy, try again shortly\ngame:GetService("Players").LocalPlayer:Kick("Server is busy. Please rejoin.")', {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+    });
+  }
+
   try {
     const url = new URL(req.url);
     const slug = url.searchParams.get('slug');
@@ -1761,9 +1818,18 @@ Deno.serve(async (req) => {
       return new Response('Missing slug', { status: 400, headers: corsHeaders });
     }
 
+    // Per-IP-per-slug throttle — stop one IP from hammering the same paste
+    if (!checkSlugThrottle(clientIp, slug)) {
+      console.log(`Slug throttled: ${clientIp} on ${slug}`);
+      return new Response(generateKickPlain('Too many requests for this script - slow down'), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
+    }
+
     // Supabase client is now module-level (reused across requests)
 
-    if (Math.random() < 0.01) {
+    if (Math.random() < 0.005) {
       try { await supabase.rpc('cleanup_expired_tokens'); } catch {}
     }
 
@@ -1771,14 +1837,30 @@ Deno.serve(async (req) => {
     let paste = getCachedPaste(slug);
     let error = null;
     if (!paste) {
-      const result = await supabase
-        .from('pastes')
-        .select('*')
-        .eq('slug', slug)
-        .single();
-      paste = result.data;
-      error = result.error;
-      if (paste) setCachedPaste(slug, paste);
+      // Add timeout to DB query to prevent hanging connections
+      try {
+        const dbPromise = supabase
+          .from('pastes')
+          .select('*')
+          .eq('slug', slug)
+          .single();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('DB_TIMEOUT')), 5000)
+        );
+        const result = await Promise.race([dbPromise, timeoutPromise]) as any;
+        paste = result.data;
+        error = result.error;
+        if (paste) setCachedPaste(slug, paste);
+      } catch (e: any) {
+        if (e?.message === 'DB_TIMEOUT') {
+          console.error(`[get-paste] DB timeout for slug=${slug}`);
+          return new Response(generateKickPlain('Server is experiencing high load. Please rejoin.'), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          });
+        }
+        throw e;
+      }
     }
 
     if (error || !paste) {
