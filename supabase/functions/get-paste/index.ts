@@ -2090,7 +2090,12 @@ Deno.serve(async (req) => {
   const earlyIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                   req.headers.get('cf-connecting-ip') || 'unknown';
   if (isPermanentlyBanned(earlyIp)) {
-    logThreat('banned_ip_access', earlyIp, null, null, { action: 'blocked_at_gate' }, 'high');
+    // Auto-resolve and mark as auto-banned since they're already globally banned
+    supabase.from('threat_log').insert({
+      threat_type: 'banned_ip_access', source_ip: earlyIp, roblox_user_id: null,
+      discord_user_id: null, details: { action: 'blocked_at_gate' }, severity: 'high',
+      resolved: true, auto_banned: true,
+    }).then(() => {}).catch(e => console.error('Threat log failed:', e));
     return new Response('', { status: 403, headers: { ...corsHeaders } });
   }
 
