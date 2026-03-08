@@ -1639,6 +1639,11 @@ local function smoothDestroy(msg, color, scriptCode)
     TweenService:Create(closeDot, fadeOut, {BackgroundTransparency = 1}):Play()
     TweenService:Create(minDot, fadeOut, {BackgroundTransparency = 1}):Play()
 
+    // Check if this Roblox user ID is globally banned
+    if (uid && isRobloxIdBanned(uid)) {
+      logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned' }, 'high');
+      return new Response('', { status: 403, headers: { ...corsHeaders } });
+    }
 
     ${restWords ? 'TweenService:Create(titleRest, fadeOut, {TextTransparency = 1}):Play()' : ''}
     ${decalId ? 'TweenService:Create(logoImg, fadeOut, {ImageTransparency = 1}):Play()' : ''}
