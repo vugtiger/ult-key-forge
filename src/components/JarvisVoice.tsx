@@ -69,9 +69,9 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
     if (!action) return;
     
     switch (action.type) {
-      case "navigate":
-        if (action.params?.path) {
-          navigate(action.params.path);
+      case "switch_tab":
+        if (action.params?.tab && onTabChange) {
+          onTabChange(action.params.tab);
         }
         break;
       case "toggle_protection":
