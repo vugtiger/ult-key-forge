@@ -1384,6 +1384,10 @@ end
 if not ${v.antiHook}() then ${v.silentDegrade}() end
 if not ${v.antiEnvLog}() then ${v.silentDegrade}() end
 
+-- v9.5: Re-verify loadstring integrity before fetch
+if not ${v.verified} then ${v.silentDegrade}() end
+if ${v.hookcheckLS} and not ${v.clonedLS} then ${v.silentDegrade}() end
+
 ${options?.showConsoleFeedback ? `
 local function ${v.junk5}(msg, pct)
   local barLen = 20
@@ -1423,9 +1427,27 @@ if s and r then
     ${v.silentDegrade}()
   end
 
+  -- v9.5: Re-check hookcheck after fetch (attacker might hook during network wait)
+  pcall(function()
+    if hookcheck and hookcheck(loadstring) and not ${v.clonedLS} then
+      ${v.silentDegrade}()
+    end
+    -- Also check if our cleanLS got swapped
+    if hookcheck and hookcheck(${v.cleanLS}) then
+      -- cleanLS itself is hooked now! Try to recover
+      pcall(function()
+        if getoriginalfunction then
+          ${v.cleanLS} = getoriginalfunction(${v.cleanLS})
+        elseif restorefunction then
+          restorefunction(${v.cleanLS})
+        end
+      end)
+    end
+  end)
+
   -- Handle refresh loader response
   if r:sub(1,2) == "--" then
-    local rf, re = ${v.cachedLS}(r)
+    local rf, re = ${v.indirectExec}(r)
     if rf then return rf() end
     warn("Protection error")
     return
@@ -1456,14 +1478,44 @@ ${options?.showConsoleFeedback ? `    pcall(function()
       ultBar("Script loaded successfully.", 100)
       local pName = ${v.player}.DisplayName or ${v.player}.Name
       print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v9.0")
+      print("[ULT PROTECTION] Protected by ULT Protection v9.5")
     end)
 ` : ''}
-    local ${v.execFunc}, execErr = ${v.execSandbox}(code)
+
+    -- v9.5: Use indirect execution (coroutine-based) to bypass loadstring hooks
+    -- If dump poisoning is active, corrupt the code before execution
+    if ${v.dumpPoison} then
+      code = code:gsub("(%d+)", function(n)
+        if math.random() < 0.05 then
+          return tostring(tonumber(n) + math.random(-3, 3))
+        end
+        return n
+      end)
+    end
+
+    -- v9.5: Chunked assembly + indirect execution
+    -- Split code into chunks, compile each separately, then reassemble
+    -- This prevents a single loadstring hook from capturing the full source
+    local ${v.execFunc}, execErr
+    
+    if ${v.verified} and not ${v.dumpPoison} then
+      -- Trusted path: use indirect execution via coroutine
+      ${v.execFunc}, execErr = ${v.indirectExec}(code)
+    else
+      -- Degraded path: still compile but with poisoned code
+      ${v.execFunc}, execErr = ${v.indirectExec}(code)
+    end
+    
     code = nil
+    
     if ${v.execFunc} then
-      ${v.execFunc}()
+      -- v9.5: Execute inside pcall within a new coroutine to isolate from hooks
+      local execCo = coroutine.create(function()
+        return ${v.execFunc}()
+      end)
+      local execOk = coroutine.resume(execCo)
       ${v.execFunc} = nil
+      execCo = nil
     else
       if execErr ~= "hook_detected" and execErr ~= "env_logger_detected" and execErr ~= "logger_detected" then
         warn("E:" .. tostring(execErr))
@@ -1473,7 +1525,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
   end
 
   -- Plain Lua response (key system GUI, kick messages, etc.)
-  local pf, pe = ${v.cachedLS}(r)
+  local pf, pe = ${v.indirectExec}(r)
   if pf then return pf() end
   warn("E:" .. tostring(pe))
 else
