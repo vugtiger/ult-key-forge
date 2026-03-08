@@ -2556,11 +2556,25 @@ Deno.serve(async (req) => {
       console.log(`[get-paste] SUSPICIOUS fetch timing from ${clientIp}`);
     }
     
+    // ===== COMPUTE BROWSER/ROBLOX FLAGS EARLY =====
+    const isRobloxRequest = userAgent.toLowerCase().includes('roblox') || 
+                            userAgent.includes('HttpService');
+
+    const isLikelyBrowser =
+      Boolean(secFetchMode) ||
+      Boolean(secFetchDest) ||
+      accept.includes('text/html') ||
+      Boolean(origin) ||
+      Boolean(referer) ||
+      // Fallback: common browser UA patterns (in case sec-fetch headers are stripped)
+      (/Mozilla\/\d/.test(userAgent) && /AppleWebKit|Gecko|Chrome|Safari|Firefox|Edge/.test(userAgent));
+
     // ===== BOT DETECTION + AUTO-BAN =====
-    if (!validationResult.valid && validationResult.reason !== 'browser_headers' && 
+    // SKIP for browsers and Roblox requests — only target actual bots/tools
+    if (!isLikelyBrowser && !isRobloxRequest &&
+        !validationResult.valid && validationResult.reason !== 'browser_headers' && 
         validationResult.reason !== 'html_accept' && validationResult.reason !== 'origin_referer') {
       console.log(`[get-paste] BLOCKED+BANNED: ${validationResult.reason} from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
-      // Auto-ban the IP for bot/tool access attempts
       autoBanNewIp(clientIp, `bot_detected_${validationResult.reason}`, uid || null, null);
       logThreat('bot_access_attempt', clientIp, uid || null, null, { 
         reason: validationResult.reason, 
@@ -2611,9 +2625,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Block curl/wget + auto-ban
+    // Block curl/wget + auto-ban (skip browsers)
     const uaLower = userAgent.toLowerCase();
-    if (uaLower.includes('curl') || uaLower.includes('wget') || uaLower.includes('libcurl')) {
+    if (!isLikelyBrowser && (uaLower.includes('curl') || uaLower.includes('wget') || uaLower.includes('libcurl'))) {
       console.log(`[get-paste] BLOCKED+BANNED: curl/wget detected ua="${userAgent}" from ${clientIp}`);
       autoBanNewIp(clientIp, 'curl_wget_access', null, null);
       logThreat('curl_tool_access', clientIp, null, null, {
@@ -2627,8 +2641,8 @@ Deno.serve(async (req) => {
       });
     }
     
-    // ===== DISCORD BOT SPECIFIC DETECTION (even if UA passed basic checks) =====
-    if (isDiscordBotRequest(req.headers)) {
+    // ===== DISCORD BOT SPECIFIC DETECTION (skip browsers) =====
+    if (!isLikelyBrowser && !isRobloxRequest && isDiscordBotRequest(req.headers)) {
       console.log(`[get-paste] DISCORD BOT DETECTED+BANNED: from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
       autoBanNewIp(clientIp, 'discord_bot_access', uid || null, null);
       logThreat('discord_bot_access', clientIp, uid || null, null, {
@@ -2642,16 +2656,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const isRobloxRequest = userAgent.toLowerCase().includes('roblox') || 
-                            userAgent.includes('HttpService');
-
-    const isLikelyBrowser =
-      Boolean(secFetchMode) ||
-      Boolean(secFetchDest) ||
-      accept.includes('text/html') ||
-      Boolean(origin) ||
-      Boolean(referer);
-    
     if (!checkRateLimit(clientIp)) {
       console.log(`Rate limited: ${clientIp}`);
       return new Response(generateKickPlain('Too many requests - You have been temporarily blocked'), { 
