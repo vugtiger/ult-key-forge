@@ -226,6 +226,26 @@ serve(async (req) => {
       return json({ success: true, keys: insertedKeys, panel_id: panelId });
     }
 
+    if (action === 'clear_threats') {
+      await serviceClient.from('threat_log').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      return json({ success: true });
+    }
+
+    if (action === 'clear_access_logs') {
+      await serviceClient.from('paste_access_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      return json({ success: true });
+    }
+
+    if (action === 'clear_sessions') {
+      await serviceClient.from('user_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      return json({ success: true });
+    }
+
+    if (action === 'clear_activity') {
+      await serviceClient.from('user_activity').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      return json({ success: true });
+    }
+
     return new Response(JSON.stringify({ error: 'Invalid action' }), {
       status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
