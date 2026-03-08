@@ -47,6 +47,8 @@ async function refreshGlobalBans() {
       else if (ban.ban_type === 'discord_id') discordIds.add(ban.ban_value);
     }
     globalBanCache = { ips, subnets, robloxIds, discordIds, lastRefresh: Date.now() };
+    // Also refresh admin IPs so they're never banned
+    await refreshAdminIps();
   } catch (e) {
     console.error('Failed to refresh global bans:', e);
   }
