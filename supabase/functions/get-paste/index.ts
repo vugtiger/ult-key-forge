@@ -1177,11 +1177,10 @@ local ${v.silentDegrade} = function()
   -- Don't warn, don't kick - silently mark session as compromised
 end
 
--- ====== PHASE 4: SANDBOXED EXECUTION (v9.0 Enhanced) ======
+-- ====== PHASE 4: SANDBOXED EXECUTION (v9.5 Enhanced) ======
 local ${v.execSandbox} = function(code)
-  -- v9: If dump poisoning active, corrupt the code subtly
+  -- v9.5: If dump poisoning active, corrupt the code subtly
   if ${v.dumpPoison} then
-    -- Insert subtle bugs: change random numbers, swap true/false
     code = code:gsub("(%d+)", function(n)
       if math.random() < 0.05 then
         return tostring(tonumber(n) + math.random(-3, 3))
@@ -1192,9 +1191,8 @@ local ${v.execSandbox} = function(code)
   
   if not ${v.antiHook}() then
     ${v.silentDegrade}()
-    -- v9: Don't return nil, execute poisoned payload
     if ${v.dumpPoison} then
-      local fn, err = ${v.cleanLS}(code)
+      local fn, err = ${v.indirectExec}(code)
       return fn, err
     end
     return nil, "hook_detected"
@@ -1202,7 +1200,7 @@ local ${v.execSandbox} = function(code)
   if not ${v.antiEnvLog}() then
     ${v.silentDegrade}()
     if ${v.dumpPoison} then
-      local fn, err = ${v.cleanLS}(code)
+      local fn, err = ${v.indirectExec}(code)
       return fn, err
     end
     return nil, "env_logger_detected"
@@ -1210,13 +1208,14 @@ local ${v.execSandbox} = function(code)
   if not ${v.antiLogger}() then
     ${v.silentDegrade}()
     if ${v.dumpPoison} then
-      local fn, err = ${v.cleanLS}(code)
+      local fn, err = ${v.indirectExec}(code)
       return fn, err
     end
     return nil, "logger_detected"
   end
   
-  local fn, err = ${v.cleanLS}(code)
+  -- v9.5: Use indirect execution (coroutine-based) for clean path too
+  local fn, err = ${v.indirectExec}(code)
   if not fn then return nil, err end
   return fn, nil
 end
