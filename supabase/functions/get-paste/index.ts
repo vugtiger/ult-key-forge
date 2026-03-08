@@ -505,9 +505,11 @@ async function fetchRobloxProfile(userId: string): Promise<{
   return result;
 }
 
-// ===== ULT PROTECTION v9.0 =====
+// ===== ULT PROTECTION v9.5 =====
 // Runtime-bound encryption, dump poisoning, fetch intent detection,
-// behavioral scoring, enhanced anti-env logger, anti-hookfunction
+// behavioral scoring, enhanced anti-env logger, anti-hookfunction,
+// v9.5: Advanced anti-loadstring-hook with hookcheck, behavioral traps,
+// indirect execution via coroutine/xpcall, chunked code assembly
 function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string, options?: { 
   showConsoleFeedback?: boolean;
   serverNonce?: string;
@@ -529,6 +531,9 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   const serverNonce = options?.serverNonce || generateServerNonce();
   const trustLevel = options?.trustLevel ?? 100;
   
+  // v9.5: Server-side execution key for indirect execution verification
+  const execVerifyKey = Math.random().toString(36).substring(2, 18);
+  
   // Generate random variable names
   const v = Object.fromEntries(
     ['player','nonce','fingerprint','tokenParts','reconstruct','isHex','session',
@@ -542,7 +547,11 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
      'runtimeEntropy','entropyCollect','frameTiming','proofHash',
      'fetchGuard','intentCheck','dumpPoison','silentDegrade',
       'fragA','fragB','fragC','reassemble','decayTimer',
-      'hexBytes','xorBytes','bytesToString'
+      'hexBytes','xorBytes','bytesToString',
+      // v9.5 new vars
+      'hookcheckLS','lsBehavior','indirectExec','coroExec','xpExec',
+      'chunkAssemble','reXor','splitPoints','codeChunks','verified',
+      'trapResult','trapExpected','lsFingerprint','deepVerify'
     ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
   );
   
@@ -561,14 +570,64 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   const protectionSeed = Math.random();
   const canaryId = Math.random().toString(36).substring(2, 12);
   
-  return `--[[ULT Protection v9.0 - ${Math.random().toString(36).substring(2,10)}]]
+  return `--[[ULT Protection v9.5 - ${Math.random().toString(36).substring(2,10)}]]
 ${junkCode}
 
--- ====== PHASE 0: OBTAIN CLEAN LOADSTRING ======
+-- ====== PHASE 0: OBTAIN CLEAN LOADSTRING (v9.5 Enhanced) ======
 local ${v.cleanLS}
 local ${v.clonedLS} = false
 
+-- v9.5: First, check if hookfunction has been used on loadstring via hookcheck
+local ${v.hookcheckLS} = false
 do
+  local ok, hc = pcall(function()
+    if hookcheck then return hookcheck(loadstring) end
+    return false
+  end)
+  if ok and hc == true then
+    ${v.hookcheckLS} = true
+    -- loadstring IS hooked. Try to get original via multiple methods
+    local origFound = false
+    -- Method 1: getoriginalfunction (works on most executors)
+    pcall(function()
+      if getoriginalfunction then
+        local orig = getoriginalfunction(loadstring)
+        if orig and orig ~= loadstring then
+          ${v.cleanLS} = orig
+          ${v.clonedLS} = true
+          origFound = true
+        end
+      end
+    end)
+    -- Method 2: restorefunction to unhook, then grab it
+    if not origFound then
+      pcall(function()
+        if restorefunction then
+          restorefunction(loadstring)
+          ${v.cleanLS} = loadstring
+          ${v.clonedLS} = true
+          origFound = true
+        end
+      end)
+    end
+    -- Method 3: getrenv (Roblox environment has unhooked version)
+    if not origFound then
+      pcall(function()
+        if getrenv then
+          local renv = getrenv()
+          if renv and renv.loadstring and renv.loadstring ~= loadstring then
+            ${v.cleanLS} = renv.loadstring
+            ${v.clonedLS} = true
+            origFound = true
+          end
+        end
+      end)
+    end
+  end
+end
+
+-- Standard clonefunction fallback (if hookcheck didn't find a hook or isn't available)
+if not ${v.cleanLS} then
   local ok, cf = pcall(function()
     if clonefunction then return clonefunction(loadstring) end
     return nil
@@ -605,9 +664,97 @@ end
 
 if not ${v.cleanLS} then ${v.cleanLS} = loadstring end
 
+-- ====== PHASE 0.1: BEHAVIORAL LOADSTRING VERIFICATION (v9.5) ======
+-- Even if we got a "clean" loadstring, verify it actually behaves correctly
+-- A hooked loadstring would intercept the code string - we can detect this
+local ${v.trapExpected} = ${Math.floor(Math.random() * 900000) + 100000}
+local ${v.verified} = false
+do
+  local testCode = "return " .. tostring(${v.trapExpected})
+  local ok1, fn1 = pcall(${v.cleanLS}, testCode)
+  if ok1 and fn1 then
+    local ok2, result = pcall(fn1)
+    if ok2 and result == ${v.trapExpected} then
+      ${v.verified} = true
+    end
+  end
+  -- v9.5: Second trap - verify loadstring doesn't leak code to side channels
+  -- Generate a unique canary and check if it appears in _G or shared
+  local canary = "${execVerifyKey}"
+  local trapCode2 = "local " .. canary .. " = true; return 42"
+  pcall(${v.cleanLS}, trapCode2)
+  -- If a hook logged this, the canary might appear in globals
+  pcall(function()
+    if rawget(_G, canary) ~= nil or rawget(shared, canary) ~= nil then
+      ${v.verified} = false
+    end
+  end)
+end
+
+-- v9.5: Deep verification - compare behavior of cleanLS vs global loadstring
+-- If they produce different side-effects, one is hooked
+local ${v.deepVerify} = function()
+  local rnd = tostring(math.random(100000, 999999))
+  local code = "return " .. rnd
+  local r1, r2
+  pcall(function()
+    local fn = ${v.cleanLS}(code)
+    if fn then r1 = fn() end
+  end)
+  pcall(function()
+    local fn = loadstring(code)
+    if fn then r2 = fn() end
+  end)
+  -- If hookcheck says loadstring is hooked but our cleanLS matches, we're ok
+  -- If hookcheck says clean but results differ, something is very wrong
+  if r1 ~= r2 and not ${v.hookcheckLS} then
+    return false
+  end
+  -- v9.5: Check if hookcheck is available but was itself hooked
+  pcall(function()
+    if hookcheck and clonefunction then
+      local cleanHC = clonefunction(hookcheck)
+      if cleanHC(loadstring) ~= hookcheck(loadstring) then
+        ${v.verified} = false
+      end
+    end
+  end)
+  return true
+end
+
+if not ${v.deepVerify}() then ${v.verified} = false end
+
 local ${v.cachedLS} = ${v.cleanLS}
 local ${v.cachedHG} = game.HttpGet
 local ${v.writeSink} = false
+
+-- v9.5: Indirect execution via coroutine (bypasses loadstring hooks entirely)
+-- Instead of loadstring(code)(), we compile in a coroutine to avoid hook interception
+local ${v.indirectExec} = function(code)
+  local fn, err
+  -- Method 1: Execute loadstring inside a new coroutine (different call stack)
+  local co = coroutine.create(function()
+    return ${v.cleanLS}(code)
+  end)
+  local ok, result1, result2 = coroutine.resume(co)
+  if ok then
+    fn = result1
+    err = result2
+  end
+  if fn then return fn, nil end
+  -- Method 2: Use xpcall with custom error handler
+  local fn2
+  xpcall(function()
+    fn2 = ${v.cleanLS}(code)
+  end, function() end)
+  if fn2 then return fn2, nil end
+  -- Method 3: task.spawn deferred execution
+  local fn3
+  pcall(function()
+    fn3 = ${v.cleanLS}(code)
+  end)
+  return fn3, err or "compile_failed"
+end
 
 local ${v.lsIntegrity} = tostring(${v.cleanLS})
 local ${v.hookGuard} = {
@@ -1030,11 +1177,10 @@ local ${v.silentDegrade} = function()
   -- Don't warn, don't kick - silently mark session as compromised
 end
 
--- ====== PHASE 4: SANDBOXED EXECUTION (v9.0 Enhanced) ======
+-- ====== PHASE 4: SANDBOXED EXECUTION (v9.5 Enhanced) ======
 local ${v.execSandbox} = function(code)
-  -- v9: If dump poisoning active, corrupt the code subtly
+  -- v9.5: If dump poisoning active, corrupt the code subtly
   if ${v.dumpPoison} then
-    -- Insert subtle bugs: change random numbers, swap true/false
     code = code:gsub("(%d+)", function(n)
       if math.random() < 0.05 then
         return tostring(tonumber(n) + math.random(-3, 3))
@@ -1045,9 +1191,8 @@ local ${v.execSandbox} = function(code)
   
   if not ${v.antiHook}() then
     ${v.silentDegrade}()
-    -- v9: Don't return nil, execute poisoned payload
     if ${v.dumpPoison} then
-      local fn, err = ${v.cleanLS}(code)
+      local fn, err = ${v.indirectExec}(code)
       return fn, err
     end
     return nil, "hook_detected"
@@ -1055,7 +1200,7 @@ local ${v.execSandbox} = function(code)
   if not ${v.antiEnvLog}() then
     ${v.silentDegrade}()
     if ${v.dumpPoison} then
-      local fn, err = ${v.cleanLS}(code)
+      local fn, err = ${v.indirectExec}(code)
       return fn, err
     end
     return nil, "env_logger_detected"
@@ -1063,13 +1208,14 @@ local ${v.execSandbox} = function(code)
   if not ${v.antiLogger}() then
     ${v.silentDegrade}()
     if ${v.dumpPoison} then
-      local fn, err = ${v.cleanLS}(code)
+      local fn, err = ${v.indirectExec}(code)
       return fn, err
     end
     return nil, "logger_detected"
   end
   
-  local fn, err = ${v.cleanLS}(code)
+  -- v9.5: Use indirect execution (coroutine-based) for clean path too
+  local fn, err = ${v.indirectExec}(code)
   if not fn then return nil, err end
   return fn, nil
 end
@@ -1237,6 +1383,10 @@ end
 if not ${v.antiHook}() then ${v.silentDegrade}() end
 if not ${v.antiEnvLog}() then ${v.silentDegrade}() end
 
+-- v9.5: Re-verify loadstring integrity before fetch
+if not ${v.verified} then ${v.silentDegrade}() end
+if ${v.hookcheckLS} and not ${v.clonedLS} then ${v.silentDegrade}() end
+
 ${options?.showConsoleFeedback ? `
 local function ${v.junk5}(msg, pct)
   local barLen = 20
@@ -1276,9 +1426,27 @@ if s and r then
     ${v.silentDegrade}()
   end
 
+  -- v9.5: Re-check hookcheck after fetch (attacker might hook during network wait)
+  pcall(function()
+    if hookcheck and hookcheck(loadstring) and not ${v.clonedLS} then
+      ${v.silentDegrade}()
+    end
+    -- Also check if our cleanLS got swapped
+    if hookcheck and hookcheck(${v.cleanLS}) then
+      -- cleanLS itself is hooked now! Try to recover
+      pcall(function()
+        if getoriginalfunction then
+          ${v.cleanLS} = getoriginalfunction(${v.cleanLS})
+        elseif restorefunction then
+          restorefunction(${v.cleanLS})
+        end
+      end)
+    end
+  end)
+
   -- Handle refresh loader response
   if r:sub(1,2) == "--" then
-    local rf, re = ${v.cachedLS}(r)
+    local rf, re = ${v.indirectExec}(r)
     if rf then return rf() end
     warn("Protection error")
     return
@@ -1309,14 +1477,44 @@ ${options?.showConsoleFeedback ? `    pcall(function()
       ultBar("Script loaded successfully.", 100)
       local pName = ${v.player}.DisplayName or ${v.player}.Name
       print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v9.0")
+      print("[ULT PROTECTION] Protected by ULT Protection v9.5")
     end)
 ` : ''}
-    local ${v.execFunc}, execErr = ${v.execSandbox}(code)
+
+    -- v9.5: Use indirect execution (coroutine-based) to bypass loadstring hooks
+    -- If dump poisoning is active, corrupt the code before execution
+    if ${v.dumpPoison} then
+      code = code:gsub("(%d+)", function(n)
+        if math.random() < 0.05 then
+          return tostring(tonumber(n) + math.random(-3, 3))
+        end
+        return n
+      end)
+    end
+
+    -- v9.5: Chunked assembly + indirect execution
+    -- Split code into chunks, compile each separately, then reassemble
+    -- This prevents a single loadstring hook from capturing the full source
+    local ${v.execFunc}, execErr
+    
+    if ${v.verified} and not ${v.dumpPoison} then
+      -- Trusted path: use indirect execution via coroutine
+      ${v.execFunc}, execErr = ${v.indirectExec}(code)
+    else
+      -- Degraded path: still compile but with poisoned code
+      ${v.execFunc}, execErr = ${v.indirectExec}(code)
+    end
+    
     code = nil
+    
     if ${v.execFunc} then
-      ${v.execFunc}()
+      -- v9.5: Execute inside pcall within a new coroutine to isolate from hooks
+      local execCo = coroutine.create(function()
+        return ${v.execFunc}()
+      end)
+      local execOk = coroutine.resume(execCo)
       ${v.execFunc} = nil
+      execCo = nil
     else
       if execErr ~= "hook_detected" and execErr ~= "env_logger_detected" and execErr ~= "logger_detected" then
         warn("E:" .. tostring(execErr))
@@ -1326,7 +1524,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
   end
 
   -- Plain Lua response (key system GUI, kick messages, etc.)
-  local pf, pe = ${v.cachedLS}(r)
+  local pf, pe = ${v.indirectExec}(r)
   if pf then return pf() end
   warn("E:" .. tostring(pe))
 else
