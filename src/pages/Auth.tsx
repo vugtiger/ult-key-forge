@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, ShieldAlert } from "lucide-react";
 import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect from "@/components/SnowEffect";
@@ -18,7 +18,9 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const banReason = (location.state as any)?.banReason;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -56,6 +58,25 @@ const Auth = () => {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         
+        // Check ban status before allowing access
+        try {
+          const { data: banCheck } = await supabase.functions.invoke('track-ip', {
+            body: { user_id: data.user.id, action: 'check_ban' }
+          });
+          if (banCheck?.banned) {
+            await supabase.auth.signOut();
+            toast({
+              title: "Account Banned",
+              description: banCheck.reason || "Your account has been banned.",
+              variant: "destructive",
+            });
+            setLoading(false);
+            return;
+          }
+        } catch (banErr) {
+          console.warn('Ban check skipped:', banErr);
+        }
+
         // Track IP in background (non-blocking)
         supabase.functions.invoke('track-ip', {
           body: { user_id: data.user.id, action: 'login' }
@@ -125,6 +146,16 @@ const Auth = () => {
           <ArrowLeft size={18} />
           Back to Home
         </Button>
+
+        {banReason && (
+          <div className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-xl flex items-start gap-3">
+            <ShieldAlert className="text-destructive mt-0.5 shrink-0" size={20} />
+            <div>
+              <p className="text-sm font-semibold text-destructive">Account Banned</p>
+              <p className="text-xs text-muted-foreground mt-1">{banReason}</p>
+            </div>
+          </div>
+        )}
 
         <Card className="p-8 bg-card/50 backdrop-blur-xl border-border/30 relative overflow-hidden rounded-2xl">
           <div className="relative">

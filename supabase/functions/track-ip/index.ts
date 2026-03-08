@@ -30,6 +30,67 @@ serve(async (req) => {
 
     console.log(`IP tracking for user ${user_id ?? 'anon'}, action: ${action}, IP: ${ip}`);
 
+    // ===== BAN CHECK =====
+    if (action === 'check_ban') {
+      // Check profile ban
+      if (user_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_banned, ban_reason')
+          .eq('id', user_id)
+          .maybeSingle();
+        
+        if (profile?.is_banned) {
+          return new Response(JSON.stringify({ 
+            banned: true, 
+            reason: profile.ban_reason || 'Your account has been banned.' 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
+      // Check IP against global_bans
+      const { data: ipBan } = await supabase
+        .from('global_bans')
+        .select('reason')
+        .eq('ban_type', 'ip')
+        .eq('ban_value', ip)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (ipBan) {
+        return new Response(JSON.stringify({ 
+          banned: true, 
+          reason: ipBan.reason || 'Your IP address has been banned.' 
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Check subnet bans
+      const { data: allBans } = await supabase
+        .from('global_bans')
+        .select('ban_value, reason')
+        .eq('ban_type', 'subnet')
+        .eq('is_active', true);
+
+      for (const ban of allBans || []) {
+        if (ip.startsWith(ban.ban_value)) {
+          return new Response(JSON.stringify({ 
+            banned: true, 
+            reason: ban.reason || 'Your network has been banned.' 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
+      return new Response(JSON.stringify({ banned: false }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     // ===== RATE LIMIT CHECK =====
     if (action === 'check_rate_limit') {
       const targetAction = limit_action || 'signup';
