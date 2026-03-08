@@ -225,7 +225,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           initializedRef.current = true;
           loadUserTheme(session.user.id);
           trackLogin(session.user.id);
-          redirectIfAdmin(session.user.id);
         }
       }
     });
