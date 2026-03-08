@@ -1852,9 +1852,11 @@ Deno.serve(async (req) => {
     const snonce = url.searchParams.get('snonce');
     const oauthTs = url.searchParams.get('oauth_ts');
 
-    // Check if this Roblox user ID is globally banned
+    // Check if this Roblox user ID is globally banned — auto-ban the IP too
     if (uid && isRobloxIdBanned(uid)) {
-      logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned' }, 'high');
+      // Auto-ban this new IP so even VPN hopping gets caught
+      autoBanNewIp(earlyIp, 'banned_roblox_user_new_ip', uid, null);
+      logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned', ip_auto_banned: true }, 'high');
       return new Response('', { status: 403, headers: { ...corsHeaders } });
     }
 
