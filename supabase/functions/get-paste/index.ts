@@ -167,6 +167,12 @@ const BLOCKED_USER_AGENTS = [
   'crawler', 'spider', 'scraper',
   'postman', 'insomnia', 'thunder client', 'hoppscotch', 'paw/',
   'luajit', 'resty', 'openresty',
+  // Additional bot frameworks
+  'd.js', 'oceanic.js', 'discordeno', 'harmony', 'droff',
+  'sapphire', 'klasa', 'commando', 'akairo',
+  'revolt.js', 'guilded.js',
+  'fetch/', 'http-client', 'rest-client',
+  'bot/', 'spider/', 'scrape',
 ];
 
 const SUSPICIOUS_UA_PATTERNS = [
@@ -198,6 +204,17 @@ const DISCORD_BOT_PATTERNS = [
   /bun\//i,
   /node\//i,
   /cloudflare-workers/i,
+  // Catch common bot library UAs
+  /^undici\//i,
+  /^got\//i,
+  /^axios\//i,
+  /^node-fetch/i,
+];
+
+// Known Discord/bot hosting datacenter IP ranges (common prefixes)
+const BOT_HOSTING_INDICATORS = [
+  // Headers that indicate a proxied/bot request
+  'cf-worker', 'x-discord', 'x-bot', 'x-automation',
 ];
 
 function isBlockedUserAgent(ua: string): boolean {
@@ -219,7 +236,51 @@ function isDiscordBotRequest(headers: Headers): boolean {
   const via = headers.get('via') || '';
   const xForwardedFor = headers.get('x-forwarded-for') || '';
   if (via.toLowerCase().includes('discord') || xForwardedFor.includes('discord')) return true;
+  // Check for bot hosting indicators in headers
+  for (const indicator of BOT_HOSTING_INDICATORS) {
+    if (headers.get(indicator)) return true;
+  }
   return false;
+}
+
+// Detect if a "Roblox" request is actually a spoofed bot
+function isSpookedRobloxRequest(headers: Headers): { spoofed: boolean; reason: string } {
+  const ua = headers.get('user-agent') || '';
+  const uaLower = ua.toLowerCase();
+  
+  // Real Roblox requests have specific UA patterns
+  const isRobloxUA = uaLower.includes('roblox') || ua.includes('HttpService') || ua.includes('WinInet');
+  if (!isRobloxUA) return { spoofed: false, reason: 'not_roblox' };
+  
+  // Check 1: Real Roblox UAs include version numbers and platform info
+  // e.g. "Roblox/WinInetRobloxApp/0.711.589.7111137" or contains "ROBLOX Android App"
+  const hasVersionInfo = /Roblox\/.+\/\d+\.\d+/i.test(ua) || /ROBLOX.*App.*\d+\.\d+/i.test(ua) || /RobloxApp\/\d+/i.test(ua);
+  const isMinimalRobloxUA = ua.length < 30; // Real Roblox UAs are long
+  
+  // Check 2: Extremely short "Roblox" UA = spoofed (e.g. "Roblox/WinInet" without version)
+  if (isMinimalRobloxUA && !hasVersionInfo) {
+    return { spoofed: true, reason: 'minimal_roblox_ua' };
+  }
+  
+  // Check 3: Roblox UA combined with bot-like patterns
+  if (uaLower.includes('curl') || uaLower.includes('wget') || uaLower.includes('python') || 
+      uaLower.includes('node') || uaLower.includes('deno') || uaLower.includes('bun')) {
+    return { spoofed: true, reason: 'roblox_with_bot_ua' };
+  }
+  
+  // Check 4: Real Roblox requests don't have certain headers
+  const authorization = headers.get('authorization');
+  if (authorization && !authorization.includes('supabase')) {
+    return { spoofed: true, reason: 'roblox_with_auth_header' };
+  }
+  
+  // Check 5: Content-Type on GET requests is suspicious
+  const contentType = headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return { spoofed: true, reason: 'roblox_with_json_content_type' };
+  }
+  
+  return { spoofed: false, reason: 'legitimate_roblox' };
 }
 
 function validateRobloxExecutor(headers: Headers): { valid: boolean; reason: string } {
