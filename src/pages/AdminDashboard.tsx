@@ -633,6 +633,7 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
+      <JarvisVoice />
     </div>
   );
 };
