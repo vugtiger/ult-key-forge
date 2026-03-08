@@ -241,6 +241,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           initializedRef.current = true;
           loadUserTheme(session.user.id);
           trackLogin(session.user.id);
+          checkBanStatus(session.user.id);
         }
       }
     });
@@ -250,11 +251,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       if (!session) { resetTheme(); userIdRef.current = null; navigate("/auth"); }
       else {
         safeSetUser(session.user);
-        // Only do these on actual fresh sign-ins, NOT on token refresh or initial session restore
         if (event === 'SIGNED_IN' && !initializedRef.current) {
           initializedRef.current = true;
           loadUserTheme(session.user.id);
           trackLogin(session.user.id);
+          checkBanStatus(session.user.id);
         }
       }
     });
