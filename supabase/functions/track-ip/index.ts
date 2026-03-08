@@ -26,9 +26,7 @@ serve(async (req) => {
                req.headers.get('x-real-ip') || 
                'unknown';
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = supabaseModule;
 
     console.log(`IP tracking for user ${user_id ?? 'anon'}, action: ${action}, IP: ${ip}`);
 
