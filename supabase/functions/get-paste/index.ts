@@ -324,6 +324,25 @@ function validateRobloxExecutor(headers: Headers): { valid: boolean; reason: str
   const origin = headers.get('origin');
   const referer = headers.get('referer');
 
+  // IMPORTANT: Check for Roblox UA FIRST before any bot detection
+  // This prevents legitimate Roblox executor requests from being flagged
+  const isRobloxUA = ua.toLowerCase().includes('roblox') || 
+                     ua.includes('HttpService') ||
+                     ua.includes('WinInet') ||
+                     ua.includes('RobloxApp');
+
+  if (isRobloxUA) {
+    // Still check for browser headers on Roblox UAs (spoofed browser pretending to be Roblox)
+    if (secFetchMode || secFetchDest || secFetchSite || secChUa) {
+      return { valid: false, reason: 'browser_headers' };
+    }
+    const acceptLanguage = headers.get('accept-language');
+    if (acceptLanguage && acceptLanguage.split(',').length > 5) {
+      return { valid: false, reason: 'complex_accept_language' };
+    }
+    return { valid: true, reason: 'roblox_ua' };
+  }
+
   if (secFetchMode || secFetchDest || secFetchSite || secChUa) {
     return { valid: false, reason: 'browser_headers' };
   }
@@ -331,18 +350,6 @@ function validateRobloxExecutor(headers: Headers): { valid: boolean; reason: str
   if (origin || referer) return { valid: false, reason: 'origin_referer' };
   if (isBlockedUserAgent(ua)) return { valid: false, reason: 'blocked_ua' };
   if (isDiscordBotRequest(headers)) return { valid: false, reason: 'discord_bot' };
-
-  const isRobloxUA = ua.toLowerCase().includes('roblox') || 
-                     ua.includes('HttpService') ||
-                     ua.includes('WinInet');
-
-  if (isRobloxUA) {
-    const acceptLanguage = headers.get('accept-language');
-    if (acceptLanguage && acceptLanguage.split(',').length > 5) {
-      return { valid: false, reason: 'complex_accept_language' };
-    }
-    return { valid: true, reason: 'roblox_ua' };
-  }
 
   if (!ua || ua.length < 5) return { valid: false, reason: 'minimal_ua' };
   return { valid: true, reason: 'executor_client' };
