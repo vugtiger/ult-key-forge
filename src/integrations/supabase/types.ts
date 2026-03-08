@@ -314,6 +314,39 @@ export type Database = {
         }
         Relationships: []
       }
+      global_bans: {
+        Row: {
+          ban_type: string
+          ban_value: string
+          banned_at: string
+          banned_by: string | null
+          id: string
+          is_active: boolean
+          metadata: Json | null
+          reason: string | null
+        }
+        Insert: {
+          ban_type: string
+          ban_value: string
+          banned_at?: string
+          banned_by?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          reason?: string | null
+        }
+        Update: {
+          ban_type?: string
+          ban_value?: string
+          banned_at?: string
+          banned_by?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
       key_systems: {
         Row: {
           ascii_text: string
@@ -864,6 +897,45 @@ export type Database = {
           name?: string
           price?: number
           stripe_price_id?: string | null
+        }
+        Relationships: []
+      }
+      threat_log: {
+        Row: {
+          auto_banned: boolean
+          created_at: string
+          details: Json | null
+          discord_user_id: string | null
+          id: string
+          resolved: boolean
+          roblox_user_id: string | null
+          severity: string
+          source_ip: string | null
+          threat_type: string
+        }
+        Insert: {
+          auto_banned?: boolean
+          created_at?: string
+          details?: Json | null
+          discord_user_id?: string | null
+          id?: string
+          resolved?: boolean
+          roblox_user_id?: string | null
+          severity?: string
+          source_ip?: string | null
+          threat_type: string
+        }
+        Update: {
+          auto_banned?: boolean
+          created_at?: string
+          details?: Json | null
+          discord_user_id?: string | null
+          id?: string
+          resolved?: boolean
+          roblox_user_id?: string | null
+          severity?: string
+          source_ip?: string | null
+          threat_type?: string
         }
         Relationships: []
       }
