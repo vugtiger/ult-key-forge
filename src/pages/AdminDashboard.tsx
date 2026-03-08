@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import DashboardLayout from "@/components/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Shield, Trash2, Search, Ban, Copy, Download, Users, FileCode, Globe,
   RefreshCw, Activity, Star, Clock, Database, Eye, EyeOff, XCircle,
-  AlertTriangle, Zap, Server, ShieldAlert, ShieldCheck, Lock, Unlock,
-  Crosshair, Wifi, WifiOff, BarChart3, TrendingUp, Skull
+  AlertTriangle, ShieldAlert, ShieldCheck, Crosshair, Skull, LogOut
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAdminStatus } from "@/hooks/useAdminStatus";
 
 // Types
 interface AdminUser {
