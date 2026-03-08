@@ -74,10 +74,11 @@ function isDiscordIdBanned(discordUserId: string): boolean {
 }
 
 // Log threat to DB (fire-and-forget)
-function logThreat(type: string, ip: string | null, robloxId: string | null, discordId: string | null, details: any, severity: string) {
+function logThreat(type: string, ip: string | null, robloxId: string | null, discordId: string | null, details: any, severity: string, autoResolve = false) {
   supabase.from('threat_log').insert({
     threat_type: type, source_ip: ip, roblox_user_id: robloxId,
     discord_user_id: discordId, details, severity,
+    resolved: autoResolve, auto_banned: autoResolve,
   }).then(() => {}).catch(e => console.error('Threat log failed:', e));
 }
 
@@ -114,7 +115,7 @@ function autoBanNewIp(ip: string, reason: string, robloxId: string | null, disco
   logThreat('auto_ban_vpn_ip', ip, robloxId, discordId, { 
     action: 'new_ip_auto_banned', 
     reason: banReason 
-  }, 'high');
+  }, 'high', true);
 }
 
 // Enhanced rate limiting with IP tracking (persists within isolate lifetime)
@@ -2254,7 +2255,7 @@ Deno.serve(async (req) => {
         logThreat('bypass_attempt_auto_ban', earlyIp, reportUid, null, {
           reason: reportReason, details: reportDetails,
           action: 'instant_global_ban', ips_banned: uniqueIps.length,
-        }, 'critical');
+        }, 'critical', true);
         
         // Force refresh bans cache
         globalBanCache.lastRefresh = 0;
@@ -2282,7 +2283,7 @@ Deno.serve(async (req) => {
     if (uid && isRobloxIdBanned(uid)) {
       // Auto-ban this new IP so even VPN hopping gets caught
       autoBanNewIp(earlyIp, 'banned_roblox_user_new_ip', uid, null);
-      logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned', ip_auto_banned: true }, 'high');
+      logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned', ip_auto_banned: true }, 'high', true);
       return new Response('', { status: 403, headers: { ...corsHeaders } });
     }
 
@@ -2322,7 +2323,7 @@ Deno.serve(async (req) => {
         user_agent: userAgent.substring(0, 200),
         slug: slug || 'none',
         action: 'instant_ip_ban',
-      }, 'critical');
+      }, 'critical', true);
       return new Response(generateHoneypot(), { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
@@ -2339,7 +2340,7 @@ Deno.serve(async (req) => {
         user_agent: userAgent.substring(0, 200),
         slug: slug || 'none',
         action: 'instant_ip_ban',
-      }, 'critical');
+      }, 'critical', true);
       return new Response(generateHoneypot(), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
@@ -2358,7 +2359,7 @@ Deno.serve(async (req) => {
           user_agent: userAgent.substring(0, 200),
           slug: slug || 'none',
           action: 'instant_ip_ban',
-        }, 'critical');
+        }, 'critical', true);
         return new Response(generateHoneypot(), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
@@ -2375,7 +2376,7 @@ Deno.serve(async (req) => {
         user_agent: userAgent.substring(0, 200),
         slug: slug || 'none',
         action: 'instant_ip_ban',
-      }, 'high');
+      }, 'high', true);
       return new Response(generateHoneypot(), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
@@ -2390,7 +2391,7 @@ Deno.serve(async (req) => {
         user_agent: userAgent.substring(0, 200),
         slug: slug || 'none',
         action: 'instant_ip_ban',
-      }, 'critical');
+      }, 'critical', true);
       return new Response(generateHoneypot(), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
@@ -2514,7 +2515,7 @@ Deno.serve(async (req) => {
           // Check if this Discord user is globally banned — auto-ban IP too
           if (isDiscordIdBanned(discordSession.discord_user_id)) {
             autoBanNewIp(clientIp, 'banned_discord_user_new_ip', robloxUserId, discordSession.discord_user_id);
-            logThreat('banned_discord_access', clientIp, robloxUserId, discordSession.discord_user_id, { action: 'discord_id_banned', ip_auto_banned: true }, 'high');
+            logThreat('banned_discord_access', clientIp, robloxUserId, discordSession.discord_user_id, { action: 'discord_id_banned', ip_auto_banned: true }, 'high', true);
             // Don't return here — still block silently by not serving content
           }
           discordData = {
@@ -2839,7 +2840,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         autoBanNewIp(clientIp, 'spoofed_uid_on_protected_paste', uid, null);
         logThreat('spoofed_uid', clientIp, uid, null, {
           slug, user_agent: userAgent.substring(0, 200), action: 'instant_ip_ban',
-        }, 'critical');
+        }, 'critical', true);
         return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
       }
 
@@ -2850,7 +2851,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         autoBanNewIp(clientIp, 'unknown_client_loader_request', uid || null, null);
         logThreat('unknown_client_loader', clientIp, uid || null, null, {
           slug, user_agent: userAgent.substring(0, 200), action: 'instant_ip_ban',
-        }, 'critical');
+        }, 'critical', true);
         return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
       }
 
