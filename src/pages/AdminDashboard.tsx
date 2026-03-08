@@ -184,7 +184,56 @@ const AdminDashboard = () => {
   const fetchReviews = async () => { setDbLoading(true); try { const data = await adminCall('list_reviews'); setReviews(data.reviews || []); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } finally { setDbLoading(false); } };
   const fetchGlobalBans = async () => { try { const data = await adminCall('list_global_bans'); setGlobalBans(data.bans || []); } catch (e: any) { console.error(e); } };
   const fetchThreats = async () => { try { const data = await adminCall('list_threats'); setThreats(data.threats || []); } catch (e: any) { console.error(e); } };
-  const fetchOwnerBans = async () => { setBansLoading(true); try { const { data: { session } } = await supabase.auth.getSession(); if (!session) return; const response = await supabase.functions.invoke('owner-bans', { headers: { Authorization: `Bearer ${session.access_token}` } }); if (response.data) { setBannedUsers(response.data.banned_users || []); setBannedIps(response.data.banned_ips || []); } } catch (e) { console.error(e); } finally { setBansLoading(false); } };
+
+  // Derive banned users/IPs directly from globalBans state
+  const bannedUsers = globalBans.filter(b => b.is_active && (b.ban_type === 'roblox_id' || b.ban_type === 'discord_id')).map(b => ({
+    roblox_user_id: b.ban_type === 'roblox_id' ? b.ban_value : null,
+    roblox_username: null, roblox_display_name: null, roblox_avatar_url: null,
+    roblox_created_at: null, roblox_is_banned: null,
+    discord_user_id: b.ban_type === 'discord_id' ? b.ban_value : null,
+    discord_username: null, discord_avatar: null, discord_created_at: null,
+    ip_address: null, last_seen_at: null,
+    ban_reason: b.reason || 'Global ban', banned_at: b.banned_at,
+  }));
+  const bannedIps = globalBans.filter(b => b.is_active && (b.ban_type === 'ip' || b.ban_type === 'subnet')).map(b => ({
+    ip_address: b.ban_value,
+    roblox_user_id: null, roblox_username: null, roblox_avatar_url: null,
+    discord_user_id: null, discord_username: null, discord_avatar: null, discord_created_at: null,
+    last_seen_at: null, ban_reason: b.reason || 'Global ban', banned_at: b.banned_at, access_type: null,
+  }));
+
+  const handleClearAllThreats = async () => {
+    if (!confirm('Clear all threat logs? This cannot be undone.')) return;
+    try {
+      await adminCall('clear_threats');
+      setThreats([]);
+      toast({ title: "All threats cleared" });
+    } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+  };
+  const handleClearAllLogs = async () => {
+    if (!confirm('Clear all access logs? This cannot be undone.')) return;
+    try {
+      await adminCall('clear_access_logs');
+      setAccessLogs([]);
+      toast({ title: "All access logs cleared" });
+    } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+  };
+  const handleClearAllSessions = async () => {
+    if (!confirm('Clear all sessions? This cannot be undone.')) return;
+    try {
+      await adminCall('clear_sessions');
+      setSessions([]);
+      toast({ title: "All sessions cleared" });
+    } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+  };
+  const handleClearAllActivity = async () => {
+    if (!confirm('Clear all activity logs? This cannot be undone.')) return;
+    try {
+      await adminCall('clear_activity');
+      setActivity([]);
+      toast({ title: "All activity cleared" });
+    } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+  };
 
   const handleDeleteUser = async (userId: string) => { if (!confirm('Permanently delete this user and all their data?')) return; try { await adminCall('delete_user', { target_user_id: userId }); toast({ title: "User Deleted" }); fetchUsers(); fetchPastes(); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } };
   const handleBanUser = async (userId: string) => { if (!banReason.trim()) { toast({ title: "Error", description: "Provide a ban reason", variant: "destructive" }); return; } try { await adminCall('ban_user', { target_user_id: userId, reason: banReason }); toast({ title: "User Banned" }); setBanReason(""); setSelectedUserId(null); fetchUsers(); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } };
