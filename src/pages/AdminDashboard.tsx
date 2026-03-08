@@ -79,6 +79,8 @@ const AdminDashboard = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [expandedPaste, setExpandedPaste] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   // Global ban form
   const [newBanType, setNewBanType] = useState("ip");
   const [newBanValue, setNewBanValue] = useState("");
@@ -86,21 +88,32 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Standalone auth — no DashboardLayout, no shared hooks
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setCurrentUserId(session.user.id);
+    let mounted = true;
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+      if (!session) { navigate("/auth"); return; }
+      
+      setCurrentUserId(session.user.id);
+      
+      // Check admin role directly
+      const { data } = await supabase.from('user_roles').select('role')
+        .eq('user_id', session.user.id).eq('role', 'admin').maybeSingle();
+      
+      if (!mounted) return;
+      if (!data) { navigate("/dashboard"); return; }
+      
+      setIsAdmin(true);
+      setAuthReady(true);
     });
-  }, []);
 
-  const { isAdmin, loading: adminLoading } = useAdminStatus(currentUserId || undefined);
-
-  useEffect(() => {
-    if (!adminLoading && !isAdmin && currentUserId) navigate("/dashboard");
-  }, [isAdmin, adminLoading, currentUserId, navigate]);
+    return () => { mounted = false; };
+  }, [navigate]);
 
   useEffect(() => {
-    if (isAdmin) { fetchUsers(); fetchPastes(); fetchGlobalBans(); fetchThreats(); }
-  }, [isAdmin]);
+    if (authReady && isAdmin) { fetchUsers(); fetchPastes(); fetchGlobalBans(); fetchThreats(); }
+  }, [authReady, isAdmin]);
 
   const adminCall = async (action: string, params: Record<string, any> = {}) => {
     const { data, error } = await supabase.functions.invoke('admin-api', { body: { action, ...params } });
