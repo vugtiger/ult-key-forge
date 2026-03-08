@@ -299,7 +299,7 @@ const AdminDashboard = () => {
                 { value: "access-logs", icon: Database, label: "Logs", onClick: fetchAccessLogs },
                 { value: "sessions", icon: Clock, label: "Sessions", onClick: fetchSessions },
                 { value: "activity", icon: Activity, label: "Activity", onClick: fetchActivity },
-                { value: "reviews", icon: Star, label: "Reviews", onClick: fetchReviews },
+                
                 { value: "banned-users", icon: ShieldBan, label: "Banned Users", onClick: fetchOwnerBans },
                 { value: "banned-ips", icon: Globe, label: "Banned IPs", onClick: fetchOwnerBans },
               ].map(tab => (
@@ -621,40 +621,6 @@ const AdminDashboard = () => {
             </Section>
           </TabsContent>
 
-          {/* ===== REVIEWS ===== */}
-          <TabsContent value="reviews" className="mt-6">
-            <Section>
-              <SectionHeader
-                icon={Star}
-                title="Reviews"
-                subtitle={`${reviews.length} reviews`}
-                actions={<Button onClick={fetchReviews} variant="ghost" size="sm" className="text-xs text-muted-foreground"><RefreshCw className="h-3 w-3 mr-1" />Refresh</Button>}
-              />
-              {dbLoading ? (
-                <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
-              ) : reviews.length === 0 ? (
-                <EmptyState icon={Star} title="No Reviews" subtitle="No reviews to moderate" />
-              ) : (
-                <div className="divide-y divide-border/10">
-                  {reviews.map(r => (
-                    <div key={r.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-muted/5 transition-colors">
-                      <div className="space-y-0.5 min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium">{r.username}</p>
-                          <span className="text-xs text-amber-400/60">{'★'.repeat(r.stars)}{'☆'.repeat(5 - r.stars)}</span>
-                          {r.is_fake && <span className="text-[10px] text-red-400/60 font-medium">FAKE</span>}
-                        </div>
-                        <p className="text-xs text-muted-foreground/40 truncate">{r.content.substring(0, 120)}</p>
-                      </div>
-                      <Button size="sm" variant="ghost" onClick={() => handleDeleteReview(r.id)} className="h-7 w-7 p-0 text-muted-foreground/30 hover:text-red-400 flex-shrink-0">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Section>
-          </TabsContent>
 
           {/* ===== BANNED USERS ===== */}
           <TabsContent value="banned-users" className="mt-6">

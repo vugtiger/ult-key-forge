@@ -3,12 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import { Shield, Eye, Radio } from "lucide-react";
+import { Shield, Eye, Radio, Trash2 } from "lucide-react";
 import AccessLogRow from "@/components/access-monitor/AccessLogRow";
 import type { AccessLog, PasteOption } from "@/components/access-monitor/types";
 import { groupForDisplay, mergeAccessLog } from "@/components/access-monitor/utils";
+import { useToast } from "@/hooks/use-toast";
 
 const AccessMonitor = () => {
   const [pastes, setPastes] = useState<PasteOption[]>([]);
@@ -16,6 +18,8 @@ const AccessMonitor = () => {
   const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchPastes();
@@ -127,6 +131,23 @@ const AccessMonitor = () => {
     }
   };
 
+  const clearAllLogs = async () => {
+    if (!selectedPasteId) return;
+    setClearing(true);
+    try {
+      const { error } = await supabase
+        .from('paste_access_logs')
+        .delete()
+        .eq('paste_id', selectedPasteId);
+      if (!error) {
+        setAccessLogs([]);
+        toast({ title: "Cleared", description: "All access logs cleared (bans are unaffected)" });
+      }
+    } finally {
+      setClearing(false);
+    }
+  };
+
   return (
     <Card className="cyber-border bg-card/50 backdrop-blur-xl">
       <CardHeader>
@@ -179,9 +200,23 @@ const AccessMonitor = () => {
                 <Radio className="h-4 w-4 text-primary animate-pulse" />
                 Live Access Feed
               </h4>
-               <Badge variant="outline" className="text-xs">
-                 {displayLogs.length} shown
-               </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {displayLogs.length} shown
+                </Badge>
+                {displayLogs.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAllLogs}
+                    disabled={clearing}
+                    className="h-7 text-xs text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    {clearing ? "Clearing..." : "Clear All"}
+                  </Button>
+                )}
+              </div>
             </div>
 
             <ScrollArea className="h-[400px] rounded-lg border border-border/30 bg-background/30">
