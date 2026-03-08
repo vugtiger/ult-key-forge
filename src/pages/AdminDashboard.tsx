@@ -333,7 +333,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Main tabs */}
-        <Tabs defaultValue="threats" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="border-b border-border/10 -mx-6 px-6">
             <TabsList className="bg-transparent h-auto p-0 gap-0 rounded-none">
               {[
