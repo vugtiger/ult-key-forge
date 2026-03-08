@@ -27,12 +27,58 @@ const BANNED_SUBNETS = [
   '79.181.155.',   // Related subnet
 ];
 
+// In-memory cache of DB global bans (refreshed every 60s)
+let globalBanCache: { ips: Set<string>; subnets: string[]; robloxIds: Set<string>; discordIds: Set<string>; lastRefresh: number } = {
+  ips: new Set(), subnets: [], robloxIds: new Set(), discordIds: new Set(), lastRefresh: 0
+};
+
+async function refreshGlobalBans() {
+  if (Date.now() - globalBanCache.lastRefresh < 60_000) return; // Cache for 60s
+  try {
+    const { data } = await supabase.from('global_bans').select('ban_type, ban_value').eq('is_active', true);
+    const ips = new Set<string>();
+    const subnets: string[] = [];
+    const robloxIds = new Set<string>();
+    const discordIds = new Set<string>();
+    for (const ban of data || []) {
+      if (ban.ban_type === 'ip') ips.add(ban.ban_value);
+      else if (ban.ban_type === 'subnet') subnets.push(ban.ban_value);
+      else if (ban.ban_type === 'roblox_id') robloxIds.add(ban.ban_value);
+      else if (ban.ban_type === 'discord_id') discordIds.add(ban.ban_value);
+    }
+    globalBanCache = { ips, subnets, robloxIds, discordIds, lastRefresh: Date.now() };
+  } catch (e) {
+    console.error('Failed to refresh global bans:', e);
+  }
+}
+
 function isPermanentlyBanned(ip: string): boolean {
   if (PERMANENTLY_BANNED_IPS.has(ip)) return true;
   for (const subnet of BANNED_SUBNETS) {
     if (ip.startsWith(subnet)) return true;
   }
+  // Check DB global bans cache
+  if (globalBanCache.ips.has(ip)) return true;
+  for (const subnet of globalBanCache.subnets) {
+    if (ip.startsWith(subnet)) return true;
+  }
   return false;
+}
+
+function isRobloxIdBanned(robloxUserId: string): boolean {
+  return globalBanCache.robloxIds.has(robloxUserId);
+}
+
+function isDiscordIdBanned(discordUserId: string): boolean {
+  return globalBanCache.discordIds.has(discordUserId);
+}
+
+// Log threat to DB (fire-and-forget)
+function logThreat(type: string, ip: string | null, robloxId: string | null, discordId: string | null, details: any, severity: string) {
+  supabase.from('threat_log').insert({
+    threat_type: type, source_ip: ip, roblox_user_id: robloxId,
+    discord_user_id: discordId, details, severity,
+  }).then(() => {}).catch(e => console.error('Threat log failed:', e));
 }
 
 // Enhanced rate limiting with IP tracking (persists within isolate lifetime)
