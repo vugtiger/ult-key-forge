@@ -186,7 +186,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const initializedRef = useRef(false);
   const userIdRef = useRef<string | null>(null);
-  const redirectedRef = useRef(false);
+  
 
   useEffect(() => {
     const loadUserTheme = async (userId: string) => {
