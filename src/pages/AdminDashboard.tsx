@@ -376,7 +376,7 @@ const AdminDashboard = () => {
                 icon={Crosshair}
                 title="Threat Detection"
                 subtitle={`${unresolvedThreats.length} unresolved · ${threats.length} total`}
-                actions={<Button onClick={fetchThreats} variant="ghost" size="sm" className="text-xs text-muted-foreground"><RefreshCw className="h-3 w-3 mr-1" />Refresh</Button>}
+                actions={<div className="flex gap-2">{threats.length > 0 && <Button onClick={handleClearAllThreats} variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive"><Trash2 className="h-3 w-3 mr-1" />Clear All</Button>}<Button onClick={fetchThreats} variant="ghost" size="sm" className="text-xs text-muted-foreground"><RefreshCw className="h-3 w-3 mr-1" />Refresh</Button></div>}
               />
               {threats.length === 0 ? (
                 <EmptyState icon={ShieldCheck} title="All Clear" subtitle="No threats have been detected" />
