@@ -1710,6 +1710,17 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Periodic map cleanup
+  cleanupMaps();
+
+  // GLOBAL LOAD SHEDDING — protect DB from being overwhelmed
+  if (!checkGlobalLoad()) {
+    return new Response('-- Server busy, try again shortly\ngame:GetService("Players").LocalPlayer:Kick("Server is busy. Please rejoin.")', {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+    });
+  }
+
   try {
     const url = new URL(req.url);
     const slug = url.searchParams.get('slug');
