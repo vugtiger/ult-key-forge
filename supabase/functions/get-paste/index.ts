@@ -19,9 +19,19 @@ const suspiciousIps = new Map<string, { strikes: number; lastStrike: number }>()
 // v9: Session trust scores - tracks behavioral scoring per IP
 const trustScores = new Map<string, { score: number; lastUpdate: number; requestTimes: number[] }>();
 
+// Per-IP-per-slug throttle: max 3 requests per 30 seconds for the same slug from same IP
+const slugThrottle = new Map<string, { count: number; resetTime: number }>();
+const SLUG_THROTTLE_MAX = 3;
+const SLUG_THROTTLE_WINDOW = 30_000; // 30 seconds
+
+// Global request counter to shed load when overwhelmed
+let globalRequestCount = 0;
+let globalResetTime = Date.now() + 10_000;
+const GLOBAL_MAX_RPS = 50; // max 50 requests per 10 seconds across ALL IPs
+
 // Response cache — cache paste lookups to avoid hammering DB
 const pasteCache = new Map<string, { data: any; timestamp: number }>();
-const PASTE_CACHE_TTL = 10_000; // 10 seconds
+const PASTE_CACHE_TTL = 30_000; // 30 seconds (increased from 10s)
 
 function getCachedPaste(slug: string): any | null {
   const cached = pasteCache.get(slug);
