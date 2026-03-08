@@ -643,7 +643,7 @@ const AdminDashboard = () => {
           {/* ===== ACTIVITY ===== */}
           <TabsContent value="activity" className="mt-6">
             <Section>
-              <SectionHeader icon={Activity} title="User Activity" subtitle={`${filteredActivity.length} events`} />
+              <SectionHeader icon={Activity} title="User Activity" subtitle={`${filteredActivity.length} events`} actions={activity.length > 0 ? <Button onClick={handleClearAllActivity} variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive"><Trash2 className="h-3 w-3 mr-1" />Clear All</Button> : undefined} />
               <SearchBar value={activitySearch} onChange={setActivitySearch} placeholder="Search activity..." onRefresh={fetchActivity} />
               {dbLoading ? (
                 <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
