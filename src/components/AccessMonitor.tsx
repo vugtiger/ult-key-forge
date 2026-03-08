@@ -200,9 +200,23 @@ const AccessMonitor = () => {
                 <Radio className="h-4 w-4 text-primary animate-pulse" />
                 Live Access Feed
               </h4>
-               <Badge variant="outline" className="text-xs">
-                 {displayLogs.length} shown
-               </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {displayLogs.length} shown
+                </Badge>
+                {displayLogs.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAllLogs}
+                    disabled={clearing}
+                    className="h-7 text-xs text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    {clearing ? "Clearing..." : "Clear All"}
+                  </Button>
+                )}
+              </div>
             </div>
 
             <ScrollArea className="h-[400px] rounded-lg border border-border/30 bg-background/30">
