@@ -2851,7 +2851,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         autoBanNewIp(clientIp, 'unknown_client_loader_request', uid || null, null);
         logThreat('unknown_client_loader', clientIp, uid || null, null, {
           slug, user_agent: userAgent.substring(0, 200), action: 'instant_ip_ban',
-        }, 'critical');
+        }, 'critical', true);
         return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
       }
 
