@@ -145,6 +145,9 @@ const AdminDashboard = () => {
   const [newBanType, setNewBanType] = useState("ip");
   const [newBanValue, setNewBanValue] = useState("");
   const [newBanReason, setNewBanReason] = useState("");
+  const [bannedUsers, setBannedUsers] = useState<any[]>([]);
+  const [bannedIps, setBannedIps] = useState<any[]>([]);
+  const [bansLoading, setBansLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
