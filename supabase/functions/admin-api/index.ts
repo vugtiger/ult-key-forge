@@ -205,7 +205,7 @@ serve(async (req) => {
       if (!paste_id) throw new Error('Missing paste_id');
       const count = Math.min(parseInt(key_count) || 10, 500);
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-      const generateKey = () => Array.from({ length: 20 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      const generateKey = () => { const arr = new Uint8Array(20); crypto.getRandomValues(arr); return Array.from(arr, b => chars[b % chars.length]).join(''); };
       const expiresAt = duration_hours ? new Date(Date.now() + duration_hours * 3600000).toISOString() : null;
       const { data: existingPanel } = await serviceClient.from('control_panels').select('id').eq('paste_id', paste_id).eq('user_id', userId).maybeSingle();
       let panelId = existingPanel?.id;
