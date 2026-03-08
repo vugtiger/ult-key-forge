@@ -2840,7 +2840,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         autoBanNewIp(clientIp, 'spoofed_uid_on_protected_paste', uid, null);
         logThreat('spoofed_uid', clientIp, uid, null, {
           slug, user_agent: userAgent.substring(0, 200), action: 'instant_ip_ban',
-        }, 'critical');
+        }, 'critical', true);
         return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
       }
 
