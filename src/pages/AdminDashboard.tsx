@@ -666,7 +666,6 @@ const AdminDashboard = () => {
 
           {/* ===== BANNED USERS ===== */}
           <TabsContent value="banned-users" className="mt-6">
-          <TabsContent value="banned-users" className="mt-6">
             <BannedUsersTab users={bannedUsers} loading={loading} />
           </TabsContent>
 
