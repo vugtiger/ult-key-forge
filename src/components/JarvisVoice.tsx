@@ -5,7 +5,11 @@ import { useToast } from "@/hooks/use-toast";
 
 type JarvisState = "idle" | "listening" | "processing" | "speaking";
 
-const JarvisVoice = () => {
+interface JarvisVoiceProps {
+  onTabChange?: (tab: string) => void;
+}
+
+const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
   const [state, setState] = useState<JarvisState>("idle");
   const [wakeWordActive, setWakeWordActive] = useState(false);
   const [lastTranscript, setLastTranscript] = useState("");
