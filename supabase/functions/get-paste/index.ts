@@ -1,5 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// MODULE-LEVEL Supabase client — reused across requests in the same isolate
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -8,11 +13,34 @@ const corsHeaders = {
   Expires: '0',
 };
 
-// Enhanced rate limiting with IP tracking
+// Enhanced rate limiting with IP tracking (persists within isolate lifetime)
 const rateLimits = new Map<string, { count: number; resetTime: number; blocked: boolean }>();
 const suspiciousIps = new Map<string, { strikes: number; lastStrike: number }>();
 // v9: Session trust scores - tracks behavioral scoring per IP
 const trustScores = new Map<string, { score: number; lastUpdate: number; requestTimes: number[] }>();
+
+// Response cache — cache paste lookups to avoid hammering DB
+const pasteCache = new Map<string, { data: any; timestamp: number }>();
+const PASTE_CACHE_TTL = 10_000; // 10 seconds
+
+function getCachedPaste(slug: string): any | null {
+  const cached = pasteCache.get(slug);
+  if (!cached) return null;
+  if (Date.now() - cached.timestamp > PASTE_CACHE_TTL) {
+    pasteCache.delete(slug);
+    return null;
+  }
+  return cached.data;
+}
+
+function setCachedPaste(slug: string, data: any) {
+  // Keep cache small
+  if (pasteCache.size > 100) {
+    const oldest = pasteCache.keys().next().value;
+    if (oldest) pasteCache.delete(oldest);
+  }
+  pasteCache.set(slug, { data, timestamp: Date.now() });
+}
 
 // ===== ANTI-FETCH PROTECTION =====
 const BLOCKED_USER_AGENTS = [
@@ -1733,19 +1761,25 @@ Deno.serve(async (req) => {
       return new Response('Missing slug', { status: 400, headers: corsHeaders });
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Supabase client is now module-level (reused across requests)
 
     if (Math.random() < 0.01) {
       try { await supabase.rpc('cleanup_expired_tokens'); } catch {}
     }
 
-    const { data: paste, error } = await supabase
-      .from('pastes')
-      .select('*')
-      .eq('slug', slug)
-      .single();
+    // Use cached paste data to avoid hammering DB
+    let paste = getCachedPaste(slug);
+    let error = null;
+    if (!paste) {
+      const result = await supabase
+        .from('pastes')
+        .select('*')
+        .eq('slug', slug)
+        .single();
+      paste = result.data;
+      error = result.error;
+      if (paste) setCachedPaste(slug, paste);
+    }
 
     if (error || !paste) {
       return new Response('Paste not found', { status: 404, headers: corsHeaders });
