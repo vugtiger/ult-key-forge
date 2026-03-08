@@ -287,7 +287,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Main tabs */}
-        <Tabs defaultValue="jarvis" className="w-full">
+        <Tabs defaultValue="threats" className="w-full">
           <div className="border-b border-border/10 -mx-6 px-6">
             <TabsList className="bg-transparent h-auto p-0 gap-0 rounded-none">
               {[
