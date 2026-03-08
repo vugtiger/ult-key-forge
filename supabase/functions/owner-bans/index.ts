@@ -126,26 +126,44 @@ serve(async (req) => {
       }
     }
 
-    // Also add from threat_log entries with roblox/discord IDs that relate to user's paste IPs
-    for (const threat of (threats || [])) {
-      if (threat.roblox_user_id && bannedRobloxSet.has(threat.roblox_user_id) && !bannedUsersMap.has(threat.roblox_user_id)) {
-        if (threat.source_ip && userPasteIps.has(threat.source_ip)) {
-          const ban = (bans || []).find(b => b.ban_type === 'roblox_id' && b.ban_value === threat.roblox_user_id);
-          bannedUsersMap.set(threat.roblox_user_id, {
-            roblox_user_id: threat.roblox_user_id,
+    // Also add global bans for roblox/discord IDs that have NO matching access logs
+    for (const ban of (bans || [])) {
+      if (ban.ban_type === 'roblox_id' && !bannedUsersMap.has(ban.ban_value)) {
+        bannedUsersMap.set(ban.ban_value, {
+          roblox_user_id: ban.ban_value,
+          roblox_username: null,
+          roblox_display_name: null,
+          roblox_avatar_url: null,
+          roblox_created_at: null,
+          roblox_is_banned: null,
+          discord_user_id: null,
+          discord_username: null,
+          discord_avatar: null,
+          discord_created_at: null,
+          ip_address: null,
+          last_seen_at: null,
+          ban_reason: ban.reason || 'Global ban',
+          banned_at: ban.banned_at,
+        });
+      }
+      if (ban.ban_type === 'discord_id') {
+        const key = `discord_${ban.ban_value}`;
+        if (!bannedUsersMap.has(key)) {
+          bannedUsersMap.set(key, {
+            roblox_user_id: null,
             roblox_username: null,
             roblox_display_name: null,
             roblox_avatar_url: null,
             roblox_created_at: null,
             roblox_is_banned: null,
-            discord_user_id: threat.discord_user_id,
+            discord_user_id: ban.ban_value,
             discord_username: null,
             discord_avatar: null,
             discord_created_at: null,
-            ip_address: threat.source_ip,
-            last_seen_at: threat.created_at,
-            ban_reason: ban?.reason || threat.threat_type,
-            banned_at: ban?.banned_at || threat.created_at,
+            ip_address: null,
+            last_seen_at: null,
+            ban_reason: ban.reason || 'Global ban',
+            banned_at: ban.banned_at,
           });
         }
       }
@@ -171,6 +189,26 @@ serve(async (req) => {
           ban_reason: ban?.reason || 'Bypass attempt',
           banned_at: ban?.banned_at,
           access_type: log.access_type,
+        });
+      }
+    }
+
+    // Also add banned IPs with no matching access logs
+    for (const ban of (bans || [])) {
+      if (ban.ban_type === 'ip' && !bannedIpsMap.has(ban.ban_value)) {
+        bannedIpsMap.set(ban.ban_value, {
+          ip_address: ban.ban_value,
+          roblox_user_id: null,
+          roblox_username: null,
+          roblox_avatar_url: null,
+          discord_user_id: null,
+          discord_username: null,
+          discord_avatar: null,
+          discord_created_at: null,
+          last_seen_at: null,
+          ban_reason: ban.reason || 'Global ban',
+          banned_at: ban.banned_at,
+          access_type: null,
         });
       }
     }
