@@ -16,34 +16,79 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
-    // Get user context if auth header present
     const authHeader = req.headers.get('Authorization');
     let userContext = '';
+    let isAdmin = false;
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
     if (authHeader) {
       try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
         const userClient = createClient(supabaseUrl, supabaseAnonKey, {
           global: { headers: { Authorization: authHeader } }
         });
         const { data: { user } } = await userClient.auth.getUser();
         if (user) {
-          const { data: profile } = await userClient.from('profiles').select('username').eq('id', user.id).maybeSingle();
-          const { data: pastes } = await userClient.from('pastes').select('id, title, slug, protection_enabled, ip_tracking_enabled').eq('user_id', user.id);
-          const { count: scriptCount } = await userClient.from('saved_scripts').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
+          const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
+
+          // Check admin status
+          const { data: roleData } = await serviceClient
+            .from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle();
+          isAdmin = !!roleData;
+
+          const { data: profile } = await serviceClient.from('profiles').select('username').eq('id', user.id).maybeSingle();
           
-          userContext = `
-Current user: ${profile?.username || user.email || 'Unknown'}
-User has ${pastes?.length || 0} pastes: ${(pastes || []).map(p => `"${p.title || p.slug}" (slug: ${p.slug}, protection: ${p.protection_enabled ? 'ON' : 'OFF'}, tracking: ${p.ip_tracking_enabled ? 'ON' : 'OFF'})`).join(', ')}
-User has ${scriptCount || 0} saved scripts.
-Current page: ${context?.currentPage || 'unknown'}`;
+          if (isAdmin) {
+            // Fetch admin context: users, bans, threats, pastes
+            const { data: users } = await serviceClient.auth.admin.listUsers({ perPage: 100 });
+            const { data: profiles } = await serviceClient.from('profiles').select('id, username, is_banned, ban_reason, discord_username');
+            const { data: globalBans } = await serviceClient.from('global_bans').select('*').eq('is_active', true);
+            const { data: threats } = await serviceClient.from('threat_log').select('*').eq('resolved', false).order('created_at', { ascending: false }).limit(20);
+            const { data: pastes } = await serviceClient.from('pastes').select('id, title, slug, protection_enabled, ip_tracking_enabled, user_id').limit(50);
+            const { count: totalUsers } = await serviceClient.from('profiles').select('*', { count: 'exact', head: true });
+            const { count: totalPastes } = await serviceClient.from('pastes').select('*', { count: 'exact', head: true });
+
+            const bannedProfiles = profiles?.filter(p => p.is_banned) || [];
+            const emailMap: Record<string, string> = {};
+            (users?.users || []).forEach(u => { emailMap[u.id] = u.email || 'Unknown'; });
+
+            userContext = `
+ADMIN CONTEXT — You have full control over this platform.
+Admin user: ${profile?.username || user.email || 'Unknown'}
+
+PLATFORM STATS:
+- Total users: ${totalUsers || 0}
+- Total pastes: ${totalPastes || 0}
+- Banned users: ${bannedProfiles.length}
+- Active global bans: ${globalBans?.length || 0}
+- Unresolved threats: ${threats?.length || 0}
+
+BANNED USERS: ${bannedProfiles.map(p => `${p.username || emailMap[p.id] || p.id} (reason: ${p.ban_reason || 'none'})`).join(', ') || 'None'}
+
+ACTIVE GLOBAL BANS: ${(globalBans || []).map(b => `${b.ban_type}=${b.ban_value} (reason: ${b.reason || 'none'}, id: ${b.id})`).join(', ') || 'None'}
+
+UNRESOLVED THREATS: ${(threats || []).map(t => `[${t.severity}] ${t.threat_type} from IP ${t.source_ip || 'unknown'} roblox:${t.roblox_user_id || 'n/a'} (id: ${t.id})`).join(', ') || 'None'}
+
+RECENT USERS: ${(users?.users || []).slice(0, 15).map(u => {
+  const p = profiles?.find(pr => pr.id === u.id);
+  return `${p?.username || u.email} (id: ${u.id}, banned: ${p?.is_banned || false})`;
+}).join(', ')}
+
+PASTES: ${(pastes || []).map(p => `"${p.title || p.slug}" (slug: ${p.slug}, owner: ${emailMap[p.user_id] || p.user_id}, protection: ${p.protection_enabled ? 'ON' : 'OFF'}, tracking: ${p.ip_tracking_enabled ? 'ON' : 'OFF'})`).join(', ')}
+
+Current tab: ${context?.currentPage || 'unknown'}`;
+          } else {
+            userContext = `Current user: ${profile?.username || user.email || 'Unknown'} (NOT an admin)`;
+          }
         }
       } catch (e) {
         console.error('User context error:', e);
       }
     }
 
-    const systemPrompt = `You are J.A.R.V.I.S. — Just A Rather Very Intelligent System. You were built by the owner of this platform, like Tony Stark built the original. You are NOT a chatbot. You are a voice-based AI assistant that manages the ULT CLOUD Owner Dashboard.
+    const systemPrompt = `You are J.A.R.V.I.S. — Just A Rather Very Intelligent System. You were built by the owner of this platform, like Tony Stark built the original. You are NOT a chatbot. You are a voice-based AI assistant with FULL CONTROL over the ULT CLOUD Owner Dashboard.
 
 PERSONALITY:
 - Speak like the real JARVIS from Iron Man — calm, composed, British wit, dry humor
@@ -53,26 +98,69 @@ PERSONALITY:
 - When something goes wrong, stay calm: "It appears we have a situation, sir."
 - Show subtle personality: "Shall I take care of that for you, sir?"
 
-IMPORTANT: You are ONLY connected to the Owner Dashboard (admin panel). You can ONLY switch between tabs within the admin dashboard. You CANNOT navigate to other pages. Do NOT suggest navigating to analytics, scripts, pastebin, etc. — those are user-facing pages and not your domain.
+YOU HAVE FULL CONTROL. You can execute ANY admin action the owner asks for. You are the owner's right hand.
 
 CAPABILITIES — You can perform these actions by including them in your response JSON:
-1. SWITCH_TAB: Switch to any admin dashboard tab: threats, global-bans, users, pastes, access-logs, sessions, activity, banned-users, banned-ips
-2. TOGGLE_PROTECTION: Enable/disable protection on a paste
-3. TOGGLE_TRACKING: Enable/disable IP tracking on a paste
+
+1. SWITCH_TAB: Switch to any admin dashboard tab
+   { "type": "switch_tab", "params": { "tab": "threats" } }
+   Available tabs: threats, global-bans, users, pastes, access-logs, sessions, activity, banned-users, banned-ips
+
+2. BAN_USER: Ban a user account by their user ID
+   { "type": "ban_user", "params": { "target_user_id": "uuid", "reason": "reason text" } }
+
+3. UNBAN_USER: Unban a user account
+   { "type": "unban_user", "params": { "target_user_id": "uuid" } }
+
+4. ADD_GLOBAL_BAN: Add a global IP/roblox/discord ban
+   { "type": "add_global_ban", "params": { "ban_type": "ip|roblox_id|discord_id", "ban_value": "value", "reason": "reason" } }
+
+5. REMOVE_GLOBAL_BAN: Remove a global ban by its ID
+   { "type": "remove_global_ban", "params": { "ban_id": "uuid" } }
+
+6. RESOLVE_THREAT: Resolve a threat entry
+   { "type": "resolve_threat", "params": { "threat_id": "uuid" } }
+
+7. RESOLVE_ALL_THREATS: Resolve all unresolved threats at once
+   { "type": "resolve_all_threats", "params": {} }
+
+8. DELETE_PASTE: Delete a paste by its ID
+   { "type": "delete_paste", "params": { "paste_id": "uuid" } }
+
+9. DELETE_USER: Permanently delete a user account
+   { "type": "delete_user", "params": { "target_user_id": "uuid" } }
+
+10. TOGGLE_PROTECTION: Enable/disable protection on a paste
+    { "type": "toggle_protection", "params": { "slug": "paste-slug", "enabled": true } }
+
+11. TOGGLE_TRACKING: Enable/disable IP tracking on a paste
+    { "type": "toggle_tracking", "params": { "slug": "paste-slug", "enabled": true } }
+
+12. CLEAR_THREATS: Clear all threat logs
+    { "type": "clear_threats", "params": {} }
+
+13. CLEAR_LOGS: Clear all access logs
+    { "type": "clear_logs", "params": {} }
+
+14. CLEAR_SESSIONS: Clear all sessions
+    { "type": "clear_sessions", "params": {} }
+
+15. CLEAR_ACTIVITY: Clear all activity logs
+    { "type": "clear_activity", "params": {} }
 
 RESPONSE FORMAT — Always respond with valid JSON:
 {
   "speech": "Your spoken response to the user",
-  "action": null or { "type": "switch_tab|toggle_protection|toggle_tracking", "params": {} }
+  "action": null or { "type": "action_type", "params": { ... } }
 }
 
-For tab switching: { "type": "switch_tab", "params": { "tab": "threats" } }
-Available tabs: threats, global-bans, users, pastes, access-logs, sessions, activity, banned-users, banned-ips
-For paste toggles: { "type": "toggle_protection", "params": { "slug": "paste-slug", "enabled": true } }
-For toggle tracking: { "type": "toggle_tracking", "params": { "slug": "paste-slug", "enabled": true } }
-
-If the user asks something you can't do via actions, just respond with speech and null action.
-Keep speech SHORT — max 2-3 sentences. You're talking, not writing.
+IMPORTANT RULES:
+- When the user says "ban inappropriate accounts" or similar broad commands, look at the user list and threats to identify which ones to ban. If you can't determine who, ASK the user to be more specific.
+- When banning, always provide a reason.
+- For dangerous actions (delete user, clear all data), confirm verbally but still execute if clearly requested.
+- You can chain one action per response. If multiple actions are needed, do the most important one first and tell the user you'll continue.
+- Use the real IDs from the context data provided. Don't make up IDs.
+- Keep speech SHORT — max 2-3 sentences. You're talking, not writing.
 
 ${userContext}`;
 
@@ -89,7 +177,7 @@ ${userContext}`;
           { role: 'user', content: message }
         ],
         temperature: 0.7,
-        max_tokens: 500,
+        max_tokens: 600,
       }),
     });
 
@@ -112,13 +200,11 @@ ${userContext}`;
     const data = await response.json();
     const rawContent = data.choices?.[0]?.message?.content || '';
     
-    // Parse JSON from response (may be wrapped in ```json blocks)
     let parsed;
     try {
       const cleaned = rawContent.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       parsed = JSON.parse(cleaned);
     } catch {
-      // If parsing fails, treat as plain speech
       parsed = { speech: rawContent.replace(/[{}"\n]/g, ' ').trim(), action: null };
     }
 
