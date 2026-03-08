@@ -1444,16 +1444,17 @@ if s and r then
 
   -- ====== POST-FETCH ANTI-HOOK CHECK ======
   if not ${v.antiHook}() then
-    ${v.silentDegrade}()
+    _reportBypass("post_fetch_hook", "hook_after_network_request")
   end
 
   -- v9.5: Re-check hookcheck after fetch (attacker might hook during network wait)
   pcall(function()
     if hookcheck and hookcheck(loadstring) and not ${v.clonedLS} then
-      ${v.silentDegrade}()
+      _reportBypass("post_fetch_ls_hook", "loadstring_hooked_post_fetch")
     end
     -- Also check if our cleanLS got swapped
     if hookcheck and hookcheck(${v.cleanLS}) then
+      _reportBypass("cleanls_hooked", "clean_loadstring_compromised")
       -- cleanLS itself is hooked now! Try to recover
       pcall(function()
         if getoriginalfunction then
