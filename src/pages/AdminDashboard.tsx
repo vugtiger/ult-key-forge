@@ -234,11 +234,29 @@ const AdminDashboard = () => {
   const unresolvedThreats = threats.filter(t => !t.resolved);
   const criticalThreats = unresolvedThreats.filter(t => t.severity === 'critical');
 
-  if (adminLoading || !isAdmin) return null;
+  if (!authReady || !isAdmin) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Standalone header */}
+      <header className="h-14 border-b border-border/30 flex items-center px-6 sticky top-0 bg-background/80 backdrop-blur-xl z-10">
+        <Shield className="h-5 w-5 text-primary mr-2" />
+        <span className="font-bold">ULT CLOUD — Command Center</span>
+        <div className="flex-1" />
+        <Button variant="ghost" size="sm" onClick={handleLogout}><LogOut className="h-4 w-4 mr-1" />Logout</Button>
+      </header>
+      <main className="p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3">
           <Shield className="h-8 w-8 text-primary" />
