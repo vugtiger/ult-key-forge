@@ -666,12 +666,13 @@ const AdminDashboard = () => {
 
           {/* ===== BANNED USERS ===== */}
           <TabsContent value="banned-users" className="mt-6">
-            <BannedUsersTab users={bannedUsers} loading={bansLoading} />
+          <TabsContent value="banned-users" className="mt-6">
+            <BannedUsersTab users={bannedUsers} loading={loading} />
           </TabsContent>
 
           {/* ===== BANNED IPS ===== */}
           <TabsContent value="banned-ips" className="mt-6">
-            <BannedIPsTab ips={bannedIps} loading={bansLoading} />
+            <BannedIPsTab ips={bannedIps} loading={loading} />
           </TabsContent>
         </Tabs>
       </main>
