@@ -675,7 +675,7 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
-      <JarvisVoice />
+      <JarvisVoice onTabChange={setActiveTab} />
     </div>
   );
 };
