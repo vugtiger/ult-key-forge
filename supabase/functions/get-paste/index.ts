@@ -1276,28 +1276,28 @@ ${v.entropyCollect}()
 -- ====== RUN ALL PROTECTION CHECKS ======
 -- v9: Instead of hard-blocking, use dump poisoning for failed checks
 ${protectionSeed > 0.66 ? `
-if not ${v.antiHook}() then ${v.silentDegrade}() end
-if not ${v.antiEnvLog}() then ${v.silentDegrade}() end
-if not ${v.antiLogger}() then ${v.silentDegrade}() end
-if not ${v.antiDump}() then ${v.silentDegrade}() end
-if not ${v.antiDebug}() then ${v.silentDegrade}() end
+if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end
+if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end
+if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end
+if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end
+if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end
 ` : protectionSeed > 0.33 ? `
-if not ${v.antiEnvLog}() then ${v.silentDegrade}() end
-if not ${v.antiDump}() then ${v.silentDegrade}() end
-if not ${v.antiHook}() then ${v.silentDegrade}() end
-if not ${v.antiDebug}() then ${v.silentDegrade}() end
-if not ${v.antiLogger}() then ${v.silentDegrade}() end
+if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end
+if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end
+if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end
+if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end
+if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end
 ` : `
-if not ${v.antiDump}() then ${v.silentDegrade}() end
-if not ${v.antiDebug}() then ${v.silentDegrade}() end
-if not ${v.antiLogger}() then ${v.silentDegrade}() end
-if not ${v.antiHook}() then ${v.silentDegrade}() end
-if not ${v.antiEnvLog}() then ${v.silentDegrade}() end
+if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end
+if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end
+if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end
+if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end
+if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end
 `}
 
 -- v9: Check fetch intent
 if not ${v.intentCheck}() then
-  ${v.silentDegrade}()
+  _reportBypass("fetch_intent", "automated_fetch_no_game")
 end
 
 -- Generate unique execution nonce
