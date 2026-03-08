@@ -1837,14 +1837,30 @@ Deno.serve(async (req) => {
     let paste = getCachedPaste(slug);
     let error = null;
     if (!paste) {
-      const result = await supabase
-        .from('pastes')
-        .select('*')
-        .eq('slug', slug)
-        .single();
-      paste = result.data;
-      error = result.error;
-      if (paste) setCachedPaste(slug, paste);
+      // Add timeout to DB query to prevent hanging connections
+      try {
+        const dbPromise = supabase
+          .from('pastes')
+          .select('*')
+          .eq('slug', slug)
+          .single();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('DB_TIMEOUT')), 5000)
+        );
+        const result = await Promise.race([dbPromise, timeoutPromise]) as any;
+        paste = result.data;
+        error = result.error;
+        if (paste) setCachedPaste(slug, paste);
+      } catch (e: any) {
+        if (e?.message === 'DB_TIMEOUT') {
+          console.error(`[get-paste] DB timeout for slug=${slug}`);
+          return new Response(generateKickPlain('Server is experiencing high load. Please rejoin.'), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          });
+        }
+        throw e;
+      }
     }
 
     if (error || !paste) {
