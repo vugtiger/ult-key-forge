@@ -197,6 +197,10 @@ const commands = [
       { name: "channel", description: "Channel to send changelog updates to", type: 7, required: true }
     ]
   },
+  {
+    name: "sendlogs",
+    description: "Broadcast the latest changelog to all servers with /logs set up (admin only)",
+  },
 
   // Key System Setup (connected to Key System Gen on website)
   {
