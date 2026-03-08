@@ -2835,7 +2835,22 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
 
       // Block spoofed uid
       if (uid && /^\d+$/.test(uid) && parseInt(uid) < 1000 && parseInt(uid) !== 0) {
-        console.log(`[get-paste] BLOCKED: spoofed uid=${uid} slug=${slug} ip=${clientIp}`);
+        console.log(`[get-paste] BLOCKED+BANNED: spoofed uid=${uid} slug=${slug} ip=${clientIp}`);
+        autoBanNewIp(clientIp, 'spoofed_uid_on_protected_paste', uid, null);
+        logThreat('spoofed_uid', clientIp, uid, null, {
+          slug, user_agent: userAgent.substring(0, 200), action: 'instant_ip_ban',
+        }, 'critical');
+        return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
+      }
+
+      // ===== CRITICAL: Before serving the protection loader, verify request legitimacy =====
+      // A non-browser, non-Roblox request should NEVER get the loader
+      if (!isLikelyBrowser && !isRobloxRequest) {
+        console.log(`[get-paste] BLOCKED+BANNED: non-roblox non-browser requesting loader slug=${slug} ip=${clientIp} ua="${userAgent.substring(0, 80)}"`);
+        autoBanNewIp(clientIp, 'unknown_client_loader_request', uid || null, null);
+        logThreat('unknown_client_loader', clientIp, uid || null, null, {
+          slug, user_agent: userAgent.substring(0, 200), action: 'instant_ip_ban',
+        }, 'critical');
         return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
       }
 
