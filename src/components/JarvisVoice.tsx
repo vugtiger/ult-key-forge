@@ -98,7 +98,7 @@ const JarvisVoice = ({ onTabChange }: JarvisVoiceProps) => {
         navigate("/pastebin");
         break;
     }
-  }, [navigate]);
+  }, [navigate, onTabChange]);
 
   // Send command to JARVIS backend
   const processCommand = useCallback(async (text: string) => {
