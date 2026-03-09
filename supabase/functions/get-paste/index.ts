@@ -2319,8 +2319,14 @@ end)
 while true do wait(0.1) end
 `;
 
-  // Now add the text flood portion for bots that just display the raw response
+  // The entire honeypot must be valid Lua so loadstring() doesn't return nil.
+  // Wrap all non-Lua flood text inside a Lua multiline comment so the Lua portion
+  // still compiles and executes (flooding webhooks etc.), while bots that dump the
+  // raw response also see the warning text.
   const floodLines: string[] = [luaPart];
+
+  // Open a Lua multiline comment to wrap raw text
+  floodLines.push('--[==[');
   
   const warningMessages = [
     '⚠️ SECURITY ALERT: Unauthorized access attempt detected and logged',
@@ -2368,18 +2374,15 @@ while true do wait(0.1) end
     }
   }
   
-  const chaos = ['​', '‮', '‭', '⁠', '\u200B', '\u200E', '\u200F', '\u202A', '\u202B', '\u202C'];
-  for (let i = 0; i < 100; i++) {
-    const line = Array.from({length: 200}, () => chaos[Math.floor(Math.random() * chaos.length)]).join('');
-    floodLines.push(line);
-  }
-  
   for (let i = 0; i < 200; i++) {
     floodLines.push(`${'🚨'.repeat(20)} BYPASS ATTEMPT #${i + 1} LOGGED ${'🚨'.repeat(20)}`);
     floodLines.push(`IP BANNED | HWID BANNED | DISCORD ID FLAGGED | ROBLOX ID BLACKLISTED`);
     floodLines.push(`Incident Reference: ULT-${Date.now()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`);
     floodLines.push('');
   }
+  
+  // Close the Lua multiline comment
+  floodLines.push(']==]');
   
   return floodLines.join('\n');
 }
