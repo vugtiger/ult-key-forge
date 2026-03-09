@@ -3454,7 +3454,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       });
     }
 
-    // v9: Validate entropy proof
+    // v9+v10: Validate entropy proof + DNA + quantum + stack depth
     if (entropy && snonce) {
       const entropyNum = parseInt(entropy);
       if (entropyNum === 0) {
@@ -3462,6 +3462,32 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         updateTrustScore(clientIp, -15);
         console.log(`[get-paste] SUSPICIOUS: zero entropy from ${clientIp}`);
       }
+    }
+    
+    // v10: Validate DNA hash (should be non-zero for real game sessions)
+    if (dna) {
+      const dnaNum = parseInt(dna);
+      if (dnaNum === 0 || isNaN(dnaNum)) {
+        updateTrustScore(clientIp, -10);
+        console.log(`[get-paste] SUSPICIOUS: zero/invalid DNA from ${clientIp}`);
+      }
+    }
+    
+    // v10: Validate stack depth (abnormally deep = debugger)
+    if (stackDepth) {
+      const sdNum = parseInt(stackDepth);
+      if (sdNum > 15) {
+        updateTrustScore(clientIp, -20);
+        logThreat('deep_stack_detected', clientIp, uid, null, {
+          stack_depth: sdNum, slug, action: 'trust_degraded',
+        }, 'medium', true);
+      }
+    }
+    
+    // v10: Log watermark for leak tracing
+    if (watermarkId) {
+      // Store watermark-to-user mapping for leak detection
+      console.log(`[get-paste] v10: wm=${watermarkId} uid=${uid} ip=${clientIp} dna=${dna || 'none'} qt=${quantumToken || 'none'}`);
     }
 
     const { data: tokenData, error: tokenError } = await supabase
