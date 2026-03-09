@@ -692,6 +692,59 @@ const AdminDashboard = () => {
           <TabsContent value="banned-ips" className="mt-6">
             <BannedIPsTab ips={bannedIps} loading={loading} />
           </TabsContent>
+
+          {/* ===== BANNED ACCOUNTS ===== */}
+          <TabsContent value="banned-accounts" className="mt-6">
+            <Section>
+              <SectionHeader
+                icon={Ban}
+                title="Banned Accounts"
+                subtitle={`${bannedAccounts.length} banned accounts`}
+                actions={<Button onClick={fetchBannedAccounts} variant="ghost" size="sm" className="text-xs text-muted-foreground"><RefreshCw className="h-3 w-3 mr-1" />Refresh</Button>}
+              />
+              <SearchBar value={bannedAccountSearch} onChange={setBannedAccountSearch} placeholder="Search banned accounts..." onRefresh={fetchBannedAccounts} />
+              {dbLoading ? (
+                <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
+              ) : bannedAccounts.length === 0 ? (
+                <EmptyState icon={ShieldCheck} title="No Banned Accounts" subtitle="No accounts are currently banned" />
+              ) : (
+                <div className="divide-y divide-border/10">
+                  {bannedAccounts
+                    .filter(a => a.email?.toLowerCase().includes(bannedAccountSearch.toLowerCase()) || a.username?.toLowerCase().includes(bannedAccountSearch.toLowerCase()) || a.ban_reason?.toLowerCase().includes(bannedAccountSearch.toLowerCase()))
+                    .map(account => (
+                    <div key={account.id} className="flex items-start justify-between gap-4 px-6 py-4 hover:bg-muted/5 transition-colors">
+                      <div className="space-y-1.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-medium truncate">{account.email}</p>
+                          <span className="text-[10px] font-bold text-red-400 bg-red-400/10 px-2 py-0.5 rounded-md">BANNED</span>
+                        </div>
+                        {account.username && <p className="text-xs text-muted-foreground/50">Username: {account.username}</p>}
+                        {account.discord_username && <p className="text-xs text-muted-foreground/50">Discord: {account.discord_username}</p>}
+                        {account.ban_reason && <p className="text-[11px] text-red-400/60 mt-1">Reason: {account.ban_reason}</p>}
+                        {account.banned_at && <p className="text-[10px] text-muted-foreground/30">Banned: {new Date(account.banned_at).toLocaleString()}</p>}
+                        <p className="text-[10px] text-muted-foreground/25 font-mono">{account.id}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button size="sm" variant="ghost" onClick={async () => {
+                          try {
+                            await adminCall('unban_user', { target_user_id: account.id });
+                            toast({ title: "Account Unbanned", description: account.email });
+                            setBannedAccounts(prev => prev.filter(a => a.id !== account.id));
+                            fetchUsers();
+                          } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+                        }} className="text-xs h-8 text-muted-foreground hover:text-green-400">
+                          <Unlock className="h-3.5 w-3.5 mr-1" />Unban
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleDeleteUser(account.id)} className="text-xs h-8 text-muted-foreground/40 hover:text-red-400">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
+          </TabsContent>
         </Tabs>
       </main>
       <JarvisVoice onTabChange={setActiveTab} onRefreshData={() => {
