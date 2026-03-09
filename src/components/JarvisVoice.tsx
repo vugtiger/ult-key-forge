@@ -78,6 +78,7 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
     "global-bans": "global-bans", "banned-users": "banned-users", "banned-ips": "banned-ips",
     "bans": "global-bans", "logs": "access-logs", "banned-accounts": "banned-accounts",
     "banned accounts": "banned-accounts", "accounts": "banned-accounts",
+    "discord-servers": "discord-servers", "servers": "discord-servers", "discord": "discord-servers",
   };
 
   // Execute JARVIS action
