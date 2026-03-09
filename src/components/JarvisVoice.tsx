@@ -76,7 +76,8 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
     "analytics": "activity", "activity": "activity", "threats": "threats", "users": "users",
     "pastes": "pastes", "access-logs": "access-logs", "sessions": "sessions",
     "global-bans": "global-bans", "banned-users": "banned-users", "banned-ips": "banned-ips",
-    "bans": "global-bans", "logs": "access-logs",
+    "bans": "global-bans", "logs": "access-logs", "banned-accounts": "banned-accounts",
+    "banned accounts": "banned-accounts", "accounts": "banned-accounts",
   };
 
   // Execute JARVIS action
@@ -216,6 +217,14 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
           await callAdminApi('clear_activity');
           toast({ title: "Activity cleared" });
           onRefreshData?.();
+          break;
+
+        case "mass_unban":
+          if (action.params?.reason_pattern) {
+            const result = await callAdminApi('mass_unban_by_reason', { reason_pattern: action.params.reason_pattern });
+            toast({ title: "Mass unban complete", description: `${result.unbanned_count || 0} bans removed` });
+            onRefreshData?.();
+          }
           break;
 
         default:
