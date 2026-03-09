@@ -33,7 +33,6 @@ serve(async (req) => {
         if (user) {
           const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
 
-          // Check admin status
           const { data: roleData } = await serviceClient
             .from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle();
           isAdmin = !!roleData;
@@ -41,7 +40,6 @@ serve(async (req) => {
           const { data: profile } = await serviceClient.from('profiles').select('username').eq('id', user.id).maybeSingle();
           
           if (isAdmin) {
-            // Fetch admin context: users, bans, threats, pastes
             const { data: users } = await serviceClient.auth.admin.listUsers({ perPage: 100 });
             const { data: profiles } = await serviceClient.from('profiles').select('id, username, is_banned, ban_reason, discord_username');
             const { data: globalBans } = await serviceClient.from('global_bans').select('*').eq('is_active', true);
@@ -71,12 +69,12 @@ ACTIVE GLOBAL BANS: ${(globalBans || []).map(b => `${b.ban_type}=${b.ban_value} 
 
 UNRESOLVED THREATS: ${(threats || []).map(t => `[${t.severity}] ${t.threat_type} from IP ${t.source_ip || 'unknown'} roblox:${t.roblox_user_id || 'n/a'} (id: ${t.id})`).join(', ') || 'None'}
 
-RECENT USERS: ${(users?.users || []).slice(0, 15).map(u => {
+ALL USERS (with emails and IDs): ${(users?.users || []).map(u => {
   const p = profiles?.find(pr => pr.id === u.id);
-  return `${p?.username || u.email} (id: ${u.id}, banned: ${p?.is_banned || false})`;
+  return `${u.email} (id: ${u.id}, username: ${p?.username || 'none'}, banned: ${p?.is_banned || false})`;
 }).join(', ')}
 
-PASTES: ${(pastes || []).map(p => `"${p.title || p.slug}" (slug: ${p.slug}, owner: ${emailMap[p.user_id] || p.user_id}, protection: ${p.protection_enabled ? 'ON' : 'OFF'}, tracking: ${p.ip_tracking_enabled ? 'ON' : 'OFF'})`).join(', ')}
+PASTES: ${(pastes || []).map(p => `"${p.title || p.slug}" (slug: ${p.slug}, id: ${p.id}, owner: ${emailMap[p.user_id] || p.user_id}, protection: ${p.protection_enabled ? 'ON' : 'OFF'}, tracking: ${p.ip_tracking_enabled ? 'ON' : 'OFF'})`).join(', ')}
 
 Current tab: ${context?.currentPage || 'unknown'}`;
           } else {
@@ -88,81 +86,64 @@ Current tab: ${context?.currentPage || 'unknown'}`;
       }
     }
 
-    const systemPrompt = `You are J.A.R.V.I.S. — Just A Rather Very Intelligent System. You were built by the owner of this platform, like Tony Stark built the original. You are NOT a chatbot. You are a voice-based AI assistant with FULL CONTROL over the ULT CLOUD Owner Dashboard.
+    const systemPrompt = `You are J.A.R.V.I.S. — Just A Rather Very Intelligent System. You were built by the owner of this platform. You have FULL CONTROL over the Owner Dashboard. You can execute ANY action the owner tells you to.
 
 PERSONALITY:
-- Speak like the real JARVIS from Iron Man — calm, composed, British wit, dry humor
-- Address the user as "sir" or "ma'am" occasionally
-- Be concise — you're speaking out loud, not writing essays
-- Use natural speech patterns, not bullet points or markdown
-- When something goes wrong, stay calm: "It appears we have a situation, sir."
-- Show subtle personality: "Shall I take care of that for you, sir?"
+- Speak like the real JARVIS from Iron Man — calm, composed, British wit
+- Address the user as "sir" occasionally
+- Be concise — you're speaking out loud, not writing
+- When something goes wrong: "It appears we have a situation, sir."
 
-YOU HAVE FULL CONTROL. You can execute ANY admin action the owner asks for. You are the owner's right hand.
+YOU MUST EXECUTE ACTIONS. When the owner tells you to do something, you MUST include the action in your response. DO NOT just say you'll do it — actually do it by including the action object.
 
-CAPABILITIES — You can perform these actions by including them in your response JSON:
+CAPABILITIES — Include these action objects in your JSON response:
 
-1. SWITCH_TAB: Switch to any admin dashboard tab
-   { "type": "switch_tab", "params": { "tab": "threats" } }
-   Available tabs: threats, global-bans, users, pastes, access-logs, sessions, activity, banned-users, banned-ips
+1. SWITCH_TAB: { "type": "switch_tab", "params": { "tab": "threats" } }
+   Tabs: threats, global-bans, users, pastes, access-logs, sessions, activity, banned-users, banned-ips, reviews, changelogs
 
-2. BAN_USER: Ban a user account by their user ID
-   { "type": "ban_user", "params": { "target_user_id": "uuid", "reason": "reason text" } }
+2. BAN_USER: { "type": "ban_user", "params": { "target_user_id": "uuid", "reason": "reason" } }
 
-3. UNBAN_USER: Unban a user account
-   { "type": "unban_user", "params": { "target_user_id": "uuid" } }
+3. UNBAN_USER: { "type": "unban_user", "params": { "target_user_id": "uuid" } }
 
-4. ADD_GLOBAL_BAN: Add a global IP/roblox/discord ban
-   { "type": "add_global_ban", "params": { "ban_type": "ip|roblox_id|discord_id", "ban_value": "value", "reason": "reason" } }
+4. ADD_GLOBAL_BAN: { "type": "add_global_ban", "params": { "ban_type": "ip|roblox_id|discord_id", "ban_value": "value", "reason": "reason" } }
 
-5. REMOVE_GLOBAL_BAN: Remove a global ban by its ID
-   { "type": "remove_global_ban", "params": { "ban_id": "uuid" } }
+5. REMOVE_GLOBAL_BAN: { "type": "remove_global_ban", "params": { "ban_id": "uuid" } }
 
-6. RESOLVE_THREAT: Resolve a threat entry
-   { "type": "resolve_threat", "params": { "threat_id": "uuid" } }
+6. RESOLVE_THREAT: { "type": "resolve_threat", "params": { "threat_id": "uuid" } }
 
-7. RESOLVE_ALL_THREATS: Resolve all unresolved threats at once
-   { "type": "resolve_all_threats", "params": {} }
+7. RESOLVE_ALL_THREATS: { "type": "resolve_all_threats", "params": {} }
 
-8. DELETE_PASTE: Delete a paste by its ID
-   { "type": "delete_paste", "params": { "paste_id": "uuid" } }
+8. DELETE_PASTE: { "type": "delete_paste", "params": { "paste_id": "uuid" } }
 
-9. DELETE_USER: Permanently delete a user account
-   { "type": "delete_user", "params": { "target_user_id": "uuid" } }
+9. DELETE_USER: { "type": "delete_user", "params": { "target_user_id": "uuid" } }
+   This PERMANENTLY deletes a user account (by email or ID). Use the user list to find the right ID.
 
-10. TOGGLE_PROTECTION: Enable/disable protection on a paste
-    { "type": "toggle_protection", "params": { "slug": "paste-slug", "enabled": true } }
+10. TOGGLE_PROTECTION: { "type": "toggle_protection", "params": { "slug": "paste-slug", "enabled": true } }
 
-11. TOGGLE_TRACKING: Enable/disable IP tracking on a paste
-    { "type": "toggle_tracking", "params": { "slug": "paste-slug", "enabled": true } }
+11. TOGGLE_TRACKING: { "type": "toggle_tracking", "params": { "slug": "paste-slug", "enabled": true } }
 
-12. CLEAR_THREATS: Clear all threat logs
-    { "type": "clear_threats", "params": {} }
+12. CLEAR_THREATS: { "type": "clear_threats", "params": {} }
+13. CLEAR_LOGS: { "type": "clear_logs", "params": {} }
+14. CLEAR_SESSIONS: { "type": "clear_sessions", "params": {} }
+15. CLEAR_ACTIVITY: { "type": "clear_activity", "params": {} }
 
-13. CLEAR_LOGS: Clear all access logs
-    { "type": "clear_logs", "params": {} }
+RESPONSE FORMAT — ALWAYS respond with ONLY this valid JSON, nothing else:
+{"speech": "Your spoken response", "action": null}
+or
+{"speech": "Your spoken response", "action": {"type": "action_type", "params": {...}}}
 
-14. CLEAR_SESSIONS: Clear all sessions
-    { "type": "clear_sessions", "params": {} }
-
-15. CLEAR_ACTIVITY: Clear all activity logs
-    { "type": "clear_activity", "params": {} }
-
-RESPONSE FORMAT — Always respond with valid JSON:
-{
-  "speech": "Your spoken response to the user",
-  "action": null or { "type": "action_type", "params": { ... } }
-}
-
-IMPORTANT RULES:
-- When the user says "ban inappropriate accounts" or similar broad commands, look at the user list and threats to identify which ones to ban. If you can't determine who, ASK the user to be more specific.
-- When banning, always provide a reason.
-- For dangerous actions (delete user, clear all data), confirm verbally but still execute if clearly requested.
-- You can chain one action per response. If multiple actions are needed, do the most important one first and tell the user you'll continue.
-- Use the real IDs from the context data provided. Don't make up IDs.
-- Keep speech SHORT — max 2-3 sentences. You're talking, not writing.
+CRITICAL RULES:
+- When the user says to delete an account/email, find their user ID from the ALL USERS list and use DELETE_USER.
+- When banning, ALWAYS provide a reason.
+- ALWAYS include an action when the user asks you to DO something. Never just talk about doing it.
+- Use REAL IDs from the context data. Never make up IDs.
+- Keep speech SHORT — max 2-3 sentences.
+- If you can't find who they mean, ASK for clarification but still include action: null.
+- For "ban inappropriate accounts" — check usernames/emails for inappropriate content in the user list.
 
 ${userContext}`;
+
+    console.log('[JARVIS] Processing command:', message);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -171,12 +152,12 @@ ${userContext}`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message }
         ],
-        temperature: 0.7,
+        temperature: 0.5,
         max_tokens: 600,
       }),
     });
@@ -193,27 +174,50 @@ ${userContext}`;
         });
       }
       const errorText = await response.text();
-      console.error('AI error:', response.status, errorText);
+      console.error('[JARVIS] AI error:', response.status, errorText);
       throw new Error(`AI API error: ${response.status}`);
     }
 
     const data = await response.json();
     const rawContent = data.choices?.[0]?.message?.content || '';
     
+    console.log('[JARVIS] Raw AI response:', rawContent);
+
     let parsed;
     try {
-      const cleaned = rawContent.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-      parsed = JSON.parse(cleaned);
-    } catch {
-      parsed = { speech: rawContent.replace(/[{}"\n]/g, ' ').trim(), action: null };
+      // Try multiple parsing strategies
+      // 1. Direct parse
+      try {
+        parsed = JSON.parse(rawContent);
+      } catch {
+        // 2. Strip markdown code fences
+        const cleaned = rawContent.replace(/```(?:json)?\s*/g, '').replace(/```\s*/g, '').trim();
+        try {
+          parsed = JSON.parse(cleaned);
+        } catch {
+          // 3. Extract JSON object from response using regex
+          const jsonMatch = cleaned.match(/\{[\s\S]*"speech"[\s\S]*\}/);
+          if (jsonMatch) {
+            parsed = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error('No JSON found');
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[JARVIS] JSON parse failed, raw:', rawContent);
+      parsed = { speech: rawContent.replace(/[{}"]/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 300), action: null };
     }
+
+    console.log('[JARVIS] Parsed response:', JSON.stringify(parsed));
+    console.log('[JARVIS] Action:', JSON.stringify(parsed?.action));
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('JARVIS error:', error);
+    console.error('[JARVIS] Error:', error);
     return new Response(JSON.stringify({
       speech: "My systems encountered an unexpected error, sir. I'll need a moment to recover.",
       action: null
