@@ -350,6 +350,7 @@ const AdminDashboard = () => {
           if (val === 'access-logs' && accessLogs.length === 0) fetchAccessLogs();
           if (val === 'sessions' && sessions.length === 0) fetchSessions();
           if (val === 'activity' && activity.length === 0) fetchActivity();
+          if (val === 'banned-accounts' && bannedAccounts.length === 0) fetchBannedAccounts();
         }} className="w-full">
           <div className="border-b border-border/10 -mx-6 px-6">
             <TabsList className="bg-transparent h-auto p-0 gap-0 rounded-none">
