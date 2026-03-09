@@ -437,15 +437,23 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
 
   const handleOrbClick = useCallback(() => {
     if (state === "listening") {
-      recognitionRef.current?.stop();
+      try { recognitionRef.current?.stop(); } catch {}
       setState("idle");
+      if (wakeWordActive) {
+        setTimeout(() => startWakeWordListening(), 500);
+      }
     } else if (state === "speaking") {
       window.speechSynthesis.cancel();
       setState("idle");
+      if (wakeWordActive) {
+        setTimeout(() => startWakeWordListening(), 500);
+      }
     } else if (state === "idle") {
-      startActiveListening();
+      // Stop wake word listening before starting active listening to avoid conflicts
+      try { wakeRecognitionRef.current?.stop(); } catch {}
+      setTimeout(() => startActiveListening(), 200);
     }
-  }, [state, startActiveListening]);
+  }, [state, startActiveListening, wakeWordActive, startWakeWordListening]);
 
   const stateColors = {
     idle: "from-cyan-500/20 to-cyan-600/10 border-cyan-500/30",
