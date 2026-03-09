@@ -156,8 +156,34 @@ const AdminDashboard = () => {
   const [newBanReason, setNewBanReason] = useState("");
   const [activeTab, setActiveTab] = useState("threats");
   const [bannedAccountSearch, setBannedAccountSearch] = useState("");
+  const [showWelcome, setShowWelcome] = useState(true);
+  const jarvisWelcomedRef = useRef(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // JARVIS welcome on first load
+  useEffect(() => {
+    if (authReady && isAdmin && !jarvisWelcomedRef.current) {
+      jarvisWelcomedRef.current = true;
+      const timer = setTimeout(() => {
+        if (window.speechSynthesis) {
+          const voices = window.speechSynthesis.getVoices();
+          const preferred = voices.find(v => 
+            v.name.includes("Daniel") || v.name.includes("Google UK English Male") || v.name.includes("Microsoft George")
+          ) || voices.find(v => v.lang.startsWith("en"));
+          
+          const utterance = new SpeechSynthesisUtterance("Welcome back, sir. All systems are operational. Your command center is ready.");
+          if (preferred) utterance.voice = preferred;
+          utterance.rate = 0.92;
+          utterance.pitch = 0.82;
+          window.speechSynthesis.speak(utterance);
+        }
+      }, 1500);
+      // Hide welcome overlay after animation
+      const hideTimer = setTimeout(() => setShowWelcome(false), 3000);
+      return () => { clearTimeout(timer); clearTimeout(hideTimer); };
+    }
+  }, [authReady, isAdmin]);
 
   useEffect(() => {
     let mounted = true;
