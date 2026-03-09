@@ -2509,7 +2509,7 @@ Deno.serve(async (req) => {
       }
       
       // Return empty - don't give them any info
-      return new Response('', { status: 403, headers: corsHeaders });
+      return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
     
     const slug = url.searchParams.get('slug');
