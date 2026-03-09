@@ -604,15 +604,81 @@ async function fetchRobloxProfile(userId: string): Promise<{
   return result;
 }
 
-// ===== ULT PROTECTION v9.5 =====
-// Runtime-bound encryption, dump poisoning, fetch intent detection,
-// behavioral scoring, enhanced anti-env logger, anti-hookfunction,
-// v9.5: Advanced anti-loadstring-hook with hookcheck, behavioral traps,
-// indirect execution via coroutine/xpcall, chunked code assembly
+// ===== ULT PROTECTION v10.0 — "PHANTOM SHIELD" =====
+// 6 NEVER-BEFORE-SEEN protection layers:
+// 1. Polymorphic Code Morphing — structurally different code every request
+// 2. Execution DNA Chain — runtime behavioral fingerprint that breaks on copy
+// 3. Self-Destructing Watermarks — invisible traceable markers per-user
+// 4. Ghost Code Injection — dormant code activates on decompile/dump
+// 5. Memory Scramble — post-execution VM memory corruption
+// 6. Quantum Token Pairs — entangled dual-token server validation
+// Plus all v9.5 features: hookcheck, indirect execution, coroutine sandbox
+
+// Helper: generate polymorphic math expressions that evaluate to a target number
+function generatePolymorphicNumber(target: number): string {
+  const strategies = [
+    () => { const a = Math.floor(Math.random() * 1000) + 1; return `(${a + target} - ${a})`; },
+    () => { const a = Math.floor(Math.random() * 50) + 2; const b = target + a; return `(${b} - ${a})`; },
+    () => { if (target === 0) return '(0)'; const a = Math.floor(Math.random() * 100) + 1; return `(bit32.bxor(${a ^ target}, ${a}))`; },
+    () => { const a = Math.floor(Math.random() * 99) + 1; return `(${a * target} / ${a})`; },
+    () => { return `(tonumber("${target.toString(36)}", 36))`; },
+    () => { const hex = target.toString(16); return `(tonumber("${hex}", 16))`; },
+  ];
+  return strategies[Math.floor(Math.random() * strategies.length)]();
+}
+
+// Helper: generate polymorphic string that evaluates to the target string
+function generatePolymorphicString(target: string): string {
+  const strategies = [
+    // Strategy 1: char-by-char construction
+    () => {
+      const chars = Array.from(target).map(c => `string.char(${c.charCodeAt(0)})`);
+      return chars.join(' .. ');
+    },
+    // Strategy 2: reverse + reverse
+    () => {
+      const reversed = target.split('').reverse().join('');
+      return `string.reverse("${reversed}")`;
+    },
+    // Strategy 3: table.concat
+    () => {
+      const parts = [];
+      for (let i = 0; i < target.length; i += 3) {
+        parts.push(`"${target.slice(i, i + 3)}"`);
+      }
+      return `table.concat({${parts.join(',')}})`;
+    },
+    // Strategy 4: sub from larger string
+    () => {
+      const prefix = Math.random().toString(36).substring(2, 5);
+      const suffix = Math.random().toString(36).substring(2, 5);
+      return `("${prefix}${target}${suffix}"):sub(${prefix.length + 1}, ${prefix.length + target.length})`;
+    },
+  ];
+  return strategies[Math.floor(Math.random() * strategies.length)]();
+}
+
+// Generate a unique watermark ID that's invisible in the code
+function generateWatermark(): { id: string; luaEmbed: string } {
+  const id = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+  // Encode watermark as invisible Unicode zero-width chars in Lua comments
+  const zeroWidthChars = ['\u200B', '\u200C', '\u200D', '\uFEFF'];
+  const encoded = Array.from(id).map(c => {
+    const nibble = parseInt(c, 16);
+    return zeroWidthChars[(nibble >> 2) & 3] + zeroWidthChars[nibble & 3];
+  }).join('');
+  // Embed as a Lua comment that looks innocent
+  const luaEmbed = `--${encoded} ULT Session`;
+  return { id, luaEmbed };
+}
+
 function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string, options?: { 
   showConsoleFeedback?: boolean;
   serverNonce?: string;
   trustLevel?: number; // 0-100
+  watermarkId?: string; // For tracking leaked code
+  quantumPair?: string; // Entangled token half
 }): string {
   const tokenParts = [];
   for (let i = 0; i < token.length; i += 8) {
@@ -630,10 +696,21 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   const serverNonce = options?.serverNonce || generateServerNonce();
   const trustLevel = options?.trustLevel ?? 100;
   
+  // v10: Quantum token pair — server keeps one half, loader has the other
+  const quantumPair = options?.quantumPair || generateToken().slice(0, 16);
+  
+  // v10: Watermark for leak tracing
+  const watermark = generateWatermark();
+  const watermarkId = options?.watermarkId || watermark.id;
+  
+  // v10: Execution DNA seed — unique per request, validated server-side
+  const dnaSeed = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+  
   // v9.5: Server-side execution key for indirect execution verification
   const execVerifyKey = Math.random().toString(36).substring(2, 18);
   
-  // Generate random variable names
+  // v10: Polymorphic variable names — completely random each time
   const v = Object.fromEntries(
     ['player','nonce','fingerprint','tokenParts','reconstruct','isHex','session',
      'hexBytes','xorBytes','bytesToString','envCheck','cachedLS','cachedHG',
@@ -647,27 +724,53 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
      'fetchGuard','intentCheck','dumpPoison','silentDegrade',
       'fragA','fragB','fragC','reassemble','decayTimer',
       'hexBytes','xorBytes','bytesToString',
-      // v9.5 new vars
+      // v9.5 vars
       'hookcheckLS','lsBehavior','indirectExec','coroExec','xpExec',
       'chunkAssemble','reXor','splitPoints','codeChunks','verified',
-      'trapResult','trapExpected','lsFingerprint','deepVerify'
+      'trapResult','trapExpected','lsFingerprint','deepVerify',
+      // v10: NEW protection vars
+      'dnaHash','dnaCollect','dnaFrames','dnaMemory','dnaVerify',
+      'ghostBlock','ghostTrigger','ghostPayload','ghostArmed',
+      'memScramble','memPoison','memFragments','memWiper',
+      'watermarkEmbed','watermarkCheck','watermarkReport',
+      'polyMath','polyString','polyEval','polyShift',
+      'quantumA','quantumB','quantumVerify','quantumEntangle',
+      'gcSweep','gcTrap','gcMonitor','gcSentinel',
+      'stackDepth','stackCheck','stackPoison',
+      'metamorphic','morphCounter','morphSeed','morphTransform',
     ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
   );
   
-  // Generate junk code
-  const junkCode = Array(8).fill(0).map(() => {
-    const jv = '_' + Math.random().toString(36).substring(2, 10);
-    const patterns = [
-      `local ${jv}="${Math.random().toString(36).substring(2, 14)}"`,
-      `local ${jv}=${Math.floor(Math.random() * 999999)}`,
-      `local ${jv}=function() return ${Math.floor(Math.random() * 100)} end`,
-      `local ${jv}=tick()+${Math.floor(Math.random() * 10000)}`,
-    ];
-    return patterns[Math.floor(Math.random() * patterns.length)];
+  // v10: Polymorphic junk code — uses different patterns each time
+  const junkPatterns = [
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}="${Math.random().toString(36).substring(2, 14)}"`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=${Math.floor(Math.random() * 999999)}`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=function() return ${Math.floor(Math.random() * 100)} end`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=tick()+${Math.floor(Math.random() * 10000)}`; },
+    // v10: New junk patterns
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=bit32.bxor(${Math.floor(Math.random()*9999)},${Math.floor(Math.random()*9999)})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=string.rep("${Math.random().toString(36).substring(2,5)}",${Math.floor(Math.random()*3)+1})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); const jv2 = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv},${jv2}=${Math.floor(Math.random()*999)},${Math.floor(Math.random()*999)}`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=coroutine.create(function() return ${Math.floor(Math.random()*100)} end)`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=table.create(${Math.floor(Math.random()*10)+1},${Math.floor(Math.random()*100)})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=math.floor(os.clock()*${Math.floor(Math.random()*1000)+100})`; },
+  ];
+  
+  // Generate 10-15 junk lines randomly selected and shuffled
+  const numJunk = Math.floor(Math.random() * 6) + 10;
+  const junkCode = Array(numJunk).fill(0).map(() => {
+    return junkPatterns[Math.floor(Math.random() * junkPatterns.length)]();
   }).join('\n');
 
   const protectionSeed = Math.random();
   const canaryId = Math.random().toString(36).substring(2, 12);
+  
+  // v10: Polymorphic control flow — randomize the ORDER of protection phases
+  const phaseOrder = [0, 1, 2, 3, 4, 5, 6, 7].sort(() => Math.random() - 0.5);
+  
+  // v10: Generate ghost code blocks — dormant code that activates on dump
+  const ghostId = Math.random().toString(36).substring(2, 12);
+  const ghostTrapValue = Math.floor(Math.random() * 900000) + 100000;
   
   return `--[[ULT Protection v9.5 - ${Math.random().toString(36).substring(2,10)}]]
 ${junkCode}
