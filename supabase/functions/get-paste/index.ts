@@ -2563,6 +2563,8 @@ Deno.serve(async (req) => {
     const uaLowerFull = userAgent.toLowerCase();
     const isRobloxRequest = uaLowerFull.includes('roblox') || 
                             userAgent.includes('HttpService') ||
+                            userAgent.includes('WinInet') ||
+                            userAgent.includes('RobloxApp') ||
                             // Roblox mobile UAs: "Mozilla/5.0 (XXXXmb; WIDTHxHEIGHT; ..." with device specs
                             /^Mozilla\/5\.0 \(\d+MB;/.test(userAgent);
 
