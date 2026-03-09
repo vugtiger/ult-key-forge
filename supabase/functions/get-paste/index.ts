@@ -3093,24 +3093,22 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         return new Response(gui, { status: 200, headers: textHeaders });
       }
 
-      // Block spoofed uid
+      // Block spoofed uid (serve honeypot, no auto-ban)
       if (uid && /^\d+$/.test(uid) && parseInt(uid) < 1000 && parseInt(uid) !== 0) {
-        console.log(`[get-paste] BLOCKED+BANNED: spoofed uid=${uid} slug=${slug} ip=${clientIp}`);
-        autoBanNewIp(clientIp, 'spoofed_uid_on_protected_paste', uid, null);
+        console.log(`[get-paste] BLOCKED: spoofed uid=${uid} slug=${slug} ip=${clientIp}`);
         logThreat('spoofed_uid', clientIp, uid, null, {
-          slug, user_agent: userAgent.substring(0, 200), action: 'instant_ip_ban',
-        }, 'critical', true);
+          slug, user_agent: userAgent.substring(0, 200), action: 'honeypot_served_no_ban',
+        }, 'medium', true);
         return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
       }
 
-      // ===== CRITICAL: Before serving the protection loader, verify request legitimacy =====
-      // A non-browser, non-Roblox request should NEVER get the loader
+      // ===== Before serving the protection loader, verify request legitimacy =====
+      // A non-browser, non-Roblox request should NEVER get the loader — serve honeypot, no ban
       if (!isLikelyBrowser && !isRobloxRequest) {
-        console.log(`[get-paste] BLOCKED+BANNED: non-roblox non-browser requesting loader slug=${slug} ip=${clientIp} ua="${userAgent.substring(0, 80)}"`);
-        autoBanNewIp(clientIp, 'unknown_client_loader_request', uid || null, null);
+        console.log(`[get-paste] BLOCKED: non-roblox non-browser requesting loader slug=${slug} ip=${clientIp} ua="${userAgent.substring(0, 80)}"`);
         logThreat('unknown_client_loader', clientIp, uid || null, null, {
-          slug, user_agent: userAgent.substring(0, 200), action: 'instant_ip_ban',
-        }, 'critical', true);
+          slug, user_agent: userAgent.substring(0, 200), action: 'honeypot_served_no_ban',
+        }, 'medium', true);
         return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
       }
 
