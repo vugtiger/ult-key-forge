@@ -397,7 +397,11 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
 
   useEffect(() => {
     if (wakeWordActive) {
-      startWakeWordListening();
+      // Small delay to avoid conflicts when toggling
+      const timeout = setTimeout(() => {
+        startWakeWordListening();
+      }, 300);
+      return () => clearTimeout(timeout);
     } else {
       try { wakeRecognitionRef.current?.stop(); } catch {}
     }
@@ -407,10 +411,13 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
   }, [wakeWordActive, startWakeWordListening]);
 
   useEffect(() => {
-    window.speechSynthesis?.getVoices();
-    window.speechSynthesis?.addEventListener?.('voiceschanged', () => {
-      window.speechSynthesis.getVoices();
-    });
+    // Pre-load voices
+    const loadVoices = () => window.speechSynthesis?.getVoices();
+    loadVoices();
+    window.speechSynthesis?.addEventListener?.('voiceschanged', loadVoices);
+    return () => {
+      window.speechSynthesis?.removeEventListener?.('voiceschanged', loadVoices);
+    };
   }, []);
 
   useEffect(() => {
