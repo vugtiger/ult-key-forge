@@ -316,6 +316,23 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* JARVIS Welcome Overlay */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/90 backdrop-blur-xl animate-fade-in" 
+             style={{ animation: 'fade-in 0.5s ease-out, fade-out 0.5s ease-out 2.5s forwards' }}>
+          <div className="text-center animate-scale-in">
+            <div className="relative w-24 h-24 mx-auto mb-6">
+              <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-spin" style={{ animationDuration: '3s' }} />
+              <div className="absolute inset-2 rounded-full border border-primary/20 animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }} />
+              <div className="absolute inset-4 rounded-full bg-primary/10 flex items-center justify-center">
+                <Bot className="h-8 w-8 text-primary/60" />
+              </div>
+            </div>
+            <p className="text-xl font-bold tracking-[0.3em] text-primary/80 uppercase">J.A.R.V.I.S</p>
+            <p className="text-sm text-muted-foreground/60 mt-2 tracking-wider">Welcome back, sir. All systems operational.</p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border/10 bg-background/60 backdrop-blur-2xl">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between h-14 px-6">
