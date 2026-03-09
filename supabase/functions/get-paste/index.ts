@@ -1932,13 +1932,59 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     code = nil
     
     if ${v.execFunc} then
-      -- v9.5: Execute inside pcall within a new coroutine to isolate from hooks
+      -- v10: Execute inside coroutine then SCRAMBLE memory
       local execCo = coroutine.create(function()
         return ${v.execFunc}()
       end)
       local execOk = coroutine.resume(execCo)
       ${v.execFunc} = nil
       execCo = nil
+      
+      -- ====== v10: POST-EXECUTION MEMORY SCRAMBLE ======
+      -- After execution, poison all local references so decompilers/dumpers
+      -- that scan memory post-execution get garbage
+      pcall(function()
+        -- Overwrite the key bytes with random data
+        for i = 1, #kb do
+          kb[i] = math.random(0, 255)
+        end
+        -- Null out all protection references
+        ${v.cleanLS} = nil
+        ${v.cachedLS} = nil
+        ${v.cachedHG} = nil
+        ${v.hookGuard} = nil
+        ${v.indirectExec} = nil
+        ${v.antiHook} = nil
+        ${v.antiEnvLog} = nil
+        ${v.antiLogger} = nil
+        ${v.antiDump} = nil
+        ${v.antiDebug} = nil
+        ${v.execSandbox} = nil
+        ${v.dnaHash} = 0
+        ${v.morphSeed} = 0
+        -- Force garbage collection to actually free the memory
+        collectgarbage("collect")
+        collectgarbage("collect")
+      end)
+      
+      -- v10: Plant post-execution ghost trap
+      -- If someone tries to dump memory AFTER execution, they trigger this
+      pcall(function()
+        rawset(_G, "${ghostId}", setmetatable({}, {
+          __index = function(_, k)
+            -- Someone is inspecting this value = dump attempt
+            pcall(function()
+              game:HttpGet("${baseUrl}?_report=post_exec_dump&ghost=${ghostId}&wm=${watermarkId}")
+            end)
+            return nil
+          end,
+          __tostring = function() return "nil" end,
+        }))
+        -- Self-destruct after 5 seconds
+        task.delay(5, function()
+          pcall(function() rawset(_G, "${ghostId}", nil) end)
+        end)
+      end)
     else
       if execErr ~= "hook_detected" and execErr ~= "env_logger_detected" and execErr ~= "logger_detected" then
         warn("E:" .. tostring(execErr))
