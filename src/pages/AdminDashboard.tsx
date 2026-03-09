@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +9,12 @@ import {
   Shield, Trash2, Search, Ban, Copy, Download, Users, FileCode, Globe,
   RefreshCw, Activity, Star, Clock, Database, Eye, EyeOff, XCircle,
   AlertTriangle, ShieldAlert, ShieldCheck, Crosshair, Skull, LogOut,
-  ChevronRight, Zap, Lock, Unlock, Bot, ShieldBan
+  ChevronRight, Zap, Lock, Unlock, Bot, ShieldBan, Server
 } from "lucide-react";
 import JarvisVoice from "@/components/JarvisVoice";
 import BannedUsersTab from "@/components/access-monitor/BannedUsersTab";
 import BannedIPsTab from "@/components/access-monitor/BannedIPsTab";
+import DiscordServersTab from "@/components/DiscordServersTab";
 import { useNavigate } from "react-router-dom";
 
 // Types
