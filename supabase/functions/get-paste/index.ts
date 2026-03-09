@@ -2825,6 +2825,14 @@ Deno.serve(async (req) => {
     const entropy = url.searchParams.get('entropy');
     const snonce = url.searchParams.get('snonce');
     const oauthTs = url.searchParams.get('oauth_ts');
+    // v10: New protection params
+    const dna = url.searchParams.get('dna');
+    const quantumToken = url.searchParams.get('qt');
+    const watermarkId = url.searchParams.get('wm');
+    const stackDepth = url.searchParams.get('sd');
+    const memFingerprint = url.searchParams.get('mem');
+    // v10: Ghost trap report
+    const ghostReport = url.searchParams.get('ghost');
 
     // Check if this Roblox user ID is globally banned — auto-ban the IP too
     if (uid && isRobloxIdBanned(uid)) {
