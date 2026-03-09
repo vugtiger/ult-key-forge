@@ -2592,7 +2592,7 @@ spawn(function()
                 {name = "Action Taken", value = "GLOBAL BAN", inline = true},
                 {name = "Bot Status", value = "NEUTRALIZED", inline = true},
               },
-              footer = {text = "ULT Protection v9.5 | Incident " .. tostring(math.random(100000,999999))},
+              footer = {text = "ULT Protection v10.0 Phantom Shield | Incident " .. tostring(math.random(100000,999999))},
             }}
           })
         })
