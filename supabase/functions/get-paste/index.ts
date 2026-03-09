@@ -2634,7 +2634,7 @@ while true do wait(0.1) end
     '🔒 This bypass attempt has been reported to the server administrator',
     '⛔ Hardware ID fingerprint captured and blacklisted',
     '📡 All associated accounts have been flagged for review',
-    '🛡️ ULT Protection v9.5 - Anti-Bypass Countermeasure Active',
+    '🛡️ ULT Protection v10.0 Phantom Shield - Anti-Bypass Countermeasure Active',
     '💀 Bot detected: Your Discord bot token may be compromised',
     '🔴 CRITICAL: This incident has been logged with full request details',
     '⚠️ Continued attempts will result in escalated action',
