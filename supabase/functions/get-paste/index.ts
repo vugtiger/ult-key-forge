@@ -2578,19 +2578,21 @@ Deno.serve(async (req) => {
       (/Mozilla\/\d/.test(userAgent) && /AppleWebKit|Gecko|Chrome|Safari|Firefox|Edge/.test(userAgent))
     );
 
-    // ===== BOT DETECTION + AUTO-BAN =====
-    // SKIP for browsers and Roblox requests — only target actual bots/tools
+    // ===== BOT DETECTION (NO AUTO-BAN) =====
+    // Serve honeypot to bots but do NOT IP-ban them — Discord crawlers, Facebook embeds,
+    // and other legitimate services share infrastructure IPs with real users.
+    // Banning these IPs is pointless (they rotate) and risks blocking real users.
     if (!isLikelyBrowser && !isRobloxRequest &&
         !validationResult.valid && validationResult.reason !== 'browser_headers' && 
         validationResult.reason !== 'html_accept' && validationResult.reason !== 'origin_referer') {
-      console.log(`[get-paste] BLOCKED+BANNED: ${validationResult.reason} from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
-      autoBanNewIp(clientIp, `bot_detected_${validationResult.reason}`, uid || null, null);
+      console.log(`[get-paste] BOT BLOCKED (no ban): ${validationResult.reason} from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
+      // Log for visibility but mark as auto-resolved, NO IP ban
       logThreat('bot_access_attempt', clientIp, uid || null, null, { 
         reason: validationResult.reason, 
         user_agent: userAgent.substring(0, 200),
         slug: slug || 'none',
-        action: 'instant_ip_ban',
-      }, 'critical', true);
+        action: 'honeypot_served_no_ban',
+      }, 'low', true);
       return new Response(generateHoneypot(), { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
