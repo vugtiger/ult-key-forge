@@ -120,6 +120,13 @@ const EmptyState = ({ icon: Icon, title, subtitle }: { icon: any; title: string;
   </div>
 );
 
+interface BannedAccount {
+  id: string; email: string; username: string | null;
+  ban_reason: string | null; banned_at: string | null;
+  discord_username: string | null; discord_user_id: string | null;
+  is_banned: boolean;
+}
+
 const AdminDashboard = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [pastes, setPastes] = useState<AdminPaste[]>([]);
@@ -129,6 +136,7 @@ const AdminDashboard = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [globalBans, setGlobalBans] = useState<GlobalBan[]>([]);
   const [threats, setThreats] = useState<ThreatEntry[]>([]);
+  const [bannedAccounts, setBannedAccounts] = useState<BannedAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbLoading, setDbLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -146,6 +154,7 @@ const AdminDashboard = () => {
   const [newBanValue, setNewBanValue] = useState("");
   const [newBanReason, setNewBanReason] = useState("");
   const [activeTab, setActiveTab] = useState("threats");
+  const [bannedAccountSearch, setBannedAccountSearch] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
 
