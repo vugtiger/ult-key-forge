@@ -2405,7 +2405,7 @@ Deno.serve(async (req) => {
       discord_user_id: null, details: { action: 'blocked_at_gate' }, severity: 'high',
       resolved: true, auto_banned: true,
     }).then(() => {}).catch(e => console.error('Threat log failed:', e));
-    return new Response('', { status: 403, headers: { ...corsHeaders } });
+    return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
   }
 
   // Periodic map cleanup
