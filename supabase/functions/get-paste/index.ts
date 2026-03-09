@@ -1621,31 +1621,74 @@ if not ${v.envCheck}() then return end
 -- v9: Collect runtime entropy BEFORE protection checks
 ${v.entropyCollect}()
 
+-- v10: Collect execution DNA BEFORE protection checks
+${v.dnaCollect}()
+
+-- ====== v10: GC SENTINEL ======
+-- Plant objects in the garbage collector that detect GC scanning tools
+local ${v.gcSentinel} = setmetatable({}, {
+  __gc = function(self)
+    -- If this fires outside normal GC, someone is scanning
+    pcall(function()
+      if ${v.ghostArmed} then return end
+      ${v.ghostArmed} = true
+      -- Can't do much here, but flag it
+    end)
+  end,
+  __tostring = function() return "table: 0x" .. string.rep("0", 8) end,
+})
+-- Make it weak so it CAN be collected
+pcall(function()
+  local weak = setmetatable({${v.gcSentinel}}, {__mode = "v"})
+end)
+
+-- ====== v10: STACK DEPTH VALIDATION ======
+-- Legitimate loadstring execution has a specific call stack depth
+-- Decompilers/debuggers add extra stack frames
+local ${v.stackDepth} = 0
+local ${v.stackCheck} = function()
+  local depth = 0
+  local info
+  repeat
+    depth = depth + 1
+    info = debug and debug.info and debug.info(depth, "s") or nil
+  until not info or depth > 20
+  ${v.stackDepth} = depth
+  -- Normal execution: 3-12 frames. Debugger: 15+
+  if depth > 15 then
+    _reportBypass("deep_stack", "stack_depth_" .. tostring(depth))
+    return false
+  end
+  return true
+end
+pcall(${v.stackCheck})
+
 -- ====== RUN ALL PROTECTION CHECKS ======
--- v9: Instead of hard-blocking, use dump poisoning for failed checks
-${protectionSeed > 0.66 ? `
-if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end
-if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end
-if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end
-if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end
-if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end
-` : protectionSeed > 0.33 ? `
-if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end
-if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end
-if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end
-if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end
-if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end
-` : `
-if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end
-if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end
-if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end
-if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end
-if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end
-`}
+-- v10: Polymorphic order — different every time, impossible to predict
+${(() => {
+  const checks = [
+    `if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end`,
+    `if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end`,
+    `if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end`,
+    `if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end`,
+    `if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end`,
+  ];
+  // Shuffle
+  for (let i = checks.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [checks[i], checks[j]] = [checks[j], checks[i]];
+  }
+  return checks.join('\n');
+})()}
 
 -- v9: Check fetch intent
 if not ${v.intentCheck}() then
   _reportBypass("fetch_intent", "automated_fetch_no_game")
+end
+
+-- v10: Ghost trap verification — if the ghost block number was tampered with
+if ${v.ghostArmed} then
+  _reportBypass("ghost_trap_triggered", "ghost_id_${ghostId}")
 end
 
 -- Generate unique execution nonce
@@ -1683,10 +1726,21 @@ local ${v.fingerprint} = function()
   end
   p.entropy = tostring(math.floor(frameSum * 100000))
   p.nonce = "${serverNonce}"
+  -- v10: Execution DNA hash
+  p.dna = tostring(${v.dnaHash})
+  -- v10: Quantum token half
+  p.qt = "${quantumPair}"
+  -- v10: Watermark ID for leak tracing
+  p.wm = "${watermarkId}"
+  -- v10: Stack depth for validation
+  p.sd = tostring(${v.stackDepth})
+  -- v10: Memory fingerprint
+  p.mem = tostring(math.floor(${v.dnaMemory}))
   return p
 end
 
 -- Obfuscated token storage and reconstruction
+-- v10: Polymorphic reconstruction — uses different decoding each time
 local ${v.tokenParts} = {${obfuscatedParts.map(p => `"${p}"`).join(',')}}
 local ${v.reconstruct} = function()
   local r = ""
@@ -1715,8 +1769,8 @@ local tk = ${v.reconstruct}()
 -- Wipe token parts from memory after reconstruction
 ${v.memWipe}(${v.tokenParts})
 
--- Build request URL with v9 runtime proof
-local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&entropy=" .. (fp.entropy or "0") .. "&snonce=" .. fp.nonce .. "&_=" .. tostring(tick())
+-- v10: Build request URL with DNA, quantum pair, and watermark
+local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&entropy=" .. (fp.entropy or "0") .. "&snonce=" .. fp.nonce .. "&dna=" .. fp.dna .. "&qt=" .. fp.qt .. "&wm=" .. fp.wm .. "&sd=" .. fp.sd .. "&mem=" .. fp.mem .. "&_=" .. tostring(tick())
 
 -- XOR Decode
 local ${v.hexBytes} = function(hex)
