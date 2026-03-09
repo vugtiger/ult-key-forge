@@ -245,6 +245,34 @@ serve(async (req) => {
       return json({ success: true });
     }
 
+    if (action === 'list_banned_accounts') {
+      const { data: profiles, error } = await serviceClient.from('profiles')
+        .select('id, username, is_banned, ban_reason, banned_at, discord_username, discord_user_id')
+        .eq('is_banned', true)
+        .order('banned_at', { ascending: false });
+      if (error) throw error;
+      const { data: authUsers } = await serviceClient.auth.admin.listUsers({ perPage: 1000 });
+      const emailMap: Record<string, string> = {};
+      (authUsers?.users || []).forEach(u => { emailMap[u.id] = u.email || 'Unknown'; });
+      const accounts = (profiles || []).map(p => ({
+        ...p,
+        email: emailMap[p.id] || 'Unknown',
+      }));
+      return json({ accounts });
+    }
+
+    if (action === 'mass_unban_by_reason') {
+      const { reason_pattern } = params;
+      if (!reason_pattern) throw new Error('Missing reason_pattern');
+      const { data, error } = await serviceClient.from('global_bans')
+        .update({ is_active: false })
+        .like('reason', `%${reason_pattern}%`)
+        .eq('is_active', true)
+        .select('id');
+      if (error) throw error;
+      return json({ success: true, unbanned_count: data?.length || 0 });
+    }
+
     return new Response(JSON.stringify({ error: 'Invalid action' }), {
       status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

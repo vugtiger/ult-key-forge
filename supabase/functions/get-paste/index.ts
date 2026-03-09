@@ -283,29 +283,29 @@ function isSpookedRobloxRequest(headers: Headers): { spoofed: boolean; reason: s
   const isRobloxUA = uaLower.includes('roblox') || ua.includes('HttpService') || ua.includes('WinInet');
   if (!isRobloxUA) return { spoofed: false, reason: 'not_roblox' };
   
-  // Check 1: Real Roblox UAs include version numbers and platform info
-  // e.g. "Roblox/WinInetRobloxApp/0.711.589.7111137" or contains "ROBLOX Android App"
-  const hasVersionInfo = /Roblox\/.+\/\d+\.\d+/i.test(ua) || /ROBLOX.*App.*\d+\.\d+/i.test(ua) || /RobloxApp\/\d+/i.test(ua);
-  const isMinimalRobloxUA = ua.length < 30; // Real Roblox UAs are long
+  // IMPORTANT: Most Roblox executors send short UAs — this is NORMAL behavior.
+  // Only flag as spoofed if the UA is suspiciously generic AND combined with other signals.
+  // Previously we banned ua.length < 30 which caused 196+ false positives.
   
-  // Check 2: Extremely short "Roblox" UA = spoofed (e.g. "Roblox/WinInet" without version)
-  if (isMinimalRobloxUA && !hasVersionInfo) {
-    return { spoofed: true, reason: 'minimal_roblox_ua' };
+  // Check 1: Only flag if UA is literally just "Roblox" with nothing else (< 8 chars)
+  // Real executors at minimum send "Roblox/WinInet" or "RobloxStudio" etc.
+  if (ua.trim().toLowerCase() === 'roblox' || ua.length < 8) {
+    return { spoofed: true, reason: 'bare_roblox_ua' };
   }
   
-  // Check 3: Roblox UA combined with bot-like patterns
+  // Check 2: Roblox UA combined with bot-like patterns
   if (uaLower.includes('curl') || uaLower.includes('wget') || uaLower.includes('python') || 
       uaLower.includes('node') || uaLower.includes('deno') || uaLower.includes('bun')) {
     return { spoofed: true, reason: 'roblox_with_bot_ua' };
   }
   
-  // Check 4: Real Roblox requests don't have certain headers
+  // Check 3: Real Roblox requests don't have certain headers
   const authorization = headers.get('authorization');
   if (authorization && !authorization.includes('supabase')) {
     return { spoofed: true, reason: 'roblox_with_auth_header' };
   }
   
-  // Check 5: Content-Type on GET requests is suspicious
+  // Check 4: Content-Type on GET requests is suspicious
   const contentType = headers.get('content-type');
   if (contentType && contentType.includes('application/json')) {
     return { spoofed: true, reason: 'roblox_with_json_content_type' };
