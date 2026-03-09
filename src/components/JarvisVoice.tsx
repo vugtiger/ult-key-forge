@@ -234,6 +234,7 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
     setShowPulse(true);
 
     try {
+      console.log('[JARVIS] Sending command:', text);
       const { data, error } = await supabase.functions.invoke('jarvis-voice', {
         body: { 
           message: text,
@@ -241,17 +242,36 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
         },
       });
 
+      console.log('[JARVIS] Response data:', JSON.stringify(data));
+      console.log('[JARVIS] Response error:', error);
+
       if (error) throw error;
       
-      const speech = data?.speech || "I didn't quite catch that, sir.";
-      const action = data?.action || null;
+      // Robust extraction - handle nested or differently shaped responses
+      let speech = "I didn't quite catch that, sir.";
+      let action = null;
+
+      if (data) {
+        speech = data.speech || data.message || speech;
+        action = data.action || null;
+        
+        // If action is a string, try to parse it
+        if (typeof action === 'string') {
+          try { action = JSON.parse(action); } catch { action = null; }
+        }
+      }
+
+      console.log('[JARVIS] Executing action:', JSON.stringify(action));
+      console.log('[JARVIS] Speech:', speech);
 
       // Execute action first, then speak
-      if (action) await executeAction(action);
+      if (action && action.type) {
+        await executeAction(action);
+      }
       speak(speech);
       
     } catch (err: any) {
-      console.error('JARVIS error:', err);
+      console.error('[JARVIS] Error:', err);
       speak("My apologies, sir. I encountered a technical difficulty.");
     }
   }, [location.pathname, executeAction, speak]);
