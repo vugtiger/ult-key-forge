@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +9,12 @@ import {
   Shield, Trash2, Search, Ban, Copy, Download, Users, FileCode, Globe,
   RefreshCw, Activity, Star, Clock, Database, Eye, EyeOff, XCircle,
   AlertTriangle, ShieldAlert, ShieldCheck, Crosshair, Skull, LogOut,
-  ChevronRight, Zap, Lock, Unlock, Bot, ShieldBan
+  ChevronRight, Zap, Lock, Unlock, Bot, ShieldBan, Server
 } from "lucide-react";
 import JarvisVoice from "@/components/JarvisVoice";
 import BannedUsersTab from "@/components/access-monitor/BannedUsersTab";
 import BannedIPsTab from "@/components/access-monitor/BannedIPsTab";
+import DiscordServersTab from "@/components/DiscordServersTab";
 import { useNavigate } from "react-router-dom";
 
 // Types
@@ -155,8 +156,34 @@ const AdminDashboard = () => {
   const [newBanReason, setNewBanReason] = useState("");
   const [activeTab, setActiveTab] = useState("threats");
   const [bannedAccountSearch, setBannedAccountSearch] = useState("");
+  const [showWelcome, setShowWelcome] = useState(true);
+  const jarvisWelcomedRef = useRef(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // JARVIS welcome on first load
+  useEffect(() => {
+    if (authReady && isAdmin && !jarvisWelcomedRef.current) {
+      jarvisWelcomedRef.current = true;
+      const timer = setTimeout(() => {
+        if (window.speechSynthesis) {
+          const voices = window.speechSynthesis.getVoices();
+          const preferred = voices.find(v => 
+            v.name.includes("Daniel") || v.name.includes("Google UK English Male") || v.name.includes("Microsoft George")
+          ) || voices.find(v => v.lang.startsWith("en"));
+          
+          const utterance = new SpeechSynthesisUtterance("Welcome back, sir. All systems are operational. Your command center is ready.");
+          if (preferred) utterance.voice = preferred;
+          utterance.rate = 0.92;
+          utterance.pitch = 0.82;
+          window.speechSynthesis.speak(utterance);
+        }
+      }, 1500);
+      // Hide welcome overlay after animation
+      const hideTimer = setTimeout(() => setShowWelcome(false), 3000);
+      return () => { clearTimeout(timer); clearTimeout(hideTimer); };
+    }
+  }, [authReady, isAdmin]);
 
   useEffect(() => {
     let mounted = true;
@@ -289,6 +316,23 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* JARVIS Welcome Overlay */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/90 backdrop-blur-xl animate-fade-in" 
+             style={{ animation: 'fade-in 0.5s ease-out, fade-out 0.5s ease-out 2.5s forwards' }}>
+          <div className="text-center animate-scale-in">
+            <div className="relative w-24 h-24 mx-auto mb-6">
+              <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-spin" style={{ animationDuration: '3s' }} />
+              <div className="absolute inset-2 rounded-full border border-primary/20 animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }} />
+              <div className="absolute inset-4 rounded-full bg-primary/10 flex items-center justify-center">
+                <Bot className="h-8 w-8 text-primary/60" />
+              </div>
+            </div>
+            <p className="text-xl font-bold tracking-[0.3em] text-primary/80 uppercase">J.A.R.V.I.S</p>
+            <p className="text-sm text-muted-foreground/60 mt-2 tracking-wider">Welcome back, sir. All systems operational.</p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border/10 bg-background/60 backdrop-blur-2xl">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between h-14 px-6">
@@ -367,6 +411,7 @@ const AdminDashboard = () => {
                 { value: "banned-users", icon: ShieldBan, label: "Banned Users" },
                 { value: "banned-ips", icon: Globe, label: "Banned IPs" },
                 { value: "banned-accounts", icon: Ban, label: "Banned Accounts", onClick: fetchBannedAccounts },
+                { value: "discord-servers", icon: Server, label: "Servers" },
               ].map(tab => (
                 <TabsTrigger
                   key={tab.value}
@@ -743,6 +788,13 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               )}
+            </Section>
+          </TabsContent>
+
+          {/* ===== DISCORD SERVERS ===== */}
+          <TabsContent value="discord-servers" className="mt-6">
+            <Section>
+              <DiscordServersTab />
             </Section>
           </TabsContent>
         </Tabs>

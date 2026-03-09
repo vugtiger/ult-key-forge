@@ -78,6 +78,7 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
     "global-bans": "global-bans", "banned-users": "banned-users", "banned-ips": "banned-ips",
     "bans": "global-bans", "logs": "access-logs", "banned-accounts": "banned-accounts",
     "banned accounts": "banned-accounts", "accounts": "banned-accounts",
+    "discord-servers": "discord-servers", "servers": "discord-servers", "discord": "discord-servers",
   };
 
   // Execute JARVIS action
@@ -397,7 +398,11 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
 
   useEffect(() => {
     if (wakeWordActive) {
-      startWakeWordListening();
+      // Small delay to avoid conflicts when toggling
+      const timeout = setTimeout(() => {
+        startWakeWordListening();
+      }, 300);
+      return () => clearTimeout(timeout);
     } else {
       try { wakeRecognitionRef.current?.stop(); } catch {}
     }
@@ -407,10 +412,13 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
   }, [wakeWordActive, startWakeWordListening]);
 
   useEffect(() => {
-    window.speechSynthesis?.getVoices();
-    window.speechSynthesis?.addEventListener?.('voiceschanged', () => {
-      window.speechSynthesis.getVoices();
-    });
+    // Pre-load voices
+    const loadVoices = () => window.speechSynthesis?.getVoices();
+    loadVoices();
+    window.speechSynthesis?.addEventListener?.('voiceschanged', loadVoices);
+    return () => {
+      window.speechSynthesis?.removeEventListener?.('voiceschanged', loadVoices);
+    };
   }, []);
 
   useEffect(() => {
@@ -430,15 +438,23 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
 
   const handleOrbClick = useCallback(() => {
     if (state === "listening") {
-      recognitionRef.current?.stop();
+      try { recognitionRef.current?.stop(); } catch {}
       setState("idle");
+      if (wakeWordActive) {
+        setTimeout(() => startWakeWordListening(), 500);
+      }
     } else if (state === "speaking") {
       window.speechSynthesis.cancel();
       setState("idle");
+      if (wakeWordActive) {
+        setTimeout(() => startWakeWordListening(), 500);
+      }
     } else if (state === "idle") {
-      startActiveListening();
+      // Stop wake word listening before starting active listening to avoid conflicts
+      try { wakeRecognitionRef.current?.stop(); } catch {}
+      setTimeout(() => startActiveListening(), 200);
     }
-  }, [state, startActiveListening]);
+  }, [state, startActiveListening, wakeWordActive, startWakeWordListening]);
 
   const stateColors = {
     idle: "from-cyan-500/20 to-cyan-600/10 border-cyan-500/30",

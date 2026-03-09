@@ -2600,35 +2600,34 @@ Deno.serve(async (req) => {
     }
     
     // ===== SPOOFED ROBLOX UA DETECTION =====
+    // Serve honeypot but do NOT auto-ban — edge cases with unusual Roblox clients
     const spoofCheck = isSpookedRobloxRequest(req.headers);
     if (spoofCheck.spoofed) {
-      console.log(`[get-paste] SPOOFED ROBLOX DETECTED: ${spoofCheck.reason} from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
-      autoBanNewIp(clientIp, `spoofed_roblox_${spoofCheck.reason}`, uid || null, null);
+      console.log(`[get-paste] SPOOFED ROBLOX (no ban): ${spoofCheck.reason} from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
       logThreat('spoofed_roblox_ua', clientIp, uid || null, null, {
         reason: spoofCheck.reason,
         user_agent: userAgent.substring(0, 200),
         slug: slug || 'none',
-        action: 'instant_ip_ban',
-      }, 'critical', true);
+        action: 'honeypot_served_no_ban',
+      }, 'medium', true);
       return new Response(generateHoneypot(), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
     
-    // Block spoofed Roblox-Id header + auto-ban
+    // Block spoofed Roblox-Id header (no auto-ban)
     const robloxIdHeader = req.headers.get('roblox-id') || req.headers.get('Roblox-Id') || '';
     if (robloxIdHeader) {
       const robloxIdNum = parseInt(robloxIdHeader, 10);
       if (isNaN(robloxIdNum) || robloxIdNum < 1000) {
-        console.log(`[get-paste] BLOCKED+BANNED: spoofed Roblox-Id="${robloxIdHeader}" from ${clientIp}`);
-        autoBanNewIp(clientIp, 'spoofed_roblox_id_header', null, null);
+        console.log(`[get-paste] BLOCKED: spoofed Roblox-Id="${robloxIdHeader}" from ${clientIp}`);
         logThreat('spoofed_roblox_id', clientIp, null, null, {
           roblox_id_header: robloxIdHeader,
           user_agent: userAgent.substring(0, 200),
           slug: slug || 'none',
-          action: 'instant_ip_ban',
-        }, 'critical', true);
+          action: 'honeypot_served_no_ban',
+        }, 'medium', true);
         return new Response(generateHoneypot(), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
@@ -2636,31 +2635,29 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Block curl/wget + auto-ban (skip browsers)
+    // Block curl/wget (no auto-ban — shared hosting IPs)
     const uaLower = userAgent.toLowerCase();
     if (!isLikelyBrowser && (uaLower.includes('curl') || uaLower.includes('wget') || uaLower.includes('libcurl'))) {
-      console.log(`[get-paste] BLOCKED+BANNED: curl/wget detected ua="${userAgent}" from ${clientIp}`);
-      autoBanNewIp(clientIp, 'curl_wget_access', null, null);
+      console.log(`[get-paste] BLOCKED: curl/wget ua="${userAgent}" from ${clientIp}`);
       logThreat('curl_tool_access', clientIp, null, null, {
         user_agent: userAgent.substring(0, 200),
         slug: slug || 'none',
-        action: 'instant_ip_ban',
-      }, 'high', true);
+        action: 'honeypot_served_no_ban',
+      }, 'low', true);
       return new Response(generateHoneypot(), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
     
-    // ===== DISCORD BOT SPECIFIC DETECTION (skip browsers) =====
+    // ===== DISCORD BOT DETECTION (no auto-ban — Discord crawlers share infra IPs) =====
     if (!isLikelyBrowser && !isRobloxRequest && isDiscordBotRequest(req.headers)) {
-      console.log(`[get-paste] DISCORD BOT DETECTED+BANNED: from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
-      autoBanNewIp(clientIp, 'discord_bot_access', uid || null, null);
+      console.log(`[get-paste] DISCORD BOT (no ban): from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
       logThreat('discord_bot_access', clientIp, uid || null, null, {
         user_agent: userAgent.substring(0, 200),
         slug: slug || 'none',
-        action: 'instant_ip_ban',
-      }, 'critical', true);
+        action: 'honeypot_served_no_ban',
+      }, 'low', true);
       return new Response(generateHoneypot(), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
@@ -3093,24 +3090,22 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         return new Response(gui, { status: 200, headers: textHeaders });
       }
 
-      // Block spoofed uid
+      // Block spoofed uid (serve honeypot, no auto-ban)
       if (uid && /^\d+$/.test(uid) && parseInt(uid) < 1000 && parseInt(uid) !== 0) {
-        console.log(`[get-paste] BLOCKED+BANNED: spoofed uid=${uid} slug=${slug} ip=${clientIp}`);
-        autoBanNewIp(clientIp, 'spoofed_uid_on_protected_paste', uid, null);
+        console.log(`[get-paste] BLOCKED: spoofed uid=${uid} slug=${slug} ip=${clientIp}`);
         logThreat('spoofed_uid', clientIp, uid, null, {
-          slug, user_agent: userAgent.substring(0, 200), action: 'instant_ip_ban',
-        }, 'critical', true);
+          slug, user_agent: userAgent.substring(0, 200), action: 'honeypot_served_no_ban',
+        }, 'medium', true);
         return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
       }
 
-      // ===== CRITICAL: Before serving the protection loader, verify request legitimacy =====
-      // A non-browser, non-Roblox request should NEVER get the loader
+      // ===== Before serving the protection loader, verify request legitimacy =====
+      // A non-browser, non-Roblox request should NEVER get the loader — serve honeypot, no ban
       if (!isLikelyBrowser && !isRobloxRequest) {
-        console.log(`[get-paste] BLOCKED+BANNED: non-roblox non-browser requesting loader slug=${slug} ip=${clientIp} ua="${userAgent.substring(0, 80)}"`);
-        autoBanNewIp(clientIp, 'unknown_client_loader_request', uid || null, null);
+        console.log(`[get-paste] BLOCKED: non-roblox non-browser requesting loader slug=${slug} ip=${clientIp} ua="${userAgent.substring(0, 80)}"`);
         logThreat('unknown_client_loader', clientIp, uid || null, null, {
-          slug, user_agent: userAgent.substring(0, 200), action: 'instant_ip_ban',
-        }, 'critical', true);
+          slug, user_agent: userAgent.substring(0, 200), action: 'honeypot_served_no_ban',
+        }, 'medium', true);
         return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
       }
 
