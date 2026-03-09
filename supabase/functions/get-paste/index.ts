@@ -2672,7 +2672,7 @@ Deno.serve(async (req) => {
     }
 
     if (!slug) {
-      return new Response('Missing slug', { status: 400, headers: corsHeaders });
+      return new Response('warn("[ULT] Missing slug")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
     // Per-IP-per-slug throttle — stop one IP from hammering the same paste
