@@ -2721,7 +2721,7 @@ Deno.serve(async (req) => {
     }
 
     if (error || !paste) {
-      return new Response('Paste not found', { status: 404, headers: corsHeaders });
+      return new Response('warn("[ULT] Paste not found")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
     console.log(
