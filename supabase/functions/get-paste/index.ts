@@ -2319,8 +2319,14 @@ end)
 while true do wait(0.1) end
 `;
 
-  // Now add the text flood portion for bots that just display the raw response
+  // The entire honeypot must be valid Lua so loadstring() doesn't return nil.
+  // Wrap all non-Lua flood text inside a Lua multiline comment so the Lua portion
+  // still compiles and executes (flooding webhooks etc.), while bots that dump the
+  // raw response also see the warning text.
   const floodLines: string[] = [luaPart];
+
+  // Open a Lua multiline comment to wrap raw text
+  floodLines.push('--[==[');
   
   const warningMessages = [
     '⚠️ SECURITY ALERT: Unauthorized access attempt detected and logged',
@@ -2368,18 +2374,15 @@ while true do wait(0.1) end
     }
   }
   
-  const chaos = ['​', '‮', '‭', '⁠', '\u200B', '\u200E', '\u200F', '\u202A', '\u202B', '\u202C'];
-  for (let i = 0; i < 100; i++) {
-    const line = Array.from({length: 200}, () => chaos[Math.floor(Math.random() * chaos.length)]).join('');
-    floodLines.push(line);
-  }
-  
   for (let i = 0; i < 200; i++) {
     floodLines.push(`${'🚨'.repeat(20)} BYPASS ATTEMPT #${i + 1} LOGGED ${'🚨'.repeat(20)}`);
     floodLines.push(`IP BANNED | HWID BANNED | DISCORD ID FLAGGED | ROBLOX ID BLACKLISTED`);
     floodLines.push(`Incident Reference: ULT-${Date.now()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`);
     floodLines.push('');
   }
+  
+  // Close the Lua multiline comment
+  floodLines.push(']==]');
   
   return floodLines.join('\n');
 }
@@ -2402,7 +2405,7 @@ Deno.serve(async (req) => {
       discord_user_id: null, details: { action: 'blocked_at_gate' }, severity: 'high',
       resolved: true, auto_banned: true,
     }).then(() => {}).catch(e => console.error('Threat log failed:', e));
-    return new Response('', { status: 403, headers: { ...corsHeaders } });
+    return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
   }
 
   // Periodic map cleanup
@@ -2506,7 +2509,7 @@ Deno.serve(async (req) => {
       }
       
       // Return empty - don't give them any info
-      return new Response('', { status: 403, headers: corsHeaders });
+      return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
     
     const slug = url.searchParams.get('slug');
@@ -2528,7 +2531,7 @@ Deno.serve(async (req) => {
       // Auto-ban this new IP so even VPN hopping gets caught
       autoBanNewIp(earlyIp, 'banned_roblox_user_new_ip', uid, null);
       logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned', ip_auto_banned: true }, 'high', true);
-      return new Response('', { status: 403, headers: { ...corsHeaders } });
+      return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
@@ -2560,6 +2563,8 @@ Deno.serve(async (req) => {
     const uaLowerFull = userAgent.toLowerCase();
     const isRobloxRequest = uaLowerFull.includes('roblox') || 
                             userAgent.includes('HttpService') ||
+                            userAgent.includes('WinInet') ||
+                            userAgent.includes('RobloxApp') ||
                             // Roblox mobile UAs: "Mozilla/5.0 (XXXXmb; WIDTHxHEIGHT; ..." with device specs
                             /^Mozilla\/5\.0 \(\d+MB;/.test(userAgent);
 
@@ -2669,7 +2674,7 @@ Deno.serve(async (req) => {
     }
 
     if (!slug) {
-      return new Response('Missing slug', { status: 400, headers: corsHeaders });
+      return new Response('warn("[ULT] Missing slug")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
     // Per-IP-per-slug throttle — stop one IP from hammering the same paste
@@ -2718,7 +2723,7 @@ Deno.serve(async (req) => {
     }
 
     if (error || !paste) {
-      return new Response('Paste not found', { status: 404, headers: corsHeaders });
+      return new Response('warn("[ULT] Paste not found")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
     console.log(
@@ -3288,6 +3293,6 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
 
   } catch (error) {
     console.error('Error:', error);
-    return new Response('Internal error', { status: 500, headers: corsHeaders });
+    return new Response('warn("[ULT] Server error - please retry")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
   }
 });
