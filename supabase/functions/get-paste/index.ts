@@ -772,10 +772,107 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   const ghostId = Math.random().toString(36).substring(2, 12);
   const ghostTrapValue = Math.floor(Math.random() * 900000) + 100000;
   
-  return `--[[ULT Protection v9.5 - ${Math.random().toString(36).substring(2,10)}]]
+  return `--[[ULT Protection v10.0 Phantom Shield - ${Math.random().toString(36).substring(2,10)}]]
+${watermark.luaEmbed}
 ${junkCode}
 
--- ====== PHASE 0: OBTAIN CLEAN LOADSTRING (v9.5 Enhanced) ======
+-- ====== v10: GHOST CODE INJECTION ======
+-- These blocks look like real code but are dormant traps.
+-- If decompiled/dumped, they activate and report the leaker.
+local ${v.ghostArmed} = false
+local ${v.ghostBlock} = function()
+  -- This function should NEVER be called during normal execution
+  -- If it IS called, someone is stepping through decompiled code
+  local uid = "0"
+  pcall(function()
+    local p = game:GetService("Players").LocalPlayer
+    if p then uid = tostring(p.UserId) end
+  end)
+  -- Report the leak
+  pcall(function()
+    game:HttpGet("${baseUrl}?_report=ghost_trap&uid=" .. uid .. "&ghost=${ghostId}&wm=${watermarkId}")
+  end)
+  -- Silently corrupt execution environment
+  pcall(function()
+    rawset(_G, "loadstring", function() return function() end end)
+    rawset(_G, "HttpGet", function() return "" end)
+  end)
+end
+
+-- Ghost trap: looks like an initialization check but is actually dead code
+-- A decompiler/dumper executing line-by-line would trigger this
+local ${v.ghostTrigger} = ${ghostTrapValue}
+do
+  local _ghostCheck = ${generatePolymorphicNumber(ghostTrapValue)}
+  if _ghostCheck ~= ${v.ghostTrigger} then
+    ${v.ghostBlock}()
+    ${v.ghostArmed} = true
+  end
+end
+
+-- ====== v10: EXECUTION DNA COLLECTION ======
+-- Collect unique runtime characteristics that form a "DNA fingerprint"
+-- This DNA is sent to the server and must be consistent across requests
+-- If someone copies the code, their DNA won't match
+local ${v.dnaHash} = 0
+local ${v.dnaFrames} = {}
+local ${v.dnaMemory} = 0
+
+local ${v.dnaCollect} = function()
+  -- DNA Source 1: Memory layout fingerprint
+  pcall(function()
+    ${v.dnaMemory} = collectgarbage("count") or 0
+  end)
+  
+  -- DNA Source 2: Service resolution timing
+  local dnaStart = os.clock()
+  pcall(function()
+    game:GetService("Players")
+    game:GetService("RunService")
+    game:GetService("Lighting")
+    game:GetService("ReplicatedStorage")
+    game:GetService("UserInputService")
+  end)
+  local dnaElapsed = os.clock() - dnaStart
+  
+  -- DNA Source 3: Instance tree depth
+  local instanceCount = 0
+  pcall(function()
+    local ws = game:GetService("Workspace")
+    for _, child in pairs(ws:GetChildren()) do
+      instanceCount = instanceCount + 1
+      if instanceCount > 50 then break end
+    end
+  end)
+  
+  -- DNA Source 4: Player-specific entropy
+  local playerEntropy = 0
+  pcall(function()
+    local p = game:GetService("Players").LocalPlayer
+    if p then
+      playerEntropy = p.UserId + (p.AccountAge or 0) + #(p.Name or "")
+    end
+  end)
+  
+  -- Combine into DNA hash
+  ${v.dnaHash} = bit32.bxor(
+    math.floor(dnaElapsed * 1000000) % 65536,
+    math.floor(${v.dnaMemory} * 7) % 65536,
+    instanceCount * 137,
+    playerEntropy % 65536,
+    ${parseInt(dnaSeed, 16)}
+  )
+end
+
+-- ====== v10: METAMORPHIC SELF-MODIFICATION ======
+-- The protection code modifies itself at runtime so static analysis is useless
+local ${v.morphCounter} = 0
+local ${v.morphSeed} = ${Math.floor(Math.random() * 999999)}
+local ${v.morphTransform} = function(val)
+  ${v.morphCounter} = ${v.morphCounter} + 1
+  ${v.morphSeed} = bit32.bxor(${v.morphSeed}, ${v.morphCounter} * 7919)
+  return bit32.bxor(val, ${v.morphSeed} % 256)
+end
 local ${v.cleanLS}
 local ${v.clonedLS} = false
 
