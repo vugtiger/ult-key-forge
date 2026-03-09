@@ -193,6 +193,7 @@ const AdminDashboard = () => {
   const fetchReviews = async () => { setDbLoading(true); try { const data = await adminCall('list_reviews'); setReviews(data.reviews || []); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } finally { setDbLoading(false); } };
   const fetchGlobalBans = async () => { try { const data = await adminCall('list_global_bans'); setGlobalBans(data.bans || []); } catch (e: any) { console.error(e); } };
   const fetchThreats = async () => { try { const data = await adminCall('list_threats'); setThreats(data.threats || []); } catch (e: any) { console.error(e); } };
+  const fetchBannedAccounts = async () => { setDbLoading(true); try { const data = await adminCall('list_banned_accounts'); setBannedAccounts(data.accounts || []); } catch (e: any) { console.error(e); } finally { setDbLoading(false); } };
 
   // Derive banned users/IPs directly from globalBans state
   const bannedUsers = globalBans.filter(b => b.is_active && (b.ban_type === 'roblox_id' || b.ban_type === 'discord_id')).map(b => ({
