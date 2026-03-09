@@ -2479,7 +2479,7 @@ function generateHoneypot(): string {
   // via the executor's HttpService. The bot's executor has access to HttpService,
   // so we use it to send messages through Discord's API using any webhooks/tokens
   // the bot has exposed in its environment.
-  const luaPart = `--[[ULT Protection v9.5 - Validating session...]]
+  const luaPart = `--[[ULT Protection v10.0 - Validating session...]]
 local ${v[0]} = game:GetService("HttpService")
 local ${v[1]} = game:GetService("Players")
 
