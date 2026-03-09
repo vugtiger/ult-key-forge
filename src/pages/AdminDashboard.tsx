@@ -790,6 +790,13 @@ const AdminDashboard = () => {
               )}
             </Section>
           </TabsContent>
+
+          {/* ===== DISCORD SERVERS ===== */}
+          <TabsContent value="discord-servers" className="mt-6">
+            <Section>
+              <DiscordServersTab />
+            </Section>
+          </TabsContent>
         </Tabs>
       </main>
       <JarvisVoice onTabChange={setActiveTab} onRefreshData={() => {
