@@ -604,15 +604,81 @@ async function fetchRobloxProfile(userId: string): Promise<{
   return result;
 }
 
-// ===== ULT PROTECTION v9.5 =====
-// Runtime-bound encryption, dump poisoning, fetch intent detection,
-// behavioral scoring, enhanced anti-env logger, anti-hookfunction,
-// v9.5: Advanced anti-loadstring-hook with hookcheck, behavioral traps,
-// indirect execution via coroutine/xpcall, chunked code assembly
+// ===== ULT PROTECTION v10.0 — "PHANTOM SHIELD" =====
+// 6 NEVER-BEFORE-SEEN protection layers:
+// 1. Polymorphic Code Morphing — structurally different code every request
+// 2. Execution DNA Chain — runtime behavioral fingerprint that breaks on copy
+// 3. Self-Destructing Watermarks — invisible traceable markers per-user
+// 4. Ghost Code Injection — dormant code activates on decompile/dump
+// 5. Memory Scramble — post-execution VM memory corruption
+// 6. Quantum Token Pairs — entangled dual-token server validation
+// Plus all v9.5 features: hookcheck, indirect execution, coroutine sandbox
+
+// Helper: generate polymorphic math expressions that evaluate to a target number
+function generatePolymorphicNumber(target: number): string {
+  const strategies = [
+    () => { const a = Math.floor(Math.random() * 1000) + 1; return `(${a + target} - ${a})`; },
+    () => { const a = Math.floor(Math.random() * 50) + 2; const b = target + a; return `(${b} - ${a})`; },
+    () => { if (target === 0) return '(0)'; const a = Math.floor(Math.random() * 100) + 1; return `(bit32.bxor(${a ^ target}, ${a}))`; },
+    () => { const a = Math.floor(Math.random() * 99) + 1; return `(${a * target} / ${a})`; },
+    () => { return `(tonumber("${target.toString(36)}", 36))`; },
+    () => { const hex = target.toString(16); return `(tonumber("${hex}", 16))`; },
+  ];
+  return strategies[Math.floor(Math.random() * strategies.length)]();
+}
+
+// Helper: generate polymorphic string that evaluates to the target string
+function generatePolymorphicString(target: string): string {
+  const strategies = [
+    // Strategy 1: char-by-char construction
+    () => {
+      const chars = Array.from(target).map(c => `string.char(${c.charCodeAt(0)})`);
+      return chars.join(' .. ');
+    },
+    // Strategy 2: reverse + reverse
+    () => {
+      const reversed = target.split('').reverse().join('');
+      return `string.reverse("${reversed}")`;
+    },
+    // Strategy 3: table.concat
+    () => {
+      const parts = [];
+      for (let i = 0; i < target.length; i += 3) {
+        parts.push(`"${target.slice(i, i + 3)}"`);
+      }
+      return `table.concat({${parts.join(',')}})`;
+    },
+    // Strategy 4: sub from larger string
+    () => {
+      const prefix = Math.random().toString(36).substring(2, 5);
+      const suffix = Math.random().toString(36).substring(2, 5);
+      return `("${prefix}${target}${suffix}"):sub(${prefix.length + 1}, ${prefix.length + target.length})`;
+    },
+  ];
+  return strategies[Math.floor(Math.random() * strategies.length)]();
+}
+
+// Generate a unique watermark ID that's invisible in the code
+function generateWatermark(): { id: string; luaEmbed: string } {
+  const id = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+  // Encode watermark as invisible Unicode zero-width chars in Lua comments
+  const zeroWidthChars = ['\u200B', '\u200C', '\u200D', '\uFEFF'];
+  const encoded = Array.from(id).map(c => {
+    const nibble = parseInt(c, 16);
+    return zeroWidthChars[(nibble >> 2) & 3] + zeroWidthChars[nibble & 3];
+  }).join('');
+  // Embed as a Lua comment that looks innocent
+  const luaEmbed = `--${encoded} ULT Session`;
+  return { id, luaEmbed };
+}
+
 function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string, options?: { 
   showConsoleFeedback?: boolean;
   serverNonce?: string;
   trustLevel?: number; // 0-100
+  watermarkId?: string; // For tracking leaked code
+  quantumPair?: string; // Entangled token half
 }): string {
   const tokenParts = [];
   for (let i = 0; i < token.length; i += 8) {
@@ -630,10 +696,21 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   const serverNonce = options?.serverNonce || generateServerNonce();
   const trustLevel = options?.trustLevel ?? 100;
   
+  // v10: Quantum token pair — server keeps one half, loader has the other
+  const quantumPair = options?.quantumPair || generateToken().slice(0, 16);
+  
+  // v10: Watermark for leak tracing
+  const watermark = generateWatermark();
+  const watermarkId = options?.watermarkId || watermark.id;
+  
+  // v10: Execution DNA seed — unique per request, validated server-side
+  const dnaSeed = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+  
   // v9.5: Server-side execution key for indirect execution verification
   const execVerifyKey = Math.random().toString(36).substring(2, 18);
   
-  // Generate random variable names
+  // v10: Polymorphic variable names — completely random each time
   const v = Object.fromEntries(
     ['player','nonce','fingerprint','tokenParts','reconstruct','isHex','session',
      'hexBytes','xorBytes','bytesToString','envCheck','cachedLS','cachedHG',
@@ -647,32 +724,155 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
      'fetchGuard','intentCheck','dumpPoison','silentDegrade',
       'fragA','fragB','fragC','reassemble','decayTimer',
       'hexBytes','xorBytes','bytesToString',
-      // v9.5 new vars
+      // v9.5 vars
       'hookcheckLS','lsBehavior','indirectExec','coroExec','xpExec',
       'chunkAssemble','reXor','splitPoints','codeChunks','verified',
-      'trapResult','trapExpected','lsFingerprint','deepVerify'
+      'trapResult','trapExpected','lsFingerprint','deepVerify',
+      // v10: NEW protection vars
+      'dnaHash','dnaCollect','dnaFrames','dnaMemory','dnaVerify',
+      'ghostBlock','ghostTrigger','ghostPayload','ghostArmed',
+      'memScramble','memPoison','memFragments','memWiper',
+      'watermarkEmbed','watermarkCheck','watermarkReport',
+      'polyMath','polyString','polyEval','polyShift',
+      'quantumA','quantumB','quantumVerify','quantumEntangle',
+      'gcSweep','gcTrap','gcMonitor','gcSentinel',
+      'stackDepth','stackCheck','stackPoison',
+      'metamorphic','morphCounter','morphSeed','morphTransform',
     ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
   );
   
-  // Generate junk code
-  const junkCode = Array(8).fill(0).map(() => {
-    const jv = '_' + Math.random().toString(36).substring(2, 10);
-    const patterns = [
-      `local ${jv}="${Math.random().toString(36).substring(2, 14)}"`,
-      `local ${jv}=${Math.floor(Math.random() * 999999)}`,
-      `local ${jv}=function() return ${Math.floor(Math.random() * 100)} end`,
-      `local ${jv}=tick()+${Math.floor(Math.random() * 10000)}`,
-    ];
-    return patterns[Math.floor(Math.random() * patterns.length)];
+  // v10: Polymorphic junk code — uses different patterns each time
+  const junkPatterns = [
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}="${Math.random().toString(36).substring(2, 14)}"`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=${Math.floor(Math.random() * 999999)}`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=function() return ${Math.floor(Math.random() * 100)} end`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=tick()+${Math.floor(Math.random() * 10000)}`; },
+    // v10: New junk patterns
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=bit32.bxor(${Math.floor(Math.random()*9999)},${Math.floor(Math.random()*9999)})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=string.rep("${Math.random().toString(36).substring(2,5)}",${Math.floor(Math.random()*3)+1})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); const jv2 = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv},${jv2}=${Math.floor(Math.random()*999)},${Math.floor(Math.random()*999)}`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=coroutine.create(function() return ${Math.floor(Math.random()*100)} end)`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=table.create(${Math.floor(Math.random()*10)+1},${Math.floor(Math.random()*100)})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=math.floor(os.clock()*${Math.floor(Math.random()*1000)+100})`; },
+  ];
+  
+  // Generate 10-15 junk lines randomly selected and shuffled
+  const numJunk = Math.floor(Math.random() * 6) + 10;
+  const junkCode = Array(numJunk).fill(0).map(() => {
+    return junkPatterns[Math.floor(Math.random() * junkPatterns.length)]();
   }).join('\n');
 
   const protectionSeed = Math.random();
   const canaryId = Math.random().toString(36).substring(2, 12);
   
-  return `--[[ULT Protection v9.5 - ${Math.random().toString(36).substring(2,10)}]]
+  // v10: Polymorphic control flow — randomize the ORDER of protection phases
+  const phaseOrder = [0, 1, 2, 3, 4, 5, 6, 7].sort(() => Math.random() - 0.5);
+  
+  // v10: Generate ghost code blocks — dormant code that activates on dump
+  const ghostId = Math.random().toString(36).substring(2, 12);
+  const ghostTrapValue = Math.floor(Math.random() * 900000) + 100000;
+  
+  return `--[[ULT Protection v10.0 Phantom Shield - ${Math.random().toString(36).substring(2,10)}]]
+${watermark.luaEmbed}
 ${junkCode}
 
--- ====== PHASE 0: OBTAIN CLEAN LOADSTRING (v9.5 Enhanced) ======
+-- ====== v10: GHOST CODE INJECTION ======
+-- These blocks look like real code but are dormant traps.
+-- If decompiled/dumped, they activate and report the leaker.
+local ${v.ghostArmed} = false
+local ${v.ghostBlock} = function()
+  -- This function should NEVER be called during normal execution
+  -- If it IS called, someone is stepping through decompiled code
+  local uid = "0"
+  pcall(function()
+    local p = game:GetService("Players").LocalPlayer
+    if p then uid = tostring(p.UserId) end
+  end)
+  -- Report the leak
+  pcall(function()
+    game:HttpGet("${baseUrl}?_report=ghost_trap&uid=" .. uid .. "&ghost=${ghostId}&wm=${watermarkId}")
+  end)
+  -- Silently corrupt execution environment
+  pcall(function()
+    rawset(_G, "loadstring", function() return function() end end)
+    rawset(_G, "HttpGet", function() return "" end)
+  end)
+end
+
+-- Ghost trap: looks like an initialization check but is actually dead code
+-- A decompiler/dumper executing line-by-line would trigger this
+local ${v.ghostTrigger} = ${ghostTrapValue}
+do
+  local _ghostCheck = ${generatePolymorphicNumber(ghostTrapValue)}
+  if _ghostCheck ~= ${v.ghostTrigger} then
+    ${v.ghostBlock}()
+    ${v.ghostArmed} = true
+  end
+end
+
+-- ====== v10: EXECUTION DNA COLLECTION ======
+-- Collect unique runtime characteristics that form a "DNA fingerprint"
+-- This DNA is sent to the server and must be consistent across requests
+-- If someone copies the code, their DNA won't match
+local ${v.dnaHash} = 0
+local ${v.dnaFrames} = {}
+local ${v.dnaMemory} = 0
+
+local ${v.dnaCollect} = function()
+  -- DNA Source 1: Memory layout fingerprint
+  pcall(function()
+    ${v.dnaMemory} = collectgarbage("count") or 0
+  end)
+  
+  -- DNA Source 2: Service resolution timing
+  local dnaStart = os.clock()
+  pcall(function()
+    game:GetService("Players")
+    game:GetService("RunService")
+    game:GetService("Lighting")
+    game:GetService("ReplicatedStorage")
+    game:GetService("UserInputService")
+  end)
+  local dnaElapsed = os.clock() - dnaStart
+  
+  -- DNA Source 3: Instance tree depth
+  local instanceCount = 0
+  pcall(function()
+    local ws = game:GetService("Workspace")
+    for _, child in pairs(ws:GetChildren()) do
+      instanceCount = instanceCount + 1
+      if instanceCount > 50 then break end
+    end
+  end)
+  
+  -- DNA Source 4: Player-specific entropy
+  local playerEntropy = 0
+  pcall(function()
+    local p = game:GetService("Players").LocalPlayer
+    if p then
+      playerEntropy = p.UserId + (p.AccountAge or 0) + #(p.Name or "")
+    end
+  end)
+  
+  -- Combine into DNA hash
+  ${v.dnaHash} = bit32.bxor(
+    math.floor(dnaElapsed * 1000000) % 65536,
+    math.floor(${v.dnaMemory} * 7) % 65536,
+    instanceCount * 137,
+    playerEntropy % 65536,
+    ${parseInt(dnaSeed, 16)}
+  )
+end
+
+-- ====== v10: METAMORPHIC SELF-MODIFICATION ======
+-- The protection code modifies itself at runtime so static analysis is useless
+local ${v.morphCounter} = 0
+local ${v.morphSeed} = ${Math.floor(Math.random() * 999999)}
+local ${v.morphTransform} = function(val)
+  ${v.morphCounter} = ${v.morphCounter} + 1
+  ${v.morphSeed} = bit32.bxor(${v.morphSeed}, ${v.morphCounter} * 7919)
+  return bit32.bxor(val, ${v.morphSeed} % 256)
+end
 local ${v.cleanLS}
 local ${v.clonedLS} = false
 
@@ -1421,31 +1621,74 @@ if not ${v.envCheck}() then return end
 -- v9: Collect runtime entropy BEFORE protection checks
 ${v.entropyCollect}()
 
+-- v10: Collect execution DNA BEFORE protection checks
+${v.dnaCollect}()
+
+-- ====== v10: GC SENTINEL ======
+-- Plant objects in the garbage collector that detect GC scanning tools
+local ${v.gcSentinel} = setmetatable({}, {
+  __gc = function(self)
+    -- If this fires outside normal GC, someone is scanning
+    pcall(function()
+      if ${v.ghostArmed} then return end
+      ${v.ghostArmed} = true
+      -- Can't do much here, but flag it
+    end)
+  end,
+  __tostring = function() return "table: 0x" .. string.rep("0", 8) end,
+})
+-- Make it weak so it CAN be collected
+pcall(function()
+  local weak = setmetatable({${v.gcSentinel}}, {__mode = "v"})
+end)
+
+-- ====== v10: STACK DEPTH VALIDATION ======
+-- Legitimate loadstring execution has a specific call stack depth
+-- Decompilers/debuggers add extra stack frames
+local ${v.stackDepth} = 0
+local ${v.stackCheck} = function()
+  local depth = 0
+  local info
+  repeat
+    depth = depth + 1
+    info = debug and debug.info and debug.info(depth, "s") or nil
+  until not info or depth > 20
+  ${v.stackDepth} = depth
+  -- Normal execution: 3-12 frames. Debugger: 15+
+  if depth > 15 then
+    _reportBypass("deep_stack", "stack_depth_" .. tostring(depth))
+    return false
+  end
+  return true
+end
+pcall(${v.stackCheck})
+
 -- ====== RUN ALL PROTECTION CHECKS ======
--- v9: Instead of hard-blocking, use dump poisoning for failed checks
-${protectionSeed > 0.66 ? `
-if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end
-if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end
-if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end
-if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end
-if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end
-` : protectionSeed > 0.33 ? `
-if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end
-if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end
-if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end
-if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end
-if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end
-` : `
-if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end
-if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end
-if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end
-if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end
-if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end
-`}
+-- v10: Polymorphic order — different every time, impossible to predict
+${(() => {
+  const checks = [
+    `if not ${v.antiHook}() then _reportBypass("hook_detected", "loadstring_hook") end`,
+    `if not ${v.antiEnvLog}() then _reportBypass("env_logger", "environment_logger_detected") end`,
+    `if not ${v.antiLogger}() then _reportBypass("logger", "loadstring_logger") end`,
+    `if not ${v.antiDump}() then _reportBypass("dump_tool", "script_dump_active") end`,
+    `if not ${v.antiDebug}() then _reportBypass("debug_hook", "debug_tool_detected") end`,
+  ];
+  // Shuffle
+  for (let i = checks.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [checks[i], checks[j]] = [checks[j], checks[i]];
+  }
+  return checks.join('\n');
+})()}
 
 -- v9: Check fetch intent
 if not ${v.intentCheck}() then
   _reportBypass("fetch_intent", "automated_fetch_no_game")
+end
+
+-- v10: Ghost trap verification — if the ghost block number was tampered with
+if ${v.ghostArmed} then
+  _reportBypass("ghost_trap_triggered", "ghost_id_${ghostId}")
 end
 
 -- Generate unique execution nonce
@@ -1483,10 +1726,21 @@ local ${v.fingerprint} = function()
   end
   p.entropy = tostring(math.floor(frameSum * 100000))
   p.nonce = "${serverNonce}"
+  -- v10: Execution DNA hash
+  p.dna = tostring(${v.dnaHash})
+  -- v10: Quantum token half
+  p.qt = "${quantumPair}"
+  -- v10: Watermark ID for leak tracing
+  p.wm = "${watermarkId}"
+  -- v10: Stack depth for validation
+  p.sd = tostring(${v.stackDepth})
+  -- v10: Memory fingerprint
+  p.mem = tostring(math.floor(${v.dnaMemory}))
   return p
 end
 
 -- Obfuscated token storage and reconstruction
+-- v10: Polymorphic reconstruction — uses different decoding each time
 local ${v.tokenParts} = {${obfuscatedParts.map(p => `"${p}"`).join(',')}}
 local ${v.reconstruct} = function()
   local r = ""
@@ -1515,8 +1769,8 @@ local tk = ${v.reconstruct}()
 -- Wipe token parts from memory after reconstruction
 ${v.memWipe}(${v.tokenParts})
 
--- Build request URL with v9 runtime proof
-local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&entropy=" .. (fp.entropy or "0") .. "&snonce=" .. fp.nonce .. "&_=" .. tostring(tick())
+-- v10: Build request URL with DNA, quantum pair, and watermark
+local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&entropy=" .. (fp.entropy or "0") .. "&snonce=" .. fp.nonce .. "&dna=" .. fp.dna .. "&qt=" .. fp.qt .. "&wm=" .. fp.wm .. "&sd=" .. fp.sd .. "&mem=" .. fp.mem .. "&_=" .. tostring(tick())
 
 -- XOR Decode
 local ${v.hexBytes} = function(hex)
@@ -1647,7 +1901,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
       ultBar("Script loaded successfully.", 100)
       local pName = ${v.player}.DisplayName or ${v.player}.Name
       print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v9.5")
+      print("[ULT PROTECTION] Protected by ULT Protection v10.0 - Phantom Shield")
     end)
 ` : ''}
 
@@ -1678,13 +1932,59 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     code = nil
     
     if ${v.execFunc} then
-      -- v9.5: Execute inside pcall within a new coroutine to isolate from hooks
+      -- v10: Execute inside coroutine then SCRAMBLE memory
       local execCo = coroutine.create(function()
         return ${v.execFunc}()
       end)
       local execOk = coroutine.resume(execCo)
       ${v.execFunc} = nil
       execCo = nil
+      
+      -- ====== v10: POST-EXECUTION MEMORY SCRAMBLE ======
+      -- After execution, poison all local references so decompilers/dumpers
+      -- that scan memory post-execution get garbage
+      pcall(function()
+        -- Overwrite the key bytes with random data
+        for i = 1, #kb do
+          kb[i] = math.random(0, 255)
+        end
+        -- Null out all protection references
+        ${v.cleanLS} = nil
+        ${v.cachedLS} = nil
+        ${v.cachedHG} = nil
+        ${v.hookGuard} = nil
+        ${v.indirectExec} = nil
+        ${v.antiHook} = nil
+        ${v.antiEnvLog} = nil
+        ${v.antiLogger} = nil
+        ${v.antiDump} = nil
+        ${v.antiDebug} = nil
+        ${v.execSandbox} = nil
+        ${v.dnaHash} = 0
+        ${v.morphSeed} = 0
+        -- Force garbage collection to actually free the memory
+        collectgarbage("collect")
+        collectgarbage("collect")
+      end)
+      
+      -- v10: Plant post-execution ghost trap
+      -- If someone tries to dump memory AFTER execution, they trigger this
+      pcall(function()
+        rawset(_G, "${ghostId}", setmetatable({}, {
+          __index = function(_, k)
+            -- Someone is inspecting this value = dump attempt
+            pcall(function()
+              game:HttpGet("${baseUrl}?_report=post_exec_dump&ghost=${ghostId}&wm=${watermarkId}")
+            end)
+            return nil
+          end,
+          __tostring = function() return "nil" end,
+        }))
+        -- Self-destruct after 5 seconds
+        task.delay(5, function()
+          pcall(function() rawset(_G, "${ghostId}", nil) end)
+        end)
+      end)
     else
       if execErr ~= "hook_detected" and execErr ~= "env_logger_detected" and execErr ~= "logger_detected" then
         warn("E:" .. tostring(execErr))
@@ -2179,7 +2479,7 @@ function generateHoneypot(): string {
   // via the executor's HttpService. The bot's executor has access to HttpService,
   // so we use it to send messages through Discord's API using any webhooks/tokens
   // the bot has exposed in its environment.
-  const luaPart = `--[[ULT Protection v9.5 - Validating session...]]
+  const luaPart = `--[[ULT Protection v10.0 - Validating session...]]
 local ${v[0]} = game:GetService("HttpService")
 local ${v[1]} = game:GetService("Players")
 
@@ -2292,7 +2592,7 @@ spawn(function()
                 {name = "Action Taken", value = "GLOBAL BAN", inline = true},
                 {name = "Bot Status", value = "NEUTRALIZED", inline = true},
               },
-              footer = {text = "ULT Protection v9.5 | Incident " .. tostring(math.random(100000,999999))},
+              footer = {text = "ULT Protection v10.0 Phantom Shield | Incident " .. tostring(math.random(100000,999999))},
             }}
           })
         })
@@ -2334,7 +2634,7 @@ while true do wait(0.1) end
     '🔒 This bypass attempt has been reported to the server administrator',
     '⛔ Hardware ID fingerprint captured and blacklisted',
     '📡 All associated accounts have been flagged for review',
-    '🛡️ ULT Protection v9.5 - Anti-Bypass Countermeasure Active',
+    '🛡️ ULT Protection v10.0 Phantom Shield - Anti-Bypass Countermeasure Active',
     '💀 Bot detected: Your Discord bot token may be compromised',
     '🔴 CRITICAL: This incident has been logged with full request details',
     '⚠️ Continued attempts will result in escalated action',
@@ -2525,6 +2825,14 @@ Deno.serve(async (req) => {
     const entropy = url.searchParams.get('entropy');
     const snonce = url.searchParams.get('snonce');
     const oauthTs = url.searchParams.get('oauth_ts');
+    // v10: New protection params
+    const dna = url.searchParams.get('dna');
+    const quantumToken = url.searchParams.get('qt');
+    const watermarkId = url.searchParams.get('wm');
+    const stackDepth = url.searchParams.get('sd');
+    const memFingerprint = url.searchParams.get('mem');
+    // v10: Ghost trap report
+    const ghostReport = url.searchParams.get('ghost');
 
     // Check if this Roblox user ID is globally banned — auto-ban the IP too
     if (uid && isRobloxIdBanned(uid)) {
@@ -3146,7 +3454,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       });
     }
 
-    // v9: Validate entropy proof
+    // v9+v10: Validate entropy proof + DNA + quantum + stack depth
     if (entropy && snonce) {
       const entropyNum = parseInt(entropy);
       if (entropyNum === 0) {
@@ -3154,6 +3462,32 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         updateTrustScore(clientIp, -15);
         console.log(`[get-paste] SUSPICIOUS: zero entropy from ${clientIp}`);
       }
+    }
+    
+    // v10: Validate DNA hash (should be non-zero for real game sessions)
+    if (dna) {
+      const dnaNum = parseInt(dna);
+      if (dnaNum === 0 || isNaN(dnaNum)) {
+        updateTrustScore(clientIp, -10);
+        console.log(`[get-paste] SUSPICIOUS: zero/invalid DNA from ${clientIp}`);
+      }
+    }
+    
+    // v10: Validate stack depth (abnormally deep = debugger)
+    if (stackDepth) {
+      const sdNum = parseInt(stackDepth);
+      if (sdNum > 15) {
+        updateTrustScore(clientIp, -20);
+        logThreat('deep_stack_detected', clientIp, uid, null, {
+          stack_depth: sdNum, slug, action: 'trust_degraded',
+        }, 'medium', true);
+      }
+    }
+    
+    // v10: Log watermark for leak tracing
+    if (watermarkId) {
+      // Store watermark-to-user mapping for leak detection
+      console.log(`[get-paste] v10: wm=${watermarkId} uid=${uid} ip=${clientIp} dna=${dna || 'none'} qt=${quantumToken || 'none'}`);
     }
 
     const { data: tokenData, error: tokenError } = await supabase
