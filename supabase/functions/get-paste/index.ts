@@ -3293,6 +3293,6 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
 
   } catch (error) {
     console.error('Error:', error);
-    return new Response('Internal error', { status: 500, headers: corsHeaders });
+    return new Response('warn("[ULT] Server error - please retry")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
   }
 });
