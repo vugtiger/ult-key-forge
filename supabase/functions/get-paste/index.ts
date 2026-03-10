@@ -1936,7 +1936,140 @@ if s and r then
     return
   end
 
-  -- Handle encrypted response
+  -- v10.2: CHUNKED ANTI-LOADSTRING-HOOK FORMAT
+  if r:sub(1,6) == "ULT_C:" then
+    local ${v.chunkHeaderEnd} = r:find("|", 1, true)
+    if not ${v.chunkHeaderEnd} then warn("E:cf"); return end
+    local ${v.chunkHeader} = r:sub(7, ${v.chunkHeaderEnd} - 1)
+    local _ncStr, _sdStr = ${v.chunkHeader}:match("(%d+):(%d+)")
+    local _numC = tonumber(_ncStr)
+    local _seedC = tonumber(_sdStr)
+    if not _numC or not _seedC then warn("E:ch"); return end
+
+    local ${v.chunkData} = r:sub(${v.chunkHeaderEnd} + 1)
+    r = nil
+
+    local ${v.chunkParts} = {}
+    local _ci = 1
+    for _ch in ${v.chunkData}:gmatch("[^|]+") do
+      ${v.chunkParts}[_ci] = _ch
+      _ci = _ci + 1
+    end
+    ${v.chunkData} = nil
+
+    -- Reproduce Fisher-Yates shuffle with same Lehmer PRNG
+    local ${v.chunkIndices} = {}
+    for i = 0, _numC - 1 do ${v.chunkIndices}[i] = i end
+    local _ss = _seedC
+    for i = _numC - 1, 1, -1 do
+      _ss = (_ss * 16807) % 2147483647
+      local j = _ss % (i + 1)
+      ${v.chunkIndices}[i], ${v.chunkIndices}[j] = ${v.chunkIndices}[j], ${v.chunkIndices}[i]
+    end
+
+    local ${v.chunkResult} = {}
+    for pos = 0, _numC - 1 do
+      ${v.chunkResult}[${v.chunkIndices}[pos]] = ${v.chunkParts}[pos + 1]
+    end
+    ${v.chunkParts} = nil
+
+    local _pieces = {}
+    for origIdx = 0, _numC - 1 do
+      local _chHex = ${v.chunkResult}[origIdx]
+      if not _chHex or #_chHex == 0 then break end
+      local _ck = ks .. ":C" .. tostring(origIdx) .. ":" .. tostring(_numC)
+      local _ckb = {}
+      for i = 1, #_ck do _ckb[i] = string.byte(_ck, i) end
+      local _rb = ${v.hexBytes}(_chHex)
+      local _db = ${v.xorBytes}(_rb, _ckb)
+      _pieces[origIdx + 1] = ${v.bytesToString}(_db)
+    end
+    ${v.chunkResult} = nil
+
+    local _assembled = table.concat(_pieces)
+    _pieces = nil
+
+${options?.showConsoleFeedback ? `    pcall(function()
+      local function ultBar(msg, pct)
+        local barLen = 20
+        local filled = math.floor(barLen * pct / 100)
+        local empty = barLen - filled
+        print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
+      end
+      ultBar("Chunks decrypted, executing...", 75)
+      task.wait(0.05)
+      ultBar("Script loaded successfully.", 100)
+      local pName = ${v.player}.DisplayName or ${v.player}.Name
+      print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
+      print("[ULT PROTECTION] Protected by ULT Protection v10.2 - Anti-Hook Shield")
+    end)
+` : ''}
+    -- ====== DECOY FLOODING: 50 fake loadstring calls BEFORE real execution ======
+    ${v.decoyFlood}()
+
+    if ${v.dumpPoison} then
+      _assembled = _assembled:gsub("(%d+)", function(n)
+        if math.random() < 0.05 then
+          return tostring(tonumber(n) + math.random(-3, 3))
+        end
+        return n
+      end)
+    end
+
+    local ${v.execFunc}, _err = ${v.indirectExec}(_assembled)
+    _assembled = nil
+
+    -- ====== DECOY FLOODING: 50 more fake calls AFTER compilation ======
+    ${v.decoyFlood}()
+
+    if ${v.execFunc} then
+      local _co = coroutine.create(function() return ${v.execFunc}() end)
+      coroutine.resume(_co)
+      ${v.execFunc} = nil
+      _co = nil
+
+      pcall(function()
+        for i = 1, #kb do kb[i] = math.random(0, 255) end
+        ${v.cleanLS} = nil
+        ${v.cachedLS} = nil
+        ${v.cachedHG} = nil
+        ${v.hookGuard} = nil
+        ${v.indirectExec} = nil
+        ${v.antiHook} = nil
+        ${v.antiEnvLog} = nil
+        ${v.antiLogger} = nil
+        ${v.antiDump} = nil
+        ${v.antiDebug} = nil
+        ${v.execSandbox} = nil
+        ${v.dnaHash} = 0
+        ${v.morphSeed} = 0
+        collectgarbage("collect")
+        collectgarbage("collect")
+      end)
+
+      pcall(function()
+        rawset(_G, "${ghostId}", setmetatable({}, {
+          __index = function(_, k)
+            pcall(function()
+              game:HttpGet("${baseUrl}?_report=post_exec_dump&ghost=${ghostId}&wm=${watermarkId}")
+            end)
+            return nil
+          end,
+          __tostring = function() return "nil" end,
+        }))
+        task.delay(5, function()
+          pcall(function() rawset(_G, "${ghostId}", nil) end)
+        end)
+      end)
+    else
+      if _err ~= "hook_detected" and _err ~= "env_logger_detected" and _err ~= "logger_detected" then
+        warn("E:" .. tostring(_err))
+      end
+    end
+    return
+  end
+
+  -- Handle encrypted response (legacy hex format)
   if ${v.isHex}(r) then
     local rawBytes = ${v.hexBytes}(r)
     r = nil
