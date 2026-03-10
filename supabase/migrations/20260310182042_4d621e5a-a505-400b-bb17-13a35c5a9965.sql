@@ -1,0 +1,1 @@
+ALTER TABLE public.paste_execution_tokens ADD COLUMN IF NOT EXISTS bound_ip text;
