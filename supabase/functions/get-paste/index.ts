@@ -3421,6 +3421,13 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
           .maybeSingle();
 
         if (bypassData && new Date(bypassData.expires_at) > new Date()) {
+          // v10.1: Validate IP binding on bypass token
+          if (bypassData.bound_ip && bypassData.bound_ip !== clientIp) {
+            console.log(`[get-paste] KBT IP MISMATCH: bound=${bypassData.bound_ip} actual=${clientIp}`);
+            logThreat('kbt_ip_mismatch', clientIp, uid, null, { bound_ip: bypassData.bound_ip, slug }, 'high', true);
+            autoBanNewIp(clientIp, 'kbt_token_theft', uid, null);
+            return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+          }
           // Mark bypass token as used
           await supabase.from('paste_execution_tokens')
             .update({ used_at: new Date().toISOString() })
@@ -3434,7 +3441,8 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
           const trustLevel = getTrustScore(clientIp);
           await supabase.from('paste_execution_tokens').insert({
             paste_id: paste.id, roblox_user_id: uid, token: newToken,
-            expires_at: new Date(Date.now() + 30000).toISOString()
+            expires_at: new Date(Date.now() + 30000).toISOString(),
+            bound_ip: clientIp,
           });
           const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
             showConsoleFeedback: paste.show_loading_bar !== false,
