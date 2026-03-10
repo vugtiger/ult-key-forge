@@ -502,6 +502,37 @@ function generatePoisonedPayload(content: string, key: string): string {
   return xorToHex(chars.join(''), key);
 }
 
+// v10.2: Chunked encryption — splits code into shuffled encrypted chunks
+// Even if loadstring is hooked, attacker only gets individual chunk fragments + 100 decoy scripts
+function chunkEncrypt(code: string, baseKey: string): string {
+  const numChunks = Math.max(8, Math.min(40, Math.ceil(code.length / 200)));
+  const chunkSize = Math.ceil(code.length / numChunks);
+  const chunks: string[] = [];
+  
+  for (let i = 0; i < numChunks; i++) {
+    const start = i * chunkSize;
+    const piece = code.slice(start, start + chunkSize);
+    if (piece.length === 0) continue;
+    const chunkKey = `${baseKey}:C${i}:${numChunks}`;
+    chunks.push(xorToHex(piece, chunkKey));
+  }
+  
+  const actualChunks = chunks.length;
+  const seed = Math.floor(Math.random() * 2147483646) + 1;
+  
+  // Fisher-Yates shuffle with Lehmer PRNG (safe for Lua double precision)
+  const indices = Array.from({length: actualChunks}, (_, i) => i);
+  let s = seed;
+  for (let i = indices.length - 1; i > 0; i--) {
+    s = (s * 16807) % 2147483647;
+    const j = s % (i + 1);
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  
+  const shuffled = indices.map(i => chunks[i]);
+  return `ULT_C:${actualChunks}:${seed}|${shuffled.join('|')}`;
+}
+
 async function fetchRobloxProfile(userId: string): Promise<{
   username: string | null;
   displayName: string | null;
@@ -737,8 +768,10 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
       'quantumA','quantumB','quantumVerify','quantumEntangle',
       'gcSweep','gcTrap','gcMonitor','gcSentinel',
       'stackDepth','stackCheck','stackPoison',
-      'metamorphic','morphCounter','morphSeed','morphTransform',
-    ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
+       'metamorphic','morphCounter','morphSeed','morphTransform',
+       'chunkHeaderEnd','chunkHeader','chunkData','chunkParts',
+       'chunkIndices','chunkResult','decoyFlood',
+     ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
   );
   
   // v10: Polymorphic junk code — uses different patterns each time
@@ -1802,6 +1835,33 @@ for i = 1, #ks do
   kb[i] = string.byte(ks, i)
 end
 
+-- v10.2: Decoy flood function — generates 50 fake loadstring calls to drown real code in noise
+local ${v.decoyFlood} = function()
+  for _di = 1, 50 do
+    local _dc = math.random(1, 8)
+    local _code
+    if _dc == 1 then
+      _code = "local Players=game:GetService('Players');local p=Players.LocalPlayer;if p and p.Character then local h=p.Character:FindFirstChild('Humanoid');if h then h.WalkSpeed=" .. tostring(math.random(16, 100)) .. " end end"
+    elseif _dc == 2 then
+      _code = "local RS=game:GetService('ReplicatedStorage');for _,v in pairs(RS:GetChildren()) do if v:IsA('RemoteEvent') then v:FireServer('" .. tostring(math.random(10000, 99999)) .. "') break end end"
+    elseif _dc == 3 then
+      _code = "local TweenService=game:GetService('TweenService');local p=game:GetService('Players').LocalPlayer;if p.Character and p.Character:FindFirstChild('HumanoidRootPart') then TweenService:Create(p.Character.HumanoidRootPart,TweenInfo.new(" .. tostring(math.random(1,5)) .. "),{CFrame=p.Character.HumanoidRootPart.CFrame*CFrame.new(0," .. tostring(math.random(10,50)) .. ",0)}):Play() end"
+    elseif _dc == 4 then
+      _code = "local Lighting=game:GetService('Lighting');Lighting.ClockTime=" .. tostring(math.random(0, 24)) .. ";Lighting.FogEnd=" .. tostring(math.random(1000, 10000))
+    elseif _dc == 5 then
+      _code = "local UIS=game:GetService('UserInputService');local _conn;_conn=UIS.InputBegan:Connect(function(i,g) if not g and i.KeyCode==Enum.KeyCode." .. ({"E","F","G","R","T","Q","X","Z","C","V"})[math.random(1,10)] .. " then print('" .. tostring(math.random(100000,999999)) .. "') end end);task.delay(0.01,function() if _conn then _conn:Disconnect() end end)"
+    elseif _dc == 6 then
+      _code = "local HttpService=game:GetService('HttpService');local _t={version='" .. tostring(math.random(1,9)) .. "." .. tostring(math.random(0,9)) .. "." .. tostring(math.random(0,99)) .. "',key='" .. tostring(math.random(100000000,999999999)) .. "',uid=" .. tostring(math.random(1000000,9999999)) .. "};local _j=HttpService:JSONEncode(_t)"
+    elseif _dc == 7 then
+      _code = "local Workspace=game:GetService('Workspace');for _,child in pairs(Workspace:GetChildren()) do if child:IsA('BasePart') and child.Name~='Baseplate' then child.BrickColor=BrickColor.new(" .. tostring(math.random(1,1032)) .. ") break end end"
+    else
+      _code = "local RunService=game:GetService('RunService');local _c=0;local _conn;_conn=RunService.Heartbeat:Connect(function() _c=_c+1;if _c>=" .. tostring(math.random(1,5)) .. " then _conn:Disconnect() end end)"
+    end
+    pcall(${v.cleanLS}, _code)
+    _code = nil
+  end
+end
+
 -- Re-verify protections before network request
 if not ${v.antiHook}() then _reportBypass("pre_fetch_hook", "hook_before_network") end
 if not ${v.antiEnvLog}() then _reportBypass("pre_fetch_env", "env_logger_before_network") end
@@ -1876,7 +1936,140 @@ if s and r then
     return
   end
 
-  -- Handle encrypted response
+  -- v10.2: CHUNKED ANTI-LOADSTRING-HOOK FORMAT
+  if r:sub(1,6) == "ULT_C:" then
+    local ${v.chunkHeaderEnd} = r:find("|", 1, true)
+    if not ${v.chunkHeaderEnd} then warn("E:cf"); return end
+    local ${v.chunkHeader} = r:sub(7, ${v.chunkHeaderEnd} - 1)
+    local _ncStr, _sdStr = ${v.chunkHeader}:match("(%d+):(%d+)")
+    local _numC = tonumber(_ncStr)
+    local _seedC = tonumber(_sdStr)
+    if not _numC or not _seedC then warn("E:ch"); return end
+
+    local ${v.chunkData} = r:sub(${v.chunkHeaderEnd} + 1)
+    r = nil
+
+    local ${v.chunkParts} = {}
+    local _ci = 1
+    for _ch in ${v.chunkData}:gmatch("[^|]+") do
+      ${v.chunkParts}[_ci] = _ch
+      _ci = _ci + 1
+    end
+    ${v.chunkData} = nil
+
+    -- Reproduce Fisher-Yates shuffle with same Lehmer PRNG
+    local ${v.chunkIndices} = {}
+    for i = 0, _numC - 1 do ${v.chunkIndices}[i] = i end
+    local _ss = _seedC
+    for i = _numC - 1, 1, -1 do
+      _ss = (_ss * 16807) % 2147483647
+      local j = _ss % (i + 1)
+      ${v.chunkIndices}[i], ${v.chunkIndices}[j] = ${v.chunkIndices}[j], ${v.chunkIndices}[i]
+    end
+
+    local ${v.chunkResult} = {}
+    for pos = 0, _numC - 1 do
+      ${v.chunkResult}[${v.chunkIndices}[pos]] = ${v.chunkParts}[pos + 1]
+    end
+    ${v.chunkParts} = nil
+
+    local _pieces = {}
+    for origIdx = 0, _numC - 1 do
+      local _chHex = ${v.chunkResult}[origIdx]
+      if not _chHex or #_chHex == 0 then break end
+      local _ck = ks .. ":C" .. tostring(origIdx) .. ":" .. tostring(_numC)
+      local _ckb = {}
+      for i = 1, #_ck do _ckb[i] = string.byte(_ck, i) end
+      local _rb = ${v.hexBytes}(_chHex)
+      local _db = ${v.xorBytes}(_rb, _ckb)
+      _pieces[origIdx + 1] = ${v.bytesToString}(_db)
+    end
+    ${v.chunkResult} = nil
+
+    local _assembled = table.concat(_pieces)
+    _pieces = nil
+
+${options?.showConsoleFeedback ? `    pcall(function()
+      local function ultBar(msg, pct)
+        local barLen = 20
+        local filled = math.floor(barLen * pct / 100)
+        local empty = barLen - filled
+        print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
+      end
+      ultBar("Chunks decrypted, executing...", 75)
+      task.wait(0.05)
+      ultBar("Script loaded successfully.", 100)
+      local pName = ${v.player}.DisplayName or ${v.player}.Name
+      print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
+      print("[ULT PROTECTION] Protected by ULT Protection v10.2 - Anti-Hook Shield")
+    end)
+` : ''}
+    -- ====== DECOY FLOODING: 50 fake loadstring calls BEFORE real execution ======
+    ${v.decoyFlood}()
+
+    if ${v.dumpPoison} then
+      _assembled = _assembled:gsub("(%d+)", function(n)
+        if math.random() < 0.05 then
+          return tostring(tonumber(n) + math.random(-3, 3))
+        end
+        return n
+      end)
+    end
+
+    local ${v.execFunc}, _err = ${v.indirectExec}(_assembled)
+    _assembled = nil
+
+    -- ====== DECOY FLOODING: 50 more fake calls AFTER compilation ======
+    ${v.decoyFlood}()
+
+    if ${v.execFunc} then
+      local _co = coroutine.create(function() return ${v.execFunc}() end)
+      coroutine.resume(_co)
+      ${v.execFunc} = nil
+      _co = nil
+
+      pcall(function()
+        for i = 1, #kb do kb[i] = math.random(0, 255) end
+        ${v.cleanLS} = nil
+        ${v.cachedLS} = nil
+        ${v.cachedHG} = nil
+        ${v.hookGuard} = nil
+        ${v.indirectExec} = nil
+        ${v.antiHook} = nil
+        ${v.antiEnvLog} = nil
+        ${v.antiLogger} = nil
+        ${v.antiDump} = nil
+        ${v.antiDebug} = nil
+        ${v.execSandbox} = nil
+        ${v.dnaHash} = 0
+        ${v.morphSeed} = 0
+        collectgarbage("collect")
+        collectgarbage("collect")
+      end)
+
+      pcall(function()
+        rawset(_G, "${ghostId}", setmetatable({}, {
+          __index = function(_, k)
+            pcall(function()
+              game:HttpGet("${baseUrl}?_report=post_exec_dump&ghost=${ghostId}&wm=${watermarkId}")
+            end)
+            return nil
+          end,
+          __tostring = function() return "nil" end,
+        }))
+        task.delay(5, function()
+          pcall(function() rawset(_G, "${ghostId}", nil) end)
+        end)
+      end)
+    else
+      if _err ~= "hook_detected" and _err ~= "env_logger_detected" and _err ~= "logger_detected" then
+        warn("E:" .. tostring(_err))
+      end
+    end
+    return
+  end
+
+  -- Handle encrypted response (legacy hex format)
   if ${v.isHex}(r) then
     local rawBytes = ${v.hexBytes}(r)
     r = nil
@@ -3379,11 +3572,8 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         // Return ENCRYPTED content — never raw
         const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
         const trustLevel = getTrustScore(clientIp);
-        if (trustLevel < 30) {
-          console.log(`[get-paste] POISONING non-prot payload trust=${trustLevel} ip=${clientIp}`);
-          return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
-        }
-        return new Response(xorToHex(paste.content, key), { status: 200, headers: textHeaders });
+        // v10.2: Always use chunked encryption (anti-loadstring-hook)
+        return new Response(chunkEncrypt(paste.content, key), { status: 200, headers: textHeaders });
       }
       
       // Phase 1: No token — serve the loader (which will call back with uid+tk)
@@ -3641,12 +3831,8 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       
       const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
       
-      if (shouldPoison) {
-        console.log(`[get-paste] POISONING payload for low-trust ip=${clientIp} trust=${trustLevel}`);
-        return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
-      }
-      
-      return new Response(xorToHex(paste.content, key), { status: 200, headers: textHeaders });
+      // v10.2: Chunked encryption (anti-loadstring-hook)
+      return new Response(chunkEncrypt(paste.content, key), { status: 200, headers: textHeaders });
     }
 
     const { data: accessList } = await supabase
@@ -3697,12 +3883,8 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
 
     const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
     
-    if (shouldPoison) {
-      console.log(`[get-paste] POISONING payload for low-trust ip=${clientIp} trust=${trustLevel}`);
-      return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
-    }
-    
-    return new Response(xorToHex(paste.content, key), {
+    // v10.2: Chunked encryption (anti-loadstring-hook)
+    return new Response(chunkEncrypt(paste.content, key), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
     });
 
