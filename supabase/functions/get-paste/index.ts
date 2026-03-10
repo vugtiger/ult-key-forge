@@ -737,8 +737,10 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
       'quantumA','quantumB','quantumVerify','quantumEntangle',
       'gcSweep','gcTrap','gcMonitor','gcSentinel',
       'stackDepth','stackCheck','stackPoison',
-      'metamorphic','morphCounter','morphSeed','morphTransform',
-    ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
+       'metamorphic','morphCounter','morphSeed','morphTransform',
+       'chunkHeaderEnd','chunkHeader','chunkData','chunkParts',
+       'chunkIndices','chunkResult','decoyFlood',
+     ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
   );
   
   // v10: Polymorphic junk code — uses different patterns each time
