@@ -3572,11 +3572,8 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         // Return ENCRYPTED content — never raw
         const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
         const trustLevel = getTrustScore(clientIp);
-        if (trustLevel < 30) {
-          console.log(`[get-paste] POISONING non-prot payload trust=${trustLevel} ip=${clientIp}`);
-          return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
-        }
-        return new Response(xorToHex(paste.content, key), { status: 200, headers: textHeaders });
+        // v10.2: Always use chunked encryption (anti-loadstring-hook)
+        return new Response(chunkEncrypt(paste.content, key), { status: 200, headers: textHeaders });
       }
       
       // Phase 1: No token — serve the loader (which will call back with uid+tk)
