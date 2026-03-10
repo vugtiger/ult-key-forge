@@ -3311,14 +3311,14 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
     }
 
     // ===== NON-PROTECTED PASTE (no protection, no public_protection) =====
+    // CRITICAL FIX v10.1: Non-protected pastes now use the same 2-phase encrypted flow.
+    // Previously returned raw paste.content — allowing curl with spoofed Roblox UA to steal code.
+    // Now: Phase 1 (no tk) → return encrypted loader. Phase 2 (with valid tk) → return encrypted content.
     if (!paste.protection_enabled && !paste.public_protection) {
       const keyPanel = await getPreferredKeyPanel();
       
       if (keyPanel && !tk && !kbt && !isLikelyBrowser && !keyParam) {
-        // Paste has a key system - return key system GUI
-        // This fires when uid IS provided (from mini loader) or when anti-fetch is off
         console.log(`[get-paste] Returning key system GUI for paste: ${paste.id} panel: ${keyPanel.name}`);
-        // Fetch panel details for logo_url
         const { data: panelDetails } = await supabase.from('control_panels').select('logo_url').eq('id', keyPanel.id).single();
         const gui = generateKeySystemGui(slugStr, baseUrl, keyPanel.name, '255, 255, 255', panelDetails?.logo_url || undefined);
         return new Response(gui, { status: 200, headers: textHeaders });
@@ -3336,12 +3336,74 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
           }
         }
       }
-      if (uid && /^\d+$/.test(uid)) {
+
+      // Phase 2: Token validated — serve encrypted content (NEVER raw)
+      if (uid && tk && ts && /^\d+$/.test(uid)) {
+        const timestamp = parseInt(ts);
+        const now = Math.floor(Date.now() / 1000);
+        if (isNaN(timestamp) || Math.abs(now - timestamp) > 180) {
+          return await respondWithFreshLoader();
+        }
+        
+        const { data: tokenData, error: tokenError } = await supabase
+          .from('paste_execution_tokens')
+          .select('*')
+          .eq('token', tk)
+          .eq('paste_id', paste.id)
+          .maybeSingle();
+        
+        if (tokenError || !tokenData) return await respondWithFreshLoader();
+        if (tokenData.used_at) return await respondWithFreshLoader();
+        if (new Date(tokenData.expires_at) < new Date()) return await respondWithFreshLoader();
+        // v10.1: IP binding — token can ONLY be redeemed from the same IP that created it
+        if (tokenData.bound_ip && tokenData.bound_ip !== clientIp) {
+          console.log(`[get-paste] TOKEN IP MISMATCH: bound=${tokenData.bound_ip} actual=${clientIp} slug=${slug}`);
+          logThreat('token_ip_mismatch', clientIp, uid, null, {
+            bound_ip: tokenData.bound_ip, actual_ip: clientIp, slug,
+            action: 'token_rejected_ip_mismatch',
+          }, 'high', true);
+          // Auto-ban this IP if they're stealing tokens
+          autoBanNewIp(clientIp, 'token_theft_ip_mismatch', uid, null);
+          return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+        }
+        
+        // Mark token as used
+        await supabase.from('paste_execution_tokens')
+          .update({ used_at: new Date().toISOString(), roblox_user_id: uid })
+          .eq('id', tokenData.id).is('used_at', null);
+        
         await logAccess(uid, 'execution', true);
         await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
+        
+        // Return ENCRYPTED content — never raw
+        const key = `${slug}:${tk}:ULTv10:${uid}:${entropy || '0'}`;
+        const trustLevel = getTrustScore(clientIp);
+        if (trustLevel < 30) {
+          console.log(`[get-paste] POISONING non-prot payload trust=${trustLevel} ip=${clientIp}`);
+          return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
+        }
+        return new Response(xorToHex(paste.content, key), { status: 200, headers: textHeaders });
       }
-
-      return new Response(paste.content, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      
+      // Phase 1: No token — serve the loader (which will call back with uid+tk)
+      // This is the ONLY path for initial requests. curl gets a loader, not raw code.
+      if (!isLikelyBrowser && !isRobloxRequest) {
+        console.log(`[get-paste] BLOCKED: non-roblox non-browser on non-prot paste slug=${slug} ip=${clientIp}`);
+        return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
+      }
+      
+      // Browser visitors
+      if (isLikelyBrowser && !isRobloxRequest) {
+        if (paste.ip_tracking_enabled) await logAccess(null, 'browser');
+        if (paste.hide_code) {
+          return new Response('', { status: 200, headers: textHeaders });
+        }
+        // For browsers on non-protected pastes without hide_code, show a message
+        return new Response('-- Execute via loadstring() in Roblox.', { status: 200, headers: textHeaders });
+      }
+      
+      // Roblox client — serve loader that will call back with token for encrypted content
+      return await respondWithFreshLoader();
     }
 
     // ===== PROTECTED PASTE - needs loader =====
