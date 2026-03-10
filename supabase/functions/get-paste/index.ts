@@ -3234,7 +3234,8 @@ Deno.serve(async (req) => {
         const bypassToken = generateToken();
         await supabase.from('paste_execution_tokens').insert({
           paste_id: paste.id, roblox_user_id: uid, token: bypassToken,
-          expires_at: new Date(Date.now() + 30000).toISOString()
+          expires_at: new Date(Date.now() + 30000).toISOString(),
+          bound_ip: clientIp,
         });
         // Return a simple script that re-fetches the paste with the bypass token
         // The paste URL will then skip the key system and serve the normal protection loader
