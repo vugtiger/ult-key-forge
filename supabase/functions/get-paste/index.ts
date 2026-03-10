@@ -3831,12 +3831,8 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       
       const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
       
-      if (shouldPoison) {
-        console.log(`[get-paste] POISONING payload for low-trust ip=${clientIp} trust=${trustLevel}`);
-        return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
-      }
-      
-      return new Response(xorToHex(paste.content, key), { status: 200, headers: textHeaders });
+      // v10.2: Chunked encryption (anti-loadstring-hook)
+      return new Response(chunkEncrypt(paste.content, key), { status: 200, headers: textHeaders });
     }
 
     const { data: accessList } = await supabase
