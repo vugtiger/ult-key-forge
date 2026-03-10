@@ -502,6 +502,37 @@ function generatePoisonedPayload(content: string, key: string): string {
   return xorToHex(chars.join(''), key);
 }
 
+// v10.2: Chunked encryption — splits code into shuffled encrypted chunks
+// Even if loadstring is hooked, attacker only gets individual chunk fragments + 100 decoy scripts
+function chunkEncrypt(code: string, baseKey: string): string {
+  const numChunks = Math.max(8, Math.min(40, Math.ceil(code.length / 200)));
+  const chunkSize = Math.ceil(code.length / numChunks);
+  const chunks: string[] = [];
+  
+  for (let i = 0; i < numChunks; i++) {
+    const start = i * chunkSize;
+    const piece = code.slice(start, start + chunkSize);
+    if (piece.length === 0) continue;
+    const chunkKey = `${baseKey}:C${i}:${numChunks}`;
+    chunks.push(xorToHex(piece, chunkKey));
+  }
+  
+  const actualChunks = chunks.length;
+  const seed = Math.floor(Math.random() * 2147483646) + 1;
+  
+  // Fisher-Yates shuffle with Lehmer PRNG (safe for Lua double precision)
+  const indices = Array.from({length: actualChunks}, (_, i) => i);
+  let s = seed;
+  for (let i = indices.length - 1; i > 0; i--) {
+    s = (s * 16807) % 2147483647;
+    const j = s % (i + 1);
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  
+  const shuffled = indices.map(i => chunks[i]);
+  return `ULT_C:${actualChunks}:${seed}|${shuffled.join('|')}`;
+}
+
 async function fetchRobloxProfile(userId: string): Promise<{
   username: string | null;
   displayName: string | null;
