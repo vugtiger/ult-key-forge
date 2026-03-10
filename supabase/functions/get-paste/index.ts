@@ -3577,6 +3577,17 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       return await respondWithFreshLoader();
     }
     if (new Date(tokenData.expires_at) < new Date()) return await respondWithFreshLoader();
+    
+    // v10.1: IP binding validation — tokens can ONLY be redeemed from same IP
+    if (tokenData.bound_ip && tokenData.bound_ip !== clientIp) {
+      console.log(`[get-paste] PROTECTED TOKEN IP MISMATCH: bound=${tokenData.bound_ip} actual=${clientIp} slug=${slug} uid=${uid}`);
+      logThreat('protected_token_ip_mismatch', clientIp, uid, null, {
+        bound_ip: tokenData.bound_ip, actual_ip: clientIp, slug,
+        action: 'token_rejected_auto_ban',
+      }, 'critical', true);
+      autoBanNewIp(clientIp, 'token_theft_protected_paste', uid, null);
+      return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+    }
 
     const { error: updateError } = await supabase
       .from('paste_execution_tokens')
