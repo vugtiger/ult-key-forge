@@ -3052,7 +3052,8 @@ Deno.serve(async (req) => {
         paste_id: paste.id,
         roblox_user_id: '0',
         token: newToken,
-        expires_at: new Date(Date.now() + 30000).toISOString()
+        expires_at: new Date(Date.now() + 30000).toISOString(),
+        bound_ip: clientIp, // IP-bind token
       });
       const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
         showConsoleFeedback: paste.show_loading_bar !== false,
