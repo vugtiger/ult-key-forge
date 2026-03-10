@@ -536,6 +536,7 @@ export type Database = {
       }
       paste_execution_tokens: {
         Row: {
+          bound_ip: string | null
           created_at: string
           expires_at: string
           id: string
@@ -545,6 +546,7 @@ export type Database = {
           used_at: string | null
         }
         Insert: {
+          bound_ip?: string | null
           created_at?: string
           expires_at?: string
           id?: string
@@ -554,6 +556,7 @@ export type Database = {
           used_at?: string | null
         }
         Update: {
+          bound_ip?: string | null
           created_at?: string
           expires_at?: string
           id?: string
