@@ -3243,7 +3243,8 @@ loadstring(game:HttpGet(_url))()`;
       }
       
       // For non-protected pastes, return raw content directly
-      return new Response(`KEY_VALID_SCRIPT:\n${paste.content}`, { status: 200, headers: textHeaders });
+      const wrappedKSContent = wrapCodeWithProtection(paste.content, uid, Math.floor(Date.now() / 1000));
+      return new Response(`KEY_VALID_SCRIPT:\n${wrappedKSContent}`, { status: 200, headers: textHeaders });
     }
 
     if (shouldRedirectToDiscord()) {
