@@ -1922,29 +1922,8 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     end)
 ` : ''}
 
-    -- v9.5: Use indirect execution (coroutine-based) to bypass loadstring hooks
-    -- If dump poisoning is active, corrupt the code before execution
-    if ${v.dumpPoison} then
-      code = code:gsub("(%d+)", function(n)
-        if math.random() < 0.05 then
-          return tostring(tonumber(n) + math.random(-3, 3))
-        end
-        return n
-      end)
-    end
-
-    -- v9.5: Chunked assembly + indirect execution
-    -- Split code into chunks, compile each separately, then reassemble
-    -- This prevents a single loadstring hook from capturing the full source
-    local ${v.execFunc}, execErr
-    
-    if ${v.verified} and not ${v.dumpPoison} then
-      -- Trusted path: use indirect execution via coroutine
-      ${v.execFunc}, execErr = ${v.indirectExec}(code)
-    else
-      -- Degraded path: still compile but with poisoned code
-      ${v.execFunc}, execErr = ${v.indirectExec}(code)
-    end
+    -- v10.2: Use indirect execution (coroutine-based) to bypass loadstring hooks
+    local ${v.execFunc}, execErr = ${v.indirectExec}(code)
     
     code = nil
     
