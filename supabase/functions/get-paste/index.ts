@@ -1665,9 +1665,8 @@ pcall(function()
   local weak = setmetatable({${v.gcSentinel}}, {__mode = "v"})
 end)
 
--- ====== v10: STACK DEPTH VALIDATION ======
--- Legitimate loadstring execution has a specific call stack depth
--- Decompilers/debuggers add extra stack frames
+-- ====== v10.2: STACK DEPTH COLLECTION ======
+-- Record stack depth for server-side analysis (no client-side action)
 local ${v.stackDepth} = 0
 local ${v.stackCheck} = function()
   local depth = 0
@@ -1675,13 +1674,8 @@ local ${v.stackCheck} = function()
   repeat
     depth = depth + 1
     info = debug and debug.info and debug.info(depth, "s") or nil
-  until not info or depth > 20
+  until not info or depth > 50
   ${v.stackDepth} = depth
-  -- Normal execution: 3-12 frames. Debugger: 15+
-  if depth > 15 then
-    _reportBypass("deep_stack", "stack_depth_" .. tostring(depth))
-    return false
-  end
   return true
 end
 pcall(${v.stackCheck})
