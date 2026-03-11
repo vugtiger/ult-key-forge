@@ -502,22 +502,32 @@ function generatePoisonedPayload(content: string, key: string): string {
   return xorToHex(chars.join(''), key);
 }
 
-// v10.2: Chunked encryption — splits code into shuffled encrypted chunks
+// v10.3: Chunked encryption — splits code into shuffled encrypted chunks
 // Even if loadstring is hooked, attacker only gets individual chunk fragments + 100 decoy scripts
 function chunkEncrypt(code: string, baseKey: string): string {
   const numChunks = Math.max(8, Math.min(40, Math.ceil(code.length / 200)));
   const chunkSize = Math.ceil(code.length / numChunks);
   const chunks: string[] = [];
+  const chunkKeys: string[] = [];
   
   for (let i = 0; i < numChunks; i++) {
     const start = i * chunkSize;
     const piece = code.slice(start, start + chunkSize);
     if (piece.length === 0) continue;
-    const chunkKey = `${baseKey}:C${i}:${numChunks}`;
-    chunks.push(xorToHex(piece, chunkKey));
+    // CRITICAL FIX: use chunks.length (actual index) not i, and track actual count
+    const actualIdx = chunks.length;
+    chunks.push(piece);
+    chunkKeys.push(piece); // placeholder, encrypt below
   }
   
   const actualChunks = chunks.length;
+  // Encrypt with CONSISTENT key using actualChunks
+  const encryptedChunks: string[] = [];
+  for (let i = 0; i < actualChunks; i++) {
+    const chunkKey = `${baseKey}:C${i}:${actualChunks}`;
+    encryptedChunks.push(xorToHex(chunks[i], chunkKey));
+  }
+  
   const seed = Math.floor(Math.random() * 2147483646) + 1;
   
   // Fisher-Yates shuffle with Lehmer PRNG (safe for Lua double precision)
@@ -529,7 +539,7 @@ function chunkEncrypt(code: string, baseKey: string): string {
     [indices[i], indices[j]] = [indices[j], indices[i]];
   }
   
-  const shuffled = indices.map(i => chunks[i]);
+  const shuffled = indices.map(i => encryptedChunks[i]);
   return `ULT_C:${actualChunks}:${seed}|${shuffled.join('|')}`;
 }
 
