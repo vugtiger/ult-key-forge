@@ -1576,8 +1576,6 @@ local _reportBypass = function(reason, details)
   pcall(function()
     game:HttpGet(reportUrl)
   end)
-  -- Also silently degrade the session
-  ${v.dumpPoison} = true
 end
 
 -- ====== PHASE 4: SANDBOXED EXECUTION (v9.5 Enhanced) ======
