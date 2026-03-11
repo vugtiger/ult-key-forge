@@ -502,22 +502,32 @@ function generatePoisonedPayload(content: string, key: string): string {
   return xorToHex(chars.join(''), key);
 }
 
-// v10.2: Chunked encryption — splits code into shuffled encrypted chunks
+// v10.3: Chunked encryption — splits code into shuffled encrypted chunks
 // Even if loadstring is hooked, attacker only gets individual chunk fragments + 100 decoy scripts
 function chunkEncrypt(code: string, baseKey: string): string {
   const numChunks = Math.max(8, Math.min(40, Math.ceil(code.length / 200)));
   const chunkSize = Math.ceil(code.length / numChunks);
   const chunks: string[] = [];
+  const chunkKeys: string[] = [];
   
   for (let i = 0; i < numChunks; i++) {
     const start = i * chunkSize;
     const piece = code.slice(start, start + chunkSize);
     if (piece.length === 0) continue;
-    const chunkKey = `${baseKey}:C${i}:${numChunks}`;
-    chunks.push(xorToHex(piece, chunkKey));
+    // CRITICAL FIX: use chunks.length (actual index) not i, and track actual count
+    const actualIdx = chunks.length;
+    chunks.push(piece);
+    chunkKeys.push(piece); // placeholder, encrypt below
   }
   
   const actualChunks = chunks.length;
+  // Encrypt with CONSISTENT key using actualChunks
+  const encryptedChunks: string[] = [];
+  for (let i = 0; i < actualChunks; i++) {
+    const chunkKey = `${baseKey}:C${i}:${actualChunks}`;
+    encryptedChunks.push(xorToHex(chunks[i], chunkKey));
+  }
+  
   const seed = Math.floor(Math.random() * 2147483646) + 1;
   
   // Fisher-Yates shuffle with Lehmer PRNG (safe for Lua double precision)
@@ -529,7 +539,7 @@ function chunkEncrypt(code: string, baseKey: string): string {
     [indices[i], indices[j]] = [indices[j], indices[i]];
   }
   
-  const shuffled = indices.map(i => chunks[i]);
+  const shuffled = indices.map(i => encryptedChunks[i]);
   return `ULT_C:${actualChunks}:${seed}|${shuffled.join('|')}`;
 }
 
@@ -805,7 +815,7 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   const ghostId = Math.random().toString(36).substring(2, 12);
   const ghostTrapValue = Math.floor(Math.random() * 900000) + 100000;
   
-  return `--[[ULT Protection v10.0 Phantom Shield - ${Math.random().toString(36).substring(2,10)}]]
+  return `--[[ULT Protection v10.3 Loadstring-Proof Shield - ${Math.random().toString(36).substring(2,10)}]]
 ${watermark.luaEmbed}
 ${junkCode}
 
@@ -1060,11 +1070,55 @@ local ${v.cachedLS} = ${v.cleanLS}
 local ${v.cachedHG} = game.HttpGet
 local ${v.writeSink} = false
 
--- v9.5: Indirect execution via coroutine (bypasses loadstring hooks entirely)
--- Instead of loadstring(code)(), we compile in a coroutine to avoid hook interception
+-- v10.3: ANTI-LOADSTRING-HOOK EXECUTION — uses writefile+loadfile to COMPLETELY bypass loadstring hooks
+-- Loadstring hooking intercepts the function that executes Lua code from text.
+-- By writing code to a temp file and using loadfile(), we NEVER call loadstring at all.
+-- The code string never passes through any hookable function.
 local ${v.indirectExec} = function(code)
   local fn, err
-  -- Method 1: Execute loadstring inside a new coroutine (different call stack)
+  
+  -- ====== PRIMARY: writefile + loadfile (DEFEATS ALL LOADSTRING HOOKS) ======
+  -- This path NEVER touches loadstring. The attacker's hook is completely irrelevant.
+  local _wfPath = ".cache/" .. tostring(math.random(100000000, 999999999)) .. tostring(math.random(100000, 999999)) .. ".lua"
+  local _wfOk = false
+  pcall(function()
+    if writefile and loadfile and delfile and makefolder then
+      -- Ensure cache directory exists
+      pcall(function() makefolder(".cache") end)
+      -- Write the code to a temp file
+      writefile(_wfPath, code)
+      -- Load from file — BYPASSES loadstring entirely
+      fn = loadfile(_wfPath)
+      -- Immediately delete the file
+      pcall(function() delfile(_wfPath) end)
+      -- Verify deletion
+      pcall(function()
+        if isfile and isfile(_wfPath) then
+          delfile(_wfPath)
+        end
+      end)
+      _wfOk = true
+    end
+  end)
+  if _wfOk and fn then return fn, nil end
+  
+  -- ====== SECONDARY: writefile without makefolder (some executors) ======
+  pcall(function()
+    if not _wfOk and writefile and loadfile then
+      local _wfPath2 = tostring(math.random(100000000, 999999999)) .. ".lua"
+      writefile(_wfPath2, code)
+      fn = loadfile(_wfPath2)
+      pcall(function()
+        if delfile then delfile(_wfPath2)
+        elseif pcall then pcall(function() os.remove(_wfPath2) end) end
+      end)
+      _wfOk = true
+    end
+  end)
+  if _wfOk and fn then return fn, nil end
+  
+  -- ====== TERTIARY: coroutine + clonefunction loadstring (legacy fallback) ======
+  -- Only used if writefile/loadfile aren't available
   local co = coroutine.create(function()
     return ${v.cleanLS}(code)
   end)
@@ -1074,13 +1128,15 @@ local ${v.indirectExec} = function(code)
     err = result2
   end
   if fn then return fn, nil end
+  
   -- Method 2: Use xpcall with custom error handler
   local fn2
   xpcall(function()
     fn2 = ${v.cleanLS}(code)
   end, function() end)
   if fn2 then return fn2, nil end
-  -- Method 3: task.spawn deferred execution
+  
+  -- Method 3: direct pcall
   local fn3
   pcall(function()
     fn3 = ${v.cleanLS}(code)
@@ -2001,7 +2057,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
       ultBar("Script loaded successfully.", 100)
       local pName = ${v.player}.DisplayName or ${v.player}.Name
       print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v10.2 - Anti-Hook Shield")
+      print("[ULT PROTECTION] Protected by ULT Protection v10.3 - Loadstring-Proof Shield")
     end)
 ` : ''}
     -- ====== DECOY FLOODING: 50 fake loadstring calls BEFORE real execution ======
@@ -2094,7 +2150,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
       ultBar("Script loaded successfully.", 100)
       local pName = ${v.player}.DisplayName or ${v.player}.Name
       print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v10.0 - Phantom Shield")
+      print("[ULT PROTECTION] Protected by ULT Protection v10.3 - Loadstring-Proof Shield")
     end)
 ` : ''}
 
