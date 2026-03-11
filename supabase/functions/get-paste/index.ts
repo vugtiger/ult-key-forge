@@ -1578,17 +1578,8 @@ local _reportBypass = function(reason, details)
   end)
 end
 
--- ====== PHASE 4: SANDBOXED EXECUTION (v9.5 Enhanced) ======
+-- ====== PHASE 4: SANDBOXED EXECUTION (v10.2 Enhanced) ======
 local ${v.execSandbox} = function(code)
-  -- v9.5: If dump poisoning active, corrupt the code subtly
-  if ${v.dumpPoison} then
-    code = code:gsub("(%d+)", function(n)
-      if math.random() < 0.05 then
-        return tostring(tonumber(n) + math.random(-3, 3))
-      end
-      return n
-    end)
-  end
   
   if not ${v.antiHook}() then
     _reportBypass("hook_in_sandbox", "hook_detected_at_exec")
