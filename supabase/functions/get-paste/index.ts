@@ -3373,14 +3373,15 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         await logAccess(uid, 'execution', true);
         await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
         
-        // Return ENCRYPTED content — never raw
+        // v10.2: Wrap code with user-binding protection before encryption
+        const wrappedContent = wrapCodeWithProtection(paste.content, uid, Math.floor(Date.now() / 1000));
         const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
         const trustLevel = getTrustScore(clientIp);
         if (trustLevel < 30) {
           console.log(`[get-paste] POISONING non-prot payload trust=${trustLevel} ip=${clientIp}`);
-          return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
+          return new Response(generatePoisonedPayload(wrappedContent, key), { status: 200, headers: textHeaders });
         }
-        return new Response(xorToHex(paste.content, key), { status: 200, headers: textHeaders });
+        return new Response(xorToHex(wrappedContent, key), { status: 200, headers: textHeaders });
       }
       
       // Phase 1: No token — serve the loader (which will call back with uid+tk)
