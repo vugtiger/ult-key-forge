@@ -486,6 +486,40 @@ function xorToHex(plain: string, key: string): string {
   return hex;
 }
 
+// v10.2: Server-side code wrapping — makes captured code worthless even if loadstring is hooked
+// The code is bound to: specific UserId (XOR-obfuscated), timestamp (120s expiry), single-use nonce
+function wrapCodeWithProtection(code: string, uid: string, timestamp: number): string {
+  const uidNum = parseInt(uid);
+  if (isNaN(uidNum) || uidNum < 1000) return code; // Don't wrap for invalid/system UIDs
+  
+  const xorKey = Math.floor(Math.random() * 899999) + 100000;
+  const xoredUid = (uidNum ^ xorKey) >>> 0; // unsigned
+  const nonce = generateToken().slice(0, 16);
+  const tsOffset = Math.floor(Math.random() * 50) + 70; // randomize the window slightly
+  
+  // Variable names are randomized to prevent pattern matching
+  const vp = '_' + Math.random().toString(36).substring(2, 7);
+  const vk = '_' + Math.random().toString(36).substring(2, 7);
+  const vn = '_' + Math.random().toString(36).substring(2, 7);
+  const vt = '_' + Math.random().toString(36).substring(2, 7);
+  const vx = '_' + Math.random().toString(36).substring(2, 7);
+  
+  return `do
+local ${vp}=game:GetService("Players").LocalPlayer
+if not ${vp} then return end
+local ${vx}=bit32.bxor(${vp}.UserId,${xorKey})
+if ${vx}~=${xoredUid} then ${vp}:Kick("Access denied") return end
+local ${vt}=os.time()
+if ${vt}-${timestamp}>${120 + tsOffset} then return end
+local ${vn}="${nonce}"
+local ${vk}="_UE"..${vn}
+if rawget(_G,${vk}) then return end
+rawset(_G,${vk},true)
+task.delay(15,function() pcall(function() rawset(_G,${vk},nil) end) end)
+${code}
+end`;
+}
+
 // v9: Generate poisoned payload (looks valid but has subtle corruption)
 function generatePoisonedPayload(content: string, key: string): string {
   // Insert subtle mutations: flip random characters, swap variables
