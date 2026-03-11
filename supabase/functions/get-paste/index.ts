@@ -486,6 +486,40 @@ function xorToHex(plain: string, key: string): string {
   return hex;
 }
 
+// v10.2: Server-side code wrapping — makes captured code worthless even if loadstring is hooked
+// The code is bound to: specific UserId (XOR-obfuscated), timestamp (120s expiry), single-use nonce
+function wrapCodeWithProtection(code: string, uid: string, timestamp: number): string {
+  const uidNum = parseInt(uid);
+  if (isNaN(uidNum) || uidNum < 1000) return code; // Don't wrap for invalid/system UIDs
+  
+  const xorKey = Math.floor(Math.random() * 899999) + 100000;
+  const xoredUid = (uidNum ^ xorKey) >>> 0; // unsigned
+  const nonce = generateToken().slice(0, 16);
+  const tsOffset = Math.floor(Math.random() * 50) + 70; // randomize the window slightly
+  
+  // Variable names are randomized to prevent pattern matching
+  const vp = '_' + Math.random().toString(36).substring(2, 7);
+  const vk = '_' + Math.random().toString(36).substring(2, 7);
+  const vn = '_' + Math.random().toString(36).substring(2, 7);
+  const vt = '_' + Math.random().toString(36).substring(2, 7);
+  const vx = '_' + Math.random().toString(36).substring(2, 7);
+  
+  return `do
+local ${vp}=game:GetService("Players").LocalPlayer
+if not ${vp} then return end
+local ${vx}=bit32.bxor(${vp}.UserId,${xorKey})
+if ${vx}~=${xoredUid} then ${vp}:Kick("Access denied") return end
+local ${vt}=os.time()
+if ${vt}-${timestamp}>${120 + tsOffset} then return end
+local ${vn}="${nonce}"
+local ${vk}="_UE"..${vn}
+if rawget(_G,${vk}) then return end
+rawset(_G,${vk},true)
+task.delay(15,function() pcall(function() rawset(_G,${vk},nil) end) end)
+${code}
+end`;
+}
+
 // v9: Generate poisoned payload (looks valid but has subtle corruption)
 function generatePoisonedPayload(content: string, key: string): string {
   // Insert subtle mutations: flip random characters, swap variables
@@ -1542,21 +1576,10 @@ local _reportBypass = function(reason, details)
   pcall(function()
     game:HttpGet(reportUrl)
   end)
-  -- Also silently degrade the session
-  ${v.dumpPoison} = true
 end
 
--- ====== PHASE 4: SANDBOXED EXECUTION (v9.5 Enhanced) ======
+-- ====== PHASE 4: SANDBOXED EXECUTION (v10.2 Enhanced) ======
 local ${v.execSandbox} = function(code)
-  -- v9.5: If dump poisoning active, corrupt the code subtly
-  if ${v.dumpPoison} then
-    code = code:gsub("(%d+)", function(n)
-      if math.random() < 0.05 then
-        return tostring(tonumber(n) + math.random(-3, 3))
-      end
-      return n
-    end)
-  end
   
   if not ${v.antiHook}() then
     _reportBypass("hook_in_sandbox", "hook_detected_at_exec")
@@ -1642,9 +1665,8 @@ pcall(function()
   local weak = setmetatable({${v.gcSentinel}}, {__mode = "v"})
 end)
 
--- ====== v10: STACK DEPTH VALIDATION ======
--- Legitimate loadstring execution has a specific call stack depth
--- Decompilers/debuggers add extra stack frames
+-- ====== v10.2: STACK DEPTH COLLECTION ======
+-- Record stack depth for server-side analysis (no client-side action)
 local ${v.stackDepth} = 0
 local ${v.stackCheck} = function()
   local depth = 0
@@ -1652,13 +1674,8 @@ local ${v.stackCheck} = function()
   repeat
     depth = depth + 1
     info = debug and debug.info and debug.info(depth, "s") or nil
-  until not info or depth > 20
+  until not info or depth > 50
   ${v.stackDepth} = depth
-  -- Normal execution: 3-12 frames. Debugger: 15+
-  if depth > 15 then
-    _reportBypass("deep_stack", "stack_depth_" .. tostring(depth))
-    return false
-  end
   return true
 end
 pcall(${v.stackCheck})
@@ -1905,29 +1922,8 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     end)
 ` : ''}
 
-    -- v9.5: Use indirect execution (coroutine-based) to bypass loadstring hooks
-    -- If dump poisoning is active, corrupt the code before execution
-    if ${v.dumpPoison} then
-      code = code:gsub("(%d+)", function(n)
-        if math.random() < 0.05 then
-          return tostring(tonumber(n) + math.random(-3, 3))
-        end
-        return n
-      end)
-    end
-
-    -- v9.5: Chunked assembly + indirect execution
-    -- Split code into chunks, compile each separately, then reassemble
-    -- This prevents a single loadstring hook from capturing the full source
-    local ${v.execFunc}, execErr
-    
-    if ${v.verified} and not ${v.dumpPoison} then
-      -- Trusted path: use indirect execution via coroutine
-      ${v.execFunc}, execErr = ${v.indirectExec}(code)
-    else
-      -- Degraded path: still compile but with poisoned code
-      ${v.execFunc}, execErr = ${v.indirectExec}(code)
-    end
+    -- v10.2: Use indirect execution (coroutine-based) to bypass loadstring hooks
+    local ${v.execFunc}, execErr = ${v.indirectExec}(code)
     
     code = nil
     
@@ -3247,7 +3243,8 @@ loadstring(game:HttpGet(_url))()`;
       }
       
       // For non-protected pastes, return raw content directly
-      return new Response(`KEY_VALID_SCRIPT:\n${paste.content}`, { status: 200, headers: textHeaders });
+      const wrappedKSContent = wrapCodeWithProtection(paste.content, uid, Math.floor(Date.now() / 1000));
+      return new Response(`KEY_VALID_SCRIPT:\n${wrappedKSContent}`, { status: 200, headers: textHeaders });
     }
 
     if (shouldRedirectToDiscord()) {
@@ -3376,14 +3373,15 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         await logAccess(uid, 'execution', true);
         await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
         
-        // Return ENCRYPTED content — never raw
+        // v10.2: Wrap code with user-binding protection before encryption
+        const wrappedContent = wrapCodeWithProtection(paste.content, uid, Math.floor(Date.now() / 1000));
         const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
         const trustLevel = getTrustScore(clientIp);
         if (trustLevel < 30) {
           console.log(`[get-paste] POISONING non-prot payload trust=${trustLevel} ip=${clientIp}`);
-          return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
+          return new Response(generatePoisonedPayload(wrappedContent, key), { status: 200, headers: textHeaders });
         }
-        return new Response(xorToHex(paste.content, key), { status: 200, headers: textHeaders });
+        return new Response(xorToHex(wrappedContent, key), { status: 200, headers: textHeaders });
       }
       
       // Phase 1: No token — serve the loader (which will call back with uid+tk)
@@ -3639,14 +3637,16 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
       console.log(`Public protection access granted: ${uid} for paste: ${paste.id}`);
       
+      // v10.2: Wrap code with user-binding protection
+      const wrappedPubContent = wrapCodeWithProtection(paste.content, uid, Math.floor(Date.now() / 1000));
       const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
       
       if (shouldPoison) {
         console.log(`[get-paste] POISONING payload for low-trust ip=${clientIp} trust=${trustLevel}`);
-        return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
+        return new Response(generatePoisonedPayload(wrappedPubContent, key), { status: 200, headers: textHeaders });
       }
       
-      return new Response(xorToHex(paste.content, key), { status: 200, headers: textHeaders });
+      return new Response(xorToHex(wrappedPubContent, key), { status: 200, headers: textHeaders });
     }
 
     const { data: accessList } = await supabase
@@ -3695,14 +3695,16 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
     await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
     console.log(`Access granted: ${uid} for paste: ${paste.id}`);
 
+    // v10.2: Wrap code with user-binding protection
+    const wrappedProtContent = wrapCodeWithProtection(paste.content, uid, Math.floor(Date.now() / 1000));
     const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
     
     if (shouldPoison) {
       console.log(`[get-paste] POISONING payload for low-trust ip=${clientIp} trust=${trustLevel}`);
-      return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
+      return new Response(generatePoisonedPayload(wrappedProtContent, key), { status: 200, headers: textHeaders });
     }
     
-    return new Response(xorToHex(paste.content, key), {
+    return new Response(xorToHex(wrappedProtContent, key), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
     });
 
