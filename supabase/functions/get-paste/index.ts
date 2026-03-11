@@ -3695,14 +3695,16 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
     await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
     console.log(`Access granted: ${uid} for paste: ${paste.id}`);
 
+    // v10.2: Wrap code with user-binding protection
+    const wrappedProtContent = wrapCodeWithProtection(paste.content, uid, Math.floor(Date.now() / 1000));
     const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
     
     if (shouldPoison) {
       console.log(`[get-paste] POISONING payload for low-trust ip=${clientIp} trust=${trustLevel}`);
-      return new Response(generatePoisonedPayload(paste.content, key), { status: 200, headers: textHeaders });
+      return new Response(generatePoisonedPayload(wrappedProtContent, key), { status: 200, headers: textHeaders });
     }
     
-    return new Response(xorToHex(paste.content, key), {
+    return new Response(xorToHex(wrappedProtContent, key), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
     });
 
