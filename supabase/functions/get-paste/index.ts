@@ -2057,7 +2057,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
       ultBar("Script loaded successfully.", 100)
       local pName = ${v.player}.DisplayName or ${v.player}.Name
       print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v10.2 - Anti-Hook Shield")
+      print("[ULT PROTECTION] Protected by ULT Protection v10.3 - Loadstring-Proof Shield")
     end)
 ` : ''}
     -- ====== DECOY FLOODING: 50 fake loadstring calls BEFORE real execution ======
