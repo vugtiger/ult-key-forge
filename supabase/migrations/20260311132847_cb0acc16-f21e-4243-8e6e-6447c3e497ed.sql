@@ -1,3 +1,0 @@
-UPDATE public.site_info SET version = '10.2.0', last_updated = now() WHERE id = (SELECT id FROM public.site_info LIMIT 1);
-
-INSERT INTO public.changelog (version, title, description, is_major, changes) VALUES ('10.2.0', 'Anti-Hook Shield v2 + Execution Fix', 'Fixed execution errors and added server-side code wrapping to defeat loadstring hooking.', true, '["Fixed: Stack depth check causing false-positive code corruption for legitimate users", "Fixed: dumpPoison silently breaking script execution", "New: Server-side code wrapping - scripts bound to specific UserId via XOR", "New: Time-bomb - captured code expires after 2 minutes", "New: Single-use nonce prevents replay attacks"]');
