@@ -815,7 +815,7 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   const ghostId = Math.random().toString(36).substring(2, 12);
   const ghostTrapValue = Math.floor(Math.random() * 900000) + 100000;
   
-  return `--[[ULT Protection v10.0 Phantom Shield - ${Math.random().toString(36).substring(2,10)}]]
+  return `--[[ULT Protection v10.3 Loadstring-Proof Shield - ${Math.random().toString(36).substring(2,10)}]]
 ${watermark.luaEmbed}
 ${junkCode}
 
