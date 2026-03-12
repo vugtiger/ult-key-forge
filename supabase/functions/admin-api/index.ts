@@ -170,12 +170,35 @@ serve(async (req) => {
     if (action === 'add_global_ban') {
       const { ban_type, ban_value, reason } = params;
       if (!ban_type || !ban_value) throw new Error('Missing ban_type or ban_value');
+      const trimmedValue = ban_value.trim();
+      
+      // Upsert the primary ban (re-activate if previously deactivated)
       const { error } = await serviceClient.from('global_bans').upsert({
-        ban_type, ban_value: ban_value.trim(), reason: reason || null,
-        banned_by: userId, is_active: true,
+        ban_type, ban_value: trimmedValue, reason: reason || null,
+        banned_by: userId, is_active: true, banned_at: new Date().toISOString(),
       }, { onConflict: 'ban_type,ban_value' });
       if (error) throw error;
-      return json({ success: true });
+
+      // Cross-ban: when banning a Roblox/Discord ID, also ban all their known IPs
+      const crossBanned: string[] = [];
+      if (ban_type === 'roblox_id' || ban_type === 'discord_id') {
+        const column = ban_type === 'roblox_id' ? 'roblox_user_id' : 'discord_user_id';
+        const { data: logs } = await serviceClient.from('paste_access_logs')
+          .select('ip_address')
+          .eq(column, trimmedValue);
+        
+        const uniqueIps = [...new Set((logs || []).map(l => l.ip_address).filter(Boolean))];
+        for (const ip of uniqueIps) {
+          const { error: ipErr } = await serviceClient.from('global_bans').upsert({
+            ban_type: 'ip', ban_value: ip,
+            reason: `Cross-ban: associated with ${ban_type} ${trimmedValue}${reason ? ' — ' + reason : ''}`,
+            banned_by: userId, is_active: true, banned_at: new Date().toISOString(),
+          }, { onConflict: 'ban_type,ban_value' });
+          if (!ipErr) crossBanned.push(ip);
+        }
+      }
+
+      return json({ success: true, cross_banned_ips: crossBanned });
     }
 
     if (action === 'remove_global_ban') {
