@@ -3623,16 +3623,21 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         if (tokenError || !tokenData) return await respondWithFreshLoader();
         if (tokenData.used_at) return await respondWithFreshLoader();
         if (new Date(tokenData.expires_at) < new Date()) return await respondWithFreshLoader();
-        // v10.1: IP binding — token can ONLY be redeemed from the same IP that created it
+        // v10.4: IP binding — reject mismatched tokens but DON'T auto-ban on first occurrence
+        // Legitimate users can have IP changes (VPN, mobile network, ISP rotation) between the two requests
         if (tokenData.bound_ip && tokenData.bound_ip !== clientIp) {
           console.log(`[get-paste] TOKEN IP MISMATCH: bound=${tokenData.bound_ip} actual=${clientIp} slug=${slug}`);
+          const isBanWorthy = shouldBanForIpMismatch(clientIp);
           logThreat('token_ip_mismatch', clientIp, uid, null, {
             bound_ip: tokenData.bound_ip, actual_ip: clientIp, slug,
-            action: 'token_rejected_ip_mismatch',
-          }, 'high', true);
-          // Auto-ban this IP if they're stealing tokens
-          autoBanNewIp(clientIp, 'token_theft_ip_mismatch', uid, null);
-          return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+            action: isBanWorthy ? 'token_rejected_auto_ban' : 'token_rejected_retry',
+          }, isBanWorthy ? 'high' : 'low', isBanWorthy);
+          if (isBanWorthy) {
+            autoBanNewIp(clientIp, 'repeated_token_theft_ip_mismatch', uid, null);
+            return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+          }
+          // Not ban-worthy yet — just give them a fresh loader with their CURRENT IP
+          return await respondWithFreshLoader();
         }
         
         // Mark token as used
