@@ -428,6 +428,7 @@ function cleanupMaps() {
   for (const [k, v] of slugThrottle) { if (now > v.resetTime) slugThrottle.delete(k); }
   for (const [k, v] of trustScores) { if (now - v.lastUpdate > 3600000) trustScores.delete(k); }
   for (const [k, v] of pasteCache) { if (now - v.timestamp > PASTE_CACHE_TTL) pasteCache.delete(k); }
+  for (const [k, v] of ipMismatchTracker) { if (now - v.firstSeen > IP_MISMATCH_WINDOW) ipMismatchTracker.delete(k); }
 }
 
 // v9: Behavioral trust scoring
