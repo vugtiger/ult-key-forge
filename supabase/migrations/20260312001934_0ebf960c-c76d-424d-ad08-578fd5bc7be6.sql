@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS global_bans_type_value_unique ON public.global_bans (ban_type, ban_value);
