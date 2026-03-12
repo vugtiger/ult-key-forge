@@ -3852,15 +3852,19 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
     }
     if (new Date(tokenData.expires_at) < new Date()) return await respondWithFreshLoader();
     
-    // v10.1: IP binding validation — tokens can ONLY be redeemed from same IP
+    // v10.4: IP binding validation — reject but don't auto-ban on first mismatch
     if (tokenData.bound_ip && tokenData.bound_ip !== clientIp) {
       console.log(`[get-paste] PROTECTED TOKEN IP MISMATCH: bound=${tokenData.bound_ip} actual=${clientIp} slug=${slug} uid=${uid}`);
+      const isBanWorthy = shouldBanForIpMismatch(clientIp);
       logThreat('protected_token_ip_mismatch', clientIp, uid, null, {
         bound_ip: tokenData.bound_ip, actual_ip: clientIp, slug,
-        action: 'token_rejected_auto_ban',
-      }, 'critical', true);
-      autoBanNewIp(clientIp, 'token_theft_protected_paste', uid, null);
-      return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+        action: isBanWorthy ? 'token_rejected_auto_ban' : 'token_rejected_retry',
+      }, isBanWorthy ? 'critical' : 'low', isBanWorthy);
+      if (isBanWorthy) {
+        autoBanNewIp(clientIp, 'repeated_token_theft_protected', uid, null);
+        return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+      }
+      return await respondWithFreshLoader();
     }
 
     const { error: updateError } = await supabase
