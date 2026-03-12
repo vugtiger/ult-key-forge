@@ -3690,12 +3690,17 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
           .maybeSingle();
 
         if (bypassData && new Date(bypassData.expires_at) > new Date()) {
-          // v10.1: Validate IP binding on bypass token
+          // v10.4: Validate IP binding on bypass token — don't auto-ban on first mismatch
           if (bypassData.bound_ip && bypassData.bound_ip !== clientIp) {
             console.log(`[get-paste] KBT IP MISMATCH: bound=${bypassData.bound_ip} actual=${clientIp}`);
-            logThreat('kbt_ip_mismatch', clientIp, uid, null, { bound_ip: bypassData.bound_ip, slug }, 'high', true);
-            autoBanNewIp(clientIp, 'kbt_token_theft', uid, null);
-            return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+            const isBanWorthy = shouldBanForIpMismatch(clientIp);
+            logThreat('kbt_ip_mismatch', clientIp, uid, null, { bound_ip: bypassData.bound_ip, slug }, isBanWorthy ? 'high' : 'low', isBanWorthy);
+            if (isBanWorthy) {
+              autoBanNewIp(clientIp, 'repeated_kbt_token_theft', uid, null);
+              return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+            }
+            // Give fresh loader with current IP
+            return await respondWithFreshLoader();
           }
           // Mark bypass token as used
           await supabase.from('paste_execution_tokens')
