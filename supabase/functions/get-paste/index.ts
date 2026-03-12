@@ -154,6 +154,24 @@ const suspiciousIps = new Map<string, { strikes: number; lastStrike: number }>()
 // v9: Session trust scores - tracks behavioral scoring per IP
 const trustScores = new Map<string, { score: number; lastUpdate: number; requestTimes: number[] }>();
 
+// v10.4: Track IP mismatch attempts — only ban after repeated mismatches (prevents false bans on VPN/mobile users)
+const ipMismatchTracker = new Map<string, { count: number; firstSeen: number }>();
+const IP_MISMATCH_BAN_THRESHOLD = 3; // 3 mismatches within window = ban
+const IP_MISMATCH_WINDOW = 10 * 60 * 1000; // 10 minute window
+
+function shouldBanForIpMismatch(ip: string): boolean {
+  if (!ip || ip === 'unknown') return false;
+  if (isAdminIp(ip)) return false;
+  const now = Date.now();
+  const entry = ipMismatchTracker.get(ip);
+  if (!entry || (now - entry.firstSeen > IP_MISMATCH_WINDOW)) {
+    ipMismatchTracker.set(ip, { count: 1, firstSeen: now });
+    return false;
+  }
+  entry.count++;
+  return entry.count >= IP_MISMATCH_BAN_THRESHOLD;
+}
+
 // Per-IP-per-slug throttle: max 3 requests per 30 seconds for the same slug from same IP
 const slugThrottle = new Map<string, { count: number; resetTime: number }>();
 const SLUG_THROTTLE_MAX = 3;
