@@ -154,6 +154,24 @@ const suspiciousIps = new Map<string, { strikes: number; lastStrike: number }>()
 // v9: Session trust scores - tracks behavioral scoring per IP
 const trustScores = new Map<string, { score: number; lastUpdate: number; requestTimes: number[] }>();
 
+// v10.4: Track IP mismatch attempts — only ban after repeated mismatches (prevents false bans on VPN/mobile users)
+const ipMismatchTracker = new Map<string, { count: number; firstSeen: number }>();
+const IP_MISMATCH_BAN_THRESHOLD = 3; // 3 mismatches within window = ban
+const IP_MISMATCH_WINDOW = 10 * 60 * 1000; // 10 minute window
+
+function shouldBanForIpMismatch(ip: string): boolean {
+  if (!ip || ip === 'unknown') return false;
+  if (isAdminIp(ip)) return false;
+  const now = Date.now();
+  const entry = ipMismatchTracker.get(ip);
+  if (!entry || (now - entry.firstSeen > IP_MISMATCH_WINDOW)) {
+    ipMismatchTracker.set(ip, { count: 1, firstSeen: now });
+    return false;
+  }
+  entry.count++;
+  return entry.count >= IP_MISMATCH_BAN_THRESHOLD;
+}
+
 // Per-IP-per-slug throttle: max 3 requests per 30 seconds for the same slug from same IP
 const slugThrottle = new Map<string, { count: number; resetTime: number }>();
 const SLUG_THROTTLE_MAX = 3;
@@ -410,6 +428,7 @@ function cleanupMaps() {
   for (const [k, v] of slugThrottle) { if (now > v.resetTime) slugThrottle.delete(k); }
   for (const [k, v] of trustScores) { if (now - v.lastUpdate > 3600000) trustScores.delete(k); }
   for (const [k, v] of pasteCache) { if (now - v.timestamp > PASTE_CACHE_TTL) pasteCache.delete(k); }
+  for (const [k, v] of ipMismatchTracker) { if (now - v.firstSeen > IP_MISMATCH_WINDOW) ipMismatchTracker.delete(k); }
 }
 
 // v9: Behavioral trust scoring
@@ -3605,16 +3624,21 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         if (tokenError || !tokenData) return await respondWithFreshLoader();
         if (tokenData.used_at) return await respondWithFreshLoader();
         if (new Date(tokenData.expires_at) < new Date()) return await respondWithFreshLoader();
-        // v10.1: IP binding — token can ONLY be redeemed from the same IP that created it
+        // v10.4: IP binding — reject mismatched tokens but DON'T auto-ban on first occurrence
+        // Legitimate users can have IP changes (VPN, mobile network, ISP rotation) between the two requests
         if (tokenData.bound_ip && tokenData.bound_ip !== clientIp) {
           console.log(`[get-paste] TOKEN IP MISMATCH: bound=${tokenData.bound_ip} actual=${clientIp} slug=${slug}`);
+          const isBanWorthy = shouldBanForIpMismatch(clientIp);
           logThreat('token_ip_mismatch', clientIp, uid, null, {
             bound_ip: tokenData.bound_ip, actual_ip: clientIp, slug,
-            action: 'token_rejected_ip_mismatch',
-          }, 'high', true);
-          // Auto-ban this IP if they're stealing tokens
-          autoBanNewIp(clientIp, 'token_theft_ip_mismatch', uid, null);
-          return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+            action: isBanWorthy ? 'token_rejected_auto_ban' : 'token_rejected_retry',
+          }, isBanWorthy ? 'high' : 'low', isBanWorthy);
+          if (isBanWorthy) {
+            autoBanNewIp(clientIp, 'repeated_token_theft_ip_mismatch', uid, null);
+            return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+          }
+          // Not ban-worthy yet — just give them a fresh loader with their CURRENT IP
+          return await respondWithFreshLoader();
         }
         
         // Mark token as used
@@ -3667,12 +3691,17 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
           .maybeSingle();
 
         if (bypassData && new Date(bypassData.expires_at) > new Date()) {
-          // v10.1: Validate IP binding on bypass token
+          // v10.4: Validate IP binding on bypass token — don't auto-ban on first mismatch
           if (bypassData.bound_ip && bypassData.bound_ip !== clientIp) {
             console.log(`[get-paste] KBT IP MISMATCH: bound=${bypassData.bound_ip} actual=${clientIp}`);
-            logThreat('kbt_ip_mismatch', clientIp, uid, null, { bound_ip: bypassData.bound_ip, slug }, 'high', true);
-            autoBanNewIp(clientIp, 'kbt_token_theft', uid, null);
-            return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+            const isBanWorthy = shouldBanForIpMismatch(clientIp);
+            logThreat('kbt_ip_mismatch', clientIp, uid, null, { bound_ip: bypassData.bound_ip, slug }, isBanWorthy ? 'high' : 'low', isBanWorthy);
+            if (isBanWorthy) {
+              autoBanNewIp(clientIp, 'repeated_kbt_token_theft', uid, null);
+              return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+            }
+            // Give fresh loader with current IP
+            return await respondWithFreshLoader();
           }
           // Mark bypass token as used
           await supabase.from('paste_execution_tokens')
@@ -3824,15 +3853,19 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
     }
     if (new Date(tokenData.expires_at) < new Date()) return await respondWithFreshLoader();
     
-    // v10.1: IP binding validation — tokens can ONLY be redeemed from same IP
+    // v10.4: IP binding validation — reject but don't auto-ban on first mismatch
     if (tokenData.bound_ip && tokenData.bound_ip !== clientIp) {
       console.log(`[get-paste] PROTECTED TOKEN IP MISMATCH: bound=${tokenData.bound_ip} actual=${clientIp} slug=${slug} uid=${uid}`);
+      const isBanWorthy = shouldBanForIpMismatch(clientIp);
       logThreat('protected_token_ip_mismatch', clientIp, uid, null, {
         bound_ip: tokenData.bound_ip, actual_ip: clientIp, slug,
-        action: 'token_rejected_auto_ban',
-      }, 'critical', true);
-      autoBanNewIp(clientIp, 'token_theft_protected_paste', uid, null);
-      return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+        action: isBanWorthy ? 'token_rejected_auto_ban' : 'token_rejected_retry',
+      }, isBanWorthy ? 'critical' : 'low', isBanWorthy);
+      if (isBanWorthy) {
+        autoBanNewIp(clientIp, 'repeated_token_theft_protected', uid, null);
+        return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+      }
+      return await respondWithFreshLoader();
     }
 
     const { error: updateError } = await supabase
