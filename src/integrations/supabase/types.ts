@@ -636,6 +636,41 @@ export type Database = {
           },
         ]
       }
+      paste_hwid_locks: {
+        Row: {
+          created_at: string
+          hwid: string
+          id: string
+          paste_id: string
+          roblox_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hwid: string
+          id?: string
+          paste_id: string
+          roblox_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hwid?: string
+          id?: string
+          paste_id?: string
+          roblox_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paste_hwid_locks_paste_id_fkey"
+            columns: ["paste_id"]
+            isOneToOne: false
+            referencedRelation: "pastes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pastes: {
         Row: {
           anti_fetch_enabled: boolean | null
@@ -647,6 +682,7 @@ export type Database = {
           id: string
           ip_tracking_enabled: boolean
           protection_enabled: boolean
+          protection_mode: string
           public_protection: boolean | null
           show_loading_bar: boolean | null
           show_welcome_message: boolean | null
@@ -665,6 +701,7 @@ export type Database = {
           id?: string
           ip_tracking_enabled?: boolean
           protection_enabled?: boolean
+          protection_mode?: string
           public_protection?: boolean | null
           show_loading_bar?: boolean | null
           show_welcome_message?: boolean | null
@@ -683,6 +720,7 @@ export type Database = {
           id?: string
           ip_tracking_enabled?: boolean
           protection_enabled?: boolean
+          protection_mode?: string
           public_protection?: boolean | null
           show_loading_bar?: boolean | null
           show_welcome_message?: boolean | null

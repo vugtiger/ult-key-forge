@@ -1827,6 +1827,20 @@ local ${v.fingerprint} = function()
     end
   end)
   p.ex = exFp
+  -- v11: Collect HWID for hardware locking
+  local hwidStr = ""
+  ${v.hookGuard}.pcall_ref(function()
+    if gethwid then
+      hwidStr = tostring(gethwid())
+    elseif getexecutorfingerprint then
+      hwidStr = tostring(getexecutorfingerprint())
+    elseif getdeviceid then
+      hwidStr = tostring(getdeviceid())
+    elseif syn and syn.hwid then
+      hwidStr = tostring(syn.hwid())
+    end
+  end)
+  p.hwid = hwidStr
   -- v9: Runtime entropy proof
   local frameSum = 0
   for _, dt in ipairs(${v.runtimeEntropy}.frames) do
@@ -1878,7 +1892,7 @@ local tk = ${v.reconstruct}()
 ${v.memWipe}(${v.tokenParts})
 
 -- v10: Build request URL with DNA, quantum pair, and watermark
-local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&entropy=" .. (fp.entropy or "0") .. "&snonce=" .. fp.nonce .. "&dna=" .. fp.dna .. "&qt=" .. fp.qt .. "&wm=" .. fp.wm .. "&sd=" .. fp.sd .. "&mem=" .. fp.mem .. "&_=" .. tostring(tick())
+local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&hwid=" .. (fp.hwid or "") .. "&entropy=" .. (fp.entropy or "0") .. "&snonce=" .. fp.nonce .. "&dna=" .. fp.dna .. "&qt=" .. fp.qt .. "&wm=" .. fp.wm .. "&sd=" .. fp.sd .. "&mem=" .. fp.mem .. "&_=" .. tostring(tick())
 
 -- XOR Decode
 local ${v.hexBytes} = function(hex)
@@ -3101,6 +3115,8 @@ Deno.serve(async (req) => {
     const memFingerprint = url.searchParams.get('mem');
     // v10: Ghost trap report
     const ghostReport = url.searchParams.get('ghost');
+    // v11: HWID protection
+    const hwid = url.searchParams.get('hwid');
 
     // Check if this Roblox user ID is globally banned — auto-ban the IP too
     if (uid && isRobloxIdBanned(uid)) {
@@ -3920,6 +3936,30 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         });
       }
 
+      // v11: HWID verification for public protection pastes
+      const pubProtMode = paste.protection_mode || 'whitelist';
+      if (pubProtMode === 'hwid' || pubProtMode === 'both') {
+        if (hwid && hwid.length >= 4) {
+          const { data: existingLock } = await supabase
+            .from('paste_hwid_locks')
+            .select('*')
+            .eq('paste_id', paste.id)
+            .eq('roblox_user_id', uid)
+            .maybeSingle();
+
+          if (existingLock) {
+            if (existingLock.hwid !== hwid) {
+              return new Response(generateKickEncrypted('HWID mismatch - locked to another device', slug, tk, uid), {
+                status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+              });
+            }
+            await supabase.from('paste_hwid_locks').update({ updated_at: new Date().toISOString() }).eq('id', existingLock.id);
+          } else {
+            await supabase.from('paste_hwid_locks').insert({ paste_id: paste.id, roblox_user_id: uid, hwid }).catch(() => {});
+          }
+        }
+      }
+
       await logAccess(uid, 'execution', true);
       await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
       console.log(`Public protection access granted: ${uid} for paste: ${paste.id}`);
@@ -3970,6 +4010,61 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       return new Response(generateKickEncrypted('Your whitelist time has expired', slug, tk, uid), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
+    }
+
+    // ===== v11: HWID VERIFICATION =====
+    const protectionMode = paste.protection_mode || 'whitelist';
+    if (protectionMode === 'hwid' || protectionMode === 'both') {
+      if (!hwid || hwid.length < 4) {
+        // No HWID sent — executor doesn't support gethwid()
+        console.log(`[get-paste] HWID_MISSING: uid=${uid} slug=${slug} mode=${protectionMode}`);
+        return new Response(generateKickEncrypted('Your executor does not support HWID locking. Please use an executor with gethwid() support.', slug, tk, uid), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+
+      // Check existing HWID lock
+      const { data: existingLock } = await supabase
+        .from('paste_hwid_locks')
+        .select('*')
+        .eq('paste_id', paste.id)
+        .eq('roblox_user_id', uid)
+        .maybeSingle();
+
+      if (existingLock) {
+        // HWID lock exists — verify it matches
+        if (existingLock.hwid !== hwid) {
+          console.log(`[get-paste] HWID_MISMATCH: uid=${uid} expected=${existingLock.hwid.substring(0,8)}... got=${hwid.substring(0,8)}... slug=${slug}`);
+          logThreat('hwid_mismatch', clientIp, uid, null, {
+            expected_hwid: existingLock.hwid.substring(0, 16),
+            actual_hwid: hwid.substring(0, 16),
+            slug,
+          }, 'high', false);
+          return new Response(generateKickEncrypted('HWID mismatch - this script is locked to another device. Contact the script owner to reset your HWID.', slug, tk, uid), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          });
+        }
+        // HWID matches — update last seen
+        await supabase.from('paste_hwid_locks')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', existingLock.id);
+        console.log(`[get-paste] HWID_VALID: uid=${uid} hwid=${hwid.substring(0,8)}... slug=${slug}`);
+      } else {
+        // No lock yet — create one (first execution binds HWID)
+        const { error: insertError } = await supabase
+          .from('paste_hwid_locks')
+          .insert({
+            paste_id: paste.id,
+            roblox_user_id: uid,
+            hwid: hwid,
+          });
+        if (insertError) {
+          console.error(`[get-paste] HWID_INSERT_ERROR:`, insertError);
+          // Don't block execution on insert failure
+        } else {
+          console.log(`[get-paste] HWID_LOCKED: uid=${uid} hwid=${hwid.substring(0,8)}... slug=${slug} (first execution)`);
+        }
+      }
     }
 
     await logAccess(uid, 'execution', true);

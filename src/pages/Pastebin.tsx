@@ -13,7 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe, EyeOff, Terminal, Hand, ShieldBan, Key } from "lucide-react";
+import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe, EyeOff, Terminal, Hand, ShieldBan, Key, Fingerprint } from "lucide-react";
+import HWIDManager from "@/components/HWIDManager";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
 import CloudLogo from "@/components/CloudLogo";
 
@@ -30,6 +31,7 @@ interface Paste {
   show_loading_bar?: boolean;
   show_welcome_message?: boolean;
   anti_fetch_enabled?: boolean;
+  protection_mode?: string;
 }
 
 interface AccessEntry {
@@ -532,7 +534,7 @@ const Pastebin = () => {
 
             {selectedPaste && (
               <Tabs defaultValue="access" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="access">Access Control</TabsTrigger>
                   <TabsTrigger value="options">
                     <Shield className="h-4 w-4 mr-1" />
@@ -541,6 +543,10 @@ const Pastebin = () => {
                   <TabsTrigger value="time">
                     <Clock className="h-4 w-4 mr-1" />
                     Whitelist Time
+                  </TabsTrigger>
+                  <TabsTrigger value="hwid">
+                    <Fingerprint className="h-4 w-4 mr-1" />
+                    HWID
                   </TabsTrigger>
                 </TabsList>
 
@@ -806,6 +812,73 @@ const Pastebin = () => {
                     pasteId={selectedPasteId} 
                     onUpdate={() => fetchAccessEntries(selectedPasteId)} 
                   />
+                </TabsContent>
+
+                <TabsContent value="hwid" className="space-y-4">
+                  {/* Protection Mode Selector */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Fingerprint className="h-5 w-5 text-primary" />
+                      <div>
+                        <h4 className="font-medium">Protection Mode</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Choose how users are verified before executing your script
+                        </p>
+                      </div>
+                    </div>
+                    <Select 
+                      value={(selectedPaste as any)?.protection_mode || 'whitelist'} 
+                      onValueChange={async (value) => {
+                        try {
+                          const { error } = await supabase
+                            .from('pastes')
+                            .update({ protection_mode: value } as any)
+                            .eq('id', selectedPaste!.id);
+                          if (error) throw error;
+                          toast({ 
+                            title: "Protection Mode Updated",
+                            description: value === 'whitelist' ? 'Using User ID whitelist only' 
+                              : value === 'hwid' ? 'Using HWID locking (auto-binds on first run)' 
+                              : 'Using both User ID whitelist + HWID locking'
+                          });
+                          fetchPastes();
+                        } catch (error: any) {
+                          toast({ title: "Error", description: error.message, variant: "destructive" });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="bg-background/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="whitelist">
+                          User ID Whitelist Only
+                        </SelectItem>
+                        <SelectItem value="hwid">
+                          HWID Lock (binds to device on first run)
+                        </SelectItem>
+                        <SelectItem value="both">
+                          Whitelist + HWID Lock (both required)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded space-y-1">
+                      <p><strong>User ID Whitelist:</strong> Only whitelisted Roblox User IDs can execute.</p>
+                      <p><strong>HWID Lock:</strong> Each whitelisted user's hardware is locked on first execution. Only that device can run the script.</p>
+                      <p><strong>Both:</strong> User must be whitelisted AND running from their locked device.</p>
+                    </div>
+                  </div>
+
+                  {/* HWID Manager */}
+                  {((selectedPaste as any)?.protection_mode === 'hwid' || (selectedPaste as any)?.protection_mode === 'both') && (
+                    <HWIDManager pasteId={selectedPasteId} />
+                  )}
+
+                  {(selectedPaste as any)?.protection_mode === 'whitelist' && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Switch to "HWID Lock" or "Both" mode to enable hardware-based protection.
+                    </p>
+                  )}
                 </TabsContent>
               </Tabs>
             )}
