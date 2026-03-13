@@ -3101,6 +3101,8 @@ Deno.serve(async (req) => {
     const memFingerprint = url.searchParams.get('mem');
     // v10: Ghost trap report
     const ghostReport = url.searchParams.get('ghost');
+    // v11: HWID protection
+    const hwid = url.searchParams.get('hwid');
 
     // Check if this Roblox user ID is globally banned — auto-ban the IP too
     if (uid && isRobloxIdBanned(uid)) {
