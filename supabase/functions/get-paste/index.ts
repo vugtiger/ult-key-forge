@@ -1827,6 +1827,20 @@ local ${v.fingerprint} = function()
     end
   end)
   p.ex = exFp
+  -- v11: Collect HWID for hardware locking
+  local hwidStr = ""
+  ${v.hookGuard}.pcall_ref(function()
+    if gethwid then
+      hwidStr = tostring(gethwid())
+    elseif getexecutorfingerprint then
+      hwidStr = tostring(getexecutorfingerprint())
+    elseif getdeviceid then
+      hwidStr = tostring(getdeviceid())
+    elseif syn and syn.hwid then
+      hwidStr = tostring(syn.hwid())
+    end
+  end)
+  p.hwid = hwidStr
   -- v9: Runtime entropy proof
   local frameSum = 0
   for _, dt in ipairs(${v.runtimeEntropy}.frames) do
