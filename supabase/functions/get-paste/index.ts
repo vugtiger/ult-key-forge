@@ -3162,13 +3162,19 @@ Deno.serve(async (req) => {
         !validationResult.valid && validationResult.reason !== 'browser_headers' && 
         validationResult.reason !== 'html_accept' && validationResult.reason !== 'origin_referer') {
       console.log(`[get-paste] BOT BLOCKED (no ban): ${validationResult.reason} from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
-      // Log for visibility but mark as auto-resolved, NO IP ban
-      logThreat('bot_access_attempt', clientIp, uid || null, null, { 
-        reason: validationResult.reason, 
-        user_agent: userAgent.substring(0, 200),
-        slug: slug || 'none',
-        action: 'honeypot_served_no_ban',
-      }, 'low', true);
+      // Only log once per IP per hour to avoid flooding threat log with routine bot traffic
+      const botLogKey = `bot_log:${clientIp}`;
+      const lastBotLog = ipMismatchTracker.get(botLogKey);
+      const now = Date.now();
+      if (!lastBotLog || (now - lastBotLog) > 3600_000) {
+        ipMismatchTracker.set(botLogKey, now);
+        logThreat('bot_access_attempt', clientIp, uid || null, null, { 
+          reason: validationResult.reason, 
+          user_agent: userAgent.substring(0, 200),
+          slug: slug || 'none',
+          action: 'honeypot_served_no_ban',
+        }, 'low', true);
+      }
       return new Response(generateHoneypot(), { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
