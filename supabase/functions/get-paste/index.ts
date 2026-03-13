@@ -3936,6 +3936,30 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         });
       }
 
+      // v11: HWID verification for public protection pastes
+      const pubProtMode = paste.protection_mode || 'whitelist';
+      if (pubProtMode === 'hwid' || pubProtMode === 'both') {
+        if (hwid && hwid.length >= 4) {
+          const { data: existingLock } = await supabase
+            .from('paste_hwid_locks')
+            .select('*')
+            .eq('paste_id', paste.id)
+            .eq('roblox_user_id', uid)
+            .maybeSingle();
+
+          if (existingLock) {
+            if (existingLock.hwid !== hwid) {
+              return new Response(generateKickEncrypted('HWID mismatch - locked to another device', slug, tk, uid), {
+                status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+              });
+            }
+            await supabase.from('paste_hwid_locks').update({ updated_at: new Date().toISOString() }).eq('id', existingLock.id);
+          } else {
+            await supabase.from('paste_hwid_locks').insert({ paste_id: paste.id, roblox_user_id: uid, hwid }).catch(() => {});
+          }
+        }
+      }
+
       await logAccess(uid, 'execution', true);
       await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
       console.log(`Public protection access granted: ${uid} for paste: ${paste.id}`);
