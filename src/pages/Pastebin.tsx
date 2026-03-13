@@ -31,6 +31,7 @@ interface Paste {
   show_loading_bar?: boolean;
   show_welcome_message?: boolean;
   anti_fetch_enabled?: boolean;
+  protection_mode?: string;
 }
 
 interface AccessEntry {
