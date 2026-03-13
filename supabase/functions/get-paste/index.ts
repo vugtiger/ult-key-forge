@@ -1892,7 +1892,7 @@ local tk = ${v.reconstruct}()
 ${v.memWipe}(${v.tokenParts})
 
 -- v10: Build request URL with DNA, quantum pair, and watermark
-local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&entropy=" .. (fp.entropy or "0") .. "&snonce=" .. fp.nonce .. "&dna=" .. fp.dna .. "&qt=" .. fp.qt .. "&wm=" .. fp.wm .. "&sd=" .. fp.sd .. "&mem=" .. fp.mem .. "&_=" .. tostring(tick())
+local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&hwid=" .. (fp.hwid or "") .. "&entropy=" .. (fp.entropy or "0") .. "&snonce=" .. fp.nonce .. "&dna=" .. fp.dna .. "&qt=" .. fp.qt .. "&wm=" .. fp.wm .. "&sd=" .. fp.sd .. "&mem=" .. fp.mem .. "&_=" .. tostring(tick())
 
 -- XOR Decode
 local ${v.hexBytes} = function(hex)
