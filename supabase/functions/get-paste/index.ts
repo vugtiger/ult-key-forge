@@ -4190,9 +4190,8 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       fireWebhookAlert(paste, uid, clientIp, hwid, 'execution');
 
       let pubContent = paste.content;
-      if (paste.obfuscation_on_delivery) {
-        pubContent = applyDeliveryObfuscation(pubContent);
-      }
+      if (paste.crash_detection_enabled) pubContent = wrapWithCrashDetection(pubContent);
+      if (paste.obfuscation_on_delivery) pubContent = applyDeliveryObfuscation(pubContent);
 
       const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
       
