@@ -4067,14 +4067,27 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       }
     }
 
+    // ===== v12: NEW PROTECTION CHECKS =====
+    const v12Result = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
+    if (v12Result) return v12Result;
+
     await logAccess(uid, 'execution', true);
     await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
     console.log(`Access granted: ${uid} for paste: ${paste.id}`);
 
+    // v12: Send webhook alert if enabled
+    fireWebhookAlert(paste, uid, clientIp, hwid, 'execution');
+
+    let finalContent = paste.content;
+    // v12: Re-obfuscation on delivery
+    if (paste.obfuscation_on_delivery) {
+      finalContent = applyDeliveryObfuscation(finalContent);
+    }
+
     const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
     
     // v10.2: Chunked encryption (anti-loadstring-hook)
-    return new Response(chunkEncrypt(paste.content, key), {
+    return new Response(chunkEncrypt(finalContent, key), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
     });
 
