@@ -3522,7 +3522,17 @@ Deno.serve(async (req) => {
       return new Response('warn("[ULT] Paste not found")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
-    console.log(
+    // ===== v12: GEO-BLOCKING =====
+    if (paste.geo_blocking_enabled && paste.geo_blocked_countries && paste.geo_blocked_countries.length > 0) {
+      const country = getCountryFromHeaders(req.headers);
+      if (country && paste.geo_blocked_countries.includes(country)) {
+        console.log(`[v12] GEO_BLOCKED: country=${country} slug=${slug} ip=${clientIp}`);
+        return new Response(generateKickPlain('This script is not available in your region'), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+    }
+
       `[get-paste] slug=${slug} uid=${uid ?? ''} hasTk=${Boolean(tk)} hasKey=${Boolean(keyParam)} ip=${clientIp} ` +
       `robloxUA=${isRobloxRequest} browser=${isLikelyBrowser} hide=${Boolean(paste.hide_code)} ` +
       `prot=${Boolean(paste.protection_enabled)} pub=${Boolean(paste.public_protection)}`
