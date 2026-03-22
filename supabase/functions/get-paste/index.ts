@@ -3960,14 +3960,25 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         }
       }
 
+      // ===== v12: NEW PROTECTION CHECKS (public protection path) =====
+      const v12PubResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
+      if (v12PubResult) return v12PubResult;
+
       await logAccess(uid, 'execution', true);
       await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
       console.log(`Public protection access granted: ${uid} for paste: ${paste.id}`);
       
+      fireWebhookAlert(paste, uid, clientIp, hwid, 'execution');
+
+      let pubContent = paste.content;
+      if (paste.obfuscation_on_delivery) {
+        pubContent = applyDeliveryObfuscation(pubContent);
+      }
+
       const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
       
       // v10.2: Chunked encryption (anti-loadstring-hook)
-      return new Response(chunkEncrypt(paste.content, key), { status: 200, headers: textHeaders });
+      return new Response(chunkEncrypt(pubContent, key), { status: 200, headers: textHeaders });
     }
 
     const { data: accessList } = await supabase
