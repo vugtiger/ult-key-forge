@@ -534,15 +534,20 @@ const Pastebin = () => {
 
             {selectedPaste && (
               <Tabs defaultValue="access" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="access">Access Control</TabsTrigger>
                   <TabsTrigger value="options">
                     <Shield className="h-4 w-4 mr-1" />
                     Options
                   </TabsTrigger>
+                  <TabsTrigger value="advanced">
+                    <Zap className="h-4 w-4 mr-1" />
+                    Advanced
+                    <Badge variant="outline" className="text-[8px] ml-1 px-1">NEW</Badge>
+                  </TabsTrigger>
                   <TabsTrigger value="time">
                     <Clock className="h-4 w-4 mr-1" />
-                    Whitelist Time
+                    Time
                   </TabsTrigger>
                   <TabsTrigger value="hwid">
                     <Fingerprint className="h-4 w-4 mr-1" />
