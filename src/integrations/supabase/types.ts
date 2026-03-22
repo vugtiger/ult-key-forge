@@ -534,6 +534,41 @@ export type Database = {
           },
         ]
       }
+      paste_execution_counts: {
+        Row: {
+          count: number | null
+          created_at: string | null
+          id: string
+          paste_id: string
+          roblox_user_id: string
+          window_start: string | null
+        }
+        Insert: {
+          count?: number | null
+          created_at?: string | null
+          id?: string
+          paste_id: string
+          roblox_user_id: string
+          window_start?: string | null
+        }
+        Update: {
+          count?: number | null
+          created_at?: string | null
+          id?: string
+          paste_id?: string
+          roblox_user_id?: string
+          window_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paste_execution_counts_paste_id_fkey"
+            columns: ["paste_id"]
+            isOneToOne: false
+            referencedRelation: "pastes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       paste_execution_tokens: {
         Row: {
           bound_ip: string | null
@@ -671,63 +706,134 @@ export type Database = {
           },
         ]
       }
+      paste_multi_account_flags: {
+        Row: {
+          flagged_at: string | null
+          hwid: string
+          id: string
+          is_blocked: boolean | null
+          paste_id: string
+          roblox_user_ids: string[] | null
+        }
+        Insert: {
+          flagged_at?: string | null
+          hwid: string
+          id?: string
+          is_blocked?: boolean | null
+          paste_id: string
+          roblox_user_ids?: string[] | null
+        }
+        Update: {
+          flagged_at?: string | null
+          hwid?: string
+          id?: string
+          is_blocked?: boolean | null
+          paste_id?: string
+          roblox_user_ids?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paste_multi_account_flags_paste_id_fkey"
+            columns: ["paste_id"]
+            isOneToOne: false
+            referencedRelation: "pastes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pastes: {
         Row: {
           anti_fetch_enabled: boolean | null
           background_protection: boolean | null
           content: string
+          crash_detection_enabled: boolean | null
           created_at: string
+          execution_limit_enabled: boolean | null
+          execution_limit_per_user: number | null
+          execution_limit_window: string | null
           game_restriction_enabled: boolean | null
+          geo_blocked_countries: string[] | null
+          geo_blocking_enabled: boolean | null
           hide_code: boolean | null
           id: string
           ip_tracking_enabled: boolean
+          multi_account_detection: boolean | null
+          obfuscation_on_delivery: boolean | null
           protection_enabled: boolean
           protection_mode: string
           public_protection: boolean | null
           show_loading_bar: boolean | null
           show_welcome_message: boolean | null
           slug: string
+          time_bomb_enabled: boolean | null
+          time_bomb_expires_at: string | null
           title: string | null
           updated_at: string
           user_id: string
+          webhook_alerts_enabled: boolean | null
+          webhook_url: string | null
         }
         Insert: {
           anti_fetch_enabled?: boolean | null
           background_protection?: boolean | null
           content: string
+          crash_detection_enabled?: boolean | null
           created_at?: string
+          execution_limit_enabled?: boolean | null
+          execution_limit_per_user?: number | null
+          execution_limit_window?: string | null
           game_restriction_enabled?: boolean | null
+          geo_blocked_countries?: string[] | null
+          geo_blocking_enabled?: boolean | null
           hide_code?: boolean | null
           id?: string
           ip_tracking_enabled?: boolean
+          multi_account_detection?: boolean | null
+          obfuscation_on_delivery?: boolean | null
           protection_enabled?: boolean
           protection_mode?: string
           public_protection?: boolean | null
           show_loading_bar?: boolean | null
           show_welcome_message?: boolean | null
           slug: string
+          time_bomb_enabled?: boolean | null
+          time_bomb_expires_at?: string | null
           title?: string | null
           updated_at?: string
           user_id: string
+          webhook_alerts_enabled?: boolean | null
+          webhook_url?: string | null
         }
         Update: {
           anti_fetch_enabled?: boolean | null
           background_protection?: boolean | null
           content?: string
+          crash_detection_enabled?: boolean | null
           created_at?: string
+          execution_limit_enabled?: boolean | null
+          execution_limit_per_user?: number | null
+          execution_limit_window?: string | null
           game_restriction_enabled?: boolean | null
+          geo_blocked_countries?: string[] | null
+          geo_blocking_enabled?: boolean | null
           hide_code?: boolean | null
           id?: string
           ip_tracking_enabled?: boolean
+          multi_account_detection?: boolean | null
+          obfuscation_on_delivery?: boolean | null
           protection_enabled?: boolean
           protection_mode?: string
           public_protection?: boolean | null
           show_loading_bar?: boolean | null
           show_welcome_message?: boolean | null
           slug?: string
+          time_bomb_enabled?: boolean | null
+          time_bomb_expires_at?: string | null
           title?: string | null
           updated_at?: string
           user_id?: string
+          webhook_alerts_enabled?: boolean | null
+          webhook_url?: string | null
         }
         Relationships: []
       }
