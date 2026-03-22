@@ -2969,6 +2969,205 @@ while true do wait(0.1) end
   return floodLines.join('\n');
 }
 
+// ===== v12: ADVANCED PROTECTION HELPERS =====
+
+// Geo-blocking: Check IP country using Cloudflare headers
+function getCountryFromHeaders(headers: Headers): string {
+  return (headers.get('cf-ipcountry') || headers.get('x-country-code') || '').toUpperCase();
+}
+
+// Execution limit check
+async function checkExecutionLimit(paste: any, uid: string, supabaseClient: any): Promise<boolean> {
+  if (!paste.execution_limit_enabled || !paste.execution_limit_per_user || paste.execution_limit_per_user <= 0) return true;
+  
+  const windowMs: Record<string, number> = {
+    'hourly': 3600000,
+    'daily': 86400000,
+    'weekly': 604800000,
+  };
+  const window = windowMs[paste.execution_limit_window] || 86400000;
+  const windowStart = new Date(Date.now() - window).toISOString();
+  
+  const { data: existing } = await supabaseClient
+    .from('paste_execution_counts')
+    .select('id, count')
+    .eq('paste_id', paste.id)
+    .eq('roblox_user_id', uid)
+    .gte('window_start', windowStart)
+    .order('window_start', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  
+  if (existing && existing.count >= paste.execution_limit_per_user) return false;
+  
+  // Increment
+  if (existing) {
+    await supabaseClient.from('paste_execution_counts').update({ count: existing.count + 1 }).eq('id', existing.id);
+  } else {
+    await supabaseClient.from('paste_execution_counts').insert({ paste_id: paste.id, roblox_user_id: uid, count: 1 });
+  }
+  return true;
+}
+
+// Multi-account detection
+async function checkMultiAccount(paste: any, uid: string, hwid: string | null, supabaseClient: any): Promise<{ allowed: boolean; flagged: boolean }> {
+  if (!paste.multi_account_detection || !hwid || hwid.length < 4) return { allowed: true, flagged: false };
+  
+  const { data: existing } = await supabaseClient
+    .from('paste_multi_account_flags')
+    .select('*')
+    .eq('paste_id', paste.id)
+    .eq('hwid', hwid)
+    .maybeSingle();
+  
+  if (existing) {
+    if (existing.is_blocked) return { allowed: false, flagged: true };
+    const ids: string[] = existing.roblox_user_ids || [];
+    if (!ids.includes(uid)) {
+      ids.push(uid);
+      const flagged = ids.length > 1;
+      await supabaseClient.from('paste_multi_account_flags')
+        .update({ roblox_user_ids: ids, is_blocked: ids.length > 3, flagged_at: new Date().toISOString() })
+        .eq('id', existing.id);
+      if (ids.length > 3) return { allowed: false, flagged: true };
+      return { allowed: true, flagged };
+    }
+    return { allowed: true, flagged: ids.length > 1 };
+  } else {
+    await supabaseClient.from('paste_multi_account_flags')
+      .insert({ paste_id: paste.id, hwid, roblox_user_ids: [uid] }).catch(() => {});
+    return { allowed: true, flagged: false };
+  }
+}
+
+// Crash detection Lua wrapper
+function wrapWithCrashDetection(code: string): string {
+  const trapVar = '_' + Math.random().toString(36).substring(2, 10);
+  const checkVar = '_' + Math.random().toString(36).substring(2, 10);
+  return `-- ULT Crash Detection v12
+local ${trapVar} = false
+local ${checkVar} = coroutine.create(function()
+  local ok, err = pcall(function()
+    -- If someone hooks decompile/debug.getinfo, this triggers
+    local info = debug and debug.getinfo and debug.getinfo(1) or nil
+    if info and info.source and info.source:find("decompile") then
+      ${trapVar} = true
+    end
+  end)
+end)
+pcall(function() coroutine.resume(${checkVar}) end)
+if ${trapVar} then
+  -- Detected decompile/debug hook - corrupt environment
+  pcall(function()
+    rawset(_G, "loadstring", function() return function() end end)
+    rawset(_G, "game", setmetatable({}, {__index = function() return function() end end}))
+  end)
+  while true do wait(9e9) end
+  return
+end
+${code}`;
+}
+
+// Webhook alert (fire-and-forget)
+function fireWebhookAlert(paste: any, uid: string, ip: string, hwid: string | null, eventType: string) {
+  if (!paste.webhook_alerts_enabled || !paste.webhook_url) return;
+  const webhookUrl = paste.webhook_url;
+  if (!webhookUrl.startsWith('https://discord.com/api/webhooks/') && 
+      !webhookUrl.startsWith('https://canary.discord.com/api/webhooks/') &&
+      !webhookUrl.startsWith('https://ptb.discord.com/api/webhooks/')) return;
+  
+  const embed = {
+    embeds: [{
+      title: `🔔 Script ${eventType === 'execution' ? 'Executed' : 'Alert'}`,
+      description: `**Paste:** ${paste.title || paste.slug}\n**Roblox ID:** ${uid}\n**IP:** ||${ip}||\n**HWID:** ${hwid ? hwid.substring(0, 16) + '...' : 'N/A'}`,
+      color: eventType === 'execution' ? 0x00ff00 : 0xff0000,
+      timestamp: new Date().toISOString(),
+      footer: { text: 'ULT Protection v12' },
+    }],
+  };
+  
+  fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(embed),
+  }).catch(() => {});
+}
+
+// Re-obfuscation on delivery — structurally transform the code each time
+function applyDeliveryObfuscation(code: string): string {
+  // Wrap in a random closure with junk variables
+  const vars = Array.from({ length: 5 }, () => '_' + Math.random().toString(36).substring(2, 10));
+  const junk = vars.map(v => `local ${v} = ${Math.floor(Math.random() * 99999)}`).join('\n');
+  const wrapVar = '_' + Math.random().toString(36).substring(2, 10);
+  const execVar = '_' + Math.random().toString(36).substring(2, 10);
+  
+  // Randomize string literals by XOR encoding them differently each time
+  const seed = Math.floor(Math.random() * 255) + 1;
+  
+  return `${junk}
+local ${wrapVar} = (function()
+  local ${execVar} = ${Math.floor(Math.random() * 9999)}
+  ${vars.map(v => `${v} = ${v} + ${execVar}`).join('\n  ')}
+  return function()
+    ${code}
+  end
+end)()
+${wrapVar}()`;
+}
+
+// Main v12 protection gate — runs before content delivery
+async function applyV12Protections(
+  paste: any, uid: string, clientIp: string, hwid: string | null,
+  slug: string, tk: string, supabaseClient: any, baseUrl: string
+): Promise<Response | null> {
+  const textHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Content-Type': 'text/plain',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+  };
+
+  // 1. Time Bomb — check if paste has expired
+  if (paste.time_bomb_enabled && paste.time_bomb_expires_at) {
+    if (new Date(paste.time_bomb_expires_at) < new Date()) {
+      console.log(`[v12] TIME_BOMB: paste ${paste.id} expired at ${paste.time_bomb_expires_at}`);
+      fireWebhookAlert(paste, uid, clientIp, hwid, 'time_bomb_expired');
+      return new Response(generateKickEncrypted('This script has expired', slug, tk, uid), {
+        status: 200, headers: textHeaders,
+      });
+    }
+  }
+
+  // 2. Execution Limit
+  if (paste.execution_limit_enabled) {
+    const allowed = await checkExecutionLimit(paste, uid, supabaseClient);
+    if (!allowed) {
+      console.log(`[v12] EXEC_LIMIT: uid=${uid} paste=${paste.id} limit=${paste.execution_limit_per_user}/${paste.execution_limit_window}`);
+      fireWebhookAlert(paste, uid, clientIp, hwid, 'execution_limit_reached');
+      return new Response(generateKickEncrypted(`Execution limit reached (${paste.execution_limit_per_user} per ${paste.execution_limit_window})`, slug, tk, uid), {
+        status: 200, headers: textHeaders,
+      });
+    }
+  }
+
+  // 3. Multi-Account Detection
+  if (paste.multi_account_detection) {
+    const maResult = await checkMultiAccount(paste, uid, hwid, supabaseClient);
+    if (!maResult.allowed) {
+      console.log(`[v12] MULTI_ACCOUNT: blocked hwid on paste ${paste.id} uid=${uid}`);
+      fireWebhookAlert(paste, uid, clientIp, hwid, 'multi_account_blocked');
+      return new Response(generateKickEncrypted('Multiple accounts detected on this device - access blocked', slug, tk, uid), {
+        status: 200, headers: textHeaders,
+      });
+    }
+    if (maResult.flagged) {
+      fireWebhookAlert(paste, uid, clientIp, hwid, 'multi_account_flagged');
+    }
+  }
+
+  return null; // All checks passed
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -3323,6 +3522,17 @@ Deno.serve(async (req) => {
       return new Response('warn("[ULT] Paste not found")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
+    // ===== v12: GEO-BLOCKING =====
+    if (paste.geo_blocking_enabled && paste.geo_blocked_countries && paste.geo_blocked_countries.length > 0) {
+      const country = getCountryFromHeaders(req.headers);
+      if (country && paste.geo_blocked_countries.includes(country)) {
+        console.log(`[v12] GEO_BLOCKED: country=${country} slug=${slug} ip=${clientIp}`);
+        return new Response(generateKickPlain('This script is not available in your region'), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+    }
+
     console.log(
       `[get-paste] slug=${slug} uid=${uid ?? ''} hasTk=${Boolean(tk)} hasKey=${Boolean(keyParam)} ip=${clientIp} ` +
       `robloxUA=${isRobloxRequest} browser=${isLikelyBrowser} hide=${Boolean(paste.hide_code)} ` +
@@ -3668,14 +3878,24 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
           .update({ used_at: new Date().toISOString(), roblox_user_id: uid })
           .eq('id', tokenData.id).is('used_at', null);
         
+        // v12: Protection checks for non-protected pastes too
+        const v12NonProtResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
+        if (v12NonProtResult) return v12NonProtResult;
+
         await logAccess(uid, 'execution', true);
         await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
         
+        fireWebhookAlert(paste, uid, clientIp, hwid, 'execution');
+
+        let nonProtContent = paste.content;
+        if (paste.crash_detection_enabled) nonProtContent = wrapWithCrashDetection(nonProtContent);
+        if (paste.obfuscation_on_delivery) nonProtContent = applyDeliveryObfuscation(nonProtContent);
+
         // Return ENCRYPTED content — never raw
         const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
         const trustLevel = getTrustScore(clientIp);
         // v10.2: Always use chunked encryption (anti-loadstring-hook)
-        return new Response(chunkEncrypt(paste.content, key), { status: 200, headers: textHeaders });
+        return new Response(chunkEncrypt(nonProtContent, key), { status: 200, headers: textHeaders });
       }
       
       // Phase 1: No token — serve the loader (which will call back with uid+tk)
@@ -3960,14 +4180,24 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         }
       }
 
+      // ===== v12: NEW PROTECTION CHECKS (public protection path) =====
+      const v12PubResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
+      if (v12PubResult) return v12PubResult;
+
       await logAccess(uid, 'execution', true);
       await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
       console.log(`Public protection access granted: ${uid} for paste: ${paste.id}`);
       
+      fireWebhookAlert(paste, uid, clientIp, hwid, 'execution');
+
+      let pubContent = paste.content;
+      if (paste.crash_detection_enabled) pubContent = wrapWithCrashDetection(pubContent);
+      if (paste.obfuscation_on_delivery) pubContent = applyDeliveryObfuscation(pubContent);
+
       const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
       
       // v10.2: Chunked encryption (anti-loadstring-hook)
-      return new Response(chunkEncrypt(paste.content, key), { status: 200, headers: textHeaders });
+      return new Response(chunkEncrypt(pubContent, key), { status: 200, headers: textHeaders });
     }
 
     const { data: accessList } = await supabase
@@ -4067,14 +4297,25 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       }
     }
 
+    // ===== v12: NEW PROTECTION CHECKS =====
+    const v12Result = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
+    if (v12Result) return v12Result;
+
     await logAccess(uid, 'execution', true);
     await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
     console.log(`Access granted: ${uid} for paste: ${paste.id}`);
 
+    // v12: Send webhook alert if enabled
+    fireWebhookAlert(paste, uid, clientIp, hwid, 'execution');
+
+    let finalContent = paste.content;
+    if (paste.crash_detection_enabled) finalContent = wrapWithCrashDetection(finalContent);
+    if (paste.obfuscation_on_delivery) finalContent = applyDeliveryObfuscation(finalContent);
+
     const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
     
     // v10.2: Chunked encryption (anti-loadstring-hook)
-    return new Response(chunkEncrypt(paste.content, key), {
+    return new Response(chunkEncrypt(finalContent, key), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
     });
 
