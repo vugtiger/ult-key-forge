@@ -812,7 +812,286 @@ const Pastebin = () => {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="time">
+                <TabsContent value="advanced" className="space-y-4">
+                  {/* 1. Execution Limit */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Zap className="h-5 w-5 text-primary" />
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2">
+                            Execution Limit
+                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Cap how many times a user can run per day/hour
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={(selectedPaste as any)?.execution_limit_enabled || false}
+                        onCheckedChange={async (checked) => {
+                          await supabase.from('pastes').update({ execution_limit_enabled: checked } as any).eq('id', selectedPaste!.id);
+                          fetchPastes();
+                        }}
+                      />
+                    </div>
+                    {(selectedPaste as any)?.execution_limit_enabled && (
+                      <div className="flex gap-2 items-end">
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-xs">Max executions</Label>
+                          <Input type="number" min="1" max="1000" 
+                            defaultValue={(selectedPaste as any)?.execution_limit_per_user || 10}
+                            onBlur={async (e) => {
+                              await supabase.from('pastes').update({ execution_limit_per_user: parseInt(e.target.value) || 10 } as any).eq('id', selectedPaste!.id);
+                              fetchPastes();
+                            }}
+                            className="bg-background/50"
+                          />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-xs">Per window</Label>
+                          <Select defaultValue={(selectedPaste as any)?.execution_limit_window || 'daily'}
+                            onValueChange={async (v) => {
+                              await supabase.from('pastes').update({ execution_limit_window: v } as any).eq('id', selectedPaste!.id);
+                              fetchPastes();
+                            }}>
+                            <SelectTrigger className="bg-background/50"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="hourly">Hourly</SelectItem>
+                              <SelectItem value="daily">Daily</SelectItem>
+                              <SelectItem value="weekly">Weekly</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. Crash Detection */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Bug className="h-5 w-5 text-primary" />
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2">
+                            Crash Detection
+                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Self-destructs if someone decompiles or hooks loadstring
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={(selectedPaste as any)?.crash_detection_enabled || false}
+                        onCheckedChange={async (checked) => {
+                          await supabase.from('pastes').update({ crash_detection_enabled: checked } as any).eq('id', selectedPaste!.id);
+                          fetchPastes();
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                      Injects anti-decompile traps that corrupt the execution environment if someone tries to 
+                      reverse-engineer or step through your code with a debugger.
+                    </p>
+                  </div>
+
+                  {/* 3. Geo-Blocking */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <MapPin className="h-5 w-5 text-primary" />
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2">
+                            Geo-Blocking
+                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Block execution from specific countries
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={(selectedPaste as any)?.geo_blocking_enabled || false}
+                        onCheckedChange={async (checked) => {
+                          await supabase.from('pastes').update({ geo_blocking_enabled: checked } as any).eq('id', selectedPaste!.id);
+                          fetchPastes();
+                        }}
+                      />
+                    </div>
+                    {(selectedPaste as any)?.geo_blocking_enabled && (
+                      <div className="space-y-2">
+                        <Label className="text-xs">Blocked country codes (comma separated, e.g. RU,CN,IR)</Label>
+                        <Input
+                          defaultValue={((selectedPaste as any)?.geo_blocked_countries || []).join(',')}
+                          placeholder="RU,CN,IR,KP"
+                          onBlur={async (e) => {
+                            const countries = e.target.value.split(',').map((c: string) => c.trim().toUpperCase()).filter(Boolean);
+                            await supabase.from('pastes').update({ geo_blocked_countries: countries } as any).eq('id', selectedPaste!.id);
+                            fetchPastes();
+                          }}
+                          className="bg-background/50"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 4. Multi-Account Detection */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Users className="h-5 w-5 text-primary" />
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2">
+                            Multi-Account Detection
+                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Flags/blocks if same HWID uses multiple Roblox accounts
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={(selectedPaste as any)?.multi_account_detection || false}
+                        onCheckedChange={async (checked) => {
+                          await supabase.from('pastes').update({ multi_account_detection: checked } as any).eq('id', selectedPaste!.id);
+                          fetchPastes();
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                      Detects when the same hardware tries to use your script with different Roblox accounts.
+                      Auto-blocks after 3+ accounts. Requires HWID Lock to be enabled.
+                    </p>
+                  </div>
+
+                  {/* 5. Webhook Alerts */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Webhook className="h-5 w-5 text-primary" />
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2">
+                            Webhook Alerts
+                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Discord notifications when someone runs your script
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={(selectedPaste as any)?.webhook_alerts_enabled || false}
+                        onCheckedChange={async (checked) => {
+                          await supabase.from('pastes').update({ webhook_alerts_enabled: checked } as any).eq('id', selectedPaste!.id);
+                          fetchPastes();
+                        }}
+                      />
+                    </div>
+                    {(selectedPaste as any)?.webhook_alerts_enabled && (
+                      <div className="space-y-2">
+                        <Label className="text-xs">Discord Webhook URL</Label>
+                        <Input
+                          type="url"
+                          defaultValue={(selectedPaste as any)?.webhook_url || ''}
+                          placeholder="https://discord.com/api/webhooks/..."
+                          onBlur={async (e) => {
+                            await supabase.from('pastes').update({ webhook_url: e.target.value.trim() || null } as any).eq('id', selectedPaste!.id);
+                            fetchPastes();
+                            toast({ title: "Webhook saved" });
+                          }}
+                          className="bg-background/50"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 6. Obfuscation on Delivery */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Shuffle className="h-5 w-5 text-primary" />
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2">
+                            Re-Obfuscation on Delivery
+                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Unique obfuscated version for every execution
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={(selectedPaste as any)?.obfuscation_on_delivery || false}
+                        onCheckedChange={async (checked) => {
+                          await supabase.from('pastes').update({ obfuscation_on_delivery: checked } as any).eq('id', selectedPaste!.id);
+                          fetchPastes();
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                      Each user gets a structurally different version of your script every time they execute it. 
+                      No two copies are the same — makes it impossible to diff or share.
+                    </p>
+                  </div>
+
+                  {/* 7. Time Bomb */}
+                  <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Timer className="h-5 w-5 text-primary" />
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2">
+                            Time Bomb
+                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Script auto-expires after a set date
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={(selectedPaste as any)?.time_bomb_enabled || false}
+                        onCheckedChange={async (checked) => {
+                          const update: any = { time_bomb_enabled: checked };
+                          if (checked && !(selectedPaste as any)?.time_bomb_expires_at) {
+                            // Default to 7 days from now
+                            update.time_bomb_expires_at = new Date(Date.now() + 7 * 86400000).toISOString();
+                          }
+                          await supabase.from('pastes').update(update).eq('id', selectedPaste!.id);
+                          fetchPastes();
+                        }}
+                      />
+                    </div>
+                    {(selectedPaste as any)?.time_bomb_enabled && (
+                      <div className="space-y-2">
+                        <Label className="text-xs">Expiry date</Label>
+                        <Input
+                          type="datetime-local"
+                          defaultValue={(selectedPaste as any)?.time_bomb_expires_at ? new Date((selectedPaste as any).time_bomb_expires_at).toISOString().slice(0, 16) : ''}
+                          onChange={async (e) => {
+                            if (e.target.value) {
+                              await supabase.from('pastes').update({ time_bomb_expires_at: new Date(e.target.value).toISOString() } as any).eq('id', selectedPaste!.id);
+                              fetchPastes();
+                            }
+                          }}
+                          className="bg-background/50"
+                        />
+                        {(selectedPaste as any)?.time_bomb_expires_at && (
+                          <p className="text-xs text-muted-foreground">
+                            {new Date((selectedPaste as any).time_bomb_expires_at) > new Date() 
+                              ? `Expires: ${new Date((selectedPaste as any).time_bomb_expires_at).toLocaleString()}`
+                              : '⚠️ This script has expired!'
+                            }
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+
                   <WhitelistTimeManager 
                     pasteId={selectedPasteId} 
                     onUpdate={() => fetchAccessEntries(selectedPasteId)} 
