@@ -3877,14 +3877,24 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
           .update({ used_at: new Date().toISOString(), roblox_user_id: uid })
           .eq('id', tokenData.id).is('used_at', null);
         
+        // v12: Protection checks for non-protected pastes too
+        const v12NonProtResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
+        if (v12NonProtResult) return v12NonProtResult;
+
         await logAccess(uid, 'execution', true);
         await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
         
+        fireWebhookAlert(paste, uid, clientIp, hwid, 'execution');
+
+        let nonProtContent = paste.content;
+        if (paste.crash_detection_enabled) nonProtContent = wrapWithCrashDetection(nonProtContent);
+        if (paste.obfuscation_on_delivery) nonProtContent = applyDeliveryObfuscation(nonProtContent);
+
         // Return ENCRYPTED content — never raw
         const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
         const trustLevel = getTrustScore(clientIp);
         // v10.2: Always use chunked encryption (anti-loadstring-hook)
-        return new Response(chunkEncrypt(paste.content, key), { status: 200, headers: textHeaders });
+        return new Response(chunkEncrypt(nonProtContent, key), { status: 200, headers: textHeaders });
       }
       
       // Phase 1: No token — serve the loader (which will call back with uid+tk)
