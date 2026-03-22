@@ -3533,6 +3533,7 @@ Deno.serve(async (req) => {
       }
     }
 
+    console.log(
       `[get-paste] slug=${slug} uid=${uid ?? ''} hasTk=${Boolean(tk)} hasKey=${Boolean(keyParam)} ip=${clientIp} ` +
       `robloxUA=${isRobloxRequest} browser=${isLikelyBrowser} hide=${Boolean(paste.hide_code)} ` +
       `prot=${Boolean(paste.protection_enabled)} pub=${Boolean(paste.public_protection)}`
