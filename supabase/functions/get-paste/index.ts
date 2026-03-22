@@ -4308,10 +4308,8 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
     fireWebhookAlert(paste, uid, clientIp, hwid, 'execution');
 
     let finalContent = paste.content;
-    // v12: Re-obfuscation on delivery
-    if (paste.obfuscation_on_delivery) {
-      finalContent = applyDeliveryObfuscation(finalContent);
-    }
+    if (paste.crash_detection_enabled) finalContent = wrapWithCrashDetection(finalContent);
+    if (paste.obfuscation_on_delivery) finalContent = applyDeliveryObfuscation(finalContent);
 
     const key = `${slug}:${tk}:ULTv9:${uid}:${entropy || '0'}`;
     
