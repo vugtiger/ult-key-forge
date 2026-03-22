@@ -1091,7 +1091,7 @@ const Pastebin = () => {
                   </div>
                 </TabsContent>
 
-
+                <TabsContent value="time">
                   <WhitelistTimeManager 
                     pasteId={selectedPasteId} 
                     onUpdate={() => fetchAccessEntries(selectedPasteId)} 
