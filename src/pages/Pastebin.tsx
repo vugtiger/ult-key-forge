@@ -1202,6 +1202,27 @@ const Pastebin = () => {
                             {(paste as any).anti_fetch_enabled && (
                               <Badge variant="outline" className="text-[10px]">ANTI-FETCH</Badge>
                             )}
+                            {(paste as any).execution_limit_enabled && (
+                              <Badge variant="outline" className="text-[10px]">LIMIT</Badge>
+                            )}
+                            {(paste as any).crash_detection_enabled && (
+                              <Badge variant="outline" className="text-[10px]">CRASH-DET</Badge>
+                            )}
+                            {(paste as any).geo_blocking_enabled && (
+                              <Badge variant="outline" className="text-[10px]">GEO</Badge>
+                            )}
+                            {(paste as any).multi_account_detection && (
+                              <Badge variant="outline" className="text-[10px]">MULTI-ACC</Badge>
+                            )}
+                            {(paste as any).webhook_alerts_enabled && (
+                              <Badge variant="outline" className="text-[10px]">WEBHOOK</Badge>
+                            )}
+                            {(paste as any).obfuscation_on_delivery && (
+                              <Badge variant="outline" className="text-[10px]">RE-OBFUSC</Badge>
+                            )}
+                            {(paste as any).time_bomb_enabled && (
+                              <Badge variant="outline" className="text-[10px]">TIME-BOMB</Badge>
+                            )}
                           </div>
                           <p className="text-xs text-muted-foreground">
                             Created: {new Date(paste.created_at).toLocaleDateString()}
