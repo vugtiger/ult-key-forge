@@ -93,10 +93,7 @@ const KeySystemPreview = () => {
 
   return (
     <div className="relative w-full max-w-[760px] mx-auto px-2">
-      <div className="absolute inset-6 rounded-[2rem] bg-primary/20 blur-3xl" />
-
-      <div className="relative overflow-hidden rounded-[2rem] border border-primary/30 bg-card/80 shadow-[0_25px_120px_hsl(var(--primary)/0.28)] backdrop-blur-2xl">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/80 to-transparent" />
+      <div className="relative overflow-hidden rounded-[2rem] border border-border/40 bg-card/90 shadow-2xl backdrop-blur-2xl">
 
         <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
           <div className="flex items-center gap-2">
