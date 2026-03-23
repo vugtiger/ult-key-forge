@@ -115,9 +115,7 @@ const AppSidebar = ({ user }: { user: User | null }) => {
               </h1>
             </>
           ) : (
-            <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center mx-auto">
-              <CloudLogo size={18} className="text-primary" />
-            </div>
+            <CloudLogo size={22} className="text-primary mx-auto" />
           )}
         </div>
 
