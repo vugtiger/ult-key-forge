@@ -1911,28 +1911,10 @@ for i = 1, #ks do
   kb[i] = string.byte(ks, i)
 end
 
--- v10.2: Decoy flood function — generates 50 fake loadstring calls to drown real code in noise
+-- v12.2: Reduced decoy flood — 5 calls instead of 50 (moved post-execution for zero load delay)
 local ${v.decoyFlood} = function()
-  for _di = 1, 50 do
-    local _dc = math.random(1, 8)
-    local _code
-    if _dc == 1 then
-      _code = "local Players=game:GetService('Players');local p=Players.LocalPlayer;if p and p.Character then local h=p.Character:FindFirstChild('Humanoid');if h then h.WalkSpeed=" .. tostring(math.random(16, 100)) .. " end end"
-    elseif _dc == 2 then
-      _code = "local RS=game:GetService('ReplicatedStorage');for _,v in pairs(RS:GetChildren()) do if v:IsA('RemoteEvent') then v:FireServer('" .. tostring(math.random(10000, 99999)) .. "') break end end"
-    elseif _dc == 3 then
-      _code = "local TweenService=game:GetService('TweenService');local p=game:GetService('Players').LocalPlayer;if p.Character and p.Character:FindFirstChild('HumanoidRootPart') then TweenService:Create(p.Character.HumanoidRootPart,TweenInfo.new(" .. tostring(math.random(1,5)) .. "),{CFrame=p.Character.HumanoidRootPart.CFrame*CFrame.new(0," .. tostring(math.random(10,50)) .. ",0)}):Play() end"
-    elseif _dc == 4 then
-      _code = "local Lighting=game:GetService('Lighting');Lighting.ClockTime=" .. tostring(math.random(0, 24)) .. ";Lighting.FogEnd=" .. tostring(math.random(1000, 10000))
-    elseif _dc == 5 then
-      _code = "local UIS=game:GetService('UserInputService');local _conn;_conn=UIS.InputBegan:Connect(function(i,g) if not g and i.KeyCode==Enum.KeyCode." .. ({"E","F","G","R","T","Q","X","Z","C","V"})[math.random(1,10)] .. " then print('" .. tostring(math.random(100000,999999)) .. "') end end);task.delay(0.01,function() if _conn then _conn:Disconnect() end end)"
-    elseif _dc == 6 then
-      _code = "local HttpService=game:GetService('HttpService');local _t={version='" .. tostring(math.random(1,9)) .. "." .. tostring(math.random(0,9)) .. "." .. tostring(math.random(0,99)) .. "',key='" .. tostring(math.random(100000000,999999999)) .. "',uid=" .. tostring(math.random(1000000,9999999)) .. "};local _j=HttpService:JSONEncode(_t)"
-    elseif _dc == 7 then
-      _code = "local Workspace=game:GetService('Workspace');for _,child in pairs(Workspace:GetChildren()) do if child:IsA('BasePart') and child.Name~='Baseplate' then child.BrickColor=BrickColor.new(" .. tostring(math.random(1,1032)) .. ") break end end"
-    else
-      _code = "local RunService=game:GetService('RunService');local _c=0;local _conn;_conn=RunService.Heartbeat:Connect(function() _c=_c+1;if _c>=" .. tostring(math.random(1,5)) .. " then _conn:Disconnect() end end)"
-    end
+  for _di = 1, 5 do
+    local _code = "local _=" .. tostring(math.random(100000,999999))
     pcall(${v.cleanLS}, _code)
     _code = nil
   end
