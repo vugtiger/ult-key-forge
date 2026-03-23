@@ -515,7 +515,7 @@ const Dashboard = () => {
 
             {/* STEP 0 */}
             {step === 0 && (
-              <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl space-y-5">
+              <Card className="p-5 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Link2 className="text-primary" size={20} />
                   <h2 className="text-lg font-semibold">Link to a Paste</h2>
@@ -578,7 +578,7 @@ const Dashboard = () => {
 
             {/* STEP 1 */}
             {step === 1 && (
-              <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl space-y-5">
+              <Card className="p-5 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Key className="text-primary" size={20} />
                   <h2 className="text-lg font-semibold">Configure Keys</h2>
@@ -609,7 +609,7 @@ const Dashboard = () => {
 
             {/* STEP 2 */}
             {step === 2 && (
-              <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl space-y-5">
+              <Card className="p-5 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="text-primary" size={20} />
                   <h2 className="text-lg font-semibold">Whitelist Roblox Users (Optional)</h2>
@@ -631,7 +631,7 @@ const Dashboard = () => {
 
             {/* STEP 3 */}
             {step === 3 && (
-              <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl space-y-4">
+              <Card className="p-5 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Hash className="text-primary" size={20} />
                   <h2 className="text-lg font-semibold">Review & Generate</h2>
@@ -650,7 +650,7 @@ const Dashboard = () => {
                     </div>
                   ))}
                 </div>
-                <Button onClick={handleGenerate} disabled={loading} className="w-full cyber-glow" size="lg">
+                <Button onClick={handleGenerate} disabled={loading} className="w-full rounded-lg" size="lg">
                   <Zap className="mr-2" size={20} />
                   {loading ? "Generating..." : "Generate Key System"}
                 </Button>
@@ -659,7 +659,7 @@ const Dashboard = () => {
 
             {/* STEP 4: Results */}
             {step === 4 && (
-              <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl space-y-5">
+              <Card className="p-5 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Check className="text-primary" size={20} />
                   <h2 className="text-lg font-semibold text-primary">Key System Created!</h2>
@@ -692,7 +692,7 @@ const Dashboard = () => {
                   </Button>
                 )}
                 {step < 3 ? (
-                  <Button onClick={() => setStep(s => s + 1)} disabled={!canProceed()} className="flex-1 cyber-glow">
+                  <Button onClick={() => setStep(s => s + 1)} disabled={!canProceed()} className="flex-1 rounded-lg">
                     Next <ChevronRight size={16} className="ml-1" />
                   </Button>
                 ) : null}
@@ -704,7 +704,7 @@ const Dashboard = () => {
           <TabsContent value="manage">
             <div className="space-y-5">
               {/* Paste selector */}
-              <Card className="p-5 cyber-border bg-card/50 backdrop-blur-xl">
+              <Card className="p-4 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl">
                 <Label className="mb-2 block">Select Paste to Manage</Label>
                 {loadingPastes ? (
                   <div className="text-sm text-muted-foreground">Loading pastes...</div>
@@ -788,7 +788,7 @@ const Dashboard = () => {
                           {KEY_DURATIONS.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <Button onClick={handleAddMoreKeys} disabled={addingKeys} className="cyber-glow">
+                      <Button onClick={handleAddMoreKeys} disabled={addingKeys} className="rounded-lg">
                         {addingKeys ? '...' : <><Plus size={16} className="mr-1" /> Add</>}
                       </Button>
                     </div>
