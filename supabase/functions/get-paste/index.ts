@@ -3139,8 +3139,12 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Refresh global bans cache from DB (non-blocking after first load)
-  await refreshGlobalBans();
+  // v12.2: Non-blocking ban refresh — only await on first load (cache empty)
+  if (globalBanCache.lastRefresh === 0) {
+    await refreshGlobalBans();
+  } else {
+    refreshGlobalBans().catch(() => {});
+  }
 
   // ===== PERMANENT BAN CHECK — first thing, zero processing =====
   const earlyIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
