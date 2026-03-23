@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Deny direct key inserts" ON public.control_panel_keys;
