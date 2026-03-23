@@ -659,8 +659,8 @@ const Dashboard = () => {
             {step === 4 && (
               <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl space-y-5">
                 <div className="flex items-center gap-2 mb-2">
-                  <Check className="text-green-500" size={20} />
-                  <h2 className="text-lg font-semibold text-green-500">Key System Created!</h2>
+                  <Check className="text-primary" size={20} />
+                  <h2 className="text-lg font-semibold text-primary">Key System Created!</h2>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {generatedKeys.length} keys generated and linked to your paste. The paste URL is automatically embedded in the Lua code.
@@ -814,7 +814,7 @@ const Dashboard = () => {
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-mono text-xs truncate text-foreground">{key.key_value}</span>
                               {key.roblox_user_id && (
-                                <Badge variant="outline" className="text-[10px] px-1 py-0 text-green-500 border-green-500/30 shrink-0">assigned</Badge>
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 text-primary border-primary/30 shrink-0">assigned</Badge>
                               )}
                               {key.expires_at && new Date(key.expires_at) < new Date() && (
                                 <Badge variant="outline" className="text-[10px] px-1 py-0 text-destructive border-destructive/30 shrink-0">expired</Badge>

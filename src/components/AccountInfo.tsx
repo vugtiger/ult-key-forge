@@ -53,7 +53,7 @@ const AccountInfo = () => {
               readOnly 
               className="bg-muted/50"
             />
-            <div className="flex items-center gap-1 text-green-400 text-sm">
+            <div className="flex items-center gap-1 text-primary text-sm">
               <CheckCircle className="h-4 w-4" />
               <span>Verified</span>
             </div>

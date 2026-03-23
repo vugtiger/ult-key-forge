@@ -117,7 +117,8 @@ const AppSidebar = ({ user }: { user: User | null }) => {
 
   return (
     <Sidebar className={state === "collapsed" ? "w-14" : "w-64"} collapsible="icon">
-      <SidebarContent className="bg-sidebar border-r border-sidebar-border">
+      <SidebarContent className="bg-sidebar border-r border-sidebar-border relative">
+        <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-primary/30 via-transparent to-primary/30 pointer-events-none" />
         <div className="p-4 border-b border-sidebar-border flex items-center gap-3">
           {state !== "collapsed" ? (
             <>
@@ -278,7 +279,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <SnowEffect />
         <AppSidebar user={user} />
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
-          <header className="h-14 border-b border-border/30 flex items-center px-6 sticky top-0 bg-background/60 backdrop-blur-xl z-10">
+          <header className="h-14 border-b border-border/30 flex items-center px-6 sticky top-0 bg-background/60 backdrop-blur-2xl z-10">
             <SidebarTrigger className="mr-4" />
             <div className="flex-1" />
             <SoundToggle />

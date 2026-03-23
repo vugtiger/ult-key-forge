@@ -143,7 +143,7 @@ const Changelog = () => {
                             key={changeIndex}
                             className="flex items-start gap-2 text-sm"
                           >
-                            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                            <CheckCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                             <span>{change}</span>
                           </li>
                         ))}

@@ -219,8 +219,8 @@ const DiscordBot = () => {
           </h2>
           <div className="space-y-4">
             <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-                <Check className="w-4 h-4 text-green-500" />
+              <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                <Check className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <h3 className="font-semibold">1. Create a Panel</h3>
@@ -230,8 +230,8 @@ const DiscordBot = () => {
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-                <Check className="w-4 h-4 text-green-500" />
+              <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                <Check className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <h3 className="font-semibold">2. Generate Keys with Expiration</h3>
@@ -241,8 +241,8 @@ const DiscordBot = () => {
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-                <Check className="w-4 h-4 text-green-500" />
+              <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                <Check className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <h3 className="font-semibold">3. Buyers Redeem Keys</h3>
@@ -252,8 +252,8 @@ const DiscordBot = () => {
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-                <Check className="w-4 h-4 text-green-500" />
+              <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                <Check className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <h3 className="font-semibold">4. Automatic Expiration</h3>

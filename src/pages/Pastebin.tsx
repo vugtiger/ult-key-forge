@@ -607,11 +607,11 @@ const Pastebin = () => {
                   <div className="grid gap-4 md:grid-cols-2">
                     {/* Whitelist */}
                     <div className="space-y-2">
-                      <Label className="flex items-center gap-1 text-green-400">
+                      <Label className="flex items-center gap-1 text-primary">
                         <UserPlus className="h-4 w-4" />
                         Whitelist ({whitelistEntries.length})
                       </Label>
-                      <div className="p-3 rounded-lg bg-background/30 border border-green-500/20 min-h-[120px] max-h-[200px] overflow-y-auto">
+                      <div className="p-3 rounded-lg bg-background/30 border border-primary/20 min-h-[120px] max-h-[200px] overflow-y-auto">
                         {loadingAccess ? (
                           <p className="text-xs text-muted-foreground">Loading...</p>
                         ) : whitelistEntries.length === 0 ? (
@@ -623,7 +623,7 @@ const Pastebin = () => {
                                 <div className="flex flex-col">
                                   <span className="font-mono">{entry.roblox_user_id}</span>
                                   {entry.is_eternal && (
-                                    <span className="text-xs text-green-400">Eternal</span>
+                                    <span className="text-xs text-primary">Eternal</span>
                                   )}
                                   {entry.expires_at && !entry.is_eternal && (
                                     <span className="text-xs text-muted-foreground">
@@ -648,11 +648,11 @@ const Pastebin = () => {
 
                     {/* Blacklist */}
                     <div className="space-y-2">
-                      <Label className="flex items-center gap-1 text-red-400">
+                      <Label className="flex items-center gap-1 text-destructive">
                         <UserMinus className="h-4 w-4" />
                         Blacklist ({blacklistEntries.length})
                       </Label>
-                      <div className="p-3 rounded-lg bg-background/30 border border-red-500/20 min-h-[120px] max-h-[200px] overflow-y-auto">
+                      <div className="p-3 rounded-lg bg-background/30 border border-destructive/20 min-h-[120px] max-h-[200px] overflow-y-auto">
                         {loadingAccess ? (
                           <p className="text-xs text-muted-foreground">Loading...</p>
                         ) : blacklistEntries.length === 0 ? (
