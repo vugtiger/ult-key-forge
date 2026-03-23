@@ -157,7 +157,8 @@ const Auth = () => {
           </div>
         )}
 
-        <Card className="p-8 bg-card/50 backdrop-blur-xl border-border/30 relative overflow-hidden rounded-2xl">
+        <Card className="relative overflow-hidden rounded-[2rem] border-primary/20 bg-card/50 p-8 backdrop-blur-2xl shadow-[0_20px_80px_hsl(var(--primary)/0.18)]">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
           <div className="relative">
             <div className="text-center mb-8">
               <div className="inline-flex items-center justify-center mb-4">
@@ -185,7 +186,7 @@ const Auth = () => {
                   </button>
                 </div>
               </div>
-              <Button type="submit" className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-xl" disabled={loading}>
+              <Button type="submit" className="w-full rounded-xl bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
                 {loading ? "Processing..." : isLogin ? "Sign In" : "Create Account"}
               </Button>
             </form>

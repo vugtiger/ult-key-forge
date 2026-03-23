@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download, Smartphone, CheckCircle, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import CloudBackground from "@/components/CloudBackground";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -57,10 +58,9 @@ const Install = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
-      
-      <Card className="w-full max-w-md relative z-10 border-border/50 bg-card/80 backdrop-blur-sm">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+      <CloudBackground />
+      <Card className="w-full max-w-md relative z-10 border-primary/20 bg-card/60 backdrop-blur-2xl rounded-[2rem] shadow-[0_20px_80px_hsl(var(--primary)/0.15)]">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
             <Smartphone className="w-10 h-10 text-primary-foreground" />
@@ -74,8 +74,8 @@ const Install = () => {
         <CardContent className="space-y-6">
           {isInstalled ? (
             <div className="text-center space-y-4">
-              <div className="w-16 h-16 mx-auto rounded-full bg-green-500/20 flex items-center justify-center">
-                <CheckCircle className="w-8 h-8 text-green-500" />
+              <div className="w-16 h-16 mx-auto rounded-full bg-primary/15 flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-primary" />
               </div>
               <p className="text-muted-foreground">
                 App is already installed! Open it from your home screen.
