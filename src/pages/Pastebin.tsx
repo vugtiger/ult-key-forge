@@ -1272,8 +1272,8 @@ const Pastebin = () => {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );
