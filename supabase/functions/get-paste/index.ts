@@ -3481,7 +3481,7 @@ Deno.serve(async (req) => {
           .eq('slug', slug)
           .single();
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('DB_TIMEOUT')), 5000)
+          setTimeout(() => reject(new Error('DB_TIMEOUT')), 15000)
         );
         const result = await Promise.race([dbPromise, timeoutPromise]) as any;
         paste = result.data;
