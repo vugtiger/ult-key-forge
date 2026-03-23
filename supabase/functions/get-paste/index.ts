@@ -2979,30 +2979,41 @@ async function checkExecutionLimit(paste: any, uid: string, supabaseClient: any)
 async function checkMultiAccount(paste: any, uid: string, hwid: string | null, supabaseClient: any): Promise<{ allowed: boolean; flagged: boolean }> {
   if (!paste.multi_account_detection || !hwid || hwid.length < 4) return { allowed: true, flagged: false };
   
-  const { data: existing } = await supabaseClient
-    .from('paste_multi_account_flags')
-    .select('*')
-    .eq('paste_id', paste.id)
-    .eq('hwid', hwid)
-    .maybeSingle();
-  
-  if (existing) {
-    if (existing.is_blocked) return { allowed: false, flagged: true };
-    const ids: string[] = existing.roblox_user_ids || [];
-    if (!ids.includes(uid)) {
-      ids.push(uid);
-      const flagged = ids.length > 1;
-      await supabaseClient.from('paste_multi_account_flags')
-        .update({ roblox_user_ids: ids, is_blocked: ids.length > 3, flagged_at: new Date().toISOString() })
-        .eq('id', existing.id);
-      if (ids.length > 3) return { allowed: false, flagged: true };
-      return { allowed: true, flagged };
+  try {
+    const { data: existing, error } = await supabaseClient
+      .from('paste_multi_account_flags')
+      .select('*')
+      .eq('paste_id', paste.id)
+      .eq('hwid', hwid)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('[v12] Multi-account query error:', error.message);
+      return { allowed: true, flagged: false }; // fail open
     }
-    return { allowed: true, flagged: ids.length > 1 };
-  } else {
-    await supabaseClient.from('paste_multi_account_flags')
-      .insert({ paste_id: paste.id, hwid, roblox_user_ids: [uid] }).catch(() => {});
-    return { allowed: true, flagged: false };
+    
+    if (existing) {
+      if (existing.is_blocked) return { allowed: false, flagged: true };
+      const ids: string[] = existing.roblox_user_ids || [];
+      if (!ids.includes(uid)) {
+        ids.push(uid);
+        const flagged = ids.length > 1;
+        supabaseClient.from('paste_multi_account_flags')
+          .update({ roblox_user_ids: ids, is_blocked: ids.length > 3, flagged_at: new Date().toISOString() })
+          .eq('id', existing.id).then(() => {}).catch(() => {});
+        if (ids.length > 3) return { allowed: false, flagged: true };
+        return { allowed: true, flagged };
+      }
+      return { allowed: true, flagged: ids.length > 1 };
+    } else {
+      supabaseClient.from('paste_multi_account_flags')
+        .upsert({ paste_id: paste.id, hwid, roblox_user_ids: [uid] }, { onConflict: 'paste_id,hwid' })
+        .then(() => {}).catch(() => {});
+      return { allowed: true, flagged: false };
+    }
+  } catch (e) {
+    console.error('[v12] Multi-account detection error:', e);
+    return { allowed: true, flagged: false }; // fail open, don't crash
   }
 }
 
