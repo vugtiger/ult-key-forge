@@ -4182,8 +4182,8 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       const v12PubResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
       if (v12PubResult) return v12PubResult;
 
-      await logAccess(uid, 'execution', true);
-      await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
+      logAccess(uid, 'execution', true).catch(() => {});
+      supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid }).then(() => {}).catch(() => {});
       console.log(`Public protection access granted: ${uid} for paste: ${paste.id}`);
       
       fireWebhookAlert(paste, uid, clientIp, hwid, 'execution');
