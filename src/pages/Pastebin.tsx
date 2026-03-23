@@ -474,21 +474,19 @@ const Pastebin = () => {
               <Upload className="mr-1.5 h-3.5 w-3.5" />
               {loading ? "Uploading..." : "Upload Paste"}
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Script Protection Section with Tabs */}
-        <Card className={`border-border/50 backdrop-blur-sm transition-opacity ${pastes.length === 0 ? 'opacity-50 pointer-events-none' : 'bg-card/50'}`}>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Script Protection
-              {pastes.length === 0 && (
-                <span className="text-xs text-muted-foreground font-normal ml-2">(Create a paste to unlock)</span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className={`rounded-xl border border-primary/10 bg-card/20 p-5 backdrop-blur-xl transition-opacity ${pastes.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}>
+          <h2 className="text-sm font-semibold flex items-center gap-2 mb-4">
+            <Shield className="h-4 w-4 text-primary" />
+            Script Protection
+            {pastes.length === 0 && (
+              <span className="text-[10px] text-muted-foreground font-normal ml-1">(Create a paste to unlock)</span>
+            )}
+          </h2>
+          <div className="space-y-3">
             {/* Paste Selector */}
             <div className="space-y-2">
               <Label>Select Paste</Label>
