@@ -1274,7 +1274,6 @@ const Pastebin = () => {
             )}
           </div>
         </div>
-      </div>
     </DashboardLayout>
   );
 };
