@@ -1183,22 +1183,11 @@ local ${v.runtimeEntropy} = {
 }
 
 local ${v.entropyCollect} = function()
-  local rs = game:GetService("RunService")
-  local collected = 0
-  local conn
-  conn = rs.RenderStepped:Connect(function(dt)
-    collected = collected + 1
-    ${v.runtimeEntropy}.frames[#${v.runtimeEntropy}.frames + 1] = dt
-    if collected >= 2 then
-      conn:Disconnect()
-    end
+  -- v12.2: INSTANT entropy — no frame waits, zero latency
+  pcall(function()
+    ${v.runtimeEntropy}.frames[1] = os.clock() % 0.01
+    ${v.runtimeEntropy}.frames[2] = (tick() % 0.01)
   end)
-  -- Wait for frames (reduced from 5 to 2 for faster loading)
-  local timeout = tick() + 1
-  while collected < 2 and tick() < timeout do
-    task.wait(0.03)
-  end
-  if conn.Connected then conn:Disconnect() end
 end
 
 -- ====== v9: FETCH INTENT DETECTION ======
