@@ -2060,8 +2060,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
       print("[ULT PROTECTION] Protected by ULT Protection v10.3 - Loadstring-Proof Shield")
     end)
 ` : ''}
-    -- ====== DECOY FLOODING: 50 fake loadstring calls BEFORE real execution ======
-    ${v.decoyFlood}()
+    -- v12.2: Decoys moved post-execution for instant loading
 
     if ${v.dumpPoison} then
       _assembled = _assembled:gsub("(%d+)", function(n)
