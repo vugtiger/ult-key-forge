@@ -1966,10 +1966,8 @@ local function ${v.junk5}(msg, pct)
 end
 
 ${v.junk5}("Scanning environment...", 0)
-task.wait(0.1)
 
 ${v.junk5}("Verifying integrity...", 25)
-task.wait(0.15)
 
 ${v.junk5}("Fetching payload...", 50)
 ` : ''}
