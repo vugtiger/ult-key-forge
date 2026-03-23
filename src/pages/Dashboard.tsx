@@ -814,7 +814,7 @@ const Dashboard = () => {
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-mono text-xs truncate text-foreground">{key.key_value}</span>
                               {key.roblox_user_id && (
-                                <Badge variant="outline" className="text-[10px] px-1 py-0 text-green-500 border-green-500/30 shrink-0">assigned</Badge>
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 text-primary border-primary/30 shrink-0">assigned</Badge>
                               )}
                               {key.expires_at && new Date(key.expires_at) < new Date() && (
                                 <Badge variant="outline" className="text-[10px] px-1 py-0 text-destructive border-destructive/30 shrink-0">expired</Badge>
