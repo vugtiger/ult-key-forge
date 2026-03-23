@@ -4299,8 +4299,8 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
     const v12Result = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
     if (v12Result) return v12Result;
 
-    await logAccess(uid, 'execution', true);
-    await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
+    logAccess(uid, 'execution', true).catch(() => {});
+    supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid }).then(() => {}).catch(() => {});
     console.log(`Access granted: ${uid} for paste: ${paste.id}`);
 
     // v12: Send webhook alert if enabled
