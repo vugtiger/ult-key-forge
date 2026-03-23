@@ -107,9 +107,7 @@ const Index = () => {
         <nav className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between rounded-2xl border border-primary/15 bg-card/30 px-4 py-2.5 backdrop-blur-2xl">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
-                <CloudLogo size={20} className="text-primary" />
-              </div>
+              <CloudLogo size={24} className="text-primary" />
               <h2 className="hidden text-sm font-bold tracking-wider text-foreground sm:block">
                 ULT <span className="text-primary cloud-glow-text">CLOUD</span>
               </h2>
