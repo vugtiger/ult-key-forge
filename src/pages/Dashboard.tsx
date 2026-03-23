@@ -10,6 +10,7 @@ import {
   Link2, Settings, Trash2, Plus, Save, BarChart2, AlertTriangle, RefreshCw, Timer
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import KeySystemPreview from "@/components/KeySystemPreview";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -659,44 +660,60 @@ const Dashboard = () => {
 
             {/* STEP 4: Results */}
             {step === 4 && (
-              <Card className="p-5 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Check className="text-primary" size={20} />
-                  <h2 className="text-lg font-semibold text-primary">Key System Created!</h2>
+              <div className="space-y-6">
+                <Card className="p-5 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Check className="text-primary" size={20} />
+                    <h2 className="text-lg font-semibold text-primary">Key System Created!</h2>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {generatedKeys.length} keys generated and linked to your paste. The paste URL is automatically embedded in the Lua code.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button onClick={copyAllKeys} variant="outline" className="flex-1"><Copy className="mr-2" size={16} /> Copy All Keys</Button>
+                    <Button onClick={downloadKeys} variant="outline" className="flex-1"><Download className="mr-2" size={16} /> Download Keys</Button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto bg-muted/30 rounded-lg p-3 font-mono text-sm space-y-1">
+                    {generatedKeys.map((k, i) => (
+                      <div key={i} className="flex items-center justify-between gap-2">
+                        <span className="text-foreground">{k.key}</span>
+                        {k.expiresAt && <span className="text-xs text-muted-foreground">expires {new Date(k.expiresAt).toLocaleDateString()}</span>}
+                      </div>
+                    ))}
+                  </div>
+                  <Button onClick={resetWizard} className="w-full" variant="outline">Create Another Key System</Button>
+                </Card>
+
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">Live Preview — What your users see</p>
+                  <KeySystemPreview />
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {generatedKeys.length} keys generated and linked to your paste. The paste URL is automatically embedded in the Lua code.
-                </p>
-                <div className="flex gap-2">
-                  <Button onClick={copyAllKeys} variant="outline" className="flex-1"><Copy className="mr-2" size={16} /> Copy All Keys</Button>
-                  <Button onClick={downloadKeys} variant="outline" className="flex-1"><Download className="mr-2" size={16} /> Download Keys</Button>
-                </div>
-                <div className="max-h-64 overflow-y-auto bg-muted/30 rounded-lg p-3 font-mono text-sm space-y-1">
-                  {generatedKeys.map((k, i) => (
-                    <div key={i} className="flex items-center justify-between gap-2">
-                      <span className="text-foreground">{k.key}</span>
-                      {k.expiresAt && <span className="text-xs text-muted-foreground">expires {new Date(k.expiresAt).toLocaleDateString()}</span>}
-                    </div>
-                  ))}
-                </div>
-                <Button onClick={resetWizard} className="w-full" variant="outline">Create Another Key System</Button>
-              </Card>
+              </div>
             )}
 
             {/* Navigation */}
             {step < 4 && (
-              <div className="flex gap-3 mt-4">
-                {step > 0 && (
-                  <Button variant="outline" onClick={() => setStep(s => s - 1)} className="flex-1">
-                    <ChevronLeft size={16} className="mr-1" /> Back
-                  </Button>
+              <>
+                <div className="flex gap-3 mt-4">
+                  {step > 0 && (
+                    <Button variant="outline" onClick={() => setStep(s => s - 1)} className="flex-1">
+                      <ChevronLeft size={16} className="mr-1" /> Back
+                    </Button>
+                  )}
+                  {step < 3 ? (
+                    <Button onClick={() => setStep(s => s + 1)} disabled={!canProceed()} className="flex-1 rounded-lg">
+                      Next <ChevronRight size={16} className="ml-1" />
+                    </Button>
+                  ) : null}
+                </div>
+
+                {step >= 1 && step <= 3 && (
+                  <div className="mt-6">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">Live Preview — What your users see</p>
+                    <KeySystemPreview />
+                  </div>
                 )}
-                {step < 3 ? (
-                  <Button onClick={() => setStep(s => s + 1)} disabled={!canProceed()} className="flex-1 rounded-lg">
-                    Next <ChevronRight size={16} className="ml-1" />
-                  </Button>
-                ) : null}
-              </div>
+              </>
             )}
           </TabsContent>
 
