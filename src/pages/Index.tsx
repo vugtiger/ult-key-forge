@@ -182,11 +182,8 @@ const Index = () => {
               </div>
             </div>
 
-            <div className="relative">
-              <div className="absolute -inset-4 rounded-2xl bg-primary/8 blur-2xl" />
-              <div className="relative">
-                <KeySystemPreview />
-              </div>
+            <div>
+              <KeySystemPreview />
             </div>
           </section>
 
