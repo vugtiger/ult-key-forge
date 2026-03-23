@@ -109,17 +109,13 @@ const AppSidebar = ({ user }: { user: User | null }) => {
         <div className="p-3 border-b border-primary/10 flex items-center gap-2.5">
           {state !== "collapsed" ? (
             <>
-              <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
-                <CloudLogo size={20} className="text-primary" />
-              </div>
+              <CloudLogo size={24} className="text-primary" />
               <h1 className="text-sm font-bold tracking-wider">
                 ULT <span className="text-primary cloud-glow-text">CLOUD</span>
               </h1>
             </>
           ) : (
-            <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center mx-auto">
-              <CloudLogo size={18} className="text-primary" />
-            </div>
+            <CloudLogo size={22} className="text-primary mx-auto" />
           )}
         </div>
 
