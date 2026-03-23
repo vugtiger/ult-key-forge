@@ -1138,15 +1138,12 @@ const Pastebin = () => {
                 </TabsContent>
               </Tabs>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Existing Pastes */}
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Your Pastes</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="rounded-xl border border-primary/10 bg-card/20 p-5 backdrop-blur-xl">
+          <h2 className="text-sm font-semibold mb-4">Your Pastes</h2>
             {pastes.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
                 No pastes yet. Create your first one above!
