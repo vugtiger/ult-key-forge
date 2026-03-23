@@ -592,9 +592,34 @@ async function fetchRobloxProfile(userId: string): Promise<{
   };
 
   try {
-    const userResponse = await fetch(`https://users.roblox.com/v1/users/${userId}`);
-    if (userResponse.ok) {
-      const userData = await userResponse.json();
+    // Fire ALL Roblox API calls in parallel instead of sequentially
+    const [userRes, avatarRes, friendsRes, followersRes, followingRes, groupsRes, badgesRes, favoritesRes] = await Promise.allSettled([
+      fetch(`https://users.roblox.com/v1/users/${userId}`),
+      fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png`),
+      fetch(`https://friends.roblox.com/v1/users/${userId}/friends/count`),
+      fetch(`https://friends.roblox.com/v1/users/${userId}/followers/count`),
+      fetch(`https://friends.roblox.com/v1/users/${userId}/followings/count`),
+      fetch(`https://groups.roblox.com/v1/users/${userId}/groups/roles`),
+      fetch(`https://badges.roblox.com/v1/users/${userId}/badges?limit=20&sortOrder=Desc`),
+      fetch(`https://games.roblox.com/v2/users/${userId}/favorite/games?limit=20`),
+    ]);
+
+    // Parse results in parallel too
+    const jsonResults = await Promise.allSettled([
+      userRes.status === 'fulfilled' && userRes.value.ok ? userRes.value.json() : null,
+      avatarRes.status === 'fulfilled' && avatarRes.value.ok ? avatarRes.value.json() : null,
+      friendsRes.status === 'fulfilled' && friendsRes.value.ok ? friendsRes.value.json() : null,
+      followersRes.status === 'fulfilled' && followersRes.value.ok ? followersRes.value.json() : null,
+      followingRes.status === 'fulfilled' && followingRes.value.ok ? followingRes.value.json() : null,
+      groupsRes.status === 'fulfilled' && groupsRes.value.ok ? groupsRes.value.json() : null,
+      badgesRes.status === 'fulfilled' && badgesRes.value.ok ? badgesRes.value.json() : null,
+      favoritesRes.status === 'fulfilled' && favoritesRes.value.ok ? favoritesRes.value.json() : null,
+    ]);
+
+    const get = (i: number) => jsonResults[i].status === 'fulfilled' ? jsonResults[i].value : null;
+
+    const userData = get(0);
+    if (userData) {
       result.username = userData.name;
       result.displayName = userData.displayName;
       result.description = userData.description;
@@ -602,60 +627,33 @@ async function fetchRobloxProfile(userId: string): Promise<{
       result.isBanned = userData.isBanned;
     }
 
-    const avatarResponse = await fetch(
-      `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png`
-    );
-    if (avatarResponse.ok) {
-      const avatarData = await avatarResponse.json();
-      if (avatarData.data?.[0]?.imageUrl) result.avatarUrl = avatarData.data[0].imageUrl;
+    const avatarData = get(1);
+    if (avatarData?.data?.[0]?.imageUrl) result.avatarUrl = avatarData.data[0].imageUrl;
+
+    const friendsData = get(2);
+    if (friendsData) result.friendsCount = friendsData.count;
+
+    const followersData = get(3);
+    if (followersData) result.followersCount = followersData.count;
+
+    const followingData = get(4);
+    if (followingData) result.followingCount = followingData.count;
+
+    const groupsData = get(5);
+    if (groupsData?.data) {
+      result.groups = groupsData.data.slice(0, 20).map((g: any) => ({
+        id: g.group.id, name: g.group.name, role: g.role.name,
+      }));
     }
 
-    const friendsResponse = await fetch(`https://friends.roblox.com/v1/users/${userId}/friends/count`);
-    if (friendsResponse.ok) {
-      const friendsData = await friendsResponse.json();
-      result.friendsCount = friendsData.count;
+    const badgesData = get(6);
+    if (badgesData?.data) {
+      result.badges = badgesData.data.map((b: any) => ({ id: b.id, name: b.name }));
     }
 
-    const followersResponse = await fetch(`https://friends.roblox.com/v1/users/${userId}/followers/count`);
-    if (followersResponse.ok) {
-      const followersData = await followersResponse.json();
-      result.followersCount = followersData.count;
-    }
-
-    const followingResponse = await fetch(`https://friends.roblox.com/v1/users/${userId}/followings/count`);
-    if (followingResponse.ok) {
-      const followingData = await followingResponse.json();
-      result.followingCount = followingData.count;
-    }
-
-    const groupsResponse = await fetch(`https://groups.roblox.com/v1/users/${userId}/groups/roles`);
-    if (groupsResponse.ok) {
-      const groupsData = await groupsResponse.json();
-      if (groupsData.data) {
-        result.groups = groupsData.data.slice(0, 20).map((g: any) => ({
-          id: g.group.id, name: g.group.name, role: g.role.name,
-        }));
-      }
-    }
-
-    const badgesResponse = await fetch(
-      `https://badges.roblox.com/v1/users/${userId}/badges?limit=20&sortOrder=Desc`
-    );
-    if (badgesResponse.ok) {
-      const badgesData = await badgesResponse.json();
-      if (badgesData.data) {
-        result.badges = badgesData.data.map((b: any) => ({ id: b.id, name: b.name }));
-      }
-    }
-
-    const favoritesResponse = await fetch(
-      `https://games.roblox.com/v2/users/${userId}/favorite/games?limit=20`
-    );
-    if (favoritesResponse.ok) {
-      const favoritesData = await favoritesResponse.json();
-      if (favoritesData.data) {
-        result.favorites = favoritesData.data.map((f: any) => ({ id: f.id, name: f.name }));
-      }
+    const favoritesData = get(7);
+    if (favoritesData?.data) {
+      result.favorites = favoritesData.data.map((f: any) => ({ id: f.id, name: f.name }));
     }
   } catch (error) {
     console.error('Error fetching Roblox profile:', error);
