@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Shield, Eye, EyeOff, CheckCircle, KeyRound } from "lucide-react";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect from "@/components/SnowEffect";
+import { isRecoveryLinkPayload } from "@/lib/site-url";
 
 const UpdatePassword = () => {
   const [newPassword, setNewPassword] = useState("");
@@ -21,40 +22,67 @@ const UpdatePassword = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const errorDescription = hashParams.get("error_description");
+    const errorCode = hashParams.get("error_code");
+
+    if (errorCode || errorDescription) {
+      toast({
+        title: "Reset Link Expired",
+        description: errorDescription || "Please request a fresh password reset email.",
+        variant: "destructive",
+      });
+      navigate("/password-reset", { replace: true });
+      return;
+    }
+
     let recoveryDetected = false;
+    let active = true;
+    const startedFromRecoveryLink = isRecoveryLinkPayload();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+
       if (event === 'PASSWORD_RECOVERY') {
         recoveryDetected = true;
         setReady(true);
       }
-      // Block any auto-redirect to dashboard — user must stay here
     });
 
-    // Check if we already have a session (e.g. token was already exchanged)
     const checkSession = async () => {
-      // Wait for Supabase to process the recovery token from the URL hash
-      await new Promise(r => setTimeout(r, 1500));
-      
-      if (recoveryDetected) return; // Already handled above
-      
+      if (!startedFromRecoveryLink) {
+        toast({
+          title: "Invalid Reset Link",
+          description: "Please use the reset link from your email.",
+          variant: "destructive",
+        });
+        navigate("/password-reset", { replace: true });
+        return;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 900));
+
+      if (!active || recoveryDetected) return;
+
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        // Session exists — likely from recovery link, show the form
         setReady(true);
       } else {
-        toast({ 
-          title: "Invalid or Expired Link", 
-          description: "Please request a new password reset link.", 
-          variant: "destructive" 
+        toast({
+          title: "Invalid or Expired Link",
+          description: "Please request a new password reset link.",
+          variant: "destructive",
         });
-        navigate("/password-reset");
+        navigate("/password-reset", { replace: true });
       }
     };
-    
+
     checkSession();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, [navigate, toast]);
 
   const handleUpdatePassword = async () => {

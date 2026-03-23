@@ -8,13 +8,12 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Send, Sparkles, Loader2, KeyRound } from "lucide-react";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect from "@/components/SnowEffect";
+import { buildAppUrl } from "@/lib/site-url";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 const PasswordReset = () => {
   const [messages, setMessages] = useState<Message[]>([
@@ -43,7 +42,7 @@ const PasswordReset = () => {
 
   const sendResetEmail = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/update-password`,
+      redirectTo: buildAppUrl("/update-password"),
     });
     return error;
   };
