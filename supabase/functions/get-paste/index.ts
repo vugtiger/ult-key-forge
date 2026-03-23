@@ -2074,8 +2074,8 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     local ${v.execFunc}, _err = ${v.indirectExec}(_assembled)
     _assembled = nil
 
-    -- ====== DECOY FLOODING: 50 more fake calls AFTER compilation ======
-    ${v.decoyFlood}()
+    -- v12.2: Decoys run AFTER execution (non-blocking)
+    task.defer(${v.decoyFlood})
 
     if ${v.execFunc} then
       local _co = coroutine.create(function() return ${v.execFunc}() end)
