@@ -705,6 +705,13 @@ const Dashboard = () => {
                   </Button>
                 ) : null}
               </div>
+
+              {step >= 1 && step <= 3 && (
+                <div className="mt-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">Live Preview — What your users see</p>
+                  <KeySystemPreview />
+                </div>
+              )}
             )}
           </TabsContent>
 
