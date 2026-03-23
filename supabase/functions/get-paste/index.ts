@@ -2363,6 +2363,15 @@ titleBar.BackgroundColor3 = bgColor
 titleBar.BorderSizePixel = 0
 titleBar.ZIndex = 4
 titleBar.Active = true
+titleBar.ClipsDescendants = true
+local titleBarCorner = Instance.new("UICorner", titleBar)
+titleBarCorner.CornerRadius = UDim.new(0, 28)
+local titleBarFill = Instance.new("Frame", titleBar)
+titleBarFill.Size = UDim2.new(1, 0, 0, 18)
+titleBarFill.Position = UDim2.new(0, 0, 1, -18)
+titleBarFill.BackgroundColor3 = bgColor
+titleBarFill.BorderSizePixel = 0
+titleBarFill.ZIndex = 4
 
 -- Dots
 local function makeDot(parent, pos, col, action)
