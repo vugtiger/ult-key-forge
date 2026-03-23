@@ -145,8 +145,8 @@ const UpdatePassword = () => {
         <SnowEffect />
 
         <Card className="relative z-10 p-8 bg-card/50 backdrop-blur-xl border-border/30 rounded-2xl text-center max-w-md">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
-            <CheckCircle className="w-8 h-8 text-green-500" />
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/15 flex items-center justify-center">
+            <CheckCircle className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold mb-2">Password Updated!</h1>
           <p className="text-muted-foreground">Your password has been changed. Redirecting to sign in...</p>
