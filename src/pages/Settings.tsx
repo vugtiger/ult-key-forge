@@ -6,12 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, RotateCcw, Sparkles, Type, Languages } from "lucide-react";
+import { Save, RotateCcw, Sparkles, Type, Languages, Settings as SettingsIcon, Palette } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import TabHelpSection from "@/components/onboarding/TabHelpSection";
 import { settingsHelp } from "@/components/onboarding/helpContent";
 import GoogleTranslate from "@/components/GoogleTranslate";
-
 import SessionManager from "@/components/SessionManager";
 import AccountInfo from "@/components/AccountInfo";
 
@@ -23,19 +22,13 @@ const Settings = () => {
   const [fetching, setFetching] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchTheme();
-  }, []);
+  useEffect(() => { fetchTheme(); }, []);
 
   const fetchTheme = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data, error } = await supabase
-        .from('user_themes')
-        .select('primary_color, neon_enabled, ult_lua_style')
-        .eq('user_id', user.id)
-        .single();
+      const { data, error } = await supabase.from('user_themes').select('primary_color, neon_enabled, ult_lua_style').eq('user_id', user.id).single();
       if (error) throw error;
       if (data) {
         setThemeColor(data.primary_color);
@@ -43,11 +36,8 @@ const Settings = () => {
         setUltLuaStyle(data.ult_lua_style || false);
         applyTheme(data.primary_color, data.neon_enabled || false, data.ult_lua_style || false);
       }
-    } catch (error: any) {
-      console.error('Error fetching theme:', error);
-    } finally {
-      setFetching(false);
-    }
+    } catch (error: any) { console.error('Error fetching theme:', error); }
+    finally { setFetching(false); }
   };
 
   const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
@@ -55,11 +45,9 @@ const Settings = () => {
     const [r, g, b] = color.split(',').map(c => parseInt(c.trim()));
     const rNorm = r / 255, gNorm = g / 255, bNorm = b / 255;
     const max = Math.max(rNorm, gNorm, bNorm), min = Math.min(rNorm, gNorm, bNorm);
-    let h = 0, s = 0;
-    const l = (max + min) / 2;
+    let h = 0, s = 0; const l = (max + min) / 2;
     if (max !== min) {
-      const d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      const d = max - min; s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
       switch (max) {
         case rNorm: h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6; break;
         case gNorm: h = ((bNorm - rNorm) / d + 2) / 6; break;
@@ -67,13 +55,10 @@ const Settings = () => {
       }
     }
     const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
-    
     root.style.setProperty('--foreground', hsl);
     root.style.setProperty('--card-foreground', hsl);
     root.style.setProperty('--popover-foreground', hsl);
     root.style.setProperty('--sidebar-foreground', hsl);
-    
-    // Apply neon effect
     if (neon) {
       root.style.setProperty('--neon-color', `rgb(${color})`);
       root.style.setProperty('--neon-color-glow', `rgba(${color}, 0.6)`);
@@ -83,13 +68,8 @@ const Settings = () => {
       root.style.removeProperty('--neon-color-glow');
       root.classList.remove('neon-text-enabled');
     }
-    
-    // Apply ULT LUA style (bold italic)
-    if (ultStyle) {
-      root.classList.add('ult-lua-style-enabled');
-    } else {
-      root.classList.remove('ult-lua-style-enabled');
-    }
+    if (ultStyle) root.classList.add('ult-lua-style-enabled');
+    else root.classList.remove('ult-lua-style-enabled');
   };
 
   const handleSaveTheme = async () => {
@@ -102,50 +82,26 @@ const Settings = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      
-      const { error } = await supabase
-        .from('user_themes')
-        .update({ 
-          primary_color: themeColor,
-          neon_enabled: neonEnabled,
-          ult_lua_style: ultLuaStyle
-        })
-        .eq('user_id', user.id);
-      
+      const { error } = await supabase.from('user_themes').update({ primary_color: themeColor, neon_enabled: neonEnabled, ult_lua_style: ultLuaStyle }).eq('user_id', user.id);
       if (error) throw error;
-      
-      // Log activity for password reset verification
-      await supabase.from('user_activity').insert({
-        user_id: user.id,
-        activity_type: 'theme_change',
-        activity_data: { color: themeColor, neon: neonEnabled, ultLua: ultLuaStyle }
-      });
-      
+      await supabase.from('user_activity').insert({ user_id: user.id, activity_type: 'theme_change', activity_data: { color: themeColor, neon: neonEnabled, ultLua: ultLuaStyle } });
       applyTheme(themeColor, neonEnabled, ultLuaStyle);
       toast({ title: "Success!", description: "Theme settings updated successfully" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleReset = () => {
-    setThemeColor("255, 255, 255");
-    setNeonEnabled(false);
-    setUltLuaStyle(false);
+    setThemeColor("255, 255, 255"); setNeonEnabled(false); setUltLuaStyle(false);
     const root = document.documentElement;
-    root.style.removeProperty('--foreground');
-    root.style.removeProperty('--card-foreground');
-    root.style.removeProperty('--popover-foreground');
-    root.style.removeProperty('--sidebar-foreground');
-    root.style.removeProperty('--neon-color');
-    root.style.removeProperty('--neon-color-glow');
-    root.classList.remove('neon-text-enabled');
-    root.classList.remove('ult-lua-style-enabled');
+    root.style.removeProperty('--foreground'); root.style.removeProperty('--card-foreground');
+    root.style.removeProperty('--popover-foreground'); root.style.removeProperty('--sidebar-foreground');
+    root.style.removeProperty('--neon-color'); root.style.removeProperty('--neon-color-glow');
+    root.classList.remove('neon-text-enabled'); root.classList.remove('ult-lua-style-enabled');
   };
 
-  if (fetching) return <DashboardLayout><div className="text-center py-12">Loading settings...</div></DashboardLayout>;
+  if (fetching) return <DashboardLayout><div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div></DashboardLayout>;
 
   const colorPresets = [
     { name: "White", color: "255, 255, 255", bg: "bg-white" },
@@ -168,128 +124,106 @@ const Settings = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Settings</h1>
-          <p className="text-muted-foreground">Manage your account and preferences</p>
+      <div className="max-w-2xl mx-auto space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/12 flex items-center justify-center">
+            <SettingsIcon className="text-primary" size={18} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Settings</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Manage your account and preferences</p>
+          </div>
         </div>
 
         <TabHelpSection {...settingsHelp} />
 
-        {/* Language Selection */}
-        <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl">
-          <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
-            <Languages className="w-6 h-6" />
-            Language
+        {/* Language */}
+        <div className="rounded-xl border border-primary/10 bg-card/20 p-5 backdrop-blur-xl">
+          <h2 className="text-sm font-semibold flex items-center gap-2 mb-3">
+            <Languages className="w-4 h-4 text-primary" /> Language
           </h2>
-          <div className="flex items-center gap-4">
-            <p className="text-sm text-muted-foreground">Select your preferred language:</p>
+          <div className="flex items-center gap-3">
+            <p className="text-xs text-muted-foreground">Select your preferred language:</p>
             <GoogleTranslate />
           </div>
-        </Card>
+        </div>
 
-        {/* Account Info */}
         <AccountInfo />
-        
-        {/* Text Color Card */}
-        <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl">
-          <h2 className="text-2xl font-semibold mb-6">Text Color</h2>
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="themeColor">Text Color (RGB)</Label>
-              <Input 
-                id="themeColor" 
-                placeholder="e.g., 255, 100, 50" 
-                value={themeColor} 
-                onChange={(e) => setThemeColor(e.target.value)} 
-                className="bg-input" 
-              />
-              <p className="text-sm text-muted-foreground">Only changes text colors. Glow effects stay white.</p>
-            </div>
-            
-            <div className="p-4 rounded-lg border border-border bg-input/30">
-              <p className="text-sm mb-2 text-muted-foreground">Preview:</p>
-              <div 
-                className="p-4 rounded-md bg-background border border-border" 
-                style={{ 
-                  color: `rgb(${themeColor})`,
-                  textShadow: neonEnabled ? `0 0 5px rgb(${themeColor}), 0 0 10px rgb(${themeColor}), 0 0 20px rgba(${themeColor}, 0.6), 0 0 40px rgba(${themeColor}, 0.4), 0 0 80px rgba(${themeColor}, 0.2)` : 'none',
-                  fontWeight: ultLuaStyle ? 'bold' : 'normal',
-                  fontStyle: ultLuaStyle ? 'italic' : 'normal'
-                }}
-              >
-                <p className="text-lg font-bold">Sample Text Preview</p>
-                <p className="text-sm">This is how your text will look.</p>
-              </div>
-            </div>
-          </div>
-        </Card>
 
-        {/* Text Style Card */}
-        <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl">
-          <h2 className="text-2xl font-semibold mb-6">Text Style</h2>
-          <div className="space-y-6">
-            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-input/30">
-              <div className="flex items-center gap-3">
-                <Sparkles className="w-6 h-6 text-foreground" />
-                <div>
-                  <Label htmlFor="neon" className="text-base font-medium">Neon Effect</Label>
-                  <p className="text-sm text-muted-foreground">Add a glowing neon effect to text</p>
-                </div>
-              </div>
-              <Switch
-                id="neon"
-                checked={neonEnabled}
-                onCheckedChange={setNeonEnabled}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-input/30">
-              <div className="flex items-center gap-3">
-                <Type className="w-6 h-6 text-foreground" />
-                <div>
-                  <Label htmlFor="ultLua" className="text-base font-medium">ULT LUA Style</Label>
-                  <p className="text-sm text-muted-foreground">Bold italic text like the ULT LUA logo</p>
-                </div>
-              </div>
-              <Switch
-                id="ultLua"
-                checked={ultLuaStyle}
-                onCheckedChange={setUltLuaStyle}
-              />
-            </div>
-            
-            <div className="flex gap-3">
-              <Button onClick={handleSaveTheme} disabled={loading} className="flex-1 cyber-glow" size="lg">
-                <Save className="mr-2" size={20} />{loading ? "Saving..." : "Save Changes"}
-              </Button>
-              <Button onClick={handleReset} variant="outline" size="lg">
-                <RotateCcw className="mr-2" size={20} />Reset
-              </Button>
+        {/* Text Color */}
+        <div className="rounded-xl border border-primary/10 bg-card/20 p-5 backdrop-blur-xl space-y-4">
+          <h2 className="text-sm font-semibold flex items-center gap-2">
+            <Palette className="w-4 h-4 text-primary" /> Text Color
+          </h2>
+          <div className="space-y-1.5">
+            <Label htmlFor="themeColor" className="text-xs">Text Color (RGB)</Label>
+            <Input id="themeColor" placeholder="e.g., 255, 100, 50" value={themeColor} onChange={(e) => setThemeColor(e.target.value)} className="bg-background/50 h-9 text-sm" />
+            <p className="text-[10px] text-muted-foreground">Only changes text colors. Glow effects stay white.</p>
+          </div>
+          <div className="rounded-lg border border-primary/8 bg-background/20 p-3">
+            <p className="text-[10px] text-muted-foreground mb-1.5">Preview:</p>
+            <div className="p-3 rounded-lg bg-background/50 border border-primary/5" style={{
+              color: `rgb(${themeColor})`,
+              textShadow: neonEnabled ? `0 0 5px rgb(${themeColor}), 0 0 10px rgb(${themeColor}), 0 0 20px rgba(${themeColor}, 0.6)` : 'none',
+              fontWeight: ultLuaStyle ? 'bold' : 'normal',
+              fontStyle: ultLuaStyle ? 'italic' : 'normal'
+            }}>
+              <p className="text-sm font-bold">Sample Text Preview</p>
+              <p className="text-xs">This is how your text will look.</p>
             </div>
           </div>
-        </Card>
-        
-        {/* Color Presets Card */}
-        <Card className="p-6 bg-card/30 border-border/50">
-          <h3 className="text-lg font-semibold mb-4">Color Presets</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        </div>
+
+        {/* Text Style */}
+        <div className="rounded-xl border border-primary/10 bg-card/20 p-5 backdrop-blur-xl space-y-3">
+          <h2 className="text-sm font-semibold flex items-center gap-2">
+            <Type className="w-4 h-4 text-primary" /> Text Style
+          </h2>
+          <div className="flex items-center justify-between p-3 rounded-lg border border-primary/8 bg-background/20">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <div>
+                <Label htmlFor="neon" className="text-xs font-medium">Neon Effect</Label>
+                <p className="text-[10px] text-muted-foreground">Add a glowing neon effect to text</p>
+              </div>
+            </div>
+            <Switch id="neon" checked={neonEnabled} onCheckedChange={setNeonEnabled} />
+          </div>
+          <div className="flex items-center justify-between p-3 rounded-lg border border-primary/8 bg-background/20">
+            <div className="flex items-center gap-2.5">
+              <Type className="w-4 h-4 text-primary" />
+              <div>
+                <Label htmlFor="ultLua" className="text-xs font-medium">ULT LUA Style</Label>
+                <p className="text-[10px] text-muted-foreground">Bold italic text like the ULT LUA logo</p>
+              </div>
+            </div>
+            <Switch id="ultLua" checked={ultLuaStyle} onCheckedChange={setUltLuaStyle} />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button onClick={handleSaveTheme} disabled={loading} className="flex-1 h-9 text-xs rounded-lg" size="sm">
+              <Save className="mr-1.5" size={14} />{loading ? "Saving..." : "Save Changes"}
+            </Button>
+            <Button onClick={handleReset} variant="outline" size="sm" className="h-9 text-xs rounded-lg border-primary/10">
+              <RotateCcw className="mr-1.5" size={14} />Reset
+            </Button>
+          </div>
+        </div>
+
+        {/* Color Presets */}
+        <div className="rounded-xl border border-primary/10 bg-card/20 p-5 backdrop-blur-xl">
+          <h3 className="text-sm font-semibold mb-3">Color Presets</h3>
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
             {colorPresets.map((preset) => (
-              <Button 
-                key={preset.name} 
-                variant="outline" 
-                onClick={() => setThemeColor(preset.color)} 
-                className="justify-start h-auto py-2 px-3"
-              >
-                <div className={`w-4 h-4 rounded-full ${preset.bg} mr-2 flex-shrink-0`} />
-                <span className="text-xs truncate">{preset.name}</span>
-              </Button>
+              <button key={preset.name} onClick={() => setThemeColor(preset.color)} className="flex flex-col items-center gap-1 p-1.5 rounded-lg hover:bg-primary/8 transition-colors" title={preset.name}>
+                <div className={`w-6 h-6 rounded-full ${preset.bg} border border-border/20`} />
+                <span className="text-[9px] text-muted-foreground truncate w-full text-center">{preset.name}</span>
+              </button>
             ))}
           </div>
-        </Card>
-        
-        <p className="text-sm text-muted-foreground text-center">
-          Note: Theme settings are reset when you log out and restored when you log back in.
+        </div>
+
+        <p className="text-[10px] text-muted-foreground/50 text-center pb-4">
+          Theme settings are reset when you log out and restored when you log back in.
         </p>
       </div>
     </DashboardLayout>

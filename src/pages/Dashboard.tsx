@@ -475,37 +475,39 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-3xl mx-auto space-y-6">
-        <div className="mb-6">
-          <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
-            <Zap className="text-primary" size={36} />
-            Key System Generator
-          </h1>
-          <p className="text-muted-foreground">Create and manage key systems linked to your pastes</p>
+      <div className="max-w-3xl mx-auto space-y-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-primary/12 flex items-center justify-center">
+            <Zap className="text-primary" size={18} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Key System Generator</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Create and manage key systems linked to your pastes</p>
+          </div>
         </div>
 
         <Tabs defaultValue="create">
-          <TabsList className="mb-6">
-            <TabsTrigger value="create" className="gap-2"><Plus size={14} /> Create New</TabsTrigger>
-            <TabsTrigger value="manage" className="gap-2"><Settings size={14} /> Manage</TabsTrigger>
+          <TabsList className="mb-5 h-9 bg-card/30 border border-primary/10 rounded-lg p-0.5">
+            <TabsTrigger value="create" className="gap-1.5 text-xs rounded-md data-[state=active]:bg-primary/15"><Plus size={13} /> Create New</TabsTrigger>
+            <TabsTrigger value="manage" className="gap-1.5 text-xs rounded-md data-[state=active]:bg-primary/15"><Settings size={13} /> Manage</TabsTrigger>
           </TabsList>
 
           {/* ════════════════ CREATE TAB ════════════════ */}
           <TabsContent value="create">
             {/* Step Indicator */}
             {step < 4 && (
-              <div className="flex items-center gap-2 mb-6">
+              <div className="flex items-center gap-1.5 mb-5">
                 {STEPS.map((label, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+                  <div key={i} className="flex items-center gap-1.5">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${
                       i < step ? 'bg-primary text-primary-foreground' :
-                      i === step ? 'bg-primary/20 border-2 border-primary text-primary' :
-                      'bg-muted text-muted-foreground'
+                      i === step ? 'bg-primary/15 border border-primary/40 text-primary' :
+                      'bg-muted/30 text-muted-foreground'
                     }`}>
-                      {i < step ? <Check size={14} /> : i + 1}
+                      {i < step ? <Check size={12} /> : i + 1}
                     </div>
-                    <span className={`text-xs hidden sm:block ${i === step ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{label}</span>
-                    {i < STEPS.length - 1 && <div className={`h-px w-6 sm:w-12 ${i < step ? 'bg-primary' : 'bg-border'}`} />}
+                    <span className={`text-[10px] hidden sm:block ${i === step ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{label}</span>
+                    {i < STEPS.length - 1 && <div className={`h-px w-5 sm:w-10 ${i < step ? 'bg-primary' : 'bg-primary/10'}`} />}
                   </div>
                 ))}
               </div>
@@ -513,7 +515,7 @@ const Dashboard = () => {
 
             {/* STEP 0 */}
             {step === 0 && (
-              <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl space-y-5">
+              <Card className="p-5 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Link2 className="text-primary" size={20} />
                   <h2 className="text-lg font-semibold">Link to a Paste</h2>
@@ -576,7 +578,7 @@ const Dashboard = () => {
 
             {/* STEP 1 */}
             {step === 1 && (
-              <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl space-y-5">
+              <Card className="p-5 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Key className="text-primary" size={20} />
                   <h2 className="text-lg font-semibold">Configure Keys</h2>
@@ -607,7 +609,7 @@ const Dashboard = () => {
 
             {/* STEP 2 */}
             {step === 2 && (
-              <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl space-y-5">
+              <Card className="p-5 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="text-primary" size={20} />
                   <h2 className="text-lg font-semibold">Whitelist Roblox Users (Optional)</h2>
@@ -629,7 +631,7 @@ const Dashboard = () => {
 
             {/* STEP 3 */}
             {step === 3 && (
-              <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl space-y-4">
+              <Card className="p-5 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Hash className="text-primary" size={20} />
                   <h2 className="text-lg font-semibold">Review & Generate</h2>
@@ -648,7 +650,7 @@ const Dashboard = () => {
                     </div>
                   ))}
                 </div>
-                <Button onClick={handleGenerate} disabled={loading} className="w-full cyber-glow" size="lg">
+                <Button onClick={handleGenerate} disabled={loading} className="w-full rounded-lg" size="lg">
                   <Zap className="mr-2" size={20} />
                   {loading ? "Generating..." : "Generate Key System"}
                 </Button>
@@ -657,7 +659,7 @@ const Dashboard = () => {
 
             {/* STEP 4: Results */}
             {step === 4 && (
-              <Card className="p-6 cyber-border bg-card/50 backdrop-blur-xl space-y-5">
+              <Card className="p-5 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Check className="text-primary" size={20} />
                   <h2 className="text-lg font-semibold text-primary">Key System Created!</h2>
@@ -690,7 +692,7 @@ const Dashboard = () => {
                   </Button>
                 )}
                 {step < 3 ? (
-                  <Button onClick={() => setStep(s => s + 1)} disabled={!canProceed()} className="flex-1 cyber-glow">
+                  <Button onClick={() => setStep(s => s + 1)} disabled={!canProceed()} className="flex-1 rounded-lg">
                     Next <ChevronRight size={16} className="ml-1" />
                   </Button>
                 ) : null}
@@ -702,7 +704,7 @@ const Dashboard = () => {
           <TabsContent value="manage">
             <div className="space-y-5">
               {/* Paste selector */}
-              <Card className="p-5 cyber-border bg-card/50 backdrop-blur-xl">
+              <Card className="p-4 rounded-xl border border-primary/10 bg-card/20 backdrop-blur-xl">
                 <Label className="mb-2 block">Select Paste to Manage</Label>
                 {loadingPastes ? (
                   <div className="text-sm text-muted-foreground">Loading pastes...</div>
@@ -786,7 +788,7 @@ const Dashboard = () => {
                           {KEY_DURATIONS.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <Button onClick={handleAddMoreKeys} disabled={addingKeys} className="cyber-glow">
+                      <Button onClick={handleAddMoreKeys} disabled={addingKeys} className="rounded-lg">
                         {addingKeys ? '...' : <><Plus size={16} className="mr-1" /> Add</>}
                       </Button>
                     </div>

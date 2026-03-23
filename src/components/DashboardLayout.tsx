@@ -24,7 +24,6 @@ import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEffect";
 
-
 const navigationItems = [
   { title: "Key System Gen", url: "/dashboard", icon: Zap },
   { title: "Script Storage", url: "/scripts", icon: Save },
@@ -41,7 +40,6 @@ const adminItems = [
   { title: "Admin Panel", url: "/admin", icon: Shield },
 ];
 
-// Reset theme to default
 const resetTheme = () => {
   const root = document.documentElement;
   root.style.removeProperty('--foreground');
@@ -54,7 +52,6 @@ const resetTheme = () => {
   root.classList.remove('ult-lua-style-enabled');
 };
 
-// Apply theme from user settings
 const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
   const root = document.documentElement;
   const [r, g, b] = color.split(',').map(c => parseInt(c.trim()));
@@ -72,12 +69,10 @@ const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
     }
   }
   const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
-  
   root.style.setProperty('--foreground', hsl);
   root.style.setProperty('--card-foreground', hsl);
   root.style.setProperty('--popover-foreground', hsl);
   root.style.setProperty('--sidebar-foreground', hsl);
-  
   if (neon) {
     root.style.setProperty('--neon-color', `rgb(${color})`);
     root.style.setProperty('--neon-color-glow', `rgba(${color}, 0.6)`);
@@ -87,63 +82,64 @@ const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
     root.style.removeProperty('--neon-color-glow');
     root.classList.remove('neon-text-enabled');
   }
-  
-  if (ultStyle) {
-    root.classList.add('ult-lua-style-enabled');
-  } else {
-    root.classList.remove('ult-lua-style-enabled');
-  }
+  if (ultStyle) root.classList.add('ult-lua-style-enabled');
+  else root.classList.remove('ult-lua-style-enabled');
 };
 
 const AppSidebar = ({ user }: { user: User | null }) => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { state } = useSidebar();
   const { isAdmin } = useAdminStatus(user?.id);
 
   const handleLogout = async () => {
     resetTheme();
-    try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.log('Logout error (session may already be expired):', error);
-    }
+    try { await supabase.auth.signOut(); } catch (error) { console.log('Logout error:', error); }
     localStorage.removeItem('sb-iyfvpnjrghsownkpazec-auth-token');
     navigate("/auth");
   };
 
-  // Admin accounts only see Admin Panel
   const navItems = isAdmin ? adminItems : navigationItems;
 
   return (
-    <Sidebar className={state === "collapsed" ? "w-14" : "w-64"} collapsible="icon">
-      <SidebarContent className="bg-sidebar border-r border-sidebar-border relative">
-        <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-primary/30 via-transparent to-primary/30 pointer-events-none" />
-        <div className="p-4 border-b border-sidebar-border flex items-center gap-3">
+    <Sidebar className={state === "collapsed" ? "w-14" : "w-56"} collapsible="icon">
+      <SidebarContent className="bg-background/40 backdrop-blur-2xl border-r border-primary/10 relative">
+        {/* Purple gradient rail */}
+        <div className="absolute inset-y-0 right-0 w-[2px] bg-gradient-to-b from-primary/50 via-primary/20 to-primary/50 pointer-events-none" />
+        
+        <div className="p-3 border-b border-primary/10 flex items-center gap-2.5">
           {state !== "collapsed" ? (
             <>
-              <CloudLogo size={28} className="text-foreground" />
-              <h1 className="text-lg font-bold tracking-wider">
+              <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
+                <CloudLogo size={20} className="text-primary" />
+              </div>
+              <h1 className="text-sm font-bold tracking-wider">
                 ULT <span className="text-primary cloud-glow-text">CLOUD</span>
               </h1>
             </>
           ) : (
-            <CloudLogo size={24} className="text-foreground" />
+            <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center mx-auto">
+              <CloudLogo size={18} className="text-primary" />
+            </div>
           )}
         </div>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className={state === "collapsed" ? "sr-only" : ""}>
-            {isAdmin ? "Owner" : "Main Menu"}
+        <SidebarGroup className="mt-2">
+          <SidebarGroupLabel className={`text-[10px] tracking-[0.2em] text-muted-foreground/50 uppercase ${state === "collapsed" ? "sr-only" : "px-3 mb-1"}`}>
+            {isAdmin ? "Owner" : "Menu"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-0.5 px-1.5">
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} end className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                      <item.icon className={state === "collapsed" ? "" : "mr-2"} size={20} />
-                      {state !== "collapsed" && <span>{item.title}</span>}
+                    <NavLink
+                      to={item.url}
+                      end
+                      className="rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-primary/8 transition-all duration-200"
+                      activeClassName="bg-primary/12 text-foreground border border-primary/20 shadow-[0_0_12px_hsl(var(--primary)/0.15)]"
+                    >
+                      <item.icon className={state === "collapsed" ? "" : "mr-2.5"} size={17} />
+                      {state !== "collapsed" && <span className="text-[13px]">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -152,10 +148,10 @@ const AppSidebar = ({ user }: { user: User | null }) => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <div className="mt-auto p-4 border-t border-sidebar-border">
-          <Button variant="ghost" className="w-full justify-start hover:bg-sidebar-accent" onClick={handleLogout}>
-            <LogOut className={state === "collapsed" ? "" : "mr-2"} size={20} />
-            {state !== "collapsed" && <span>Logout</span>}
+        <div className="mt-auto p-2 border-t border-primary/10">
+          <Button variant="ghost" className="w-full justify-start rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-destructive/10" onClick={handleLogout}>
+            <LogOut className={state === "collapsed" ? "" : "mr-2.5"} size={17} />
+            {state !== "collapsed" && <span className="text-[13px]">Logout</span>}
           </Button>
         </div>
       </SidebarContent>
@@ -163,43 +159,29 @@ const AppSidebar = ({ user }: { user: User | null }) => {
   );
 };
 
-
 const SoundToggle = () => {
   const [soundOn, setSoundOn] = useState(isSnowSoundOn());
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setSoundOn(toggleSnowSound())}
-      className="text-muted-foreground hover:text-foreground"
-      title={soundOn ? "Mute snow sound" : "Unmute snow sound"}
-    >
-      {soundOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
+    <Button variant="ghost" size="icon" onClick={() => setSoundOn(toggleSnowSound())} className="text-muted-foreground/60 hover:text-foreground h-8 w-8 rounded-lg" title={soundOn ? "Mute snow sound" : "Unmute snow sound"}>
+      {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
     </Button>
   );
 };
 
-interface DashboardLayoutProps {
-  children: ReactNode;
-}
+interface DashboardLayoutProps { children: ReactNode; }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
   const initializedRef = useRef(false);
   const userIdRef = useRef<string | null>(null);
-  
 
   useEffect(() => {
     const loadUserTheme = async (userId: string) => {
       try {
         const { data } = await supabase.from('user_themes').select('primary_color, neon_enabled, ult_lua_style').eq('user_id', userId).single();
-        if (data) {
-          applyTheme(data.primary_color, data.neon_enabled || false, data.ult_lua_style || false);
-        }
-      } catch (error) {
-        console.error('Error loading theme:', error);
-      }
+        if (data) applyTheme(data.primary_color, data.neon_enabled || false, data.ult_lua_style || false);
+      } catch (error) { console.error('Error loading theme:', error); }
     };
 
     const trackLogin = (userId: string) => {
@@ -209,27 +191,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
     const checkBanStatus = async (userId: string) => {
       try {
-        const { data } = await supabase.functions.invoke('track-ip', {
-          body: { user_id: userId, action: 'check_ban' }
-        });
+        const { data } = await supabase.functions.invoke('track-ip', { body: { user_id: userId, action: 'check_ban' } });
         if (data?.banned) {
           resetTheme();
           await supabase.auth.signOut();
           localStorage.removeItem('sb-iyfvpnjrghsownkpazec-auth-token');
           navigate("/auth", { state: { banReason: data.reason || 'Your account has been banned.' } });
         }
-      } catch (err) {
-        console.warn('Ban check skipped:', err);
-      }
+      } catch (err) { console.warn('Ban check skipped:', err); }
     };
 
-    // Admin redirect removed — admin page is fully standalone
-
     const safeSetUser = (sessionUser: User) => {
-      if (userIdRef.current !== sessionUser.id) {
-        userIdRef.current = sessionUser.id;
-        setUser(sessionUser);
-      }
+      if (userIdRef.current !== sessionUser.id) { userIdRef.current = sessionUser.id; setUser(sessionUser); }
     };
 
     let mounted = true;
@@ -262,13 +235,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       }
     });
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    return () => { mounted = false; subscription.unsubscribe(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
 
   if (!user) return null;
 
@@ -279,16 +248,15 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <SnowEffect />
         <AppSidebar user={user} />
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
-          <header className="h-14 border-b border-border/30 flex items-center px-6 sticky top-0 bg-background/60 backdrop-blur-2xl z-10">
-            <SidebarTrigger className="mr-4" />
+          <header className="h-12 border-b border-primary/8 flex items-center px-5 sticky top-0 bg-background/50 backdrop-blur-2xl z-10">
+            <SidebarTrigger className="mr-3 h-7 w-7" />
             <div className="flex-1" />
             <SoundToggle />
           </header>
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-5">
             {children}
           </main>
         </div>
-        
       </div>
     </SidebarProvider>
   );
