@@ -693,25 +693,27 @@ const Dashboard = () => {
 
             {/* Navigation */}
             {step < 4 && (
-              <div className="flex gap-3 mt-4">
-                {step > 0 && (
-                  <Button variant="outline" onClick={() => setStep(s => s - 1)} className="flex-1">
-                    <ChevronLeft size={16} className="mr-1" /> Back
-                  </Button>
-                )}
-                {step < 3 ? (
-                  <Button onClick={() => setStep(s => s + 1)} disabled={!canProceed()} className="flex-1 rounded-lg">
-                    Next <ChevronRight size={16} className="ml-1" />
-                  </Button>
-                ) : null}
-              </div>
-
-              {step >= 1 && step <= 3 && (
-                <div className="mt-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">Live Preview — What your users see</p>
-                  <KeySystemPreview />
+              <>
+                <div className="flex gap-3 mt-4">
+                  {step > 0 && (
+                    <Button variant="outline" onClick={() => setStep(s => s - 1)} className="flex-1">
+                      <ChevronLeft size={16} className="mr-1" /> Back
+                    </Button>
+                  )}
+                  {step < 3 ? (
+                    <Button onClick={() => setStep(s => s + 1)} disabled={!canProceed()} className="flex-1 rounded-lg">
+                      Next <ChevronRight size={16} className="ml-1" />
+                    </Button>
+                  ) : null}
                 </div>
-              )}
+
+                {step >= 1 && step <= 3 && (
+                  <div className="mt-6">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">Live Preview — What your users see</p>
+                    <KeySystemPreview />
+                  </div>
+                )}
+              </>
             )}
           </TabsContent>
 
