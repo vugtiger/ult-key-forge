@@ -3715,7 +3715,7 @@ Deno.serve(async (req) => {
       // Key is assigned to THIS user - allow
       
       // Key is valid! Log execution
-      await logAccess(uid, 'key_execution', true);
+      logAccess(uid, 'key_execution', true).catch(() => {});
       await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
       
       // Also cleanup expired keys occasionally
