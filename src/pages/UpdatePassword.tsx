@@ -16,23 +16,33 @@ const UpdatePassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [ready, setReady] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Supabase handles the recovery token from the email link automatically
-    // via onAuthStateChange PASSWORD_RECOVERY event
+    let recoveryDetected = false;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
-        // User clicked recovery link - they're now in recovery mode
-        // Don't navigate away, let them set new password
+        recoveryDetected = true;
+        setReady(true);
       }
+      // Block any auto-redirect to dashboard — user must stay here
     });
 
-    // Also verify we have a session (from the recovery link)
+    // Check if we already have a session (e.g. token was already exchanged)
     const checkSession = async () => {
+      // Wait for Supabase to process the recovery token from the URL hash
+      await new Promise(r => setTimeout(r, 1500));
+      
+      if (recoveryDetected) return; // Already handled above
+      
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      if (session) {
+        // Session exists — likely from recovery link, show the form
+        setReady(true);
+      } else {
         toast({ 
           title: "Invalid or Expired Link", 
           description: "Please request a new password reset link.", 
@@ -42,8 +52,7 @@ const UpdatePassword = () => {
       }
     };
     
-    // Small delay to allow Supabase to process the recovery token from URL
-    setTimeout(checkSession, 1000);
+    checkSession();
 
     return () => subscription.unsubscribe();
   }, [navigate, toast]);
