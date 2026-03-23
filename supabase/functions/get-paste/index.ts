@@ -4076,13 +4076,13 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       return await respondWithFreshLoader();
     }
 
-    const { error: updateError } = await supabase
+    // v12.2: Non-blocking token mark-as-used
+    supabase
       .from('paste_execution_tokens')
       .update({ used_at: new Date().toISOString(), roblox_user_id: uid })
       .eq('id', tokenData.id)
-      .is('used_at', null);
-
-    if (updateError) return await respondWithFreshLoader();
+      .is('used_at', null)
+      .then(() => {}).catch(() => {});
 
     if (paste.game_restriction_enabled && gid && pid) {
       const { data: gameBindings } = await supabase.from('paste_game_bindings').select('game_id').eq('paste_id', paste.id);
