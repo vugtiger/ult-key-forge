@@ -2349,36 +2349,20 @@ win.BackgroundColor3 = bgColor
 win.BorderSizePixel = 0
 win.BackgroundTransparency = 1
 win.ZIndex = 3
+win.ClipsDescendants = true
 
 local winCorner = Instance.new("UICorner", win)
 winCorner.CornerRadius = UDim.new(0, 28)
-addStroke(win, Color3.fromRGB(${r}, ${g}, ${b}), 1).Transparency = 0.7
-
-local glow = makePanel(gui, UDim2.new(0, 760, 0, 444), UDim2.new(0.5, -380, 0.5, -222), themeCol, 2, 32)
-glow.BackgroundTransparency = 0.82
-
--- Top glow line
-local glowLine = Instance.new("Frame", win)
-glowLine.Size = UDim2.new(1, 0, 0, 1)
-glowLine.Position = UDim2.new(0, 0, 0, 0)
-glowLine.BackgroundColor3 = themeCol
-glowLine.BorderSizePixel = 0
-glowLine.ZIndex = 10
-glowLine.BackgroundTransparency = 0.3
+addStroke(win, borderCol, 1).Transparency = 0.22
 
 -- Title bar
 local titleBar = Instance.new("Frame", win)
-titleBar.Size = UDim2.new(1, 0, 0, 40)
-titleBar.Position = UDim2.new(0, 0, 0, 1)
-titleBar.BackgroundColor3 = Color3.fromRGB(14, 12, 20)
+titleBar.Size = UDim2.new(1, 0, 0, 44)
+titleBar.Position = UDim2.new(0, 0, 0, 0)
+titleBar.BackgroundColor3 = bgColor
 titleBar.BorderSizePixel = 0
 titleBar.ZIndex = 4
-local tbFill = Instance.new("Frame", titleBar)
-tbFill.Size = UDim2.new(1, 0, 0, 10)
-tbFill.Position = UDim2.new(0, 0, 1, -10)
-tbFill.BackgroundColor3 = Color3.fromRGB(14, 12, 20)
-tbFill.BorderSizePixel = 0
-tbFill.ZIndex = 4
+titleBar.Active = true
 
 -- Dots
 local function makeDot(parent, pos, col, action)
@@ -2402,18 +2386,10 @@ local dot3 = makeDot(titleBar, UDim2.new(0, 58, 0.5, -5), Color3.fromRGB(54, 46,
 addLabel(titleBar, UDim2.new(0, 200, 1, 0), UDim2.new(1, -214, 0, 0),
     "Ult Loader v6.1", mutedText, Enum.Font.GothamMedium, 9, Enum.TextXAlignment.Right, 5)
 
--- Sep
-local sep = Instance.new("Frame", win)
-sep.Size = UDim2.new(1, 0, 0, 1)
-sep.Position = UDim2.new(0, 0, 0, 41)
-sep.BackgroundColor3 = borderCol
-sep.BorderSizePixel = 0
-sep.ZIndex = 4
-
 -- Content area (two columns)
 local contentArea = Instance.new("Frame", win)
-contentArea.Size = UDim2.new(1, -24, 1, -58)
-contentArea.Position = UDim2.new(0, 12, 0, 48)
+contentArea.Size = UDim2.new(1, -24, 1, -56)
+contentArea.Position = UDim2.new(0, 12, 0, 44)
 contentArea.BackgroundTransparency = 1
 contentArea.ZIndex = 4
 
@@ -2555,7 +2531,6 @@ UserInputService.InputChanged:Connect(function(i)
     if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
         local d = i.Position - dragStart
         win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
-        glow.Position = UDim2.new(win.Position.X.Scale, win.Position.X.Offset - 20, win.Position.Y.Scale, win.Position.Y.Offset - 18)
     end
 end)
 
@@ -2569,7 +2544,6 @@ local function unloadUi()
     unloading = true
     validating = false
     pcall(function() blur:Destroy() end)
-    pcall(function() glow:Destroy() end)
     pcall(function() gui:Destroy() end)
 end
 
