@@ -1189,14 +1189,14 @@ local ${v.entropyCollect} = function()
   conn = rs.RenderStepped:Connect(function(dt)
     collected = collected + 1
     ${v.runtimeEntropy}.frames[#${v.runtimeEntropy}.frames + 1] = dt
-    if collected >= 5 then
+    if collected >= 2 then
       conn:Disconnect()
     end
   end)
-  -- Wait for frames
-  local timeout = tick() + 2
-  while collected < 5 and tick() < timeout do
-    task.wait(0.05)
+  -- Wait for frames (reduced from 5 to 2 for faster loading)
+  local timeout = tick() + 1
+  while collected < 2 and tick() < timeout do
+    task.wait(0.03)
   end
   if conn.Connected then conn:Disconnect() end
 end
