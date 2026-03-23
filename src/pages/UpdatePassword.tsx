@@ -16,23 +16,33 @@ const UpdatePassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [ready, setReady] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Supabase handles the recovery token from the email link automatically
-    // via onAuthStateChange PASSWORD_RECOVERY event
+    let recoveryDetected = false;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
-        // User clicked recovery link - they're now in recovery mode
-        // Don't navigate away, let them set new password
+        recoveryDetected = true;
+        setReady(true);
       }
+      // Block any auto-redirect to dashboard — user must stay here
     });
 
-    // Also verify we have a session (from the recovery link)
+    // Check if we already have a session (e.g. token was already exchanged)
     const checkSession = async () => {
+      // Wait for Supabase to process the recovery token from the URL hash
+      await new Promise(r => setTimeout(r, 1500));
+      
+      if (recoveryDetected) return; // Already handled above
+      
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      if (session) {
+        // Session exists — likely from recovery link, show the form
+        setReady(true);
+      } else {
         toast({ 
           title: "Invalid or Expired Link", 
           description: "Please request a new password reset link.", 
@@ -42,8 +52,7 @@ const UpdatePassword = () => {
       }
     };
     
-    // Small delay to allow Supabase to process the recovery token from URL
-    setTimeout(checkSession, 1000);
+    checkSession();
 
     return () => subscription.unsubscribe();
   }, [navigate, toast]);
@@ -84,6 +93,22 @@ const UpdatePassword = () => {
       setLoading(false);
     }
   };
+
+  if (!ready && !success) {
+    return (
+      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+        <CloudBackground />
+        <SnowEffect />
+        <Card className="relative z-10 p-8 bg-card/50 backdrop-blur-xl border-border/30 rounded-2xl text-center max-w-md">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-card border border-border/50 flex items-center justify-center">
+            <KeyRound className="w-7 h-7 text-foreground animate-pulse" />
+          </div>
+          <h1 className="text-xl font-bold mb-2">Verifying Reset Link...</h1>
+          <p className="text-sm text-muted-foreground">Please wait while we verify your password reset link.</p>
+        </Card>
+      </div>
+    );
+  }
 
   if (success) {
     return (
