@@ -3880,8 +3880,8 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         const v12NonProtResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
         if (v12NonProtResult) return v12NonProtResult;
 
-        await logAccess(uid, 'execution', true);
-        await supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid });
+        logAccess(uid, 'execution', true).catch(() => {});
+        supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid }).then(() => {}).catch(() => {});
         
         fireWebhookAlert(paste, uid, clientIp, hwid, 'execution');
 
