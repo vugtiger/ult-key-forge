@@ -94,6 +94,22 @@ const UpdatePassword = () => {
     }
   };
 
+  if (!ready && !success) {
+    return (
+      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+        <CloudBackground />
+        <SnowEffect />
+        <Card className="relative z-10 p-8 bg-card/50 backdrop-blur-xl border-border/30 rounded-2xl text-center max-w-md">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-card border border-border/50 flex items-center justify-center">
+            <KeyRound className="w-7 h-7 text-foreground animate-pulse" />
+          </div>
+          <h1 className="text-xl font-bold mb-2">Verifying Reset Link...</h1>
+          <p className="text-sm text-muted-foreground">Please wait while we verify your password reset link.</p>
+        </Card>
+      </div>
+    );
+  }
+
   if (success) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
