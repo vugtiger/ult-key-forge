@@ -94,8 +94,7 @@ const KeySystemPreview = () => {
   return (
     <div className="relative w-full max-w-[760px] mx-auto px-2">
       <div className="relative overflow-hidden rounded-2xl border border-border/30 bg-card/95 backdrop-blur-xl">
-
-        <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
+        <div className="flex items-center justify-between px-5 py-4">
           <div className="flex items-center gap-2">
             <span className="h-3 w-3 rounded-full bg-primary/70" />
             <span className="h-3 w-3 rounded-full bg-foreground/20" />
