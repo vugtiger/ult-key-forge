@@ -1186,7 +1186,7 @@ Deno.serve(async (req) => {
     return new Response('warn("[ULT] Server error - please retry")', { status: 200, headers: textHeaders });
   }
 });
-  // If gaps are perfectly uniform (±5ms), suspicious (scripted)
+
   if (gaps.length >= 3) {
     const avg = gaps.reduce((a, b) => a + b, 0) / gaps.length;
     const allUniform = gaps.every(g => Math.abs(g - avg) < 5);
