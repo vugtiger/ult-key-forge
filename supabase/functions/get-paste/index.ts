@@ -700,10 +700,10 @@ function generatePolymorphicNumber(target: number): string {
   const strategies = [
     () => { const a = Math.floor(Math.random() * 1000) + 1; return `(${a + target} - ${a})`; },
     () => { const a = Math.floor(Math.random() * 50) + 2; const b = target + a; return `(${b} - ${a})`; },
-    () => { const a = Math.floor(Math.random() * 99) + 1; return `(math.floor(${a + target} + ${a}) - ${a * 2})`; },
+    () => { if (target === 0) return '(0)'; const a = Math.floor(Math.random() * 100) + 1; return `(bit32.bxor(${a ^ target}, ${a}))`; },
+    () => { const a = Math.floor(Math.random() * 99) + 1; return `(${a * target} / ${a})`; },
     () => { return `(tonumber("${target.toString(36)}", 36))`; },
     () => { const hex = target.toString(16); return `(tonumber("${hex}", 16))`; },
-    () => { const a = Math.floor(Math.random() * 500) + 1; return `(${a + target} - ${a})`; },
   ];
   return strategies[Math.floor(Math.random() * strategies.length)]();
 }
@@ -743,8 +743,14 @@ function generatePolymorphicString(target: string): string {
 function generateWatermark(): { id: string; luaEmbed: string } {
   const id = Array.from(crypto.getRandomValues(new Uint8Array(8)))
     .map(b => b.toString(16).padStart(2, '0')).join('');
-  // Encode watermark as ASCII-safe hex in a Lua comment (no Unicode — breaks some executor parsers)
-  const luaEmbed = `-- WM:${id}`;
+  // Encode watermark as invisible Unicode zero-width chars in Lua comments
+  const zeroWidthChars = ['\u200B', '\u200C', '\u200D', '\uFEFF'];
+  const encoded = Array.from(id).map(c => {
+    const nibble = parseInt(c, 16);
+    return zeroWidthChars[(nibble >> 2) & 3] + zeroWidthChars[nibble & 3];
+  }).join('');
+  // Embed as a Lua comment that looks innocent
+  const luaEmbed = `--${encoded} ULT Session`;
   return { id, luaEmbed };
 }
 
@@ -819,18 +825,18 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   );
   
   // v10: Polymorphic junk code — uses different patterns each time
-  // CRITICAL: Only use safe globals that exist in ALL Roblox executors
   const junkPatterns = [
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}="${Math.random().toString(36).substring(2, 14)}"`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=${Math.floor(Math.random() * 999999)}`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=function() return ${Math.floor(Math.random() * 100)} end`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=tick()+${Math.floor(Math.random() * 10000)}`; },
-    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=math.floor(${Math.floor(Math.random()*9999)}/${Math.floor(Math.random()*99)+1})`; },
+    // v10: New junk patterns
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=bit32.bxor(${Math.floor(Math.random()*9999)},${Math.floor(Math.random()*9999)})`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=string.rep("${Math.random().toString(36).substring(2,5)}",${Math.floor(Math.random()*3)+1})`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); const jv2 = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv},${jv2}=${Math.floor(Math.random()*999)},${Math.floor(Math.random()*999)}`; },
-    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=tostring(${Math.floor(Math.random()*99999)})`; },
-    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=math.random(1,${Math.floor(Math.random()*1000)+100})`; },
-    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=os.clock()*${Math.floor(Math.random()*1000)+100}`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=coroutine.create(function() return ${Math.floor(Math.random()*100)} end)`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=table.create(${Math.floor(Math.random()*10)+1},${Math.floor(Math.random()*100)})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=math.floor(os.clock()*${Math.floor(Math.random()*1000)+100})`; },
   ];
   
   // Generate 10-15 junk lines randomly selected and shuffled
@@ -851,38 +857,9 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   
   return `--[[ULT Protection v10.3 Loadstring-Proof Shield - ${Math.random().toString(36).substring(2,10)}]]
 ${watermark.luaEmbed}
--- bit32 polyfill for executors that don't have it
-if not bit32 then bit32 = {} end
-if not bit32.bxor then bit32.bxor = function(a, b) local r,m=0,1 for i=0,31 do local x,y=a%2,b%2 if x~=y then r=r+m end a=math.floor(a/2) b=math.floor(b/2) m=m*2 end return r end end
-if not bit32.band then bit32.band = function(a, b) local r,m=0,1 for i=0,31 do if a%2==1 and b%2==1 then r=r+m end a=math.floor(a/2) b=math.floor(b/2) m=m*2 end return r end end
-if not bit32.lshift then bit32.lshift = function(a, b) return math.floor(a * (2^b)) end end
-if not bit32.rshift then bit32.rshift = function(a, b) return math.floor(a / (2^b)) end end
 ${junkCode}
 
-local ${v.dumpPoison} = false
--- ====== v10: INSTANT BYPASS REPORT & GLOBAL BAN ======
-local _bypassReported = false
-local _reportBypass = function(reason, details)
-  if _bypassReported then return end
-  _bypassReported = true
-  local uid = "0"
-  pcall(function()
-    if ${v.player} and ${v.player}.UserId then
-      uid = tostring(${v.player}.UserId)
-    end
-  end)
-  pcall(function()
-    local p = game:GetService("Players").LocalPlayer
-    if p then uid = tostring(p.UserId) end
-  end)
-  local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
-  pcall(function()
-    game:HttpGet(reportUrl)
-  end)
-  ${v.dumpPoison} = true
-end
-
-
+-- ====== v10: GHOST CODE INJECTION ======
 -- These blocks look like real code but are dormant traps.
 -- If decompiled/dumped, they activate and report the leaker.
 local ${v.ghostArmed} = false
@@ -1660,14 +1637,32 @@ end
 
 -- ====== v9: DUMP POISONING ======
 -- Instead of blocking, return subtly corrupted data
--- (${v.dumpPoison} already declared above)
+local ${v.dumpPoison} = false
 local ${v.silentDegrade} = function()
   ${v.dumpPoison} = true
   -- Don't warn, don't kick - silently mark session as compromised
 end
 
--- (_reportBypass already declared above)
-
+-- ====== v10: INSTANT BYPASS REPORT & GLOBAL BAN ======
+-- When bypass is detected, report to server for instant global ban
+local _bypassReported = false
+local _reportBypass = function(reason, details)
+  if _bypassReported then return end
+  _bypassReported = true
+  -- Fire report to server (fire-and-forget, non-blocking)
+  local uid = "0"
+  pcall(function()
+    if ${v.player} and ${v.player}.UserId then
+      uid = tostring(${v.player}.UserId)
+    end
+  end)
+  local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
+  pcall(function()
+    game:HttpGet(reportUrl)
+  end)
+  -- Also silently degrade the session
+  ${v.dumpPoison} = true
+end
 
 -- ====== PHASE 4: SANDBOXED EXECUTION (v9.5 Enhanced) ======
 local ${v.execSandbox} = function(code)
@@ -1919,8 +1914,7 @@ local ${v.hexBytes} = function(hex)
 end
 
 local ${v.xorBytes} = function(bytes, keyb)
-  local out = {}
-  if table.create then out = table.create(#bytes) end
+  local out = table.create(#bytes)
   for i = 1, #bytes do
     out[i] = bit32.bxor(bytes[i], keyb[((i-1) % #keyb) + 1])
   end
@@ -1928,8 +1922,7 @@ local ${v.xorBytes} = function(bytes, keyb)
 end
 
 local ${v.bytesToString} = function(bytes)
-  local chars = {}
-  if table.create then chars = table.create(#bytes) end
+  local chars = table.create(#bytes)
   for i = 1, #bytes do chars[i] = string.char(bytes[i]) end
   return table.concat(chars)
 end
@@ -3233,30 +3226,7 @@ Deno.serve(async (req) => {
     // ===== BYPASS REPORT ENDPOINT =====
     // When the Lua loader detects a bypass attempt, it calls this to instantly global-ban the attacker
     const reportAction = url.searchParams.get('_report');
-    if (reportAction) {
-      // AUTO-BAN: Anyone accessing _report URLs from a BROWSER gets instantly banned
-      // These URLs should ONLY be called by the Lua loader from within Roblox
-      const reportUa = req.headers.get('user-agent') || '';
-      const reportSecFetch = req.headers.get('sec-fetch-mode') || '';
-      const reportAccept = req.headers.get('accept') || '';
-      const reportOrigin = req.headers.get('origin') || '';
-      const reportReferer = req.headers.get('referer') || '';
-      const isBrowserReport = Boolean(reportSecFetch) || reportAccept.includes('text/html') || 
-                               Boolean(reportOrigin) || Boolean(reportReferer) ||
-                               (/Mozilla\/\d/.test(reportUa) && /AppleWebKit|Gecko|Chrome|Safari|Firefox|Edge/.test(reportUa));
-      
-      if (isBrowserReport) {
-        console.log(`[get-paste] BROWSER ACCESS TO _report URL: ip=${earlyIp} action=${reportAction}`);
-        autoBanNewIp(earlyIp, `browser_access_report_endpoint_${reportAction}`, null, null);
-        logThreat('browser_report_access', earlyIp, null, null, {
-          report_action: reportAction,
-          user_agent: reportUa.substring(0, 200),
-          action: 'auto_banned_browser_report_access',
-        }, 'critical', true);
-        return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
-      }
-      
-      if (reportAction === 'bypass') {
+    if (reportAction === 'bypass') {
       const reportUid = url.searchParams.get('uid') || '';
       const reportReason = url.searchParams.get('reason') || 'bypass_attempt';
       const reportDetails = url.searchParams.get('details') || '';
@@ -3340,27 +3310,6 @@ Deno.serve(async (req) => {
       }
       
       // Return empty - don't give them any info
-      return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
-      }
-      
-      // Ghost trap and other report actions
-      if (reportAction === 'ghost_trap') {
-        const reportUid = url.searchParams.get('uid') || '';
-        autoBanNewIp(earlyIp, 'ghost_trap_triggered', reportUid || null, null);
-        if (reportUid && /^\d+$/.test(reportUid) && parseInt(reportUid) > 1000) {
-          await supabase.from('global_bans').upsert({
-            ban_type: 'roblox_id', ban_value: reportUid,
-            reason: 'Auto-banned: ghost trap triggered (code decompilation detected)', is_active: true,
-          }, { onConflict: 'ban_type,ban_value' }).then(() => {}).catch(() => {});
-          globalBanCache.robloxIds.add(reportUid);
-        }
-        logThreat('ghost_trap_triggered', earlyIp, reportUid || null, null, {
-          ghost: url.searchParams.get('ghost'), wm: url.searchParams.get('wm'),
-        }, 'critical', true);
-        return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
-      }
-      
-      // Any other _report action
       return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
     
@@ -3831,24 +3780,14 @@ loadstring(game:HttpGet(_url))()`;
         return new Response(`KEY_VALID_SCRIPT:\n${redirectScript}`, { status: 200, headers: textHeaders });
       }
       
-      // For non-protected pastes, still use encrypted delivery — never raw
-      const npToken = generateToken();
-      const npSessionSecret = generateSessionSecret(clientIp, Date.now());
-      await supabase.from('paste_execution_tokens').insert({
-        paste_id: paste.id, roblox_user_id: uid, token: npToken,
-        expires_at: new Date(Date.now() + 30000).toISOString(),
-        bound_ip: clientIp,
-      });
-      const npLoader = generateLoader(slugStr, baseUrl, npToken, npSessionSecret, {
-        showConsoleFeedback: paste.show_loading_bar !== false,
-      });
-      return new Response(`KEY_VALID_SCRIPT:\n${npLoader}`, { status: 200, headers: textHeaders });
+      // For non-protected pastes, return raw content directly
+      return new Response(`KEY_VALID_SCRIPT:\n${paste.content}`, { status: 200, headers: textHeaders });
     }
 
     const initialDiscordRedirect = getDiscordRedirectResponse();
     if (initialDiscordRedirect) return initialDiscordRedirect;
 
-    if (isLikelyBrowser && !isRobloxRequest) {
+    if (isLikelyBrowser && !isRobloxRequest && !uid && !tk) {
       const browserDiscordRedirect = getDiscordRedirectResponse();
       if (browserDiscordRedirect) return browserDiscordRedirect;
 
@@ -3856,8 +3795,15 @@ loadstring(game:HttpGet(_url))()`;
         console.log(`[get-paste] browser visitor logged slug=${slug} ip=${clientIp}`);
         await logAccess(null, 'browser');
       }
-      // ALL browser access returns blank — NEVER expose code to browsers, even with uid/tk params
-      return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      if (paste.hide_code) {
+        return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      }
+      if (!paste.protection_enabled && !paste.public_protection) {
+        return new Response(paste.content, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      }
+      return new Response('-- This script is protected. Execute via loadstring() in Roblox.', {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+      });
     }
 
     // ===== ANTI-FETCH PROTECTION =====
@@ -3988,13 +3934,17 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
       }
       
-      // Browser visitors — ALWAYS blank screen, never expose code
+      // Browser visitors
       if (isLikelyBrowser && !isRobloxRequest) {
         const browserDiscordRedirect = getDiscordRedirectResponse();
         if (browserDiscordRedirect) return browserDiscordRedirect;
 
         if (paste.ip_tracking_enabled) await logAccess(null, 'browser');
-        return new Response('', { status: 200, headers: textHeaders });
+        if (paste.hide_code) {
+          return new Response('', { status: 200, headers: textHeaders });
+        }
+        // For browsers on non-protected pastes without hide_code, show a message
+        return new Response('-- Execute via loadstring() in Roblox.', { status: 200, headers: textHeaders });
       }
       
       // Roblox client — serve loader that will call back with token for encrypted content
@@ -4059,7 +4009,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         const browserDiscordRedirect = getDiscordRedirectResponse();
         if (browserDiscordRedirect) return browserDiscordRedirect;
 
-        if (paste.ip_tracking_enabled) await logAccess(null, 'browser');
+        await logAccess(null, 'browser');
         return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
       }
 
@@ -4241,28 +4191,6 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         });
       }
 
-      // v15: HWID cross-validation for public protection (anti-uid-spoofing)
-      if (hwid && hwid.length >= 4) {
-        const { data: hwidOwnerPub } = await supabase
-          .from('paste_hwid_locks')
-          .select('roblox_user_id')
-          .eq('paste_id', paste.id)
-          .eq('hwid', hwid)
-          .neq('roblox_user_id', uid)
-          .maybeSingle();
-        
-        if (hwidOwnerPub) {
-          console.log(`[get-paste] UID_SPOOF_PUB: uid=${uid} hwid belongs to ${hwidOwnerPub.roblox_user_id} slug=${slug}`);
-          logThreat('uid_spoofing_public', clientIp, uid, null, {
-            claimed_uid: uid, hwid_owner: hwidOwnerPub.roblox_user_id, slug,
-          }, 'critical', false);
-          autoBanNewIp(clientIp, 'uid_spoofing_public_protection', uid, null);
-          return new Response(generateKickEncrypted('Access denied - identity mismatch', slug, tk, uid), {
-            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-          });
-        }
-      }
-
       // v11: HWID verification for public protection pastes
       const pubProtMode = paste.protection_mode || 'whitelist';
       if (pubProtMode === 'hwid' || pubProtMode === 'both') {
@@ -4355,57 +4283,6 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       });
     }
 
-    // ===== v15: HWID CROSS-VALIDATION (anti-uid-spoofing) =====
-    // Even in 'whitelist' mode, if a HWID is provided, check if it belongs to a DIFFERENT user.
-    // This catches attackers who spoof a whitelisted user's ID but have their own HWID.
-    if (hwid && hwid.length >= 4) {
-      const { data: hwidOwner } = await supabase
-        .from('paste_hwid_locks')
-        .select('roblox_user_id')
-        .eq('paste_id', paste.id)
-        .eq('hwid', hwid)
-        .neq('roblox_user_id', uid)
-        .maybeSingle();
-      
-      if (hwidOwner) {
-        // This HWID is already bound to a DIFFERENT user — uid spoofing detected!
-        console.log(`[get-paste] UID_SPOOF_DETECTED: uid=${uid} but hwid belongs to ${hwidOwner.roblox_user_id} slug=${slug} ip=${clientIp}`);
-        logThreat('uid_spoofing', clientIp, uid, null, {
-          claimed_uid: uid,
-          hwid_owner: hwidOwner.roblox_user_id,
-          hwid: hwid.substring(0, 16),
-          slug,
-          action: 'blocked_and_banned',
-        }, 'critical', false);
-        // Auto-ban the spoofing IP and the fake uid
-        autoBanNewIp(clientIp, `uid_spoofing_hwid_mismatch`, uid, null);
-        return new Response(generateKickEncrypted('Access denied - identity mismatch detected', slug, tk, uid), {
-          status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-        });
-      }
-      
-      // Also check: if this USER already has a different HWID bound, they're on a different device
-      const { data: userHwid } = await supabase
-        .from('paste_hwid_locks')
-        .select('hwid')
-        .eq('paste_id', paste.id)
-        .eq('roblox_user_id', uid)
-        .maybeSingle();
-      
-      if (userHwid && userHwid.hwid !== hwid) {
-        // This user already has a HWID lock with a DIFFERENT hwid — different device or spoof
-        console.log(`[get-paste] HWID_CROSS_MISMATCH: uid=${uid} expected=${userHwid.hwid.substring(0,8)}... got=${hwid.substring(0,8)}... slug=${slug}`);
-        logThreat('hwid_cross_mismatch', clientIp, uid, null, {
-          expected_hwid: userHwid.hwid.substring(0, 16),
-          actual_hwid: hwid.substring(0, 16),
-          slug,
-        }, 'high', false);
-        return new Response(generateKickEncrypted('HWID mismatch - this script is locked to another device. Contact the script owner to reset your HWID.', slug, tk, uid), {
-          status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-        });
-      }
-    }
-
     // ===== v11: HWID VERIFICATION =====
     const protectionMode = paste.protection_mode || 'whitelist';
     if (protectionMode === 'hwid' || protectionMode === 'both') {
@@ -4458,26 +4335,6 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         } else {
           console.log(`[get-paste] HWID_LOCKED: uid=${uid} hwid=${hwid.substring(0,8)}... slug=${slug} (first execution)`);
         }
-      }
-    }
-
-    // v15: Auto-bind HWID for ALL protected pastes (even whitelist-only mode)
-    // This ensures uid spoofing is always detectable on subsequent requests
-    if (hwid && hwid.length >= 4 && protectionMode === 'whitelist') {
-      const { data: existingAutoLock } = await supabase
-        .from('paste_hwid_locks')
-        .select('id, hwid')
-        .eq('paste_id', paste.id)
-        .eq('roblox_user_id', uid)
-        .maybeSingle();
-      
-      if (!existingAutoLock) {
-        // First execution — silently bind HWID for anti-spoof tracking
-        supabase.from('paste_hwid_locks').insert({
-          paste_id: paste.id, roblox_user_id: uid, hwid,
-        }).then(() => {
-          console.log(`[get-paste] v15 AUTO_HWID_BIND: uid=${uid} hwid=${hwid.substring(0,8)}... slug=${slug}`);
-        }).catch(() => {});
       }
     }
 
