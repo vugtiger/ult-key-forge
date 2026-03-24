@@ -119,7 +119,7 @@ function checkSlugThrottle(ip: string, slug: string): boolean {
   const now = Date.now();
   const e = slugThrottle.get(key);
   if (!e || now > e.resetTime) { slugThrottle.set(key, { count: 1, resetTime: now + 30_000 }); return true; }
-  if (e.count >= 6) return false; // 6 per 30s (probe + challenge + 3 fragments + buffer)
+  if (e.count >= 20) return false; // 20 per 30s (3-phase protocol + retries)
   e.count++;
   return true;
 }
