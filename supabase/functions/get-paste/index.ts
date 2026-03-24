@@ -2404,12 +2404,47 @@ function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, 
   const g = colorParts[1] || '120';
   const b = colorParts[2] || '255';
 
+  // v13: Encode baseUrl for key system GUI too
+  const guiEncodedUrl = encodeUrlForLua(baseUrl, '_ultEndpoint');
+  
   return `-- ULT Key System v5 (Landing Match)
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
+
+-- v13: Stealth endpoint
+${guiEncodedUrl}
+
+-- v13: Stealth fetch for key system
+local function _ultStealthFetch(fetchUrl)
+  local result
+  pcall(function()
+    if request then
+      local resp = request({Url = fetchUrl, Method = "GET"})
+      if resp and resp.Body then result = resp.Body end
+    end
+  end)
+  if result then return result end
+  pcall(function()
+    if syn and syn.request then
+      local resp = syn.request({Url = fetchUrl, Method = "GET"})
+      if resp and resp.Body then result = resp.Body end
+    end
+  end)
+  if result then return result end
+  pcall(function()
+    if http_request then
+      local resp = http_request({Url = fetchUrl, Method = "GET"})
+      if resp and resp.Body then result = resp.Body end
+    end
+  end)
+  if result then return result end
+  local s, r = pcall(function() return game:HttpGet(fetchUrl) end)
+  if s then return r end
+  return nil
+end
 
 local plr = Players.LocalPlayer
 if not plr then plr = Players.PlayerAdded:Wait() end
