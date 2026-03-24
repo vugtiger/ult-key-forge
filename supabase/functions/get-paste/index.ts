@@ -115,20 +115,20 @@ function rateOk(ip: string): boolean {
   const n = Date.now();
   const e = ipRates.get(ip);
   if (!e || n > e.r) { ipRates.set(ip, { c: 1, r: n + 60000 }); return true; }
-  return ++e.c <= 30;
+  return ++e.c <= 60;
 }
 
 function slugOk(ip: string, slug: string): boolean {
   const k = `${ip}:${slug}`, n = Date.now();
   const e = slugRates.get(k);
   if (!e || n > e.r) { slugRates.set(k, { c: 1, r: n + 30000 }); return true; }
-  return ++e.c <= 15;
+  return ++e.c <= 30;
 }
 
 function globalOk(): boolean {
   const n = Date.now();
   if (n > globalReset) { globalReqs = 0; globalReset = n + 10000; }
-  return ++globalReqs <= 100;
+  return ++globalReqs <= 500;
 }
 
 // Periodic cleanup
