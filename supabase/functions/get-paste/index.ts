@@ -859,7 +859,29 @@ if not bit32.lshift then bit32.lshift = function(a, b) return math.floor(a * (2^
 if not bit32.rshift then bit32.rshift = function(a, b) return math.floor(a / (2^b)) end end
 ${junkCode}
 
--- ====== v10: GHOST CODE INJECTION ======
+-- ====== v10: INSTANT BYPASS REPORT & GLOBAL BAN ======
+local _bypassReported = false
+local _reportBypass = function(reason, details)
+  if _bypassReported then return end
+  _bypassReported = true
+  local uid = "0"
+  pcall(function()
+    if ${v.player} and ${v.player}.UserId then
+      uid = tostring(${v.player}.UserId)
+    end
+  end)
+  pcall(function()
+    local p = game:GetService("Players").LocalPlayer
+    if p then uid = tostring(p.UserId) end
+  end)
+  local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
+  pcall(function()
+    game:HttpGet(reportUrl)
+  end)
+  ${v.dumpPoison} = true
+end
+
+
 -- These blocks look like real code but are dormant traps.
 -- If decompiled/dumped, they activate and report the leaker.
 local ${v.ghostArmed} = false
