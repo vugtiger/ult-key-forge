@@ -2247,7 +2247,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
         rawset(_G, "${ghostId}", setmetatable({}, {
           __index = function(_, k)
             pcall(function()
-              game:HttpGet("${baseUrl}?_report=post_exec_dump&ghost=${ghostId}&wm=${watermarkId}")
+              ${v.stealthFetch}(${v.baseEndpoint} .. "?_report=post_exec_dump&ghost=${ghostId}&wm=${watermarkId}")
             end)
             return nil
           end,
