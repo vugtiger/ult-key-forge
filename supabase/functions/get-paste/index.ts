@@ -2085,14 +2085,13 @@ ${v.junk5}("Verifying integrity...", 25)
 ${v.junk5}("Fetching payload...", 50)
 ` : ''}
 
--- Execute HTTP request
 local s, r = ${v.hookGuard}.pcall_ref(function()
-  return ${v.cachedHG}(game, url)
+  return ${v.stealthFetch}(url)
 end)
 
-if not s then
+if not s or not r then
   s, r = ${v.hookGuard}.pcall_ref(function()
-    return game:HttpGet(url)
+    return ${v.cachedHG}(game, url)
   end)
 end
 
