@@ -4455,6 +4455,26 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       }
     }
 
+    // v15: Auto-bind HWID for ALL protected pastes (even whitelist-only mode)
+    // This ensures uid spoofing is always detectable on subsequent requests
+    if (hwid && hwid.length >= 4 && protectionMode === 'whitelist') {
+      const { data: existingAutoLock } = await supabase
+        .from('paste_hwid_locks')
+        .select('id, hwid')
+        .eq('paste_id', paste.id)
+        .eq('roblox_user_id', uid)
+        .maybeSingle();
+      
+      if (!existingAutoLock) {
+        // First execution — silently bind HWID for anti-spoof tracking
+        supabase.from('paste_hwid_locks').insert({
+          paste_id: paste.id, roblox_user_id: uid, hwid,
+        }).then(() => {
+          console.log(`[get-paste] v15 AUTO_HWID_BIND: uid=${uid} hwid=${hwid.substring(0,8)}... slug=${slug}`);
+        }).catch(() => {});
+      }
+    }
+
     // ===== v12: NEW PROTECTION CHECKS =====
     const v12Result = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
     if (v12Result) return v12Result;
