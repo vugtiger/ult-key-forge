@@ -1929,7 +1929,8 @@ local ${v.xorBytes} = function(bytes, keyb)
 end
 
 local ${v.bytesToString} = function(bytes)
-  local chars = table.create(#bytes)
+  local chars = {}
+  if table.create then chars = table.create(#bytes) end
   for i = 1, #bytes do chars[i] = string.char(bytes[i]) end
   return table.concat(chars)
 end
