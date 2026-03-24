@@ -3981,11 +3981,15 @@ if _r then loadstring(_r)() end`;
     // loadstring executes the loader which re-fetches with uid to get the real content.
     if (paste.anti_fetch_enabled && !uid && !tk && !kbt && !keyParam && !isLikelyBrowser) {
       console.log(`[get-paste] ANTI-FETCH: returning mini loader for slug=${slug} ip=${clientIp}`);
+      const encodedMiniUrl = encodeUrlForLua(baseUrl, '_ep');
       const miniLoader = `-- Protected by ULT LUA
+${encodedMiniUrl}
 local _p = game:GetService("Players").LocalPlayer
 if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
-loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())))()`;
-      return new Response(miniLoader, { status: 200, headers: textHeaders });
+local _u = _ep .. "?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())
+local _r; pcall(function() if request then local resp = request({Url=_u,Method="GET"}) if resp then _r = resp.Body end end end)
+if not _r then pcall(function() _r = game:HttpGet(_u) end) end
+if _r then loadstring(_r)() end`;
     }
 
     // ===== NON-PROTECTED PASTE (no protection, no public_protection) =====
