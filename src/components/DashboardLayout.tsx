@@ -8,7 +8,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -17,7 +16,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye, Volume2, VolumeX } from "lucide-react";
+import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye, Volume2, VolumeX, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import CloudLogo from "@/components/CloudLogo";
@@ -25,19 +24,19 @@ import CloudBackground from "@/components/CloudBackground";
 import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEffect";
 
 const navigationItems = [
-  { title: "Key System Gen", url: "/dashboard", icon: Zap },
-  { title: "Script Storage", url: "/scripts", icon: Save },
-  { title: "Pastebin", url: "/pastebin", icon: FileCode },
-  { title: "Script Settings", url: "/script-settings", icon: Eye },
-  { title: "AI Assistant", url: "/ai-assistant", icon: Bot },
-  { title: "Discord Bot", url: "/discord-bot", icon: MessageSquare },
-  { title: "Analytics", url: "/analytics", icon: BarChart3 },
-  { title: "Changelog", url: "/changelog", icon: History },
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Key System", url: "/dashboard", icon: Zap, color: "text-violet-400" },
+  { title: "Script Storage", url: "/scripts", icon: Save, color: "text-blue-400" },
+  { title: "Pastebin", url: "/pastebin", icon: FileCode, color: "text-cyan-400" },
+  { title: "Script Settings", url: "/script-settings", icon: Eye, color: "text-emerald-400" },
+  { title: "AI Assistant", url: "/ai-assistant", icon: Bot, color: "text-pink-400" },
+  { title: "Discord Bot", url: "/discord-bot", icon: MessageSquare, color: "text-indigo-400" },
+  { title: "Analytics", url: "/analytics", icon: BarChart3, color: "text-amber-400" },
+  { title: "Changelog", url: "/changelog", icon: History, color: "text-teal-400" },
+  { title: "Settings", url: "/settings", icon: Settings, color: "text-slate-400" },
 ];
 
 const adminItems = [
-  { title: "Admin Panel", url: "/admin", icon: Shield },
+  { title: "Admin Panel", url: "/admin", icon: Shield, color: "text-red-400" },
 ];
 
 const resetTheme = () => {
@@ -88,6 +87,7 @@ const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
 
 const AppSidebar = ({ user }: { user: User | null }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { state } = useSidebar();
   const { isAdmin } = useAdminStatus(user?.id);
 
@@ -101,53 +101,79 @@ const AppSidebar = ({ user }: { user: User | null }) => {
   const navItems = isAdmin ? adminItems : navigationItems;
 
   return (
-    <Sidebar className={state === "collapsed" ? "w-14" : "w-56"} collapsible="icon">
-      <SidebarContent className="bg-background/40 backdrop-blur-2xl border-r border-primary/10 relative">
-        {/* Purple gradient rail */}
-        <div className="absolute inset-y-0 right-0 w-[2px] bg-gradient-to-b from-primary/50 via-primary/20 to-primary/50 pointer-events-none" />
+    <Sidebar className={state === "collapsed" ? "w-[60px]" : "w-[220px]"} collapsible="icon">
+      <SidebarContent className="bg-background/60 backdrop-blur-2xl border-r border-primary/5 relative overflow-hidden">
+        {/* Gradient accent line */}
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
         
-        <div className="p-3 border-b border-primary/10 flex items-center gap-2.5">
+        {/* Logo area */}
+        <div className="px-3 py-4 flex items-center gap-2.5">
           {state !== "collapsed" ? (
-            <>
-              <CloudLogo size={24} className="text-primary" />
-              <h1 className="text-sm font-bold tracking-wider">
-                ULT <span className="text-primary cloud-glow-text">CLOUD</span>
-              </h1>
-            </>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center border border-primary/20">
+                <CloudLogo size={18} className="text-primary" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[11px] font-bold tracking-[0.15em] text-foreground/90">ULT CLOUD</span>
+                <span className="text-[9px] text-primary/60 tracking-wider">PROTECTION</span>
+              </div>
+            </div>
           ) : (
-            <CloudLogo size={22} className="text-primary mx-auto" />
+            <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center mx-auto border border-primary/20">
+              <CloudLogo size={18} className="text-primary" />
+            </div>
           )}
         </div>
 
-        <SidebarGroup className="mt-2">
-          <SidebarGroupLabel className={`text-[10px] tracking-[0.2em] text-muted-foreground/50 uppercase ${state === "collapsed" ? "sr-only" : "px-3 mb-1"}`}>
-            {isAdmin ? "Owner" : "Menu"}
-          </SidebarGroupLabel>
+        {/* Divider */}
+        <div className="mx-3 h-[1px] bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
+
+        {/* Navigation */}
+        <SidebarGroup className="mt-1 flex-1">
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-0.5 px-1.5">
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      end
-                      className="rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-primary/8 transition-all duration-200"
-                      activeClassName="bg-primary/12 text-foreground border border-primary/20 shadow-[0_0_12px_hsl(var(--primary)/0.15)]"
-                    >
-                      <item.icon className={state === "collapsed" ? "" : "mr-2.5"} size={17} />
-                      {state !== "collapsed" && <span className="text-[13px]">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+            <SidebarMenu className="space-y-0.5 px-2">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        end
+                        className={`group relative rounded-lg px-2.5 py-2 text-sm transition-all duration-200 flex items-center gap-2.5 ${
+                          isActive 
+                            ? 'bg-primary/10 text-foreground' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-primary/5'
+                        }`}
+                        activeClassName=""
+                      >
+                        {/* Active indicator bar */}
+                        {isActive && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.5)]" />
+                        )}
+                        <item.icon className={`${state === "collapsed" ? "" : ""} ${isActive ? 'text-primary' : item.color} transition-colors`} size={16} />
+                        {state !== "collapsed" && (
+                          <span className="text-[12px] font-medium">{item.title}</span>
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <div className="mt-auto p-2 border-t border-primary/10">
-          <Button variant="ghost" className="w-full justify-start rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-destructive/10" onClick={handleLogout}>
-            <LogOut className={state === "collapsed" ? "" : "mr-2.5"} size={17} />
-            {state !== "collapsed" && <span className="text-[13px]">Logout</span>}
+        {/* Bottom section */}
+        <div className="px-2 pb-3 space-y-1">
+          <div className="mx-1 h-[1px] bg-gradient-to-r from-transparent via-primary/10 to-transparent mb-2" />
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start rounded-lg px-2.5 py-2 text-sm text-muted-foreground/70 hover:text-destructive hover:bg-destructive/8 transition-all" 
+            onClick={handleLogout}
+          >
+            <LogOut className={state === "collapsed" ? "" : "mr-2.5"} size={15} />
+            {state !== "collapsed" && <span className="text-[12px]">Sign Out</span>}
           </Button>
         </div>
       </SidebarContent>
@@ -158,8 +184,14 @@ const AppSidebar = ({ user }: { user: User | null }) => {
 const SoundToggle = () => {
   const [soundOn, setSoundOn] = useState(isSnowSoundOn());
   return (
-    <Button variant="ghost" size="icon" onClick={() => setSoundOn(toggleSnowSound())} className="text-muted-foreground/60 hover:text-foreground h-8 w-8 rounded-lg" title={soundOn ? "Mute snow sound" : "Unmute snow sound"}>
-      {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
+    <Button 
+      variant="ghost" 
+      size="icon" 
+      onClick={() => setSoundOn(toggleSnowSound())} 
+      className="text-muted-foreground/50 hover:text-foreground h-7 w-7 rounded-full hover:bg-primary/8" 
+      title={soundOn ? "Mute snow sound" : "Unmute snow sound"}
+    >
+      {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
     </Button>
   );
 };
@@ -169,8 +201,15 @@ interface DashboardLayoutProps { children: ReactNode; }
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const initializedRef = useRef(false);
   const userIdRef = useRef<string | null>(null);
+
+  // Get current page title
+  const getPageTitle = () => {
+    const item = navigationItems.find(i => i.url === location.pathname) || adminItems.find(i => i.url === location.pathname);
+    return item?.title || 'Dashboard';
+  };
 
   useEffect(() => {
     const loadUserTheme = async (userId: string) => {
@@ -244,12 +283,31 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <SnowEffect />
         <AppSidebar user={user} />
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
-          <header className="h-12 border-b border-primary/8 flex items-center px-5 sticky top-0 bg-background/50 backdrop-blur-2xl z-10">
-            <SidebarTrigger className="mr-3 h-7 w-7" />
-            <div className="flex-1" />
-            <SoundToggle />
+          {/* Redesigned header - minimal floating bar */}
+          <header className="sticky top-0 z-10">
+            <div className="h-14 flex items-center px-6 bg-background/40 backdrop-blur-xl border-b border-primary/5">
+              <SidebarTrigger className="mr-4 h-7 w-7 text-muted-foreground/60 hover:text-foreground" />
+              
+              {/* Page title with accent */}
+              <div className="flex items-center gap-2">
+                <Sparkles size={14} className="text-primary/50" />
+                <h2 className="text-sm font-semibold tracking-wide text-foreground/80">{getPageTitle()}</h2>
+              </div>
+              
+              <div className="flex-1" />
+              
+              {/* Status indicator */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-[10px] text-emerald-400 font-medium">LIVE</span>
+                </div>
+                <SoundToggle />
+              </div>
+            </div>
           </header>
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-5">
+
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
             {children}
           </main>
         </div>
