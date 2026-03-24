@@ -952,7 +952,7 @@ Deno.serve(async (req) => {
         await supabase.from('paste_execution_tokens').update({ used_at: new Date().toISOString() }).eq('id', bd.id);
         // Serve probe script (enters Fortress protocol)
         const probeToken = generateToken(16);
-        await supabase.from('paste_execution_tokens').insert({ paste_id: paste.id, roblox_user_id: uid, token: probeToken, expires_at: new Date(Date.now() + 15000).toISOString(), bound_ip: clientIp });
+        await supabase.from('paste_execution_tokens').insert({ paste_id: paste.id, roblox_user_id: uid, token: probeToken, expires_at: new Date(Date.now() + 30000).toISOString(), bound_ip: clientIp });
         return new Response(generateProbeScript(slug, baseUrl, probeToken), { status: 200, headers: textHeaders });
       }
       return new Response(generateKickPlain('Session expired, please try again'), { status: 200, headers: textHeaders });
