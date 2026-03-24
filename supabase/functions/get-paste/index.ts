@@ -825,18 +825,18 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   );
   
   // v10: Polymorphic junk code — uses different patterns each time
+  // CRITICAL: Only use safe globals that exist in ALL Roblox executors
   const junkPatterns = [
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}="${Math.random().toString(36).substring(2, 14)}"`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=${Math.floor(Math.random() * 999999)}`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=function() return ${Math.floor(Math.random() * 100)} end`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=tick()+${Math.floor(Math.random() * 10000)}`; },
-    // v10: New junk patterns
-    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=bit32.bxor(${Math.floor(Math.random()*9999)},${Math.floor(Math.random()*9999)})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=math.floor(${Math.floor(Math.random()*9999)}/${Math.floor(Math.random()*99)+1})`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=string.rep("${Math.random().toString(36).substring(2,5)}",${Math.floor(Math.random()*3)+1})`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); const jv2 = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv},${jv2}=${Math.floor(Math.random()*999)},${Math.floor(Math.random()*999)}`; },
-    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=coroutine.create(function() return ${Math.floor(Math.random()*100)} end)`; },
-    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=table.create(${Math.floor(Math.random()*10)+1},${Math.floor(Math.random()*100)})`; },
-    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=math.floor(os.clock()*${Math.floor(Math.random()*1000)+100})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=tostring(${Math.floor(Math.random()*99999)})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=math.random(1,${Math.floor(Math.random()*1000)+100})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=os.clock()*${Math.floor(Math.random()*1000)+100}`; },
   ];
   
   // Generate 10-15 junk lines randomly selected and shuffled
