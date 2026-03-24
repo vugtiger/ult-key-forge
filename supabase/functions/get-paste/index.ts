@@ -743,14 +743,8 @@ function generatePolymorphicString(target: string): string {
 function generateWatermark(): { id: string; luaEmbed: string } {
   const id = Array.from(crypto.getRandomValues(new Uint8Array(8)))
     .map(b => b.toString(16).padStart(2, '0')).join('');
-  // Encode watermark as invisible Unicode zero-width chars in Lua comments
-  const zeroWidthChars = ['\u200B', '\u200C', '\u200D', '\uFEFF'];
-  const encoded = Array.from(id).map(c => {
-    const nibble = parseInt(c, 16);
-    return zeroWidthChars[(nibble >> 2) & 3] + zeroWidthChars[nibble & 3];
-  }).join('');
-  // Embed as a Lua comment that looks innocent
-  const luaEmbed = `--${encoded} ULT Session`;
+  // Encode watermark as ASCII-safe hex in a Lua comment (no Unicode — breaks some executor parsers)
+  const luaEmbed = `-- WM:${id}`;
   return { id, luaEmbed };
 }
 
