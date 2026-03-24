@@ -2420,21 +2420,21 @@ ${guiEncodedUrl}
 local function _ultStealthFetch(fetchUrl)
   local result
   pcall(function()
-    if request then
+    if type(request) == "function" then
       local resp = request({Url = fetchUrl, Method = "GET"})
       if resp and resp.Body then result = resp.Body end
     end
   end)
   if result then return result end
   pcall(function()
-    if syn and syn.request then
+    if type(syn) == "table" and type(syn.request) == "function" then
       local resp = syn.request({Url = fetchUrl, Method = "GET"})
       if resp and resp.Body then result = resp.Body end
     end
   end)
   if result then return result end
   pcall(function()
-    if http_request then
+    if type(http_request) == "function" then
       local resp = http_request({Url = fetchUrl, Method = "GET"})
       if resp and resp.Body then result = resp.Body end
     end
