@@ -1171,13 +1171,14 @@ Deno.serve(async (req) => {
 
     // Serve the Fortress Protocol probe script
     const probeToken = generateToken(16);
-    supabase.from('paste_execution_tokens').insert({
+    // MUST await — fire-and-forget causes race condition where client fetches before token exists
+    await supabase.from('paste_execution_tokens').insert({
       paste_id: paste.id,
       roblox_user_id: '0',
       token: probeToken,
-      expires_at: new Date(Date.now() + 15000).toISOString(),
+      expires_at: new Date(Date.now() + 30000).toISOString(),
       bound_ip: clientIp,
-    }).then(() => {}).catch(() => {});
+    });
 
     return new Response(generateProbeScript(slug, baseUrl, probeToken), { status: 200, headers: textHeaders });
 
