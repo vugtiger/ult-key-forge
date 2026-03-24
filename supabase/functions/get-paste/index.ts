@@ -1660,7 +1660,7 @@ end
 
 -- ====== v9: DUMP POISONING ======
 -- Instead of blocking, return subtly corrupted data
-local ${v.dumpPoison} = false
+-- (${v.dumpPoison} already declared above)
 local ${v.silentDegrade} = function()
   ${v.dumpPoison} = true
   -- Don't warn, don't kick - silently mark session as compromised
