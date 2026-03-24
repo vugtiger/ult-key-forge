@@ -807,6 +807,8 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
        'metamorphic','morphCounter','morphSeed','morphTransform',
        'chunkHeaderEnd','chunkHeader','chunkData','chunkParts',
        'chunkIndices','chunkResult','decoyFlood',
+       // v13: Anti-HTTP-spy vars
+       'baseEndpoint','stealthFetch','spyKill','spyDetect','reqFunc','hgShield',
      ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
   );
   
