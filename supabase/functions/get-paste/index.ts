@@ -1046,7 +1046,7 @@ Deno.serve(async (req) => {
         paste_id: paste.id,
         roblox_user_id: probeUid,
         token: challengeToken,
-        expires_at: new Date(Date.now() + 15000).toISOString(), // 15 seconds
+        expires_at: new Date(Date.now() + 30000).toISOString(), // 30 seconds
         bound_ip: clientIp,
       });
 
