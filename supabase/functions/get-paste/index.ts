@@ -3226,7 +3226,30 @@ Deno.serve(async (req) => {
     // ===== BYPASS REPORT ENDPOINT =====
     // When the Lua loader detects a bypass attempt, it calls this to instantly global-ban the attacker
     const reportAction = url.searchParams.get('_report');
-    if (reportAction === 'bypass') {
+    if (reportAction) {
+      // AUTO-BAN: Anyone accessing _report URLs from a BROWSER gets instantly banned
+      // These URLs should ONLY be called by the Lua loader from within Roblox
+      const reportUa = req.headers.get('user-agent') || '';
+      const reportSecFetch = req.headers.get('sec-fetch-mode') || '';
+      const reportAccept = req.headers.get('accept') || '';
+      const reportOrigin = req.headers.get('origin') || '';
+      const reportReferer = req.headers.get('referer') || '';
+      const isBrowserReport = Boolean(reportSecFetch) || reportAccept.includes('text/html') || 
+                               Boolean(reportOrigin) || Boolean(reportReferer) ||
+                               (/Mozilla\/\d/.test(reportUa) && /AppleWebKit|Gecko|Chrome|Safari|Firefox|Edge/.test(reportUa));
+      
+      if (isBrowserReport) {
+        console.log(`[get-paste] BROWSER ACCESS TO _report URL: ip=${earlyIp} action=${reportAction}`);
+        autoBanNewIp(earlyIp, `browser_access_report_endpoint_${reportAction}`, null, null);
+        logThreat('browser_report_access', earlyIp, null, null, {
+          report_action: reportAction,
+          user_agent: reportUa.substring(0, 200),
+          action: 'auto_banned_browser_report_access',
+        }, 'critical', true);
+        return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      }
+      
+      if (reportAction === 'bypass') {
       const reportUid = url.searchParams.get('uid') || '';
       const reportReason = url.searchParams.get('reason') || 'bypass_attempt';
       const reportDetails = url.searchParams.get('details') || '';
@@ -3310,6 +3333,27 @@ Deno.serve(async (req) => {
       }
       
       // Return empty - don't give them any info
+      return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      }
+      
+      // Ghost trap and other report actions
+      if (reportAction === 'ghost_trap') {
+        const reportUid = url.searchParams.get('uid') || '';
+        autoBanNewIp(earlyIp, 'ghost_trap_triggered', reportUid || null, null);
+        if (reportUid && /^\d+$/.test(reportUid) && parseInt(reportUid) > 1000) {
+          await supabase.from('global_bans').upsert({
+            ban_type: 'roblox_id', ban_value: reportUid,
+            reason: 'Auto-banned: ghost trap triggered (code decompilation detected)', is_active: true,
+          }, { onConflict: 'ban_type,ban_value' }).then(() => {}).catch(() => {});
+          globalBanCache.robloxIds.add(reportUid);
+        }
+        logThreat('ghost_trap_triggered', earlyIp, reportUid || null, null, {
+          ghost: url.searchParams.get('ghost'), wm: url.searchParams.get('wm'),
+        }, 'critical', true);
+        return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      }
+      
+      // Any other _report action
       return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
     
