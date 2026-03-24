@@ -1665,26 +1665,8 @@ local ${v.silentDegrade} = function()
   -- Don't warn, don't kick - silently mark session as compromised
 end
 
--- ====== v10: INSTANT BYPASS REPORT & GLOBAL BAN ======
--- When bypass is detected, report to server for instant global ban
-local _bypassReported = false
-local _reportBypass = function(reason, details)
-  if _bypassReported then return end
-  _bypassReported = true
-  -- Fire report to server (fire-and-forget, non-blocking)
-  local uid = "0"
-  pcall(function()
-    if ${v.player} and ${v.player}.UserId then
-      uid = tostring(${v.player}.UserId)
-    end
-  end)
-  local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
-  pcall(function()
-    game:HttpGet(reportUrl)
-  end)
-  -- Also silently degrade the session
-  ${v.dumpPoison} = true
-end
+-- (_reportBypass already declared above)
+
 
 -- ====== PHASE 4: SANDBOXED EXECUTION (v9.5 Enhanced) ======
 local ${v.execSandbox} = function(code)
