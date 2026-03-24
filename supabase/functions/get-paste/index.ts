@@ -700,10 +700,10 @@ function generatePolymorphicNumber(target: number): string {
   const strategies = [
     () => { const a = Math.floor(Math.random() * 1000) + 1; return `(${a + target} - ${a})`; },
     () => { const a = Math.floor(Math.random() * 50) + 2; const b = target + a; return `(${b} - ${a})`; },
-    () => { if (target === 0) return '(0)'; const a = Math.floor(Math.random() * 100) + 1; return `(bit32.bxor(${a ^ target}, ${a}))`; },
-    () => { const a = Math.floor(Math.random() * 99) + 1; return `(${a * target} / ${a})`; },
+    () => { const a = Math.floor(Math.random() * 99) + 1; return `(math.floor(${a + target} + ${a}) - ${a * 2})`; },
     () => { return `(tonumber("${target.toString(36)}", 36))`; },
     () => { const hex = target.toString(16); return `(tonumber("${hex}", 16))`; },
+    () => { const a = Math.floor(Math.random() * 500) + 1; return `(${a + target} - ${a})`; },
   ];
   return strategies[Math.floor(Math.random() * strategies.length)]();
 }
