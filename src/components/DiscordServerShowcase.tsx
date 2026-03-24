@@ -31,8 +31,8 @@ const DiscordServerShowcase = () => {
 
   useEffect(() => {
     fetchGuilds();
-    // Refresh every 30 seconds for real-time feel
-    const interval = setInterval(fetchGuilds, 30000);
+    // Refresh every 5 minutes to match server cache TTL
+    const interval = setInterval(fetchGuilds, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
