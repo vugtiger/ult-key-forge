@@ -244,7 +244,7 @@ async function logAccess(paste: any, ip: string, ua: string, uid: string | null,
     let dd: any = { discord_user_id: null, discord_username: null, discord_avatar: null, discord_created_at: null };
     const { data: ds } = await supabase.from('discord_oauth_sessions').select('*').eq('ip_address', ip).gt('expires_at', new Date().toISOString()).maybeSingle();
     if (ds) {
-      if (banCache.discordIds.has(ds.discord_user_id)) autoBan(ip, 'banned_discord', uid, );
+      if (banCache.discordIds.has(ds.discord_user_id)) autoBan(ip, 'banned_discord', uid);
       dd = { discord_user_id: ds.discord_user_id, discord_username: ds.discord_username, discord_avatar: ds.discord_avatar, discord_created_at: ds.discord_created_at };
     }
     let rp: any = null;
