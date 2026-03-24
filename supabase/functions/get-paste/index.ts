@@ -857,21 +857,27 @@ ${encodedBaseUrl}
 -- Detects and neutralizes SimpleSpy, HttpSpy, and similar HTTP logging tools
 -- before any network request is made
 local ${v.spyDetect} = function()
+  local found = false
   -- Check 1: SimpleSpy stores itself in various globals
   local spySignals = {"SimpleSpy", "SimpleSpyExecuted", "SimpleSpy_V2", "HttpSpy", "httpspy", 
     "SynSpy", "spy_active", "http_logger", "request_log", "network_log",
     "RemoteSpy", "remote_spy", "scriptspy", "ScriptSpy"}
   for _, sig in ipairs(spySignals) do
-    if rawget(_G, sig) ~= nil or rawget(shared, sig) ~= nil then
-      return true
+    local ok1, v1 = pcall(function() return rawget(_G, sig) end)
+    local ok2, v2 = pcall(function() return rawget(shared, sig) end)
+    if (ok1 and v1 ~= nil) or (ok2 and v2 ~= nil) then
+      found = true
+      break
     end
   end
+  if found then return true end
   -- Check 2: Check if game.HttpGet has been wrapped/hooked
   pcall(function()
-    if hookcheck and hookcheck(game.HttpGet) then
-      return true
+    if type(hookcheck) == "function" and hookcheck(game.HttpGet) then
+      found = true
     end
   end)
+  if found then return true end
   -- Check 3: Check for HttpSpy's ScreenGui
   pcall(function()
     local pg = game:GetService("Players").LocalPlayer
@@ -879,30 +885,33 @@ local ${v.spyDetect} = function()
       for _, gui in pairs(pg.PlayerGui:GetChildren()) do
         local gName = gui.Name:lower()
         if gName:find("spy") or gName:find("log") or gName:find("sniff") or gName:find("intercept") then
-          return true
+          found = true
+          break
         end
       end
     end
   end)
+  if found then return true end
   -- Check 4: Check CoreGui for spy UIs  
   pcall(function()
-    if gethui then
+    if type(gethui) == "function" then
       for _, obj in pairs(gethui():GetChildren()) do
         local n = obj.Name:lower()
         if n:find("simplespy") or n:find("httpspy") or n:find("networklog") or n:find("remotespy") then
-          return true
+          found = true
+          break
         end
       end
     end
   end)
-  return false
+  return found
 end
 
 -- v13: Kill spy tools if detected
 local ${v.spyKill} = function()
   pcall(function()
     -- Destroy SimpleSpy UI
-    if gethui then
+    if type(gethui) == "function" then
       for _, obj in pairs(gethui():GetChildren()) do
         local n = obj.Name:lower()
         if n:find("spy") or n:find("log") or n:find("sniff") then
@@ -925,39 +934,29 @@ end
 local ${v.stealthFetch} = function(fetchUrl)
   local result
   -- Primary: Use request() function (bypasses HttpGet hooks entirely)
-  local reqOk = false
   pcall(function()
-    if request then
+    if type(request) == "function" then
       local resp = request({Url = fetchUrl, Method = "GET"})
-      if resp and resp.Body then
-        result = resp.Body
-        reqOk = true
-      end
+      if resp and resp.Body then result = resp.Body end
     end
   end)
-  if reqOk and result then return result end
+  if result then return result end
   -- Secondary: syn.request
   pcall(function()
-    if syn and syn.request then
+    if type(syn) == "table" and type(syn.request) == "function" then
       local resp = syn.request({Url = fetchUrl, Method = "GET"})
-      if resp and resp.Body then
-        result = resp.Body
-        reqOk = true
-      end
+      if resp and resp.Body then result = resp.Body end
     end
   end)
-  if reqOk and result then return result end
+  if result then return result end
   -- Tertiary: http_request
   pcall(function()
-    if http_request then
+    if type(http_request) == "function" then
       local resp = http_request({Url = fetchUrl, Method = "GET"})
-      if resp and resp.Body then
-        result = resp.Body
-        reqOk = true
-      end
+      if resp and resp.Body then result = resp.Body end
     end
   end)
-  if reqOk and result then return result end
+  if result then return result end
   -- Last resort: HttpGet through cached ref (spy tools hook this)
   local s, r = pcall(function()
     return game:HttpGet(fetchUrl)
@@ -2421,21 +2420,21 @@ ${guiEncodedUrl}
 local function _ultStealthFetch(fetchUrl)
   local result
   pcall(function()
-    if request then
+    if type(request) == "function" then
       local resp = request({Url = fetchUrl, Method = "GET"})
       if resp and resp.Body then result = resp.Body end
     end
   end)
   if result then return result end
   pcall(function()
-    if syn and syn.request then
+    if type(syn) == "table" and type(syn.request) == "function" then
       local resp = syn.request({Url = fetchUrl, Method = "GET"})
       if resp and resp.Body then result = resp.Body end
     end
   end)
   if result then return result end
   pcall(function()
-    if http_request then
+    if type(http_request) == "function" then
       local resp = http_request({Url = fetchUrl, Method = "GET"})
       if resp and resp.Body then result = resp.Body end
     end
