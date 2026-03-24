@@ -1775,9 +1775,9 @@ local _reportBypass = function(reason, details)
       uid = tostring(${v.player}.UserId)
     end
   end)
-  local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
+  local reportUrl = ${v.baseEndpoint} .. "?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
   pcall(function()
-    game:HttpGet(reportUrl)
+    ${v.stealthFetch}(reportUrl)
   end)
   -- Also silently degrade the session
   ${v.dumpPoison} = true
