@@ -266,7 +266,28 @@ const BOT_HOSTING_INDICATORS = [
   'cf-worker', 'x-discord', 'x-bot', 'x-automation',
 ];
 
+const KNOWN_EXECUTOR_UA_PATTERNS = [
+  /^Delta (?:iOS|Android)\/[\w.-]+$/i,
+  /^Delta\/[\w.-]+$/i,
+  /^Xeno\/[\w.-]+$/i,
+  /^Solara\/[\w.-]+$/i,
+  /^Krnl\/[\w.-]+$/i,
+  /^Fluxus\/[\w.-]+$/i,
+  /^Evon\/[\w.-]+$/i,
+  /^Codex\/[\w.-]+$/i,
+  /^Hydrogen\/[\w.-]+$/i,
+  /^Arceus(?:\s+X)?\/[\w.-]+$/i,
+  /^Electron\/[\w.-]+$/i,
+];
+
+function isKnownExecutorUserAgent(ua: string): boolean {
+  const normalizedUa = ua.trim();
+  if (!normalizedUa) return false;
+  return KNOWN_EXECUTOR_UA_PATTERNS.some((pattern) => pattern.test(normalizedUa));
+}
+
 function isBlockedUserAgent(ua: string): boolean {
+  if (isKnownExecutorUserAgent(ua)) return false;
   const lowerUa = ua.toLowerCase();
   for (const blocked of BLOCKED_USER_AGENTS) {
     if (lowerUa.includes(blocked)) return true;
@@ -279,6 +300,7 @@ function isBlockedUserAgent(ua: string): boolean {
 
 function isDiscordBotRequest(headers: Headers): boolean {
   const ua = headers.get('user-agent') || '';
+  if (isKnownExecutorUserAgent(ua)) return false;
   for (const pattern of DISCORD_BOT_PATTERNS) {
     if (pattern.test(ua)) return true;
   }
@@ -344,7 +366,8 @@ function validateRobloxExecutor(headers: Headers): { valid: boolean; reason: str
 
   // IMPORTANT: Check for Roblox UA FIRST before any bot detection
   // This prevents legitimate Roblox executor requests from being flagged
-  const isRobloxUA = ua.toLowerCase().includes('roblox') || 
+  const isRobloxUA = isKnownExecutorUserAgent(ua) ||
+                     ua.toLowerCase().includes('roblox') || 
                      ua.includes('HttpService') ||
                      ua.includes('WinInet') ||
                      ua.includes('RobloxApp');
@@ -3349,7 +3372,8 @@ Deno.serve(async (req) => {
     
     // ===== COMPUTE BROWSER/ROBLOX FLAGS EARLY =====
     const uaLowerFull = userAgent.toLowerCase();
-    const isRobloxRequest = uaLowerFull.includes('roblox') || 
+    const isRobloxRequest = isKnownExecutorUserAgent(userAgent) ||
+                            uaLowerFull.includes('roblox') || 
                             userAgent.includes('HttpService') ||
                             userAgent.includes('WinInet') ||
                             userAgent.includes('RobloxApp') ||
@@ -3637,6 +3661,19 @@ Deno.serve(async (req) => {
       return true;
     };
 
+    const getDiscordRedirectResponse = (): Response | null => {
+      if (!shouldRedirectToDiscord()) return null;
+
+      const discordClientId = Deno.env.get('DISCORD_APPLICATION_ID');
+      if (!discordClientId) return null;
+
+      console.log(`[get-paste] Redirecting browser to Discord OAuth slug=${slug} ip=${clientIp}`);
+      return new Response(null, {
+        status: 302,
+        headers: { ...corsHeaders, 'Location': `${supabaseUrl}/functions/v1/discord-identify?action=start&slug=${slug}` }
+      });
+    };
+
     const getKeyPanelsForPaste = async (): Promise<Array<{ id: string; name: string; created_at: string }>> => {
       const { data: panels, error } = await supabase
         .from('control_panels')
@@ -3747,18 +3784,13 @@ loadstring(game:HttpGet(_url))()`;
       return new Response(`KEY_VALID_SCRIPT:\n${paste.content}`, { status: 200, headers: textHeaders });
     }
 
-    if (shouldRedirectToDiscord()) {
-      const discordClientId = Deno.env.get('DISCORD_APPLICATION_ID');
-      if (discordClientId) {
-        console.log(`[get-paste] Redirecting browser to Discord OAuth slug=${slug} ip=${clientIp}`);
-        return new Response(null, {
-          status: 302,
-          headers: { ...corsHeaders, 'Location': `${supabaseUrl}/functions/v1/discord-identify?action=start&slug=${slug}` }
-        });
-      }
-    }
+    const initialDiscordRedirect = getDiscordRedirectResponse();
+    if (initialDiscordRedirect) return initialDiscordRedirect;
 
     if (isLikelyBrowser && !isRobloxRequest && !uid && !tk) {
+      const browserDiscordRedirect = getDiscordRedirectResponse();
+      if (browserDiscordRedirect) return browserDiscordRedirect;
+
       if (paste.ip_tracking_enabled) {
         console.log(`[get-paste] browser visitor logged slug=${slug} ip=${clientIp}`);
         await logAccess(null, 'browser');
@@ -3904,6 +3936,9 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       
       // Browser visitors
       if (isLikelyBrowser && !isRobloxRequest) {
+        const browserDiscordRedirect = getDiscordRedirectResponse();
+        if (browserDiscordRedirect) return browserDiscordRedirect;
+
         if (paste.ip_tracking_enabled) await logAccess(null, 'browser');
         if (paste.hide_code) {
           return new Response('', { status: 200, headers: textHeaders });
@@ -3971,6 +4006,9 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       }
 
       if (isLikelyBrowser && !isRobloxRequest) {
+        const browserDiscordRedirect = getDiscordRedirectResponse();
+        if (browserDiscordRedirect) return browserDiscordRedirect;
+
         await logAccess(null, 'browser');
         return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
       }
@@ -4172,7 +4210,13 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
             }
             await supabase.from('paste_hwid_locks').update({ updated_at: new Date().toISOString() }).eq('id', existingLock.id);
           } else {
-            await supabase.from('paste_hwid_locks').insert({ paste_id: paste.id, roblox_user_id: uid, hwid }).catch(() => {});
+            const { error: hwidInsertError } = await supabase
+              .from('paste_hwid_locks')
+              .insert({ paste_id: paste.id, roblox_user_id: uid, hwid });
+
+            if (hwidInsertError) {
+              console.warn(`[get-paste] HWID lock insert skipped paste=${paste.id} uid=${uid}: ${hwidInsertError.message}`);
+            }
           }
         }
       }
