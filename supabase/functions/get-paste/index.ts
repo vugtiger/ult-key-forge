@@ -4327,6 +4327,57 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       });
     }
 
+    // ===== v15: HWID CROSS-VALIDATION (anti-uid-spoofing) =====
+    // Even in 'whitelist' mode, if a HWID is provided, check if it belongs to a DIFFERENT user.
+    // This catches attackers who spoof a whitelisted user's ID but have their own HWID.
+    if (hwid && hwid.length >= 4) {
+      const { data: hwidOwner } = await supabase
+        .from('paste_hwid_locks')
+        .select('roblox_user_id')
+        .eq('paste_id', paste.id)
+        .eq('hwid', hwid)
+        .neq('roblox_user_id', uid)
+        .maybeSingle();
+      
+      if (hwidOwner) {
+        // This HWID is already bound to a DIFFERENT user — uid spoofing detected!
+        console.log(`[get-paste] UID_SPOOF_DETECTED: uid=${uid} but hwid belongs to ${hwidOwner.roblox_user_id} slug=${slug} ip=${clientIp}`);
+        logThreat('uid_spoofing', clientIp, uid, null, {
+          claimed_uid: uid,
+          hwid_owner: hwidOwner.roblox_user_id,
+          hwid: hwid.substring(0, 16),
+          slug,
+          action: 'blocked_and_banned',
+        }, 'critical', false);
+        // Auto-ban the spoofing IP and the fake uid
+        autoBanNewIp(clientIp, `uid_spoofing_hwid_mismatch`, uid, null);
+        return new Response(generateKickEncrypted('Access denied - identity mismatch detected', slug, tk, uid), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+      
+      // Also check: if this USER already has a different HWID bound, they're on a different device
+      const { data: userHwid } = await supabase
+        .from('paste_hwid_locks')
+        .select('hwid')
+        .eq('paste_id', paste.id)
+        .eq('roblox_user_id', uid)
+        .maybeSingle();
+      
+      if (userHwid && userHwid.hwid !== hwid) {
+        // This user already has a HWID lock with a DIFFERENT hwid — different device or spoof
+        console.log(`[get-paste] HWID_CROSS_MISMATCH: uid=${uid} expected=${userHwid.hwid.substring(0,8)}... got=${hwid.substring(0,8)}... slug=${slug}`);
+        logThreat('hwid_cross_mismatch', clientIp, uid, null, {
+          expected_hwid: userHwid.hwid.substring(0, 16),
+          actual_hwid: hwid.substring(0, 16),
+          slug,
+        }, 'high', false);
+        return new Response(generateKickEncrypted('HWID mismatch - this script is locked to another device. Contact the script owner to reset your HWID.', slug, tk, uid), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+    }
+
     // ===== v11: HWID VERIFICATION =====
     const protectionMode = paste.protection_mode || 'whitelist';
     if (protectionMode === 'hwid' || protectionMode === 'both') {
