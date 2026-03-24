@@ -2792,7 +2792,7 @@ local function validateKey()
 
     task.spawn(function()
         local userId = tostring(plr.UserId)
-        local url = "${baseUrl}?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId .. "&_=" .. tostring(tick())
+        local url = _ultEndpoint .. "?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId .. "&_=" .. tostring(tick())
 
         task.wait(0.08)
         if unloading then return end
@@ -2809,7 +2809,7 @@ local function validateKey()
         setProgress(56)
 
         local success, response = pcall(function()
-            return game:HttpGet(url)
+            return _ultStealthFetch(url)
         end)
 
         if unloading then return end
