@@ -3912,9 +3912,13 @@ Deno.serve(async (req) => {
         });
         // Return a simple script that re-fetches the paste with the bypass token
         // The paste URL will then skip the key system and serve the normal protection loader
+        const encodedRedirectUrl = encodeUrlForLua(baseUrl, '_ep');
         const redirectScript = `-- Key validated, loading protected script...
-local _url = "${baseUrl}?slug=${slugStr}&uid=${uid}&kbt=${bypassToken}&_=" .. tostring(tick())
-loadstring(game:HttpGet(_url))()`;
+${encodedRedirectUrl}
+local _url = _ep .. "?slug=${slugStr}&uid=${uid}&kbt=${bypassToken}&_=" .. tostring(tick())
+local _r; pcall(function() if request then local resp = request({Url=_url,Method="GET"}) if resp then _r = resp.Body end end end)
+if not _r then pcall(function() _r = game:HttpGet(_url) end) end
+if _r then loadstring(_r)() end`;
         console.log(`[get-paste] KEY_VALID: returning bypass redirect for protected paste ${paste.id}`);
         return new Response(`KEY_VALID_SCRIPT:\n${redirectScript}`, { status: 200, headers: textHeaders });
       }
