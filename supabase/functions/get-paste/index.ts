@@ -3226,7 +3226,30 @@ Deno.serve(async (req) => {
     // ===== BYPASS REPORT ENDPOINT =====
     // When the Lua loader detects a bypass attempt, it calls this to instantly global-ban the attacker
     const reportAction = url.searchParams.get('_report');
-    if (reportAction === 'bypass') {
+    if (reportAction) {
+      // AUTO-BAN: Anyone accessing _report URLs from a BROWSER gets instantly banned
+      // These URLs should ONLY be called by the Lua loader from within Roblox
+      const reportUa = req.headers.get('user-agent') || '';
+      const reportSecFetch = req.headers.get('sec-fetch-mode') || '';
+      const reportAccept = req.headers.get('accept') || '';
+      const reportOrigin = req.headers.get('origin') || '';
+      const reportReferer = req.headers.get('referer') || '';
+      const isBrowserReport = Boolean(reportSecFetch) || reportAccept.includes('text/html') || 
+                               Boolean(reportOrigin) || Boolean(reportReferer) ||
+                               (/Mozilla\/\d/.test(reportUa) && /AppleWebKit|Gecko|Chrome|Safari|Firefox|Edge/.test(reportUa));
+      
+      if (isBrowserReport) {
+        console.log(`[get-paste] BROWSER ACCESS TO _report URL: ip=${earlyIp} action=${reportAction}`);
+        autoBanNewIp(earlyIp, `browser_access_report_endpoint_${reportAction}`, null, null);
+        logThreat('browser_report_access', earlyIp, null, null, {
+          report_action: reportAction,
+          user_agent: reportUa.substring(0, 200),
+          action: 'auto_banned_browser_report_access',
+        }, 'critical', true);
+        return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      }
+      
+      if (reportAction === 'bypass') {
       const reportUid = url.searchParams.get('uid') || '';
       const reportReason = url.searchParams.get('reason') || 'bypass_attempt';
       const reportDetails = url.searchParams.get('details') || '';
@@ -3310,6 +3333,27 @@ Deno.serve(async (req) => {
       }
       
       // Return empty - don't give them any info
+      return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      }
+      
+      // Ghost trap and other report actions
+      if (reportAction === 'ghost_trap') {
+        const reportUid = url.searchParams.get('uid') || '';
+        autoBanNewIp(earlyIp, 'ghost_trap_triggered', reportUid || null, null);
+        if (reportUid && /^\d+$/.test(reportUid) && parseInt(reportUid) > 1000) {
+          await supabase.from('global_bans').upsert({
+            ban_type: 'roblox_id', ban_value: reportUid,
+            reason: 'Auto-banned: ghost trap triggered (code decompilation detected)', is_active: true,
+          }, { onConflict: 'ban_type,ban_value' }).then(() => {}).catch(() => {});
+          globalBanCache.robloxIds.add(reportUid);
+        }
+        logThreat('ghost_trap_triggered', earlyIp, reportUid || null, null, {
+          ghost: url.searchParams.get('ghost'), wm: url.searchParams.get('wm'),
+        }, 'critical', true);
+        return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      }
+      
+      // Any other _report action
       return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
     
@@ -4191,6 +4235,28 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         });
       }
 
+      // v15: HWID cross-validation for public protection (anti-uid-spoofing)
+      if (hwid && hwid.length >= 4) {
+        const { data: hwidOwnerPub } = await supabase
+          .from('paste_hwid_locks')
+          .select('roblox_user_id')
+          .eq('paste_id', paste.id)
+          .eq('hwid', hwid)
+          .neq('roblox_user_id', uid)
+          .maybeSingle();
+        
+        if (hwidOwnerPub) {
+          console.log(`[get-paste] UID_SPOOF_PUB: uid=${uid} hwid belongs to ${hwidOwnerPub.roblox_user_id} slug=${slug}`);
+          logThreat('uid_spoofing_public', clientIp, uid, null, {
+            claimed_uid: uid, hwid_owner: hwidOwnerPub.roblox_user_id, slug,
+          }, 'critical', false);
+          autoBanNewIp(clientIp, 'uid_spoofing_public_protection', uid, null);
+          return new Response(generateKickEncrypted('Access denied - identity mismatch', slug, tk, uid), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          });
+        }
+      }
+
       // v11: HWID verification for public protection pastes
       const pubProtMode = paste.protection_mode || 'whitelist';
       if (pubProtMode === 'hwid' || pubProtMode === 'both') {
@@ -4283,6 +4349,57 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       });
     }
 
+    // ===== v15: HWID CROSS-VALIDATION (anti-uid-spoofing) =====
+    // Even in 'whitelist' mode, if a HWID is provided, check if it belongs to a DIFFERENT user.
+    // This catches attackers who spoof a whitelisted user's ID but have their own HWID.
+    if (hwid && hwid.length >= 4) {
+      const { data: hwidOwner } = await supabase
+        .from('paste_hwid_locks')
+        .select('roblox_user_id')
+        .eq('paste_id', paste.id)
+        .eq('hwid', hwid)
+        .neq('roblox_user_id', uid)
+        .maybeSingle();
+      
+      if (hwidOwner) {
+        // This HWID is already bound to a DIFFERENT user — uid spoofing detected!
+        console.log(`[get-paste] UID_SPOOF_DETECTED: uid=${uid} but hwid belongs to ${hwidOwner.roblox_user_id} slug=${slug} ip=${clientIp}`);
+        logThreat('uid_spoofing', clientIp, uid, null, {
+          claimed_uid: uid,
+          hwid_owner: hwidOwner.roblox_user_id,
+          hwid: hwid.substring(0, 16),
+          slug,
+          action: 'blocked_and_banned',
+        }, 'critical', false);
+        // Auto-ban the spoofing IP and the fake uid
+        autoBanNewIp(clientIp, `uid_spoofing_hwid_mismatch`, uid, null);
+        return new Response(generateKickEncrypted('Access denied - identity mismatch detected', slug, tk, uid), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+      
+      // Also check: if this USER already has a different HWID bound, they're on a different device
+      const { data: userHwid } = await supabase
+        .from('paste_hwid_locks')
+        .select('hwid')
+        .eq('paste_id', paste.id)
+        .eq('roblox_user_id', uid)
+        .maybeSingle();
+      
+      if (userHwid && userHwid.hwid !== hwid) {
+        // This user already has a HWID lock with a DIFFERENT hwid — different device or spoof
+        console.log(`[get-paste] HWID_CROSS_MISMATCH: uid=${uid} expected=${userHwid.hwid.substring(0,8)}... got=${hwid.substring(0,8)}... slug=${slug}`);
+        logThreat('hwid_cross_mismatch', clientIp, uid, null, {
+          expected_hwid: userHwid.hwid.substring(0, 16),
+          actual_hwid: hwid.substring(0, 16),
+          slug,
+        }, 'high', false);
+        return new Response(generateKickEncrypted('HWID mismatch - this script is locked to another device. Contact the script owner to reset your HWID.', slug, tk, uid), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+    }
+
     // ===== v11: HWID VERIFICATION =====
     const protectionMode = paste.protection_mode || 'whitelist';
     if (protectionMode === 'hwid' || protectionMode === 'both') {
@@ -4335,6 +4452,26 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         } else {
           console.log(`[get-paste] HWID_LOCKED: uid=${uid} hwid=${hwid.substring(0,8)}... slug=${slug} (first execution)`);
         }
+      }
+    }
+
+    // v15: Auto-bind HWID for ALL protected pastes (even whitelist-only mode)
+    // This ensures uid spoofing is always detectable on subsequent requests
+    if (hwid && hwid.length >= 4 && protectionMode === 'whitelist') {
+      const { data: existingAutoLock } = await supabase
+        .from('paste_hwid_locks')
+        .select('id, hwid')
+        .eq('paste_id', paste.id)
+        .eq('roblox_user_id', uid)
+        .maybeSingle();
+      
+      if (!existingAutoLock) {
+        // First execution — silently bind HWID for anti-spoof tracking
+        supabase.from('paste_hwid_locks').insert({
+          paste_id: paste.id, roblox_user_id: uid, hwid,
+        }).then(() => {
+          console.log(`[get-paste] v15 AUTO_HWID_BIND: uid=${uid} hwid=${hwid.substring(0,8)}... slug=${slug}`);
+        }).catch(() => {});
       }
     }
 
