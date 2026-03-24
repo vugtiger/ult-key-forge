@@ -1920,7 +1920,8 @@ local ${v.hexBytes} = function(hex)
 end
 
 local ${v.xorBytes} = function(bytes, keyb)
-  local out = table.create(#bytes)
+  local out = {}
+  if table.create then out = table.create(#bytes) end
   for i = 1, #bytes do
     out[i] = bit32.bxor(bytes[i], keyb[((i-1) % #keyb) + 1])
   end
