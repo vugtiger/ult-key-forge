@@ -3990,6 +3990,7 @@ local _u = _ep .. "?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tos
 local _r; pcall(function() if request then local resp = request({Url=_u,Method="GET"}) if resp then _r = resp.Body end end end)
 if not _r then pcall(function() _r = game:HttpGet(_u) end) end
 if _r then loadstring(_r)() end`;
+      return new Response(miniLoader, { status: 200, headers: textHeaders });
     }
 
     // ===== NON-PROTECTED PASTE (no protection, no public_protection) =====
