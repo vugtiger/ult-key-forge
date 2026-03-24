@@ -3831,8 +3831,18 @@ loadstring(game:HttpGet(_url))()`;
         return new Response(`KEY_VALID_SCRIPT:\n${redirectScript}`, { status: 200, headers: textHeaders });
       }
       
-      // For non-protected pastes, return raw content directly
-      return new Response(`KEY_VALID_SCRIPT:\n${paste.content}`, { status: 200, headers: textHeaders });
+      // For non-protected pastes, still use encrypted delivery — never raw
+      const npToken = generateToken();
+      const npSessionSecret = generateSessionSecret(clientIp, Date.now());
+      await supabase.from('paste_execution_tokens').insert({
+        paste_id: paste.id, roblox_user_id: uid, token: npToken,
+        expires_at: new Date(Date.now() + 30000).toISOString(),
+        bound_ip: clientIp,
+      });
+      const npLoader = generateLoader(slugStr, baseUrl, npToken, npSessionSecret, {
+        showConsoleFeedback: paste.show_loading_bar !== false,
+      });
+      return new Response(`KEY_VALID_SCRIPT:\n${npLoader}`, { status: 200, headers: textHeaders });
     }
 
     const initialDiscordRedirect = getDiscordRedirectResponse();
@@ -3846,15 +3856,8 @@ loadstring(game:HttpGet(_url))()`;
         console.log(`[get-paste] browser visitor logged slug=${slug} ip=${clientIp}`);
         await logAccess(null, 'browser');
       }
-      if (paste.hide_code) {
-        return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
-      }
-      if (!paste.protection_enabled && !paste.public_protection) {
-        return new Response(paste.content, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
-      }
-      return new Response('-- This script is protected. Execute via loadstring() in Roblox.', {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
+      // ALL browser access returns blank — NEVER expose code to browsers
+      return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
     // ===== ANTI-FETCH PROTECTION =====
@@ -3985,17 +3988,13 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         return new Response(generateHoneypot(), { status: 200, headers: textHeaders });
       }
       
-      // Browser visitors
+      // Browser visitors — ALWAYS blank screen, never expose code
       if (isLikelyBrowser && !isRobloxRequest) {
         const browserDiscordRedirect = getDiscordRedirectResponse();
         if (browserDiscordRedirect) return browserDiscordRedirect;
 
         if (paste.ip_tracking_enabled) await logAccess(null, 'browser');
-        if (paste.hide_code) {
-          return new Response('', { status: 200, headers: textHeaders });
-        }
-        // For browsers on non-protected pastes without hide_code, show a message
-        return new Response('-- Execute via loadstring() in Roblox.', { status: 200, headers: textHeaders });
+        return new Response('', { status: 200, headers: textHeaders });
       }
       
       // Roblox client — serve loader that will call back with token for encrypted content
@@ -4060,7 +4059,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         const browserDiscordRedirect = getDiscordRedirectResponse();
         if (browserDiscordRedirect) return browserDiscordRedirect;
 
-        await logAccess(null, 'browser');
+        if (paste.ip_tracking_enabled) await logAccess(null, 'browser');
         return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
       }
 
