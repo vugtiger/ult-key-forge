@@ -731,6 +731,15 @@ function generateWatermark(): { id: string; luaEmbed: string } {
   return { id, luaEmbed };
 }
 
+// v13: Encode a string as XOR-encrypted Lua char code construction
+// The string is never a readable literal in the generated Lua source
+function encodeUrlForLua(url: string, varName: string): string {
+  const xorKey = Math.floor(Math.random() * 200) + 50; // random XOR key 50-249
+  const encoded = Array.from(url).map(c => c.charCodeAt(0) ^ xorKey);
+  // Build Lua: local varName; do local _k=KEY local _t={BYTES} local _r={} for i=1,#_t do _r[i]=string.char(bit32.bxor(_t[i],_k)) end varName=table.concat(_r) end
+  return `local ${varName}; do local _k=${xorKey} local _t={${encoded.join(',')}} local _r={} for i=1,#_t do _r[i]=string.char(bit32.bxor(_t[i],_k)) end ${varName}=table.concat(_r) end`;
+}
+
 function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string, options?: { 
   showConsoleFeedback?: boolean;
   serverNonce?: string;
