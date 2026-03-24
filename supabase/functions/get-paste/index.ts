@@ -4424,14 +4424,18 @@ if _r then loadstring(_r)() end`;
       });
     }
 
-    // ===== v13: MANDATORY IDENTITY VERIFICATION =====
-    // Always bind HWID to UserId for ALL protected pastes, regardless of protection mode.
-    // This prevents UserId spoofing — if someone fakes a whitelisted UserId with Players.LocalPlayer hook,
-    // their HWID won't match the real user's HWID.
+    // ===== v11: HWID VERIFICATION =====
     const protectionMode = paste.protection_mode || 'whitelist';
-    
-    if (hwid && hwid.length >= 4) {
-      // HWID available — always verify it
+    if (protectionMode === 'hwid' || protectionMode === 'both') {
+      if (!hwid || hwid.length < 4) {
+        // No HWID sent — executor doesn't support gethwid()
+        console.log(`[get-paste] HWID_MISSING: uid=${uid} slug=${slug} mode=${protectionMode}`);
+        return new Response(generateKickEncrypted('Your executor does not support HWID locking. Please use an executor with gethwid() support.', slug, tk, uid), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+
+      // Check existing HWID lock
       const { data: existingLock } = await supabase
         .from('paste_hwid_locks')
         .select('*')
@@ -4447,7 +4451,6 @@ if _r then loadstring(_r)() end`;
             expected_hwid: existingLock.hwid.substring(0, 16),
             actual_hwid: hwid.substring(0, 16),
             slug,
-            reason: 'possible_userid_spoof',
           }, 'high', false);
           return new Response(generateKickEncrypted('HWID mismatch - this script is locked to another device. Contact the script owner to reset your HWID.', slug, tk, uid), {
             status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
@@ -4469,56 +4472,9 @@ if _r then loadstring(_r)() end`;
           });
         if (insertError) {
           console.error(`[get-paste] HWID_INSERT_ERROR:`, insertError);
+          // Don't block execution on insert failure
         } else {
           console.log(`[get-paste] HWID_LOCKED: uid=${uid} hwid=${hwid.substring(0,8)}... slug=${slug} (first execution)`);
-        }
-      }
-    } else if (protectionMode === 'hwid' || protectionMode === 'both') {
-      // HWID mode explicitly required but no HWID sent
-      console.log(`[get-paste] HWID_MISSING: uid=${uid} slug=${slug} mode=${protectionMode}`);
-      return new Response(generateKickEncrypted('Your executor does not support HWID locking. Please use an executor with gethwid() support.', slug, tk, uid), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-      });
-    } else {
-      // No HWID available and mode is 'whitelist' — use IP binding as fallback
-      // Track IP per UserId to detect spoofing
-      const { data: userIpLocks } = await supabase
-        .from('paste_access_logs')
-        .select('ip_address')
-        .eq('paste_id', paste.id)
-        .eq('roblox_user_id', uid)
-        .eq('access_type', 'execution')
-        .order('created_at', { ascending: false })
-        .limit(5);
-      
-      if (userIpLocks && userIpLocks.length >= 3) {
-        // Check if current IP is completely new and different from all previous IPs
-        const previousIps = new Set(userIpLocks.map(l => l.ip_address));
-        if (!previousIps.has(clientIp)) {
-          // New IP for this UserId — log as suspicious but allow (could be legit VPN change)
-          // However, if the IP is also associated with a DIFFERENT UserId on the same paste, block it
-          const { data: ipOtherUsers } = await supabase
-            .from('paste_access_logs')
-            .select('roblox_user_id')
-            .eq('paste_id', paste.id)
-            .eq('ip_address', clientIp)
-            .eq('access_type', 'execution')
-            .neq('roblox_user_id', uid)
-            .limit(1);
-          
-          if (ipOtherUsers && ipOtherUsers.length > 0) {
-            // This IP was already used by a DIFFERENT user on the same paste
-            // Very likely UserId spoofing
-            console.log(`[get-paste] USERID_SPOOF_DETECTED: uid=${uid} ip=${clientIp} also used by uid=${ipOtherUsers[0].roblox_user_id} slug=${slug}`);
-            logThreat('userid_spoof', clientIp, uid, null, {
-              slug,
-              other_uid: ipOtherUsers[0].roblox_user_id,
-              reason: 'same_ip_different_userid',
-            }, 'critical', false);
-            return new Response(generateKickEncrypted('Identity verification failed. Your session has been flagged.', slug, tk, uid), {
-              status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-            });
-          }
         }
       }
     }
