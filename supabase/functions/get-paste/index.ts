@@ -857,6 +857,12 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   
   return `--[[ULT Protection v10.3 Loadstring-Proof Shield - ${Math.random().toString(36).substring(2,10)}]]
 ${watermark.luaEmbed}
+-- bit32 polyfill for executors that don't have it
+if not bit32 then bit32 = {} end
+if not bit32.bxor then bit32.bxor = function(a, b) local r,m=0,1 for i=0,31 do local x,y=a%2,b%2 if x~=y then r=r+m end a=math.floor(a/2) b=math.floor(b/2) m=m*2 end return r end end
+if not bit32.band then bit32.band = function(a, b) local r,m=0,1 for i=0,31 do if a%2==1 and b%2==1 then r=r+m end a=math.floor(a/2) b=math.floor(b/2) m=m*2 end return r end end
+if not bit32.lshift then bit32.lshift = function(a, b) return math.floor(a * (2^b)) end end
+if not bit32.rshift then bit32.rshift = function(a, b) return math.floor(a / (2^b)) end end
 ${junkCode}
 
 -- ====== v10: GHOST CODE INJECTION ======
