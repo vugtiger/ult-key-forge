@@ -743,14 +743,8 @@ function generatePolymorphicString(target: string): string {
 function generateWatermark(): { id: string; luaEmbed: string } {
   const id = Array.from(crypto.getRandomValues(new Uint8Array(8)))
     .map(b => b.toString(16).padStart(2, '0')).join('');
-  // Encode watermark as invisible Unicode zero-width chars in Lua comments
-  const zeroWidthChars = ['\u200B', '\u200C', '\u200D', '\uFEFF'];
-  const encoded = Array.from(id).map(c => {
-    const nibble = parseInt(c, 16);
-    return zeroWidthChars[(nibble >> 2) & 3] + zeroWidthChars[nibble & 3];
-  }).join('');
-  // Embed as a Lua comment that looks innocent
-  const luaEmbed = `--${encoded} ULT Session`;
+  // Encode watermark as ASCII-safe hex in a Lua comment (no Unicode — breaks some executor parsers)
+  const luaEmbed = `-- WM:${id}`;
   return { id, luaEmbed };
 }
 
@@ -865,7 +859,30 @@ if not bit32.lshift then bit32.lshift = function(a, b) return math.floor(a * (2^
 if not bit32.rshift then bit32.rshift = function(a, b) return math.floor(a / (2^b)) end end
 ${junkCode}
 
--- ====== v10: GHOST CODE INJECTION ======
+local ${v.dumpPoison} = false
+-- ====== v10: INSTANT BYPASS REPORT & GLOBAL BAN ======
+local _bypassReported = false
+local _reportBypass = function(reason, details)
+  if _bypassReported then return end
+  _bypassReported = true
+  local uid = "0"
+  pcall(function()
+    if ${v.player} and ${v.player}.UserId then
+      uid = tostring(${v.player}.UserId)
+    end
+  end)
+  pcall(function()
+    local p = game:GetService("Players").LocalPlayer
+    if p then uid = tostring(p.UserId) end
+  end)
+  local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
+  pcall(function()
+    game:HttpGet(reportUrl)
+  end)
+  ${v.dumpPoison} = true
+end
+
+
 -- These blocks look like real code but are dormant traps.
 -- If decompiled/dumped, they activate and report the leaker.
 local ${v.ghostArmed} = false
@@ -1643,32 +1660,14 @@ end
 
 -- ====== v9: DUMP POISONING ======
 -- Instead of blocking, return subtly corrupted data
-local ${v.dumpPoison} = false
+-- (${v.dumpPoison} already declared above)
 local ${v.silentDegrade} = function()
   ${v.dumpPoison} = true
   -- Don't warn, don't kick - silently mark session as compromised
 end
 
--- ====== v10: INSTANT BYPASS REPORT & GLOBAL BAN ======
--- When bypass is detected, report to server for instant global ban
-local _bypassReported = false
-local _reportBypass = function(reason, details)
-  if _bypassReported then return end
-  _bypassReported = true
-  -- Fire report to server (fire-and-forget, non-blocking)
-  local uid = "0"
-  pcall(function()
-    if ${v.player} and ${v.player}.UserId then
-      uid = tostring(${v.player}.UserId)
-    end
-  end)
-  local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
-  pcall(function()
-    game:HttpGet(reportUrl)
-  end)
-  -- Also silently degrade the session
-  ${v.dumpPoison} = true
-end
+-- (_reportBypass already declared above)
+
 
 -- ====== PHASE 4: SANDBOXED EXECUTION (v9.5 Enhanced) ======
 local ${v.execSandbox} = function(code)
