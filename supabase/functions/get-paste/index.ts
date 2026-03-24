@@ -3848,7 +3848,7 @@ loadstring(game:HttpGet(_url))()`;
     const initialDiscordRedirect = getDiscordRedirectResponse();
     if (initialDiscordRedirect) return initialDiscordRedirect;
 
-    if (isLikelyBrowser && !isRobloxRequest && !uid && !tk) {
+    if (isLikelyBrowser && !isRobloxRequest) {
       const browserDiscordRedirect = getDiscordRedirectResponse();
       if (browserDiscordRedirect) return browserDiscordRedirect;
 
@@ -3856,7 +3856,7 @@ loadstring(game:HttpGet(_url))()`;
         console.log(`[get-paste] browser visitor logged slug=${slug} ip=${clientIp}`);
         await logAccess(null, 'browser');
       }
-      // ALL browser access returns blank — NEVER expose code to browsers
+      // ALL browser access returns blank — NEVER expose code to browsers, even with uid/tk params
       return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
