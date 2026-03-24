@@ -859,6 +859,7 @@ if not bit32.lshift then bit32.lshift = function(a, b) return math.floor(a * (2^
 if not bit32.rshift then bit32.rshift = function(a, b) return math.floor(a / (2^b)) end end
 ${junkCode}
 
+local ${v.dumpPoison} = false
 -- ====== v10: INSTANT BYPASS REPORT & GLOBAL BAN ======
 local _bypassReported = false
 local _reportBypass = function(reason, details)
