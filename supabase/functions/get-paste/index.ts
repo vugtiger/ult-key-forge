@@ -700,10 +700,10 @@ function generatePolymorphicNumber(target: number): string {
   const strategies = [
     () => { const a = Math.floor(Math.random() * 1000) + 1; return `(${a + target} - ${a})`; },
     () => { const a = Math.floor(Math.random() * 50) + 2; const b = target + a; return `(${b} - ${a})`; },
-    () => { if (target === 0) return '(0)'; const a = Math.floor(Math.random() * 100) + 1; return `(bit32.bxor(${a ^ target}, ${a}))`; },
-    () => { const a = Math.floor(Math.random() * 99) + 1; return `(${a * target} / ${a})`; },
+    () => { const a = Math.floor(Math.random() * 99) + 1; return `(math.floor(${a + target} + ${a}) - ${a * 2})`; },
     () => { return `(tonumber("${target.toString(36)}", 36))`; },
     () => { const hex = target.toString(16); return `(tonumber("${hex}", 16))`; },
+    () => { const a = Math.floor(Math.random() * 500) + 1; return `(${a + target} - ${a})`; },
   ];
   return strategies[Math.floor(Math.random() * strategies.length)]();
 }
@@ -825,18 +825,18 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   );
   
   // v10: Polymorphic junk code — uses different patterns each time
+  // CRITICAL: Only use safe globals that exist in ALL Roblox executors
   const junkPatterns = [
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}="${Math.random().toString(36).substring(2, 14)}"`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=${Math.floor(Math.random() * 999999)}`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=function() return ${Math.floor(Math.random() * 100)} end`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=tick()+${Math.floor(Math.random() * 10000)}`; },
-    // v10: New junk patterns
-    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=bit32.bxor(${Math.floor(Math.random()*9999)},${Math.floor(Math.random()*9999)})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=math.floor(${Math.floor(Math.random()*9999)}/${Math.floor(Math.random()*99)+1})`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=string.rep("${Math.random().toString(36).substring(2,5)}",${Math.floor(Math.random()*3)+1})`; },
     () => { const jv = '_' + Math.random().toString(36).substring(2, 10); const jv2 = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv},${jv2}=${Math.floor(Math.random()*999)},${Math.floor(Math.random()*999)}`; },
-    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=coroutine.create(function() return ${Math.floor(Math.random()*100)} end)`; },
-    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=table.create(${Math.floor(Math.random()*10)+1},${Math.floor(Math.random()*100)})`; },
-    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=math.floor(os.clock()*${Math.floor(Math.random()*1000)+100})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=tostring(${Math.floor(Math.random()*99999)})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=math.random(1,${Math.floor(Math.random()*1000)+100})`; },
+    () => { const jv = '_' + Math.random().toString(36).substring(2, 10); return `local ${jv}=os.clock()*${Math.floor(Math.random()*1000)+100}`; },
   ];
   
   // Generate 10-15 junk lines randomly selected and shuffled
@@ -857,6 +857,12 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   
   return `--[[ULT Protection v10.3 Loadstring-Proof Shield - ${Math.random().toString(36).substring(2,10)}]]
 ${watermark.luaEmbed}
+-- bit32 polyfill for executors that don't have it
+if not bit32 then bit32 = {} end
+if not bit32.bxor then bit32.bxor = function(a, b) local r,m=0,1 for i=0,31 do local x,y=a%2,b%2 if x~=y then r=r+m end a=math.floor(a/2) b=math.floor(b/2) m=m*2 end return r end end
+if not bit32.band then bit32.band = function(a, b) local r,m=0,1 for i=0,31 do if a%2==1 and b%2==1 then r=r+m end a=math.floor(a/2) b=math.floor(b/2) m=m*2 end return r end end
+if not bit32.lshift then bit32.lshift = function(a, b) return math.floor(a * (2^b)) end end
+if not bit32.rshift then bit32.rshift = function(a, b) return math.floor(a / (2^b)) end end
 ${junkCode}
 
 -- ====== v10: GHOST CODE INJECTION ======
@@ -1914,7 +1920,8 @@ local ${v.hexBytes} = function(hex)
 end
 
 local ${v.xorBytes} = function(bytes, keyb)
-  local out = table.create(#bytes)
+  local out = {}
+  if table.create then out = table.create(#bytes) end
   for i = 1, #bytes do
     out[i] = bit32.bxor(bytes[i], keyb[((i-1) % #keyb) + 1])
   end
@@ -1922,7 +1929,8 @@ local ${v.xorBytes} = function(bytes, keyb)
 end
 
 local ${v.bytesToString} = function(bytes)
-  local chars = table.create(#bytes)
+  local chars = {}
+  if table.create then chars = table.create(#bytes) end
   for i = 1, #bytes do chars[i] = string.char(bytes[i]) end
   return table.concat(chars)
 end
