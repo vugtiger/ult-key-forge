@@ -731,6 +731,15 @@ function generateWatermark(): { id: string; luaEmbed: string } {
   return { id, luaEmbed };
 }
 
+// v13: Encode a string as XOR-encrypted Lua char code construction
+// The string is never a readable literal in the generated Lua source
+function encodeUrlForLua(url: string, varName: string): string {
+  const xorKey = Math.floor(Math.random() * 200) + 50; // random XOR key 50-249
+  const encoded = Array.from(url).map(c => c.charCodeAt(0) ^ xorKey);
+  // Build Lua: local varName; do local _k=KEY local _t={BYTES} local _r={} for i=1,#_t do _r[i]=string.char(bit32.bxor(_t[i],_k)) end varName=table.concat(_r) end
+  return `local ${varName}; do local _k=${xorKey} local _t={${encoded.join(',')}} local _r={} for i=1,#_t do _r[i]=string.char(bit32.bxor(_t[i],_k)) end ${varName}=table.concat(_r) end`;
+}
+
 function generateLoader(slug: string, baseUrl: string, token: string, sessionSecret: string, options?: { 
   showConsoleFeedback?: boolean;
   serverNonce?: string;
@@ -798,6 +807,8 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
        'metamorphic','morphCounter','morphSeed','morphTransform',
        'chunkHeaderEnd','chunkHeader','chunkData','chunkParts',
        'chunkIndices','chunkResult','decoyFlood',
+       // v13: Anti-HTTP-spy vars
+       'baseEndpoint','stealthFetch','spyKill','spyDetect','reqFunc','hgShield',
      ].map(k => [k, '_' + Math.random().toString(36).substring(2, 8)])
   );
   
@@ -832,9 +843,140 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   const ghostId = Math.random().toString(36).substring(2, 12);
   const ghostTrapValue = Math.floor(Math.random() * 900000) + 100000;
   
+  // v13: Encode the base URL so it never appears as a readable string
+  const encodedBaseUrl = encodeUrlForLua(baseUrl, v.baseEndpoint);
+  
   return `--[[ULT Protection v10.3 Loadstring-Proof Shield - ${Math.random().toString(36).substring(2,10)}]]
 ${watermark.luaEmbed}
 ${junkCode}
+
+-- v13: STEALTH ENDPOINT (encoded, never readable)
+${encodedBaseUrl}
+
+-- ====== v13: ANTI-HTTP-SPY SYSTEM ======
+-- Detects and neutralizes SimpleSpy, HttpSpy, and similar HTTP logging tools
+-- before any network request is made
+local ${v.spyDetect} = function()
+  -- Check 1: SimpleSpy stores itself in various globals
+  local spySignals = {"SimpleSpy", "SimpleSpyExecuted", "SimpleSpy_V2", "HttpSpy", "httpspy", 
+    "SynSpy", "spy_active", "http_logger", "request_log", "network_log",
+    "RemoteSpy", "remote_spy", "scriptspy", "ScriptSpy"}
+  for _, sig in ipairs(spySignals) do
+    if rawget(_G, sig) ~= nil or rawget(shared, sig) ~= nil then
+      return true
+    end
+  end
+  -- Check 2: Check if game.HttpGet has been wrapped/hooked
+  pcall(function()
+    if hookcheck and hookcheck(game.HttpGet) then
+      return true
+    end
+  end)
+  -- Check 3: Check for HttpSpy's ScreenGui
+  pcall(function()
+    local pg = game:GetService("Players").LocalPlayer
+    if pg and pg:FindFirstChild("PlayerGui") then
+      for _, gui in pairs(pg.PlayerGui:GetChildren()) do
+        local gName = gui.Name:lower()
+        if gName:find("spy") or gName:find("log") or gName:find("sniff") or gName:find("intercept") then
+          return true
+        end
+      end
+    end
+  end)
+  -- Check 4: Check CoreGui for spy UIs  
+  pcall(function()
+    if gethui then
+      for _, obj in pairs(gethui():GetChildren()) do
+        local n = obj.Name:lower()
+        if n:find("simplespy") or n:find("httpspy") or n:find("networklog") or n:find("remotespy") then
+          return true
+        end
+      end
+    end
+  end)
+  return false
+end
+
+-- v13: Kill spy tools if detected
+local ${v.spyKill} = function()
+  pcall(function()
+    -- Destroy SimpleSpy UI
+    if gethui then
+      for _, obj in pairs(gethui():GetChildren()) do
+        local n = obj.Name:lower()
+        if n:find("spy") or n:find("log") or n:find("sniff") then
+          pcall(function() obj:Destroy() end)
+        end
+      end
+    end
+    -- Nil out spy globals
+    local killList = {"SimpleSpy", "SimpleSpyExecuted", "SimpleSpy_V2", "HttpSpy", "httpspy",
+      "SynSpy", "spy_active", "http_logger", "request_log", "network_log"}
+    for _, sig in ipairs(killList) do
+      pcall(function() rawset(_G, sig, nil) end)
+      pcall(function() rawset(shared, sig, nil) end)
+    end
+  end)
+end
+
+-- v13: STEALTH FETCH — uses request() API which most spy tools don't hook
+-- Falls back to HttpGet only if request() unavailable
+local ${v.stealthFetch} = function(fetchUrl)
+  local result
+  -- Primary: Use request() function (bypasses HttpGet hooks entirely)
+  local reqOk = false
+  pcall(function()
+    if request then
+      local resp = request({Url = fetchUrl, Method = "GET"})
+      if resp and resp.Body then
+        result = resp.Body
+        reqOk = true
+      end
+    end
+  end)
+  if reqOk and result then return result end
+  -- Secondary: syn.request
+  pcall(function()
+    if syn and syn.request then
+      local resp = syn.request({Url = fetchUrl, Method = "GET"})
+      if resp and resp.Body then
+        result = resp.Body
+        reqOk = true
+      end
+    end
+  end)
+  if reqOk and result then return result end
+  -- Tertiary: http_request
+  pcall(function()
+    if http_request then
+      local resp = http_request({Url = fetchUrl, Method = "GET"})
+      if resp and resp.Body then
+        result = resp.Body
+        reqOk = true
+      end
+    end
+  end)
+  if reqOk and result then return result end
+  -- Last resort: HttpGet through cached ref (spy tools hook this)
+  local s, r = pcall(function()
+    return game:HttpGet(fetchUrl)
+  end)
+  if s then return r end
+  return nil
+end
+
+-- Run spy detection and kill before anything else
+if ${v.spyDetect}() then
+  ${v.spyKill}()
+  task.wait(0.1)
+  -- Re-check after kill attempt
+  if ${v.spyDetect}() then
+    -- Spy tool persisted — abort with fake error
+    warn("[ULT] Session expired. Please re-execute.")
+    return
+  end
+end
 
 -- ====== v10: GHOST CODE INJECTION ======
 -- These blocks look like real code but are dormant traps.
@@ -848,9 +990,9 @@ local ${v.ghostBlock} = function()
     local p = game:GetService("Players").LocalPlayer
     if p then uid = tostring(p.UserId) end
   end)
-  -- Report the leak
+  -- Report the leak via stealth fetch
   pcall(function()
-    game:HttpGet("${baseUrl}?_report=ghost_trap&uid=" .. uid .. "&ghost=${ghostId}&wm=${watermarkId}")
+    ${v.stealthFetch}(${v.baseEndpoint} .. "?_report=ghost_trap&uid=" .. uid .. "&ghost=${ghostId}&wm=${watermarkId}")
   end)
   -- Silently corrupt execution environment
   pcall(function()
@@ -1633,9 +1775,9 @@ local _reportBypass = function(reason, details)
       uid = tostring(${v.player}.UserId)
     end
   end)
-  local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
+  local reportUrl = ${v.baseEndpoint} .. "?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
   pcall(function()
-    game:HttpGet(reportUrl)
+    ${v.stealthFetch}(reportUrl)
   end)
   -- Also silently degrade the session
   ${v.dumpPoison} = true
@@ -1879,7 +2021,7 @@ local tk = ${v.reconstruct}()
 ${v.memWipe}(${v.tokenParts})
 
 -- v10: Build request URL with DNA, quantum pair, and watermark
-local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&hwid=" .. (fp.hwid or "") .. "&entropy=" .. (fp.entropy or "0") .. "&snonce=" .. fp.nonce .. "&dna=" .. fp.dna .. "&qt=" .. fp.qt .. "&wm=" .. fp.wm .. "&sd=" .. fp.sd .. "&mem=" .. fp.mem .. "&_=" .. tostring(tick())
+local url = ${v.baseEndpoint} .. "?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&hwid=" .. (fp.hwid or "") .. "&entropy=" .. (fp.entropy or "0") .. "&snonce=" .. fp.nonce .. "&dna=" .. fp.dna .. "&qt=" .. fp.qt .. "&wm=" .. fp.wm .. "&sd=" .. fp.sd .. "&mem=" .. fp.mem .. "&_=" .. tostring(tick())
 
 -- XOR Decode
 local ${v.hexBytes} = function(hex)
@@ -1943,14 +2085,13 @@ ${v.junk5}("Verifying integrity...", 25)
 ${v.junk5}("Fetching payload...", 50)
 ` : ''}
 
--- Execute HTTP request
 local s, r = ${v.hookGuard}.pcall_ref(function()
-  return ${v.cachedHG}(game, url)
+  return ${v.stealthFetch}(url)
 end)
 
-if not s then
+if not s or not r then
   s, r = ${v.hookGuard}.pcall_ref(function()
-    return game:HttpGet(url)
+    return ${v.cachedHG}(game, url)
   end)
 end
 
@@ -2106,7 +2247,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
         rawset(_G, "${ghostId}", setmetatable({}, {
           __index = function(_, k)
             pcall(function()
-              game:HttpGet("${baseUrl}?_report=post_exec_dump&ghost=${ghostId}&wm=${watermarkId}")
+              ${v.stealthFetch}(${v.baseEndpoint} .. "?_report=post_exec_dump&ghost=${ghostId}&wm=${watermarkId}")
             end)
             return nil
           end,
@@ -2222,7 +2363,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
           __index = function(_, k)
             -- Someone is inspecting this value = dump attempt
             pcall(function()
-              game:HttpGet("${baseUrl}?_report=post_exec_dump&ghost=${ghostId}&wm=${watermarkId}")
+              ${v.stealthFetch}(${v.baseEndpoint} .. "?_report=post_exec_dump&ghost=${ghostId}&wm=${watermarkId}")
             end)
             return nil
           end,
@@ -2263,12 +2404,47 @@ function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, 
   const g = colorParts[1] || '120';
   const b = colorParts[2] || '255';
 
+  // v13: Encode baseUrl for key system GUI too
+  const guiEncodedUrl = encodeUrlForLua(baseUrl, '_ultEndpoint');
+  
   return `-- ULT Key System v5 (Landing Match)
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
+
+-- v13: Stealth endpoint
+${guiEncodedUrl}
+
+-- v13: Stealth fetch for key system
+local function _ultStealthFetch(fetchUrl)
+  local result
+  pcall(function()
+    if request then
+      local resp = request({Url = fetchUrl, Method = "GET"})
+      if resp and resp.Body then result = resp.Body end
+    end
+  end)
+  if result then return result end
+  pcall(function()
+    if syn and syn.request then
+      local resp = syn.request({Url = fetchUrl, Method = "GET"})
+      if resp and resp.Body then result = resp.Body end
+    end
+  end)
+  if result then return result end
+  pcall(function()
+    if http_request then
+      local resp = http_request({Url = fetchUrl, Method = "GET"})
+      if resp and resp.Body then result = resp.Body end
+    end
+  end)
+  if result then return result end
+  local s, r = pcall(function() return game:HttpGet(fetchUrl) end)
+  if s then return r end
+  return nil
+end
 
 local plr = Players.LocalPlayer
 if not plr then plr = Players.PlayerAdded:Wait() end
@@ -2616,7 +2792,7 @@ local function validateKey()
 
     task.spawn(function()
         local userId = tostring(plr.UserId)
-        local url = "${baseUrl}?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId .. "&_=" .. tostring(tick())
+        local url = _ultEndpoint .. "?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId .. "&_=" .. tostring(tick())
 
         task.wait(0.08)
         if unloading then return end
@@ -2633,7 +2809,7 @@ local function validateKey()
         setProgress(56)
 
         local success, response = pcall(function()
-            return game:HttpGet(url)
+            return _ultStealthFetch(url)
         end)
 
         if unloading then return end
@@ -3736,9 +3912,13 @@ Deno.serve(async (req) => {
         });
         // Return a simple script that re-fetches the paste with the bypass token
         // The paste URL will then skip the key system and serve the normal protection loader
+        const encodedRedirectUrl = encodeUrlForLua(baseUrl, '_ep');
         const redirectScript = `-- Key validated, loading protected script...
-local _url = "${baseUrl}?slug=${slugStr}&uid=${uid}&kbt=${bypassToken}&_=" .. tostring(tick())
-loadstring(game:HttpGet(_url))()`;
+${encodedRedirectUrl}
+local _url = _ep .. "?slug=${slugStr}&uid=${uid}&kbt=${bypassToken}&_=" .. tostring(tick())
+local _r; pcall(function() if request then local resp = request({Url=_url,Method="GET"}) if resp then _r = resp.Body end end end)
+if not _r then pcall(function() _r = game:HttpGet(_url) end) end
+if _r then loadstring(_r)() end`;
         console.log(`[get-paste] KEY_VALID: returning bypass redirect for protected paste ${paste.id}`);
         return new Response(`KEY_VALID_SCRIPT:\n${redirectScript}`, { status: 200, headers: textHeaders });
       }
@@ -3801,10 +3981,15 @@ loadstring(game:HttpGet(_url))()`;
     // loadstring executes the loader which re-fetches with uid to get the real content.
     if (paste.anti_fetch_enabled && !uid && !tk && !kbt && !keyParam && !isLikelyBrowser) {
       console.log(`[get-paste] ANTI-FETCH: returning mini loader for slug=${slug} ip=${clientIp}`);
+      const encodedMiniUrl = encodeUrlForLua(baseUrl, '_ep');
       const miniLoader = `-- Protected by ULT LUA
+${encodedMiniUrl}
 local _p = game:GetService("Players").LocalPlayer
 if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
-loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())))()`;
+local _u = _ep .. "?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())
+local _r; pcall(function() if request then local resp = request({Url=_u,Method="GET"}) if resp then _r = resp.Body end end end)
+if not _r then pcall(function() _r = game:HttpGet(_u) end) end
+if _r then loadstring(_r)() end`;
       return new Response(miniLoader, { status: 200, headers: textHeaders });
     }
 
