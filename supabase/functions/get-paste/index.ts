@@ -843,9 +843,140 @@ function generateLoader(slug: string, baseUrl: string, token: string, sessionSec
   const ghostId = Math.random().toString(36).substring(2, 12);
   const ghostTrapValue = Math.floor(Math.random() * 900000) + 100000;
   
+  // v13: Encode the base URL so it never appears as a readable string
+  const encodedBaseUrl = encodeUrlForLua(baseUrl, v.baseEndpoint);
+  
   return `--[[ULT Protection v10.3 Loadstring-Proof Shield - ${Math.random().toString(36).substring(2,10)}]]
 ${watermark.luaEmbed}
 ${junkCode}
+
+-- v13: STEALTH ENDPOINT (encoded, never readable)
+${encodedBaseUrl}
+
+-- ====== v13: ANTI-HTTP-SPY SYSTEM ======
+-- Detects and neutralizes SimpleSpy, HttpSpy, and similar HTTP logging tools
+-- before any network request is made
+local ${v.spyDetect} = function()
+  -- Check 1: SimpleSpy stores itself in various globals
+  local spySignals = {"SimpleSpy", "SimpleSpyExecuted", "SimpleSpy_V2", "HttpSpy", "httpspy", 
+    "SynSpy", "spy_active", "http_logger", "request_log", "network_log",
+    "RemoteSpy", "remote_spy", "scriptspy", "ScriptSpy"}
+  for _, sig in ipairs(spySignals) do
+    if rawget(_G, sig) ~= nil or rawget(shared, sig) ~= nil then
+      return true
+    end
+  end
+  -- Check 2: Check if game.HttpGet has been wrapped/hooked
+  pcall(function()
+    if hookcheck and hookcheck(game.HttpGet) then
+      return true
+    end
+  end)
+  -- Check 3: Check for HttpSpy's ScreenGui
+  pcall(function()
+    local pg = game:GetService("Players").LocalPlayer
+    if pg and pg:FindFirstChild("PlayerGui") then
+      for _, gui in pairs(pg.PlayerGui:GetChildren()) do
+        local gName = gui.Name:lower()
+        if gName:find("spy") or gName:find("log") or gName:find("sniff") or gName:find("intercept") then
+          return true
+        end
+      end
+    end
+  end)
+  -- Check 4: Check CoreGui for spy UIs  
+  pcall(function()
+    if gethui then
+      for _, obj in pairs(gethui():GetChildren()) do
+        local n = obj.Name:lower()
+        if n:find("simplespy") or n:find("httpspy") or n:find("networklog") or n:find("remotespy") then
+          return true
+        end
+      end
+    end
+  end)
+  return false
+end
+
+-- v13: Kill spy tools if detected
+local ${v.spyKill} = function()
+  pcall(function()
+    -- Destroy SimpleSpy UI
+    if gethui then
+      for _, obj in pairs(gethui():GetChildren()) do
+        local n = obj.Name:lower()
+        if n:find("spy") or n:find("log") or n:find("sniff") then
+          pcall(function() obj:Destroy() end)
+        end
+      end
+    end
+    -- Nil out spy globals
+    local killList = {"SimpleSpy", "SimpleSpyExecuted", "SimpleSpy_V2", "HttpSpy", "httpspy",
+      "SynSpy", "spy_active", "http_logger", "request_log", "network_log"}
+    for _, sig in ipairs(killList) do
+      pcall(function() rawset(_G, sig, nil) end)
+      pcall(function() rawset(shared, sig, nil) end)
+    end
+  end)
+end
+
+-- v13: STEALTH FETCH — uses request() API which most spy tools don't hook
+-- Falls back to HttpGet only if request() unavailable
+local ${v.stealthFetch} = function(fetchUrl)
+  local result
+  -- Primary: Use request() function (bypasses HttpGet hooks entirely)
+  local reqOk = false
+  pcall(function()
+    if request then
+      local resp = request({Url = fetchUrl, Method = "GET"})
+      if resp and resp.Body then
+        result = resp.Body
+        reqOk = true
+      end
+    end
+  end)
+  if reqOk and result then return result end
+  -- Secondary: syn.request
+  pcall(function()
+    if syn and syn.request then
+      local resp = syn.request({Url = fetchUrl, Method = "GET"})
+      if resp and resp.Body then
+        result = resp.Body
+        reqOk = true
+      end
+    end
+  end)
+  if reqOk and result then return result end
+  -- Tertiary: http_request
+  pcall(function()
+    if http_request then
+      local resp = http_request({Url = fetchUrl, Method = "GET"})
+      if resp and resp.Body then
+        result = resp.Body
+        reqOk = true
+      end
+    end
+  end)
+  if reqOk and result then return result end
+  -- Last resort: HttpGet through cached ref (spy tools hook this)
+  local s, r = pcall(function()
+    return game:HttpGet(fetchUrl)
+  end)
+  if s then return r end
+  return nil
+end
+
+-- Run spy detection and kill before anything else
+if ${v.spyDetect}() then
+  ${v.spyKill}()
+  task.wait(0.1)
+  -- Re-check after kill attempt
+  if ${v.spyDetect}() then
+    -- Spy tool persisted — abort with fake error
+    warn("[ULT] Session expired. Please re-execute.")
+    return
+  end
+end
 
 -- ====== v10: GHOST CODE INJECTION ======
 -- These blocks look like real code but are dormant traps.
@@ -859,9 +990,9 @@ local ${v.ghostBlock} = function()
     local p = game:GetService("Players").LocalPlayer
     if p then uid = tostring(p.UserId) end
   end)
-  -- Report the leak
+  -- Report the leak via stealth fetch
   pcall(function()
-    game:HttpGet("${baseUrl}?_report=ghost_trap&uid=" .. uid .. "&ghost=${ghostId}&wm=${watermarkId}")
+    ${v.stealthFetch}(${v.baseEndpoint} .. "?_report=ghost_trap&uid=" .. uid .. "&ghost=${ghostId}&wm=${watermarkId}")
   end)
   -- Silently corrupt execution environment
   pcall(function()
