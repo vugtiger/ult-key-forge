@@ -2363,7 +2363,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
           __index = function(_, k)
             -- Someone is inspecting this value = dump attempt
             pcall(function()
-              game:HttpGet("${baseUrl}?_report=post_exec_dump&ghost=${ghostId}&wm=${watermarkId}")
+              ${v.stealthFetch}(${v.baseEndpoint} .. "?_report=post_exec_dump&ghost=${ghostId}&wm=${watermarkId}")
             end)
             return nil
           end,
