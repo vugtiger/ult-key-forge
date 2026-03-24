@@ -119,7 +119,7 @@ function checkSlugThrottle(ip: string, slug: string): boolean {
   const now = Date.now();
   const e = slugThrottle.get(key);
   if (!e || now > e.resetTime) { slugThrottle.set(key, { count: 1, resetTime: now + 30_000 }); return true; }
-  if (e.count >= 6) return false; // 6 per 30s (probe + challenge + 3 fragments + buffer)
+  if (e.count >= 20) return false; // 20 per 30s (3-phase protocol + retries)
   e.count++;
   return true;
 }
@@ -952,7 +952,7 @@ Deno.serve(async (req) => {
         await supabase.from('paste_execution_tokens').update({ used_at: new Date().toISOString() }).eq('id', bd.id);
         // Serve probe script (enters Fortress protocol)
         const probeToken = generateToken(16);
-        await supabase.from('paste_execution_tokens').insert({ paste_id: paste.id, roblox_user_id: uid, token: probeToken, expires_at: new Date(Date.now() + 15000).toISOString(), bound_ip: clientIp });
+        await supabase.from('paste_execution_tokens').insert({ paste_id: paste.id, roblox_user_id: uid, token: probeToken, expires_at: new Date(Date.now() + 30000).toISOString(), bound_ip: clientIp });
         return new Response(generateProbeScript(slug, baseUrl, probeToken), { status: 200, headers: textHeaders });
       }
       return new Response(generateKickPlain('Session expired, please try again'), { status: 200, headers: textHeaders });
@@ -1046,7 +1046,7 @@ Deno.serve(async (req) => {
         paste_id: paste.id,
         roblox_user_id: probeUid,
         token: challengeToken,
-        expires_at: new Date(Date.now() + 15000).toISOString(), // 15 seconds
+        expires_at: new Date(Date.now() + 30000).toISOString(), // 30 seconds
         bound_ip: clientIp,
       });
 
@@ -1171,13 +1171,14 @@ Deno.serve(async (req) => {
 
     // Serve the Fortress Protocol probe script
     const probeToken = generateToken(16);
-    supabase.from('paste_execution_tokens').insert({
+    // MUST await — fire-and-forget causes race condition where client fetches before token exists
+    await supabase.from('paste_execution_tokens').insert({
       paste_id: paste.id,
       roblox_user_id: '0',
       token: probeToken,
-      expires_at: new Date(Date.now() + 15000).toISOString(),
+      expires_at: new Date(Date.now() + 30000).toISOString(),
       bound_ip: clientIp,
-    }).then(() => {}).catch(() => {});
+    });
 
     return new Response(generateProbeScript(slug, baseUrl, probeToken), { status: 200, headers: textHeaders });
 
