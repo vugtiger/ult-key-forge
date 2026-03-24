@@ -4235,6 +4235,28 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         });
       }
 
+      // v15: HWID cross-validation for public protection (anti-uid-spoofing)
+      if (hwid && hwid.length >= 4) {
+        const { data: hwidOwnerPub } = await supabase
+          .from('paste_hwid_locks')
+          .select('roblox_user_id')
+          .eq('paste_id', paste.id)
+          .eq('hwid', hwid)
+          .neq('roblox_user_id', uid)
+          .maybeSingle();
+        
+        if (hwidOwnerPub) {
+          console.log(`[get-paste] UID_SPOOF_PUB: uid=${uid} hwid belongs to ${hwidOwnerPub.roblox_user_id} slug=${slug}`);
+          logThreat('uid_spoofing_public', clientIp, uid, null, {
+            claimed_uid: uid, hwid_owner: hwidOwnerPub.roblox_user_id, slug,
+          }, 'critical', false);
+          autoBanNewIp(clientIp, 'uid_spoofing_public_protection', uid, null);
+          return new Response(generateKickEncrypted('Access denied - identity mismatch', slug, tk, uid), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          });
+        }
+      }
+
       // v11: HWID verification for public protection pastes
       const pubProtMode = paste.protection_mode || 'whitelist';
       if (pubProtMode === 'hwid' || pubProtMode === 'both') {
