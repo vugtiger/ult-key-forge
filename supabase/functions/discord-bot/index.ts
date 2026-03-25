@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const DISCORD_PUBLIC_KEY = Deno.env.get("DISCORD_PUBLIC_KEY")!;
 const DISCORD_BOT_TOKEN = Deno.env.get("DISCORD_BOT_TOKEN")!;
@@ -2415,7 +2414,7 @@ async function handleModal(interaction: any) {
   return { type: 4, data: { content: '❌ Unknown modal.', flags: 64 } };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
