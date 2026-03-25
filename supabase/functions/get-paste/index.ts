@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // MODULE-LEVEL Supabase client — reused across requests in the same isolate
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -284,6 +284,55 @@ function isKnownExecutorUserAgent(ua: string): boolean {
   const normalizedUa = ua.trim();
   if (!normalizedUa) return false;
   return KNOWN_EXECUTOR_UA_PATTERNS.some((pattern) => pattern.test(normalizedUa));
+}
+
+function isRobloxLikeUserAgent(ua: string): boolean {
+  if (!ua) return false;
+  const uaLower = ua.toLowerCase();
+  return isKnownExecutorUserAgent(ua) ||
+         uaLower.includes('roblox') ||
+         ua.includes('HttpService') ||
+         ua.includes('WinInet') ||
+         ua.includes('RobloxApp') ||
+         /^Mozilla\/5\.0 \(\d+MB;/.test(ua);
+}
+
+function isLikelyBrowserRequest(headers: Headers): boolean {
+  const ua = headers.get('user-agent') || '';
+  const accept = headers.get('accept') || '';
+  const secFetchMode = headers.get('sec-fetch-mode') || '';
+  const secFetchDest = headers.get('sec-fetch-dest') || '';
+  const origin = headers.get('origin') || '';
+  const referer = headers.get('referer') || '';
+
+  if (isRobloxLikeUserAgent(ua)) return false;
+
+  return Boolean(secFetchMode) ||
+         Boolean(secFetchDest) ||
+         accept.includes('text/html') ||
+         Boolean(origin) ||
+         Boolean(referer) ||
+         (/Mozilla\/\d/.test(ua) && /AppleWebKit|Gecko|Chrome|Safari|Firefox|Edge/.test(ua));
+}
+
+function shouldAutoBanBypassReason(reason: string, details: string): boolean {
+  const normalizedReason = (reason || '').toLowerCase();
+  const normalizedDetails = (details || '').toLowerCase();
+
+  const softSignals = [
+    'env_logger',
+    'env_logger_sandbox',
+    'pre_fetch_env',
+    'logger',
+    'logger_sandbox',
+    'environment_logger_detected',
+    'env_logger_at_exec',
+    'env_logger_before_network',
+    'loadstring_logger',
+    'logger_at_exec',
+  ];
+
+  return !softSignals.some((signal) => normalizedReason.includes(signal) || normalizedDetails.includes(signal));
 }
 
 function isBlockedUserAgent(ua: string): boolean {
@@ -3237,13 +3286,7 @@ Deno.serve(async (req) => {
       // AUTO-BAN: Anyone accessing _report URLs from a BROWSER gets instantly banned
       // These URLs should ONLY be called by the Lua loader from within Roblox
       const reportUa = req.headers.get('user-agent') || '';
-      const reportSecFetch = req.headers.get('sec-fetch-mode') || '';
-      const reportAccept = req.headers.get('accept') || '';
-      const reportOrigin = req.headers.get('origin') || '';
-      const reportReferer = req.headers.get('referer') || '';
-      const isBrowserReport = Boolean(reportSecFetch) || reportAccept.includes('text/html') || 
-                               Boolean(reportOrigin) || Boolean(reportReferer) ||
-                               (/Mozilla\/\d/.test(reportUa) && /AppleWebKit|Gecko|Chrome|Safari|Firefox|Edge/.test(reportUa));
+      const isBrowserReport = isLikelyBrowserRequest(req.headers);
       
       if (isBrowserReport) {
         console.log(`[get-paste] BROWSER ACCESS TO _report URL: ip=${earlyIp} action=${reportAction}`);
@@ -3253,18 +3296,19 @@ Deno.serve(async (req) => {
           user_agent: reportUa.substring(0, 200),
           action: 'auto_banned_browser_report_access',
         }, 'critical', true);
-        return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+        return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
       }
       
       if (reportAction === 'bypass') {
       const reportUid = url.searchParams.get('uid') || '';
       const reportReason = url.searchParams.get('reason') || 'bypass_attempt';
       const reportDetails = url.searchParams.get('details') || '';
+      const shouldAutoBan = shouldAutoBanBypassReason(reportReason, reportDetails);
       
       console.log(`[get-paste] BYPASS REPORT: uid=${reportUid} ip=${earlyIp} reason=${reportReason} details=${reportDetails}`);
       
-      // Instantly globally ban the Roblox ID
-      if (reportUid && /^\d+$/.test(reportUid) && parseInt(reportUid) > 1000) {
+      // Instantly globally ban only for high-confidence bypass reports
+      if (shouldAutoBan && reportUid && /^\d+$/.test(reportUid) && parseInt(reportUid) > 1000) {
         const banReason = `Auto-banned: bypass attempt detected (${reportReason}: ${reportDetails})`;
         
         // Ban Roblox ID
@@ -3337,10 +3381,17 @@ Deno.serve(async (req) => {
         
         // Force refresh bans cache
         globalBanCache.lastRefresh = 0;
+      } else {
+        logThreat('bypass_report_logged_only', earlyIp, reportUid || null, null, {
+          reason: reportReason,
+          details: reportDetails,
+          action: shouldAutoBan ? 'missing_uid_logged_only' : 'soft_signal_logged_only',
+          user_agent: reportUa.substring(0, 200),
+        }, shouldAutoBan ? 'high' : 'medium', false);
       }
       
-      // Return empty - don't give them any info
-      return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      // Return empty - don't print warnings in legitimate executor consoles
+      return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
       }
       
       // Ghost trap and other report actions
@@ -3357,11 +3408,11 @@ Deno.serve(async (req) => {
         logThreat('ghost_trap_triggered', earlyIp, reportUid || null, null, {
           ghost: url.searchParams.get('ghost'), wm: url.searchParams.get('wm'),
         }, 'critical', true);
-        return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+        return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
       }
       
       // Any other _report action
-      return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
     
     const slug = url.searchParams.get('slug');
@@ -3423,23 +3474,8 @@ Deno.serve(async (req) => {
     
     // ===== COMPUTE BROWSER/ROBLOX FLAGS EARLY =====
     const uaLowerFull = userAgent.toLowerCase();
-    const isRobloxRequest = isKnownExecutorUserAgent(userAgent) ||
-                            uaLowerFull.includes('roblox') || 
-                            userAgent.includes('HttpService') ||
-                            userAgent.includes('WinInet') ||
-                            userAgent.includes('RobloxApp') ||
-                            // Roblox mobile UAs: "Mozilla/5.0 (XXXXmb; WIDTHxHEIGHT; ..." with device specs
-                            /^Mozilla\/5\.0 \(\d+MB;/.test(userAgent);
-
-    const isLikelyBrowser = !isRobloxRequest && (
-      Boolean(secFetchMode) ||
-      Boolean(secFetchDest) ||
-      accept.includes('text/html') ||
-      Boolean(origin) ||
-      Boolean(referer) ||
-      // Fallback: common browser UA patterns (in case sec-fetch headers are stripped)
-      (/Mozilla\/\d/.test(userAgent) && /AppleWebKit|Gecko|Chrome|Safari|Firefox|Edge/.test(userAgent))
-    );
+    const isRobloxRequest = isRobloxLikeUserAgent(userAgent);
+    const isLikelyBrowser = isLikelyBrowserRequest(req.headers);
 
     // ===== BOT DETECTION (NO AUTO-BAN) =====
     // Serve honeypot to bots but do NOT IP-ban them — Discord crawlers, Facebook embeds,
