@@ -315,6 +315,13 @@ function isLikelyBrowserRequest(headers: Headers): boolean {
          (/Mozilla\/\d/.test(ua) && /AppleWebKit|Gecko|Chrome|Safari|Firefox|Edge/.test(ua));
 }
 
+function isDirectSlugBrowserView(url: URL): boolean {
+  const params = Array.from(url.searchParams.keys());
+  return params.length > 0 && params.every((key) => key === 'slug');
+}
+
+const QUIET_ACCESS_DENIED_LUA = '-- Access denied';
+
 function shouldAutoBanBypassReason(reason: string, details: string): boolean {
   const normalizedReason = (reason || '').toLowerCase();
   const normalizedDetails = (details || '').toLowerCase();
@@ -330,6 +337,20 @@ function shouldAutoBanBypassReason(reason: string, details: string): boolean {
     'env_logger_before_network',
     'loadstring_logger',
     'logger_at_exec',
+    'fetch_intent',
+    'automated_fetch_no_game',
+    'ls_unverified',
+    'loadstring_integrity_failed',
+    'ls_hooked_no_clone',
+    'hookcheck_true_no_fallback',
+    'pre_fetch_hook',
+    'hook_before_network',
+    'post_fetch_hook',
+    'hook_after_network_request',
+    'post_fetch_ls_hook',
+    'loadstring_hooked_post_fetch',
+    'cleanls_hooked',
+    'clean_loadstring_compromised',
   ];
 
   return !softSignals.some((signal) => normalizedReason.includes(signal) || normalizedDetails.includes(signal));
@@ -3262,7 +3283,7 @@ Deno.serve(async (req) => {
       discord_user_id: null, details: { action: 'blocked_at_gate' }, severity: 'high',
       resolved: true, auto_banned: true,
     }).then(() => {}).catch(e => console.error('Threat log failed:', e));
-    return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+    return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
   }
 
   // Periodic map cleanup
@@ -3444,7 +3465,7 @@ Deno.serve(async (req) => {
       // Auto-ban this new IP so even VPN hopping gets caught
       autoBanNewIp(earlyIp, 'banned_roblox_user_new_ip', uid, null);
       logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned', ip_auto_banned: true }, 'high', true);
-      return new Response('warn("[ULT] Access denied")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
@@ -3650,6 +3671,8 @@ Deno.serve(async (req) => {
     const slugStr = slug;
     const baseUrl = supabaseUrl + '/functions/v1/get-paste';
     const textHeaders = { ...corsHeaders, 'Content-Type': 'text/plain' };
+    const allowDirectBrowserPasteView = isLikelyBrowser && !isRobloxRequest && isDirectSlugBrowserView(url) && !paste.hide_code;
+    const shouldHideBrowserPasteView = isLikelyBrowser && !isRobloxRequest && !allowDirectBrowserPasteView;
 
     const respondWithFreshLoader = async () => {
       const newToken = generateToken();
@@ -3884,7 +3907,7 @@ loadstring(game:HttpGet(_url))()`;
     const initialDiscordRedirect = getDiscordRedirectResponse();
     if (initialDiscordRedirect) return initialDiscordRedirect;
 
-    if (isLikelyBrowser && !isRobloxRequest) {
+    if (shouldHideBrowserPasteView) {
       const browserDiscordRedirect = getDiscordRedirectResponse();
       if (browserDiscordRedirect) return browserDiscordRedirect;
 
@@ -3892,7 +3915,8 @@ loadstring(game:HttpGet(_url))()`;
         console.log(`[get-paste] browser visitor logged slug=${slug} ip=${clientIp}`);
         await logAccess(null, 'browser');
       }
-      // ALL browser access returns blank — NEVER expose code to browsers, even with uid/tk params
+      // Only the plain ?slug= browser page may follow normal paste rules when hide_code is off.
+      // Tokenized / report / auxiliary browser URLs stay blank.
       return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
@@ -3986,7 +4010,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
           }, isBanWorthy ? 'high' : 'low', isBanWorthy);
           if (isBanWorthy) {
             autoBanNewIp(clientIp, 'repeated_token_theft_ip_mismatch', uid, null);
-            return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+            return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: textHeaders });
           }
           // Not ban-worthy yet — just give them a fresh loader with their CURRENT IP
           return await respondWithFreshLoader();
@@ -4025,7 +4049,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       }
       
       // Browser visitors — ALWAYS blank screen, never expose code
-      if (isLikelyBrowser && !isRobloxRequest) {
+      if (shouldHideBrowserPasteView) {
         const browserDiscordRedirect = getDiscordRedirectResponse();
         if (browserDiscordRedirect) return browserDiscordRedirect;
 
@@ -4058,7 +4082,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
             logThreat('kbt_ip_mismatch', clientIp, uid, null, { bound_ip: bypassData.bound_ip, slug }, isBanWorthy ? 'high' : 'low', isBanWorthy);
             if (isBanWorthy) {
               autoBanNewIp(clientIp, 'repeated_kbt_token_theft', uid, null);
-              return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+              return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: textHeaders });
             }
             // Give fresh loader with current IP
             return await respondWithFreshLoader();
@@ -4091,7 +4115,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
         }
       }
 
-      if (isLikelyBrowser && !isRobloxRequest) {
+      if (shouldHideBrowserPasteView) {
         const browserDiscordRedirect = getDiscordRedirectResponse();
         if (browserDiscordRedirect) return browserDiscordRedirect;
 
@@ -4226,7 +4250,7 @@ loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId)
       }, isBanWorthy ? 'critical' : 'low', isBanWorthy);
       if (isBanWorthy) {
         autoBanNewIp(clientIp, 'repeated_token_theft_protected', uid, null);
-        return new Response('warn("[ULT] Access denied")', { status: 200, headers: textHeaders });
+        return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: textHeaders });
       }
       return await respondWithFreshLoader();
     }
