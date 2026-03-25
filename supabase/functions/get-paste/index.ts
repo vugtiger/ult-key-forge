@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // MODULE-LEVEL Supabase client — reused across requests in the same isolate
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
