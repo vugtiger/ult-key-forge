@@ -3766,6 +3766,7 @@ Deno.serve(async (req) => {
       if (!paste.ip_tracking_enabled) return false;
       if (!isLikelyBrowser || isRobloxRequest) return false;
       if (uid || tk) return false;
+      if (isDirectSlugBrowserView(url) && !paste.hide_code) return false;
       const tsNum = oauthTs ? Number(oauthTs) : NaN;
       if (Number.isFinite(tsNum) && Date.now() - tsNum < 60_000) return false;
       return true;
