@@ -2414,7 +2414,7 @@ async function handleModal(interaction: any) {
   return { type: 4, data: { content: '❌ Unknown modal.', flags: 64 } };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
