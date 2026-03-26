@@ -174,7 +174,7 @@ function shouldBanForIpMismatch(ip: string): boolean {
 
 // Per-IP-per-slug throttle: max 3 requests per 30 seconds for the same slug from same IP
 const slugThrottle = new Map<string, { count: number; resetTime: number }>();
-const SLUG_THROTTLE_MAX = 3;
+const SLUG_THROTTLE_MAX = 8;
 const SLUG_THROTTLE_WINDOW = 30_000; // 30 seconds
 
 // Global request counter to shed load when overwhelmed
@@ -3961,7 +3961,11 @@ loadstring(game:HttpGet(_url))()`;
       const miniLoader = `-- Protected by ULT LUA
 local _p = game:GetService("Players").LocalPlayer
 if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
-loadstring(game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())))()`;
+local _s, _r = pcall(function() return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())) end)
+if not _s or not _r or _r == "" then return end
+local _f, _e = loadstring(_r)
+if not _f then return end
+_f()`;
       return new Response(miniLoader, { status: 200, headers: textHeaders });
     }
 
