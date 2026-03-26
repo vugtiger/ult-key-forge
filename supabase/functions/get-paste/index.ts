@@ -321,6 +321,7 @@ function isDirectSlugBrowserView(url: URL): boolean {
 }
 
 const QUIET_ACCESS_DENIED_LUA = '-- Access denied';
+const PROTECTED_BROWSER_PLACEHOLDER = '-- Protected by ULT LUA';
 
 function shouldAutoBanBypassReason(reason: string, details: string): boolean {
   const normalizedReason = (reason || '').toLowerCase();
@@ -3671,8 +3672,8 @@ Deno.serve(async (req) => {
     const slugStr = slug;
     const baseUrl = supabaseUrl + '/functions/v1/get-paste';
     const textHeaders = { ...corsHeaders, 'Content-Type': 'text/plain' };
-    const allowDirectBrowserPasteView = isLikelyBrowser && !isRobloxRequest && isDirectSlugBrowserView(url) && !paste.hide_code;
-    const shouldHideBrowserPasteView = isLikelyBrowser && !isRobloxRequest && !allowDirectBrowserPasteView;
+    const shouldShowProtectedBrowserPlaceholder = isLikelyBrowser && !isRobloxRequest && isDirectSlugBrowserView(url) && !paste.hide_code;
+    const shouldHideBrowserPasteView = isLikelyBrowser && !isRobloxRequest && !shouldShowProtectedBrowserPlaceholder;
 
     const respondWithFreshLoader = async () => {
       const newToken = generateToken();
@@ -3907,6 +3908,15 @@ loadstring(game:HttpGet(_url))()`;
 
     const initialDiscordRedirect = getDiscordRedirectResponse();
     if (initialDiscordRedirect) return initialDiscordRedirect;
+
+    if (shouldShowProtectedBrowserPlaceholder) {
+      if (paste.ip_tracking_enabled) {
+        console.log(`[get-paste] browser placeholder shown slug=${slug} ip=${clientIp}`);
+        await logAccess(null, 'browser');
+      }
+
+      return new Response(PROTECTED_BROWSER_PLACEHOLDER, { status: 200, headers: textHeaders });
+    }
 
     if (shouldHideBrowserPasteView) {
       const browserDiscordRedirect = getDiscordRedirectResponse();
