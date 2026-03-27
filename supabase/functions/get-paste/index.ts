@@ -2050,6 +2050,13 @@ if not s then
   end)
 end
 
+-- Mobile fallback: HttpService:GetAsync
+if not s then
+  s, r = ${v.hookGuard}.pcall_ref(function()
+    return game:GetService("HttpService"):GetAsync(url)
+  end)
+end
+
 if s and r then
   if r == "" then
     warn("Empty response")
