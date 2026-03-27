@@ -2030,18 +2030,10 @@ if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_f
 if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
 ${options?.showConsoleFeedback ? `
-local function ${v.junk5}(msg, pct)
-  local barLen = 20
-  local filled = math.floor(barLen * pct / 100)
-  local empty = barLen - filled
-  print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
-end
-
-${v.junk5}("Scanning environment...", 0)
-
-${v.junk5}("Verifying integrity...", 25)
-
-${v.junk5}("Fetching payload...", 50)
+print("")
+print("  [ULT] > scanning environment")
+print("  [ULT] > verifying integrity")
+print("  [ULT] > fetching protected payload")
 ` : ''}
 
 -- Execute HTTP request
@@ -2147,18 +2139,14 @@ if s and r then
     _pieces = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local function ultBar(msg, pct)
-        local barLen = 20
-        local filled = math.floor(barLen * pct / 100)
-        local empty = barLen - filled
-        print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
-      end
-      ultBar("Chunks decrypted, executing...", 75)
-      task.wait(0.05)
-      ultBar("Script loaded successfully.", 100)
+      print("  [ULT] > verifying secure route")
+      print("  [ULT] > decrypting payload")
+      print("  [ULT] > script loaded")
+      print("")
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v10.3 - Loadstring-Proof Shield")
+      print("  [ULT] > welcome, " .. tostring(pName))
+      print("  [ULT] > protected by ULT LUA")
+      print("")
     end)
 ` : ''}
     -- v12.2: Decoys moved post-execution for instant loading
@@ -2241,16 +2229,13 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     decoded = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local function ultBar(msg, pct)
-        local barLen = 20
-        local filled = math.floor(barLen * pct / 100)
-        local empty = barLen - filled
-        print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
-      end
-      ultBar("Script loaded successfully.", 100)
+      print("  [ULT] > verifying secure route")
+      print("  [ULT] > script loaded")
+      print("")
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v10.3 - Loadstring-Proof Shield")
+      print("  [ULT] > welcome, " .. tostring(pName))
+      print("  [ULT] > protected by ULT LUA")
+      print("")
     end)
 ` : ''}
 
