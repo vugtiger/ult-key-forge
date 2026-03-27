@@ -1201,7 +1201,10 @@ end
 if not ${v.deepVerify}() then ${v.verified} = false end
 
 local ${v.cachedLS} = ${v.cleanLS}
-local ${v.cachedHG} = game.HttpGet
+-- Mobile executor compatibility: some executors (Delta iOS, etc.) don't expose game.HttpGet directly
+local ${v.cachedHG} = game.HttpGet or (function(_, u)
+  return game:GetService("HttpService"):GetAsync(u)
+end)
 local ${v.writeSink} = false
 
 -- v10.3: ANTI-LOADSTRING-HOOK EXECUTION — uses writefile+loadfile to COMPLETELY bypass loadstring hooks
