@@ -278,6 +278,14 @@ const KNOWN_EXECUTOR_UA_PATTERNS = [
   /^Hydrogen\/[\w.-]+$/i,
   /^Arceus(?:\s+X)?\/[\w.-]+$/i,
   /^Electron\/[\w.-]+$/i,
+  // Mobile-specific patterns
+  /^Delta/i,
+  /^Codex/i,
+  /^Hydrogen/i,
+  /^Fluxus/i,
+  /^Arceus/i,
+  // Catch-all for short mobile executor UAs
+  /^[A-Z][a-z]+\/\d/,
 ];
 
 function isKnownExecutorUserAgent(ua: string): boolean {
