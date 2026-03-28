@@ -2046,10 +2046,19 @@ if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_f
 if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
 ${options?.showConsoleFeedback ? `
+-- Animated progress bar
+local function _ultBar(pct, msg)
+  local filled = math.floor(pct / 5)
+  local empty = 20 - filled
+  local bar = string.rep(string.char(0xE2, 0x96, 0x88), filled) .. string.rep("-", empty)
+  print("  [ULT]: [" .. bar .. "] (" .. tostring(pct) .. "%)" .. " - " .. msg)
+end
 print("")
-print("  [ULT] > scanning environment")
-print("  [ULT] > verifying integrity")
-print("  [ULT] > fetching protected payload")
+_ultBar(0, "Initializing...")
+_ultBar(15, "Scanning environment")
+_ultBar(30, "Verifying integrity")
+_ultBar(50, "Connecting to server...")
+_ultBar(65, "Fetching protected payload")
 ` : ''}
 
 -- Execute HTTP request
@@ -2162,13 +2171,14 @@ if s and r then
     _pieces = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      print("  [ULT] > verifying secure route")
-      print("  [ULT] > decrypting payload")
-      print("  [ULT] > script loaded")
+      _ultBar(75, "Verifying secure route")
+      _ultBar(85, "Decrypting payload")
+      _ultBar(95, "Finalizing...")
+      _ultBar(100, "Script loaded")
       print("")
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("  [ULT] > welcome, " .. tostring(pName))
-      print("  [ULT] > protected by ULT LUA")
+      print("  [ULT]: Authenticated as " .. tostring(pName))
+      print("  [ULT]: Protected by ULT LUA")
       print("")
     end)
 ` : ''}
