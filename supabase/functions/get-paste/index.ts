@@ -2047,13 +2047,51 @@ if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone
 
 ${options?.showConsoleFeedback ? `
 -- Animated progress bar
-local function _ultBar(pct, msg)
+local _ultInlineConsole = type(rconsoleprint) == "function"
+local function _ultPadRight(text, width)
+  local missing = width - #text
+  if missing > 0 then
+    return text .. string.rep(" ", missing)
+  end
+  return text
+end
+local function _ultConsoleWrite(text, finalize)
+  if _ultInlineConsole then
+    pcall(function()
+      rconsoleprint("" .. _ultPadRight(text, 160) .. (finalize and "
+" or ""))
+    end)
+  else
+    print(text)
+  end
+end
+local function _ultConsoleLine(text)
+  if _ultInlineConsole then
+    pcall(function()
+      rconsoleprint(text .. "
+")
+    end)
+  else
+    print(text)
+  end
+end
+local function _ultConsoleBlank()
+  if _ultInlineConsole then
+    pcall(function()
+      rconsoleprint("
+")
+    end)
+  else
+    print("")
+  end
+end
+local function _ultBar(pct, msg, finalize)
   local filled = math.floor(pct / 5)
   local empty = 20 - filled
   local bar = string.rep(string.char(0xE2, 0x96, 0x88), filled) .. string.rep("-", empty)
-  print("  [ULT]: [" .. bar .. "] (" .. tostring(pct) .. "%)" .. " - " .. msg)
+  _ultConsoleWrite("  [ULT]: [" .. bar .. "] (" .. tostring(pct) .. "%) - " .. msg, finalize)
 end
-print("")
+_ultConsoleBlank()
 _ultBar(0, "Initializing...")
 task.wait(0.3)
 _ultBar(15, "Scanning environment")
@@ -2181,12 +2219,12 @@ ${options?.showConsoleFeedback ? `    pcall(function()
       task.wait(0.2)
       _ultBar(95, "Finalizing...")
       task.wait(0.15)
-      _ultBar(100, "Script loaded")
-      print("")
+      _ultBar(100, "Script loaded", true)
+      _ultConsoleBlank()
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("  [ULT]: Authenticated as " .. tostring(pName))
-      print("  [ULT]: Protected by ULT LUA")
-      print("")
+      _ultConsoleLine("  [ULT]: Authenticated as " .. tostring(pName))
+      _ultConsoleLine("  [ULT]: Protected by ULT LUA")
+      _ultConsoleBlank()
     end)
 ` : ''}
     -- v12.2: Decoys moved post-execution for instant loading
@@ -2269,13 +2307,14 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     decoded = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      print("  [ULT] > verifying secure route")
-      print("  [ULT] > script loaded")
-      print("")
+      _ultBar(75, "Verifying secure route")
+      task.wait(0.18)
+      _ultBar(100, "Script loaded", true)
+      _ultConsoleBlank()
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("  [ULT] > welcome, " .. tostring(pName))
-      print("  [ULT] > protected by ULT LUA")
-      print("")
+      _ultConsoleLine("  [ULT]: Welcome, " .. tostring(pName))
+      _ultConsoleLine("  [ULT]: Protected by ULT LUA")
+      _ultConsoleBlank()
     end)
 ` : ''}
 
