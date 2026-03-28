@@ -2176,8 +2176,11 @@ if s and r then
 
 ${options?.showConsoleFeedback ? `    pcall(function()
       _ultBar(75, "Verifying secure route")
+      ${v.taskLib}.wait(0.2)
       _ultBar(85, "Decrypting payload")
+      ${v.taskLib}.wait(0.2)
       _ultBar(95, "Finalizing...")
+      ${v.taskLib}.wait(0.15)
       _ultBar(100, "Script loaded")
       print("")
       local pName = ${v.player}.DisplayName or ${v.player}.Name
