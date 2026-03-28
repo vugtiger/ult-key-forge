@@ -2046,10 +2046,19 @@ if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_f
 if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
 ${options?.showConsoleFeedback ? `
+-- Animated progress bar
+local function _ultBar(pct, msg)
+  local filled = math.floor(pct / 5)
+  local empty = 20 - filled
+  local bar = string.rep(string.char(0xE2, 0x96, 0x88), filled) .. string.rep("-", empty)
+  print("  [ULT]: [" .. bar .. "] (" .. tostring(pct) .. "%)" .. " - " .. msg)
+end
 print("")
-print("  [ULT] > scanning environment")
-print("  [ULT] > verifying integrity")
-print("  [ULT] > fetching protected payload")
+_ultBar(0, "Initializing...")
+_ultBar(15, "Scanning environment")
+_ultBar(30, "Verifying integrity")
+_ultBar(50, "Connecting to server...")
+_ultBar(65, "Fetching protected payload")
 ` : ''}
 
 -- Execute HTTP request
