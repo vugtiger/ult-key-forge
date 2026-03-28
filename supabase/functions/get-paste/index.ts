@@ -2055,9 +2055,13 @@ local function _ultBar(pct, msg)
 end
 print("")
 _ultBar(0, "Initializing...")
+${v.taskLib}.wait(0.3)
 _ultBar(15, "Scanning environment")
+${v.taskLib}.wait(0.25)
 _ultBar(30, "Verifying integrity")
+${v.taskLib}.wait(0.3)
 _ultBar(50, "Connecting to server...")
+${v.taskLib}.wait(0.25)
 _ultBar(65, "Fetching protected payload")
 ` : ''}
 
@@ -2172,8 +2176,11 @@ if s and r then
 
 ${options?.showConsoleFeedback ? `    pcall(function()
       _ultBar(75, "Verifying secure route")
+      ${v.taskLib}.wait(0.2)
       _ultBar(85, "Decrypting payload")
+      ${v.taskLib}.wait(0.2)
       _ultBar(95, "Finalizing...")
+      ${v.taskLib}.wait(0.15)
       _ultBar(100, "Script loaded")
       print("")
       local pName = ${v.player}.DisplayName or ${v.player}.Name
