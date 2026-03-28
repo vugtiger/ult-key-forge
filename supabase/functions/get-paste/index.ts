@@ -2171,13 +2171,14 @@ if s and r then
     _pieces = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      print("  [ULT] > verifying secure route")
-      print("  [ULT] > decrypting payload")
-      print("  [ULT] > script loaded")
+      _ultBar(75, "Verifying secure route")
+      _ultBar(85, "Decrypting payload")
+      _ultBar(95, "Finalizing...")
+      _ultBar(100, "Script loaded")
       print("")
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("  [ULT] > welcome, " .. tostring(pName))
-      print("  [ULT] > protected by ULT LUA")
+      print("  [ULT]: Authenticated as " .. tostring(pName))
+      print("  [ULT]: Protected by ULT LUA")
       print("")
     end)
 ` : ''}
