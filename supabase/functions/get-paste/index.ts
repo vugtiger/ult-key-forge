@@ -2055,9 +2055,13 @@ local function _ultBar(pct, msg)
 end
 print("")
 _ultBar(0, "Initializing...")
+${v.taskLib}.wait(0.3)
 _ultBar(15, "Scanning environment")
+${v.taskLib}.wait(0.25)
 _ultBar(30, "Verifying integrity")
+${v.taskLib}.wait(0.3)
 _ultBar(50, "Connecting to server...")
+${v.taskLib}.wait(0.25)
 _ultBar(65, "Fetching protected payload")
 ` : ''}
 
