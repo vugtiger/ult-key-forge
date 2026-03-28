@@ -278,6 +278,14 @@ const KNOWN_EXECUTOR_UA_PATTERNS = [
   /^Hydrogen\/[\w.-]+$/i,
   /^Arceus(?:\s+X)?\/[\w.-]+$/i,
   /^Electron\/[\w.-]+$/i,
+  // Mobile-specific patterns
+  /^Delta/i,
+  /^Codex/i,
+  /^Hydrogen/i,
+  /^Fluxus/i,
+  /^Arceus/i,
+  // Catch-all for short mobile executor UAs
+  /^[A-Z][a-z]+\/\d/,
 ];
 
 function isKnownExecutorUserAgent(ua: string): boolean {
@@ -928,6 +936,11 @@ if not bit32.bxor then bit32.bxor = function(a, b) local r,m=0,1 for i=0,31 do l
 if not bit32.band then bit32.band = function(a, b) local r,m=0,1 for i=0,31 do if a%2==1 and b%2==1 then r=r+m end a=math.floor(a/2) b=math.floor(b/2) m=m*2 end return r end end
 if not bit32.lshift then bit32.lshift = function(a, b) return math.floor(a * (2^b)) end end
 if not bit32.rshift then bit32.rshift = function(a, b) return math.floor(a / (2^b)) end end
+-- task polyfill for mobile executors
+if not task then task = {} end
+if not task.defer then task.defer = function(f, ...) local a = {...} pcall(function() spawn(function() f(unpack(a)) end) end) end end
+if not task.delay then task.delay = function(t, f, ...) local a = {...} pcall(function() delay(t, function() f(unpack(a)) end) end) end end
+if not task.wait then task.wait = function(t) local w = wait or function(s) local e = os.clock()+(s or 0) while os.clock()<e do end end return w(t) end end
 ${junkCode}
 
 local ${v.dumpPoison} = false
@@ -1201,7 +1214,10 @@ end
 if not ${v.deepVerify}() then ${v.verified} = false end
 
 local ${v.cachedLS} = ${v.cleanLS}
-local ${v.cachedHG} = game.HttpGet
+-- Mobile executor compatibility: some executors (Delta iOS, etc.) don't expose game.HttpGet directly
+local ${v.cachedHG} = game.HttpGet or (function(_, u)
+  return game:GetService("HttpService"):GetAsync(u)
+end)
 local ${v.writeSink} = false
 
 -- v10.3: ANTI-LOADSTRING-HOOK EXECUTION — uses writefile+loadfile to COMPLETELY bypass loadstring hooks
@@ -2030,18 +2046,61 @@ if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_f
 if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
 ${options?.showConsoleFeedback ? `
-local function ${v.junk5}(msg, pct)
-  local barLen = 20
-  local filled = math.floor(barLen * pct / 100)
-  local empty = barLen - filled
-  print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
+-- Animated progress bar
+local _ultInlineConsole = type(rconsoleprint) == "function"
+local function _ultPadRight(text, width)
+  local missing = width - #text
+  if missing > 0 then
+    return text .. string.rep(" ", missing)
+  end
+  return text
 end
-
-${v.junk5}("Scanning environment...", 0)
-
-${v.junk5}("Verifying integrity...", 25)
-
-${v.junk5}("Fetching payload...", 50)
+local function _ultConsoleWrite(text, finalize)
+  if _ultInlineConsole then
+    pcall(function()
+      rconsoleprint("" .. _ultPadRight(text, 160) .. (finalize and "
+" or ""))
+    end)
+  else
+    print(text)
+  end
+end
+local function _ultConsoleLine(text)
+  if _ultInlineConsole then
+    pcall(function()
+      rconsoleprint(text .. "
+")
+    end)
+  else
+    print(text)
+  end
+end
+local function _ultConsoleBlank()
+  if _ultInlineConsole then
+    pcall(function()
+      rconsoleprint("
+")
+    end)
+  else
+    print("")
+  end
+end
+local function _ultBar(pct, msg, finalize)
+  local filled = math.floor(pct / 5)
+  local empty = 20 - filled
+  local bar = string.rep(string.char(0xE2, 0x96, 0x88), filled) .. string.rep("-", empty)
+  _ultConsoleWrite("  [ULT]: [" .. bar .. "] (" .. tostring(pct) .. "%) - " .. msg, finalize)
+end
+_ultConsoleBlank()
+_ultBar(0, "Initializing...")
+task.wait(0.3)
+_ultBar(15, "Scanning environment")
+task.wait(0.25)
+_ultBar(30, "Verifying integrity")
+task.wait(0.3)
+_ultBar(50, "Connecting to server...")
+task.wait(0.25)
+_ultBar(65, "Fetching protected payload")
 ` : ''}
 
 -- Execute HTTP request
@@ -2052,6 +2111,13 @@ end)
 if not s then
   s, r = ${v.hookGuard}.pcall_ref(function()
     return game:HttpGet(url)
+  end)
+end
+
+-- Mobile fallback: HttpService:GetAsync
+if not s then
+  s, r = ${v.hookGuard}.pcall_ref(function()
+    return game:GetService("HttpService"):GetAsync(url)
   end)
 end
 
@@ -2147,18 +2213,18 @@ if s and r then
     _pieces = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local function ultBar(msg, pct)
-        local barLen = 20
-        local filled = math.floor(barLen * pct / 100)
-        local empty = barLen - filled
-        print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
-      end
-      ultBar("Chunks decrypted, executing...", 75)
-      task.wait(0.05)
-      ultBar("Script loaded successfully.", 100)
+      _ultBar(75, "Verifying secure route")
+      task.wait(0.2)
+      _ultBar(85, "Decrypting payload")
+      task.wait(0.2)
+      _ultBar(95, "Finalizing...")
+      task.wait(0.15)
+      _ultBar(100, "Script loaded", true)
+      _ultConsoleBlank()
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v10.3 - Loadstring-Proof Shield")
+      _ultConsoleLine("  [ULT]: Authenticated as " .. tostring(pName))
+      _ultConsoleLine("  [ULT]: Protected by ULT LUA")
+      _ultConsoleBlank()
     end)
 ` : ''}
     -- v12.2: Decoys moved post-execution for instant loading
@@ -2241,16 +2307,14 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     decoded = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local function ultBar(msg, pct)
-        local barLen = 20
-        local filled = math.floor(barLen * pct / 100)
-        local empty = barLen - filled
-        print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
-      end
-      ultBar("Script loaded successfully.", 100)
+      _ultBar(75, "Verifying secure route")
+      task.wait(0.18)
+      _ultBar(100, "Script loaded", true)
+      _ultConsoleBlank()
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v10.3 - Loadstring-Proof Shield")
+      _ultConsoleLine("  [ULT]: Welcome, " .. tostring(pName))
+      _ultConsoleLine("  [ULT]: Protected by ULT LUA")
+      _ultConsoleBlank()
     end)
 ` : ''}
 

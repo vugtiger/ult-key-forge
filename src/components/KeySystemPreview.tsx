@@ -129,14 +129,16 @@ const KeySystemPreview = () => {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                <span>Animated verification progress</span>
+                <span>Verification</span>
                 <span>{progress}%</span>
               </div>
-              <div className="h-3 overflow-hidden rounded-full bg-secondary">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-primary/60 via-primary to-foreground/90 transition-all duration-150"
-                  style={{ width: `${progress}%` }}
-                />
+              <div className="font-mono text-sm text-foreground/90 rounded-[1rem] border border-border/50 bg-background/50 px-4 py-3">
+                <span className="text-primary">[ULT]:</span>{" "}
+                <span>[{"█".repeat(Math.floor(progress / 5))}{"-".repeat(20 - Math.floor(progress / 5))}]</span>{" "}
+                <span className="text-muted-foreground">({progress}%)</span>{" "}
+                <span className="text-primary">
+                  - {progress === 0 ? "Initializing..." : progress <= 25 ? "Scanning environment" : progress <= 50 ? "Connecting to server..." : progress <= 75 ? "Decrypting payload" : progress < 100 ? "Finalizing..." : "Script loaded"}
+                </span>
               </div>
             </div>
 
