@@ -3965,13 +3965,15 @@ loadstring(game:HttpGet(_url))()`;
     if (paste.anti_fetch_enabled && !uid && !tk && !kbt && !keyParam && !isLikelyBrowser) {
       console.log(`[get-paste] ANTI-FETCH: returning mini loader for slug=${slug} ip=${clientIp}`);
       const miniLoader = `-- Protected by ULT LUA
-local _p = game:GetService("Players").LocalPlayer
-if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
-local _s, _r = pcall(function() return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())) end)
-if not _s or not _r or _r == "" then return end
-local _f, _e = loadstring(_r)
-if not _f then return end
-_f()`;
+local _ok, _err = pcall(function()
+  local _p = game:GetService("Players").LocalPlayer
+  if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
+  local _s, _r = pcall(function() return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())) end)
+  if not _s or not _r or _r == "" then return end
+  local _f, _e = loadstring(_r)
+  if not _f then return end
+  _f()
+end)`;
       return new Response(miniLoader, { status: 200, headers: textHeaders });
     }
 
