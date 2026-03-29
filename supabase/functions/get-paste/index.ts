@@ -4319,11 +4319,11 @@ end)`;
     // v10: Validate stack depth (abnormally deep = debugger)
     if (stackDepth) {
       const sdNum = parseInt(stackDepth);
-      if (sdNum > 15) {
-        updateTrustScore(clientIp, -20);
+      if (sdNum > 50) {
+        updateTrustScore(clientIp, -10);
         logThreat('deep_stack_detected', clientIp, uid, null, {
-          stack_depth: sdNum, slug, action: 'trust_degraded',
-        }, 'medium', true);
+          stack_depth: sdNum, slug, action: 'trust_degraded_only',
+        }, 'low', true);
       }
     }
     
