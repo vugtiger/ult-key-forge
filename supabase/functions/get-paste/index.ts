@@ -928,6 +928,12 @@ if not bit32.bxor then bit32.bxor = function(a, b) local r,m=0,1 for i=0,31 do l
 if not bit32.band then bit32.band = function(a, b) local r,m=0,1 for i=0,31 do if a%2==1 and b%2==1 then r=r+m end a=math.floor(a/2) b=math.floor(b/2) m=m*2 end return r end end
 if not bit32.lshift then bit32.lshift = function(a, b) return math.floor(a * (2^b)) end end
 if not bit32.rshift then bit32.rshift = function(a, b) return math.floor(a / (2^b)) end end
+-- task polyfill for mobile executors
+if not task then task = {} end
+if not task.spawn then task.spawn = function(f, ...) local a = {...} pcall(function() spawn(function() f(unpack(a)) end) end) end end
+if not task.defer then task.defer = function(f, ...) local a = {...} pcall(function() spawn(function() f(unpack(a)) end) end) end end
+if not task.delay then task.delay = function(t, f, ...) local a = {...} pcall(function() delay(t, function() f(unpack(a)) end) end) end end
+if not task.wait then task.wait = function(t) local w = wait or function(s) local e = os.clock()+(s or 0) while os.clock()<e do end end return w(t) end end
 ${junkCode}
 
 local ${v.dumpPoison} = false
