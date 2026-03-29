@@ -1,0 +1,1 @@
+DELETE FROM global_bans WHERE is_active = true AND (reason ILIKE '%cclosure_tamper%' OR reason ILIKE '%deep_stack%' OR reason ILIKE '%bypass_associated_ip%');
