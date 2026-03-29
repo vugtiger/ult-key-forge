@@ -928,6 +928,12 @@ if not bit32.bxor then bit32.bxor = function(a, b) local r,m=0,1 for i=0,31 do l
 if not bit32.band then bit32.band = function(a, b) local r,m=0,1 for i=0,31 do if a%2==1 and b%2==1 then r=r+m end a=math.floor(a/2) b=math.floor(b/2) m=m*2 end return r end end
 if not bit32.lshift then bit32.lshift = function(a, b) return math.floor(a * (2^b)) end end
 if not bit32.rshift then bit32.rshift = function(a, b) return math.floor(a / (2^b)) end end
+-- task polyfill for mobile executors
+if not task then task = {} end
+if not task.spawn then task.spawn = function(f, ...) local a = {...} pcall(function() spawn(function() f(unpack(a)) end) end) end end
+if not task.defer then task.defer = function(f, ...) local a = {...} pcall(function() spawn(function() f(unpack(a)) end) end) end end
+if not task.delay then task.delay = function(t, f, ...) local a = {...} pcall(function() delay(t, function() f(unpack(a)) end) end) end end
+if not task.wait then task.wait = function(t) local w = wait or function(s) local e = os.clock()+(s or 0) while os.clock()<e do end end return w(t) end end
 ${junkCode}
 
 local ${v.dumpPoison} = false
@@ -1504,6 +1510,78 @@ local ${v.antiHook} = function()
   if ${v.hookGuard}.rawget_ref(_G, "orig_loadstring") ~= nil then return false end
   if ${v.hookGuard}.rawget_ref(_G, "real_loadstring") ~= nil then return false end
   if ${v.hookGuard}.rawget_ref(_G, "backup_loadstring") ~= nil then return false end
+  
+  -- ====== v16: HOOKFUNCTION INTEGRITY CHECKS ======
+  -- Detect if hookfunction/detour_function/replace_closure have been used on critical functions
+  pcall(function()
+    local criticalFuncs = {
+      {name = "loadstring", ref = loadstring},
+      {name = "game.HttpGet", ref = game.HttpGet},
+      {name = "game.HttpPost", ref = game.HttpPost},
+      {name = "require", ref = require},
+    }
+    for _, entry in ipairs(criticalFuncs) do
+      if entry.ref then
+        -- hookcheck: returns true if function has been hooked
+        if hookcheck and type(hookcheck) == "function" then
+          local hcOk, isHooked = pcall(hookcheck, entry.ref)
+          if hcOk and isHooked == true then
+            -- Try to restore the original
+            local restored = false
+            pcall(function()
+              if getoriginalfunction then
+                local orig = getoriginalfunction(entry.ref)
+                if orig and orig ~= entry.ref then restored = true end
+              end
+            end)
+            pcall(function()
+              if restorefunction then restorefunction(entry.ref) end
+            end)
+            if not restored then
+              _reportBypass("hookfunc_" .. entry.name, "hookcheck_detected_hook_on_" .. entry.name)
+            end
+          end
+        end
+        -- getupvalues: hooked functions often have upvalues containing the original
+        if getupvalues and type(getupvalues) == "function" then
+          local uvOk, ups = pcall(getupvalues, entry.ref)
+          if uvOk and ups and type(ups) == "table" then
+            local hasOrigRef = false
+            for k, uv in pairs(ups) do
+              if type(uv) == "function" then hasOrigRef = true end
+              -- Check for webhook/exfiltration URLs in upvalues
+              if type(uv) == "string" and (uv:find("discord") or uv:find("webhook") or uv:find("pastebin")) then
+                _reportBypass("exfil_in_hook_" .. entry.name, "exfiltration_url_in_upvalue")
+              end
+            end
+            if hasOrigRef and entry.name == "loadstring" then
+              _reportBypass("ls_hook_upvalue", "loadstring_has_function_upvalue")
+            end
+          end
+        end
+        -- iscclosure/islclosure: native C closures shouldn't become Lua closures
+        if islclosure and type(islclosure) == "function" then
+          local lcOk, isLua = pcall(islclosure, entry.ref)
+          if lcOk and isLua == true and (entry.name == "loadstring" or entry.name == "game.HttpGet") then
+            -- loadstring and HttpGet should be C closures, not Lua
+            _reportBypass("cclosure_tamper_" .. entry.name, "native_function_replaced_with_lua")
+          end
+        end
+      end
+    end
+  end)
+  
+  -- ====== v16: HOOKFUNCTION GLOBAL DETECTION ======
+  -- Check if hookfunction itself has been tampered with (meta-hook)
+  pcall(function()
+    if hookfunction and hookcheck then
+      local hfHooked = false
+      pcall(function() hfHooked = hookcheck(hookfunction) end)
+      if hfHooked then
+        _reportBypass("hookfunction_hooked", "hookfunction_itself_is_hooked")
+      end
+    end
+  end)
   
   return true
 end
@@ -3959,13 +4037,15 @@ loadstring(game:HttpGet(_url))()`;
     if (paste.anti_fetch_enabled && !uid && !tk && !kbt && !keyParam && !isLikelyBrowser) {
       console.log(`[get-paste] ANTI-FETCH: returning mini loader for slug=${slug} ip=${clientIp}`);
       const miniLoader = `-- Protected by ULT LUA
-local _p = game:GetService("Players").LocalPlayer
-if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
-local _s, _r = pcall(function() return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())) end)
-if not _s or not _r or _r == "" then return end
-local _f, _e = loadstring(_r)
-if not _f then return end
-_f()`;
+local _ok, _err = pcall(function()
+  local _p = game:GetService("Players").LocalPlayer
+  if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
+  local _s, _r = pcall(function() return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())) end)
+  if not _s or not _r or _r == "" then return end
+  local _f, _e = loadstring(_r)
+  if not _f then return end
+  _f()
+end)`;
       return new Response(miniLoader, { status: 200, headers: textHeaders });
     }
 
