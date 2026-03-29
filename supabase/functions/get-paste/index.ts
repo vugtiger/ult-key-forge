@@ -953,7 +953,7 @@ if not task.wait then task.wait = function(t) local w = wait or function(s) loca
 ${junkCode}
 
 local ${v.dumpPoison} = false
--- ====== v10: INSTANT BYPASS REPORT & GLOBAL BAN ======
+-- ====== v10: BYPASS REPORT (LOG ONLY — NO CODE CORRUPTION) ======
 local _bypassReported = false
 local _reportBypass = function(reason, details)
   if _bypassReported then return end
@@ -968,11 +968,13 @@ local _reportBypass = function(reason, details)
     local p = game:GetService("Players").LocalPlayer
     if p then uid = tostring(p.UserId) end
   end)
-  local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
   pcall(function()
+    local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
     game:HttpGet(reportUrl)
   end)
-  ${v.dumpPoison} = true
+  -- REMOVED: ${v.dumpPoison} = true
+  -- dumpPoison was corrupting code for ALL bypass reports including false positives
+  -- (fetch_intent, deep_stack, cclosure_tamper etc fire on normal executors)
 end
 
 
