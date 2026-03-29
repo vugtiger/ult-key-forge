@@ -1575,14 +1575,10 @@ local ${v.antiHook} = function()
             end
           end
         end
-        -- iscclosure/islclosure: native C closures shouldn't become Lua closures
-        if islclosure and type(islclosure) == "function" then
-          local lcOk, isLua = pcall(islclosure, entry.ref)
-          if lcOk and isLua == true and (entry.name == "loadstring" or entry.name == "game.HttpGet") then
-            -- loadstring and HttpGet should be C closures, not Lua
-            _reportBypass("cclosure_tamper_" .. entry.name, "native_function_replaced_with_lua")
-          end
-        end
+        -- iscclosure/islclosure check REMOVED — many executors wrap loadstring/HttpGet
+        -- as Lua closures internally (e.g. Delta, Hydrogen, Codex). This caused massive false bans.
+        -- The cclosure_tamper signal is now in softSignals anyway, but removing the check
+        -- entirely prevents the bypass report network call which slowed down execution.
       end
     end
   end)
