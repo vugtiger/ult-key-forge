@@ -327,6 +327,8 @@ function shouldAutoBanBypassReason(reason: string, details: string): boolean {
   const normalizedReason = (reason || '').toLowerCase();
   const normalizedDetails = (details || '').toLowerCase();
 
+  // COMPREHENSIVE soft signals list — these are all things that trigger on LEGITIMATE executors
+  // and MUST NOT cause auto-bans. Only truly malicious actions (like spoofed UIDs, webhook exfil) should ban.
   const softSignals = [
     'env_logger',
     'env_logger_sandbox',
@@ -352,6 +354,20 @@ function shouldAutoBanBypassReason(reason: string, details: string): boolean {
     'loadstring_hooked_post_fetch',
     'cleanls_hooked',
     'clean_loadstring_compromised',
+    // FALSE POSITIVE signals — these fire on normal executors:
+    'deep_stack',               // Many executors have stack depth > 15 normally
+    'stack_depth',              // Same — stack depth varies by executor
+    'cclosure_tamper',          // islclosure(loadstring) returns true on many executors
+    'native_function_replaced', // Normal executor behavior
+    'ls_hook_upvalue',          // loadstring upvalue detection — normal on some executors
+    'hookcheck_true',           // hookcheck fires on executors that wrap functions
+    'setclipboard_hooked',      // Some executors hook setclipboard internally
+    'setclipboard_hookcheck',   // Same
+    'toclipboard_hooked',       // Same
+    'canary_dump',              // Can false-fire on executors with file caching
+    'canary_dump_file',
+    'canary_dump_listfiles',
+    'ghost_trap',               // Ghost trap can fire on line-by-line executors
   ];
 
   return !softSignals.some((signal) => normalizedReason.includes(signal) || normalizedDetails.includes(signal));
@@ -937,7 +953,7 @@ if not task.wait then task.wait = function(t) local w = wait or function(s) loca
 ${junkCode}
 
 local ${v.dumpPoison} = false
--- ====== v10: INSTANT BYPASS REPORT & GLOBAL BAN ======
+-- ====== v10: BYPASS REPORT (LOG ONLY — NO CODE CORRUPTION) ======
 local _bypassReported = false
 local _reportBypass = function(reason, details)
   if _bypassReported then return end
@@ -952,11 +968,13 @@ local _reportBypass = function(reason, details)
     local p = game:GetService("Players").LocalPlayer
     if p then uid = tostring(p.UserId) end
   end)
-  local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
   pcall(function()
+    local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
     game:HttpGet(reportUrl)
   end)
-  ${v.dumpPoison} = true
+  -- REMOVED: ${v.dumpPoison} = true
+  -- dumpPoison was corrupting code for ALL bypass reports including false positives
+  -- (fetch_intent, deep_stack, cclosure_tamper etc fire on normal executors)
 end
 
 
@@ -1559,14 +1577,10 @@ local ${v.antiHook} = function()
             end
           end
         end
-        -- iscclosure/islclosure: native C closures shouldn't become Lua closures
-        if islclosure and type(islclosure) == "function" then
-          local lcOk, isLua = pcall(islclosure, entry.ref)
-          if lcOk and isLua == true and (entry.name == "loadstring" or entry.name == "game.HttpGet") then
-            -- loadstring and HttpGet should be C closures, not Lua
-            _reportBypass("cclosure_tamper_" .. entry.name, "native_function_replaced_with_lua")
-          end
-        end
+        -- iscclosure/islclosure check REMOVED — many executors wrap loadstring/HttpGet
+        -- as Lua closures internally (e.g. Delta, Hydrogen, Codex). This caused massive false bans.
+        -- The cclosure_tamper signal is now in softSignals anyway, but removing the check
+        -- entirely prevents the bypass report network call which slowed down execution.
       end
     end
   end)
@@ -1924,10 +1938,11 @@ local ${v.stackCheck} = function()
   repeat
     depth = depth + 1
     info = debug and debug.info and debug.info(depth, "s") or nil
-  until not info or depth > 20
+  until not info or depth > 50
   ${v.stackDepth} = depth
-  -- Normal execution: 3-12 frames. Debugger: 15+
-  if depth > 15 then
+  -- Normal execution varies WILDLY by executor (3-30+ frames is normal)
+  -- Only flag extremely deep stacks (50+) which indicate debugger stepping
+  if depth > 50 then
     _reportBypass("deep_stack", "stack_depth_" .. tostring(depth))
     return false
   end
@@ -4306,11 +4321,11 @@ end)`;
     // v10: Validate stack depth (abnormally deep = debugger)
     if (stackDepth) {
       const sdNum = parseInt(stackDepth);
-      if (sdNum > 15) {
-        updateTrustScore(clientIp, -20);
+      if (sdNum > 50) {
+        updateTrustScore(clientIp, -10);
         logThreat('deep_stack_detected', clientIp, uid, null, {
-          stack_depth: sdNum, slug, action: 'trust_degraded',
-        }, 'medium', true);
+          stack_depth: sdNum, slug, action: 'trust_degraded_only',
+        }, 'low', true);
       }
     }
     
