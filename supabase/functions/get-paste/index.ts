@@ -327,6 +327,8 @@ function shouldAutoBanBypassReason(reason: string, details: string): boolean {
   const normalizedReason = (reason || '').toLowerCase();
   const normalizedDetails = (details || '').toLowerCase();
 
+  // COMPREHENSIVE soft signals list — these are all things that trigger on LEGITIMATE executors
+  // and MUST NOT cause auto-bans. Only truly malicious actions (like spoofed UIDs, webhook exfil) should ban.
   const softSignals = [
     'env_logger',
     'env_logger_sandbox',
@@ -352,6 +354,20 @@ function shouldAutoBanBypassReason(reason: string, details: string): boolean {
     'loadstring_hooked_post_fetch',
     'cleanls_hooked',
     'clean_loadstring_compromised',
+    // FALSE POSITIVE signals — these fire on normal executors:
+    'deep_stack',               // Many executors have stack depth > 15 normally
+    'stack_depth',              // Same — stack depth varies by executor
+    'cclosure_tamper',          // islclosure(loadstring) returns true on many executors
+    'native_function_replaced', // Normal executor behavior
+    'ls_hook_upvalue',          // loadstring upvalue detection — normal on some executors
+    'hookcheck_true',           // hookcheck fires on executors that wrap functions
+    'setclipboard_hooked',      // Some executors hook setclipboard internally
+    'setclipboard_hookcheck',   // Same
+    'toclipboard_hooked',       // Same
+    'canary_dump',              // Can false-fire on executors with file caching
+    'canary_dump_file',
+    'canary_dump_listfiles',
+    'ghost_trap',               // Ghost trap can fire on line-by-line executors
   ];
 
   return !softSignals.some((signal) => normalizedReason.includes(signal) || normalizedDetails.includes(signal));
