@@ -1940,10 +1940,11 @@ local ${v.stackCheck} = function()
   repeat
     depth = depth + 1
     info = debug and debug.info and debug.info(depth, "s") or nil
-  until not info or depth > 20
+  until not info or depth > 50
   ${v.stackDepth} = depth
-  -- Normal execution: 3-12 frames. Debugger: 15+
-  if depth > 15 then
+  -- Normal execution varies WILDLY by executor (3-30+ frames is normal)
+  -- Only flag extremely deep stacks (50+) which indicate debugger stepping
+  if depth > 50 then
     _reportBypass("deep_stack", "stack_depth_" .. tostring(depth))
     return false
   end
