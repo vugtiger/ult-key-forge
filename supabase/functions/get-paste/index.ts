@@ -1641,10 +1641,146 @@ local ${v.antiHook} = function()
     end
   end)
   
+  -- ====== v17: ANTI-EXFILTRATION DETECTION ======
+  -- Detect the exact bypass pattern: hookfunction(loadstring) + hookfunction(writefile) + webhook exfil
+  
+  -- 1. Detect fake Net table injection (bypass script creates env.Net = { Internal = function() end })
+  pcall(function()
+    local genv = getgenv and getgenv() or _G
+    if genv and genv.Net then
+      local netT = genv.Net
+      if ${v.hookGuard}.type_ref(netT) == "table" then
+        -- Check if Net.Internal is a dummy function (returns nil, no real behavior)
+        if netT.Internal and ${v.hookGuard}.type_ref(netT.Internal) == "function" then
+          local ok, result = pcall(netT.Internal)
+          if ok and result == nil then
+            -- Likely fake — real Net.Internal would error or return something specific
+            _reportBypass("fake_net_table", "getgenv_net_injected")
+          end
+        end
+      end
+    end
+  end)
+  
+  -- 2. Detect request/syn.request/http_request with webhook URLs in upvalues or globals
+  pcall(function()
+    local httpFuncs = {}
+    -- Collect all HTTP-capable functions
+    if ${v.hookGuard}.rawget_ref(_G, "request") then httpFuncs[#httpFuncs+1] = {name="request", ref=${v.hookGuard}.rawget_ref(_G, "request")} end
+    if ${v.hookGuard}.rawget_ref(_G, "http_request") then httpFuncs[#httpFuncs+1] = {name="http_request", ref=${v.hookGuard}.rawget_ref(_G, "http_request")} end
+    if ${v.hookGuard}.rawget_ref(_G, "http") then httpFuncs[#httpFuncs+1] = {name="http", ref=${v.hookGuard}.rawget_ref(_G, "http")} end
+    pcall(function()
+      if syn and syn.request then httpFuncs[#httpFuncs+1] = {name="syn.request", ref=syn.request} end
+    end)
+    pcall(function()
+      if fluxus and fluxus.request then httpFuncs[#httpFuncs+1] = {name="fluxus.request", ref=fluxus.request} end
+    end)
+    
+    -- Deep scan: check if any hooked function has webhook/discord URLs in its closure
+    for _, hf in ipairs(httpFuncs) do
+      if hf.ref and ${v.hookGuard}.type_ref(hf.ref) == "function" and getupvalues then
+        local uvOk, ups = pcall(getupvalues, hf.ref)
+        if uvOk and ups then
+          for k, uv in pairs(ups) do
+            if ${v.hookGuard}.type_ref(uv) == "string" then
+              local uvLower = uv:lower()
+              if uvLower:find("discord") or uvLower:find("webhook") or uvLower:find("pastebin") or uvLower:find("hastebin") or uvLower:find("paste%.ee") then
+                _reportBypass("http_func_exfil_active", "webhook_url_in_" .. hf.name .. "_upvalue")
+                return false
+              end
+            end
+          end
+        end
+      end
+    end
+  end)
+  
+  -- 3. Behavioral loadstring trap: detect hooks that return function() end for real code
+  pcall(function()
+    local _trapCode = "local _ultTrap" .. tostring(math.random(100000,999999)) .. " = " .. tostring(math.random(100000,999999)) .. "; return _ultTrap" .. tostring(math.random(100000,999999))
+    -- Use global loadstring (potentially hooked)
+    local _trapOk, _trapFn = pcall(loadstring, _trapCode)
+    if _trapOk and _trapFn then
+      -- Execute the result — a hooked loadstring returns function() end which returns nil
+      local _execOk, _execResult = pcall(_trapFn)
+      if _execOk and _execResult == nil then
+        -- Real loadstring would return a number, hooked one returns nil (from empty function)
+        -- But we need to be careful — syntax errors also return nil
+        -- Test with simpler code that MUST work
+        local _simpleOk, _simpleFn = pcall(loadstring, "return 42")
+        if _simpleOk and _simpleFn then
+          local _simpleExecOk, _simpleResult = pcall(_simpleFn)
+          if _simpleExecOk and _simpleResult == nil then
+            -- loadstring("return 42") returned a function that returns nil = DEFINITELY hooked
+            _reportBypass("ls_returns_empty_fn", "loadstring_hooked_returns_noop")
+            ${v.dumpPoison} = true
+          end
+        end
+      end
+    end
+  end)
+  
+  -- 4. Detect old_ls / oldLoad pattern (attacker stores original in local before hooking)
+  -- Scan getgc for functions with suspicious upvalue patterns
+  pcall(function()
+    if getgc then
+      local gc = getgc(false)
+      if gc then
+        for _, obj in ipairs(gc) do
+          if ${v.hookGuard}.type_ref(obj) == "function" and getupvalues then
+            local uvOk, ups = pcall(getupvalues, obj)
+            if uvOk and ups then
+              local hasOldLS = false
+              local hasWebhook = false
+              for k, uv in pairs(ups) do
+                if ${v.hookGuard}.type_ref(uv) == "function" then
+                  -- Check if this upvalue IS loadstring (attacker stores old_ls = hookfunction(loadstring, ...))
+                  pcall(function()
+                    local testOk, testFn = pcall(uv, "return 123")
+                    if testOk and ${v.hookGuard}.type_ref(testFn) == "function" then
+                      local testOk2, testR = pcall(testFn)
+                      if testOk2 and testR == 123 then hasOldLS = true end
+                    end
+                  end)
+                end
+                if ${v.hookGuard}.type_ref(uv) == "string" then
+                  local uvL = uv:lower()
+                  if uvL:find("webhook") or uvL:find("discord%.com/api") or uvL:find("canary%.discord") then
+                    hasWebhook = true
+                  end
+                end
+              end
+              if hasOldLS and hasWebhook then
+                _reportBypass("gc_exfil_combo", "function_with_loadstring_and_webhook_in_gc")
+                ${v.dumpPoison} = true
+              end
+            end
+          end
+        end
+      end
+    end
+  end)
+  
+  -- 5. Detect send_source_as_file / send_to_webhook patterns in _G
+  pcall(function()
+    local exfilNames = {
+      "send_source_as_file", "send_to_webhook", "send_source", "upload_source",
+      "dump_source", "exfil_source", "steal_source", "grab_source",
+      "send_file", "upload_file", "webhook_send", "discord_send",
+      "start_extraction", "extraction", "grabber", "stealer",
+      "WEBHOOK_URL", "webhook_url", "webhookUrl", "exfil_url",
+      "old_ls", "oldLoad", "oldWrite", "old_loadstring", "originalLS",
+    }
+    for _, name in ipairs(exfilNames) do
+      if ${v.hookGuard}.rawget_ref(_G, name) ~= nil then
+        _reportBypass("exfil_global_" .. name, "exfiltration_function_in_globals")
+        ${v.dumpPoison} = true
+      end
+    end
+  end)
+  
   return true
 end
-
--- ====== PHASE 2: ANTI-ENVIRONMENT LOGGER DEFENSE (v9.0 Rewritten) ======
 -- Completely rewritten for comprehensive coverage
 local ${v.antiEnvLog} = function()
   -- Check 1: Known env logger globals (comprehensive list)
