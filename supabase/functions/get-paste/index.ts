@@ -2107,18 +2107,40 @@ if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_f
 if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
 ${options?.showConsoleFeedback ? `
-local function ${v.junk5}(msg, pct)
-  local barLen = 20
-  local filled = math.floor(barLen * pct / 100)
-  local empty = barLen - filled
-  print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
-end
-
-${v.junk5}("Scanning environment...", 0)
-
-${v.junk5}("Verifying integrity...", 25)
-
-${v.junk5}("Fetching payload...", 50)
+-- Animated rconsole loading bar
+pcall(function()
+  local _barLen = 30
+  local _steps = {
+    {0, "Scanning environment..."},
+    {15, "Verifying integrity..."},
+    {35, "Checking protections..."},
+    {50, "Fetching payload..."},
+  }
+  local _hasRC = pcall(function() rconsoleclear() end)
+  if _hasRC then
+    pcall(function() rconsolesettitle("ULT Protection") end)
+    for _, step in ipairs(_steps) do
+      local _target = step[1]
+      local _msg = step[2]
+      for i = (_steps[math.max(1, _ - 1)] and _steps[_ - 1] and _steps[_ - 1][1] or 0), _target do
+        local _pct = i / 100
+        local _eased = 1 - (1 - _pct)^2
+        local _filled = math.floor(_eased * _barLen)
+        local _empty = _barLen - _filled
+        local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
+        pcall(rconsoleclear)
+        pcall(rconsoleprint, string.format("Loading... [%s] %d%%\\n%s\\n", _bar, math.floor(_eased * 100), _msg))
+        task.wait(0.03)
+      end
+    end
+  else
+    for _, step in ipairs(_steps) do
+      local _filled = math.floor(_barLen * step[1] / 100)
+      local _empty = _barLen - _filled
+      print("[ULT] [" .. string.rep("#", _filled) .. string.rep("-", _empty) .. "] " .. step[1] .. "% - " .. step[2])
+    end
+  end
+end)
 ` : ''}
 
 -- Execute HTTP request
@@ -2224,18 +2246,27 @@ if s and r then
     _pieces = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local function ultBar(msg, pct)
-        local barLen = 20
-        local filled = math.floor(barLen * pct / 100)
-        local empty = barLen - filled
-        print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
+      local _barLen = 30
+      local _hasRC = pcall(function() rconsoleclear() end)
+      if _hasRC then
+        for i = 50, 100 do
+          local _pct = i / 100
+          local _eased = 1 - (1 - _pct)^2
+          local _filled = math.floor(_eased * _barLen)
+          local _empty = _barLen - _filled
+          local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
+          local _msg = i < 75 and "Decrypting chunks..." or (i < 100 and "Executing..." or "Done.")
+          pcall(rconsoleclear)
+          pcall(rconsoleprint, string.format("Loading... [%s] %d%%\\n%s\\n", _bar, math.floor(_eased * 100), _msg))
+          task.wait(0.03)
+        end
+        pcall(rconsoleclear)
+        pcall(rconsoleprint, "Loading... [" .. string.rep("#", _barLen) .. "] 100%\\nDone.\\n")
+      else
+        print("[ULT] [" .. string.rep("#", _barLen) .. "] 100% - Script loaded successfully.")
       end
-      ultBar("Chunks decrypted, executing...", 75)
-      task.wait(0.05)
-      ultBar("Script loaded successfully.", 100)
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v10.3 - Loadstring-Proof Shield")
+      print("[ULT] Welcome, " .. tostring(pName) .. ". Protected by ULT Protection v10.3")
     end)
 ` : ''}
     -- v12.2: Decoys moved post-execution for instant loading
@@ -2318,16 +2349,27 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     decoded = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local function ultBar(msg, pct)
-        local barLen = 20
-        local filled = math.floor(barLen * pct / 100)
-        local empty = barLen - filled
-        print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
+      local _barLen = 30
+      local _hasRC = pcall(function() rconsoleclear() end)
+      if _hasRC then
+        for i = 50, 100 do
+          local _pct = i / 100
+          local _eased = 1 - (1 - _pct)^2
+          local _filled = math.floor(_eased * _barLen)
+          local _empty = _barLen - _filled
+          local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
+          local _msg = i < 75 and "Decrypting..." or (i < 100 and "Executing..." or "Done.")
+          pcall(rconsoleclear)
+          pcall(rconsoleprint, string.format("Loading... [%s] %d%%\\n%s\\n", _bar, math.floor(_eased * 100), _msg))
+          task.wait(0.03)
+        end
+        pcall(rconsoleclear)
+        pcall(rconsoleprint, "Loading... [" .. string.rep("#", _barLen) .. "] 100%\\nDone.\\n")
+      else
+        print("[ULT] [" .. string.rep("#", _barLen) .. "] 100% - Script loaded successfully.")
       end
-      ultBar("Script loaded successfully.", 100)
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v10.3 - Loadstring-Proof Shield")
+      print("[ULT] Welcome, " .. tostring(pName) .. ". Protected by ULT Protection v10.3")
     end)
 ` : ''}
 
