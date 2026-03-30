@@ -3799,14 +3799,14 @@ Deno.serve(async (req) => {
       const sessionSecret = generateSessionSecret(clientIp, Date.now());
       const serverNonce = generateServerNonce();
       const trustLevel = getTrustScore(clientIp);
-      // v12.2: Non-blocking token insert — don't wait for DB
-      supabase.from('paste_execution_tokens').insert({
+      // v12.3: MUST await token insert — otherwise phase-2 request arrives before token exists in DB
+      await supabase.from('paste_execution_tokens').insert({
         paste_id: paste.id,
         roblox_user_id: '0',
         token: newToken,
         expires_at: new Date(Date.now() + 30000).toISOString(),
         bound_ip: clientIp,
-      }).then(() => {}).catch(() => {});
+      });
       const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
         showConsoleFeedback: paste.show_loading_bar !== false,
         serverNonce,
