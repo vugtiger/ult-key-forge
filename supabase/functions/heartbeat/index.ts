@@ -12,19 +12,68 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Auth check - require valid JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     const { logId, type } = await req.json();
 
-    if (!logId) {
+    if (!logId || typeof logId !== 'string') {
       return new Response(JSON.stringify({ error: 'Missing logId' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // Update last_seen_at to keep the session active
+    // Use service role for the update
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify the log belongs to a paste owned by this user
+    const { data: logData } = await supabase
+      .from('paste_access_logs')
+      .select('paste_id')
+      .eq('id', logId)
+      .maybeSingle();
+
+    if (!logData) {
+      return new Response(JSON.stringify({ error: 'Log not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const { data: paste } = await supabase
+      .from('pastes')
+      .select('user_id')
+      .eq('id', logData.paste_id)
+      .maybeSingle();
+
+    if (!paste || paste.user_id !== user.id) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const { error } = await supabase
       .from('paste_access_logs')
       .update({ 
@@ -53,4 +102,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-

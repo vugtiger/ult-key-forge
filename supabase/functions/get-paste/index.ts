@@ -13,19 +13,7 @@ const corsHeaders = {
   Expires: '0',
 };
 
-// ===== PERMANENT IP BAN LIST =====
-// These IPs are permanently blocked from ALL access. Even VPN won't help if we catch their new IPs.
-const PERMANENTLY_BANNED_IPS = new Set([
-  '79.177.154.169',
-  '79.181.155.63',   // Same ISP range, likely same person
-  '89.234.244.240',  // Frequent abuser from logs
-]);
-
-// Subnet bans - block entire /24 ranges for persistent abusers
-const BANNED_SUBNETS = [
-  '79.177.154.',   // Full subnet of the main abuser
-  '79.181.155.',   // Related subnet
-];
+// Hardcoded ban lists removed — all bans are managed via the global_bans DB table
 
 // In-memory cache of DB global bans (refreshed every 60s)
 let globalBanCache: { ips: Set<string>; subnets: string[]; robloxIds: Set<string>; discordIds: Set<string>; lastRefresh: number } = {
@@ -57,10 +45,6 @@ async function refreshGlobalBans() {
 function isPermanentlyBanned(ip: string): boolean {
   // Admins are NEVER banned
   if (isAdminIp(ip)) return false;
-  if (PERMANENTLY_BANNED_IPS.has(ip)) return true;
-  for (const subnet of BANNED_SUBNETS) {
-    if (ip.startsWith(subnet)) return true;
-  }
   // Check DB global bans cache
   if (globalBanCache.ips.has(ip)) return true;
   for (const subnet of globalBanCache.subnets) {
