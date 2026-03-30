@@ -45,10 +45,6 @@ async function refreshGlobalBans() {
 function isPermanentlyBanned(ip: string): boolean {
   // Admins are NEVER banned
   if (isAdminIp(ip)) return false;
-  if (PERMANENTLY_BANNED_IPS.has(ip)) return true;
-  for (const subnet of BANNED_SUBNETS) {
-    if (ip.startsWith(subnet)) return true;
-  }
   // Check DB global bans cache
   if (globalBanCache.ips.has(ip)) return true;
   for (const subnet of globalBanCache.subnets) {
