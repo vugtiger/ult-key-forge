@@ -2349,16 +2349,27 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     decoded = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local function ultBar(msg, pct)
-        local barLen = 20
-        local filled = math.floor(barLen * pct / 100)
-        local empty = barLen - filled
-        print("[ULT PROTECTION] [" .. string.rep("#", filled) .. string.rep("-", empty) .. "] " .. pct .. "% - " .. msg)
+      local _barLen = 30
+      local _hasRC = pcall(function() rconsoleclear() end)
+      if _hasRC then
+        for i = 50, 100 do
+          local _pct = i / 100
+          local _eased = 1 - (1 - _pct)^2
+          local _filled = math.floor(_eased * _barLen)
+          local _empty = _barLen - _filled
+          local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
+          local _msg = i < 75 and "Decrypting..." or (i < 100 and "Executing..." or "Done.")
+          pcall(rconsoleclear)
+          pcall(rconsoleprint, string.format("Loading... [%s] %d%%\\n%s\\n", _bar, math.floor(_eased * 100), _msg))
+          task.wait(0.03)
+        end
+        pcall(rconsoleclear)
+        pcall(rconsoleprint, "Loading... [" .. string.rep("#", _barLen) .. "] 100%\\nDone.\\n")
+      else
+        print("[ULT] [" .. string.rep("#", _barLen) .. "] 100% - Script loaded successfully.")
       end
-      ultBar("Script loaded successfully.", 100)
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("[ULT PROTECTION] Welcome, " .. tostring(pName) .. ".")
-      print("[ULT PROTECTION] Protected by ULT Protection v10.3 - Loadstring-Proof Shield")
+      print("[ULT] Welcome, " .. tostring(pName) .. ". Protected by ULT Protection v10.3")
     end)
 ` : ''}
 
