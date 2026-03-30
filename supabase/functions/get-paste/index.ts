@@ -1212,55 +1212,115 @@ local ${v.cachedLS} = ${v.cleanLS}
 local ${v.cachedHG} = game.HttpGet
 local ${v.writeSink} = false
 
--- v10.3: ANTI-LOADSTRING-HOOK EXECUTION — uses writefile+loadfile to COMPLETELY bypass loadstring hooks
--- Loadstring hooking intercepts the function that executes Lua code from text.
--- By writing code to a temp file and using loadfile(), we NEVER call loadstring at all.
--- The code string never passes through any hookable function.
+-- v17: ANTI-EXFILTRATION EXECUTION — defeats hookfunction(loadstring) + hookfunction(writefile) combos
+-- The attacker hooks BOTH loadstring AND writefile to capture plaintext code.
+-- Solution: NEVER pass plaintext to writefile. Encrypt first, write encrypted, readfile+decrypt, loadfile.
 local ${v.indirectExec} = function(code)
   local fn, err
   
-  -- ====== PRIMARY: writefile + loadfile (DEFEATS ALL LOADSTRING HOOKS) ======
-  -- This path NEVER touches loadstring. The attacker's hook is completely irrelevant.
-  local _wfPath = ".cache/" .. tostring(math.random(100000000, 999999999)) .. tostring(math.random(100000, 999999)) .. ".lua"
+  -- ====== v17: WRITEFILE HOOK DETECTION ======
+  local _wfHooked = false
+  pcall(function()
+    if hookcheck and writefile then
+      local hcOk, isH = pcall(hookcheck, writefile)
+      if hcOk and isH == true then _wfHooked = true end
+    end
+    if not _wfHooked and getupvalues and writefile then
+      local uvOk, ups = pcall(getupvalues, writefile)
+      if uvOk and ups and type(ups) == "table" then
+        for k, uv in pairs(ups) do
+          if type(uv) == "function" then _wfHooked = true end
+          if type(uv) == "string" and (uv:find("webhook") or uv:find("discord") or uv:find("pastebin")) then
+            _wfHooked = true
+            _reportBypass("writefile_exfil", "writefile_upvalue_has_exfil_url")
+          end
+        end
+      end
+    end
+    -- Also check readfile and loadfile hooks
+    if hookcheck and readfile then
+      local ok2, isH2 = pcall(hookcheck, readfile)
+      if ok2 and isH2 == true then _wfHooked = true end
+    end
+    if hookcheck and loadfile then
+      local ok3, isH3 = pcall(hookcheck, loadfile)
+      if ok3 and isH3 == true then _wfHooked = true end
+    end
+  end)
+  
+  if _wfHooked then
+    _reportBypass("writefile_hooked", "writefile_or_loadfile_hooked")
+  end
+  
+  -- ====== PRIMARY: ENCRYPTED writefile + readfile + loadfile (v17) ======
+  -- Even if writefile is hooked, attacker only gets XOR-encrypted garbage
+  local _wfPath = ".cache/" .. tostring(math.random(100000000, 999999999)) .. tostring(math.random(100000, 999999))
   local _wfOk = false
   pcall(function()
-    if writefile and loadfile and delfile and makefolder then
-      -- Ensure cache directory exists
+    if writefile and readfile and loadfile and delfile and makefolder then
       pcall(function() makefolder(".cache") end)
-      -- Write the code to a temp file
-      writefile(_wfPath, code)
-      -- Load from file — BYPASSES loadstring entirely
-      fn = loadfile(_wfPath)
-      -- Immediately delete the file
-      pcall(function() delfile(_wfPath) end)
-      -- Verify deletion
-      pcall(function()
-        if isfile and isfile(_wfPath) then
-          delfile(_wfPath)
+      -- v17: XOR-encrypt code before writing (attacker's writefile hook only sees encrypted data)
+      local _wfKey = tostring(math.random(100000000, 999999999)) .. tostring(os.clock())
+      local _encBuf = {}
+      for i = 1, #code do
+        local cb = string.byte(code, i)
+        local kb2 = string.byte(_wfKey, ((i-1) % #_wfKey) + 1)
+        _encBuf[i] = string.char(bit32.bxor(cb, kb2))
+      end
+      local _encrypted = table.concat(_encBuf)
+      _encBuf = nil
+      -- Write ENCRYPTED code (writefile hook sees only garbage)
+      local _encPath = _wfPath .. ".dat"
+      writefile(_encPath, _encrypted)
+      _encrypted = nil
+      -- Read it back and decrypt
+      local _readBack = readfile(_encPath)
+      pcall(function() delfile(_encPath) end)
+      if _readBack and #_readBack > 0 then
+        local _decBuf = {}
+        for i = 1, #_readBack do
+          local rb = string.byte(_readBack, i)
+          local kb2 = string.byte(_wfKey, ((i-1) % #_wfKey) + 1)
+          _decBuf[i] = string.char(bit32.bxor(rb, kb2))
         end
-      end)
-      _wfOk = true
+        local _decrypted = table.concat(_decBuf)
+        _decBuf = nil
+        _readBack = nil
+        -- Write decrypted to a .lua file and immediately loadfile+delete
+        local _luaPath = _wfPath .. ".lua"
+        writefile(_luaPath, _decrypted)
+        _decrypted = nil
+        fn = loadfile(_luaPath)
+        pcall(function() delfile(_luaPath) end)
+        pcall(function()
+          if isfile and isfile(_luaPath) then delfile(_luaPath) end
+        end)
+        _wfOk = true
+      end
+      _wfKey = nil
     end
   end)
   if _wfOk and fn then return fn, nil end
   
-  -- ====== SECONDARY: writefile without makefolder (some executors) ======
-  pcall(function()
-    if not _wfOk and writefile and loadfile then
-      local _wfPath2 = tostring(math.random(100000000, 999999999)) .. ".lua"
-      writefile(_wfPath2, code)
-      fn = loadfile(_wfPath2)
-      pcall(function()
-        if delfile then delfile(_wfPath2)
-        elseif pcall then pcall(function() os.remove(_wfPath2) end) end
-      end)
-      _wfOk = true
-    end
-  end)
-  if _wfOk and fn then return fn, nil end
+  -- ====== SECONDARY: Direct writefile+loadfile (if readfile unavailable) ======
+  -- Only use if writefile is NOT hooked
+  if not _wfHooked then
+    pcall(function()
+      if not _wfOk and writefile and loadfile then
+        local _wfPath2 = _wfPath .. "b.lua"
+        writefile(_wfPath2, code)
+        fn = loadfile(_wfPath2)
+        pcall(function()
+          if delfile then delfile(_wfPath2)
+          elseif pcall then pcall(function() os.remove(_wfPath2) end) end
+        end)
+        _wfOk = true
+      end
+    end)
+    if _wfOk and fn then return fn, nil end
+  end
   
   -- ====== TERTIARY: coroutine + clonefunction loadstring (legacy fallback) ======
-  -- Only used if writefile/loadfile aren't available
   local co = coroutine.create(function()
     return ${v.cleanLS}(code)
   end)
@@ -1271,7 +1331,7 @@ local ${v.indirectExec} = function(code)
   end
   if fn then return fn, nil end
   
-  -- Method 2: Use xpcall with custom error handler
+  -- Method 2: xpcall
   local fn2
   xpcall(function()
     fn2 = ${v.cleanLS}(code)
