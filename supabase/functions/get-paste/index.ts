@@ -308,53 +308,42 @@ const QUIET_ACCESS_DENIED_LUA = '-- Access denied';
 const PROTECTED_BROWSER_PLACEHOLDER = '-- Protected by ULT LUA';
 
 function shouldAutoBanBypassReason(reason: string, details: string): boolean {
-  const normalizedReason = (reason || '').toLowerCase();
-  const normalizedDetails = (details || '').toLowerCase();
+  const normalizedReason = (reason || '').toLowerCase().trim();
+  const normalizedDetails = (details || '').toLowerCase().trim();
 
-  // COMPREHENSIVE soft signals list — these are all things that trigger on LEGITIMATE executors
-  // and MUST NOT cause auto-bans. Only truly malicious actions (like spoofed UIDs, webhook exfil) should ban.
-  const softSignals = [
-    'env_logger',
-    'env_logger_sandbox',
-    'pre_fetch_env',
-    'logger',
-    'logger_sandbox',
-    'environment_logger_detected',
-    'env_logger_at_exec',
-    'env_logger_before_network',
-    'loadstring_logger',
-    'logger_at_exec',
-    'fetch_intent',
-    'automated_fetch_no_game',
-    'ls_unverified',
-    'loadstring_integrity_failed',
-    'ls_hooked_no_clone',
-    'hookcheck_true_no_fallback',
-    'pre_fetch_hook',
-    'hook_before_network',
-    'post_fetch_hook',
-    'hook_after_network_request',
-    'post_fetch_ls_hook',
-    'loadstring_hooked_post_fetch',
-    'cleanls_hooked',
-    'clean_loadstring_compromised',
-    // FALSE POSITIVE signals — these fire on normal executors:
-    'deep_stack',               // Many executors have stack depth > 15 normally
-    'stack_depth',              // Same — stack depth varies by executor
-    'cclosure_tamper',          // islclosure(loadstring) returns true on many executors
-    'native_function_replaced', // Normal executor behavior
-    'ls_hook_upvalue',          // loadstring upvalue detection — normal on some executors
-    'hookcheck_true',           // hookcheck fires on executors that wrap functions
-    'setclipboard_hooked',      // Some executors hook setclipboard internally
-    'setclipboard_hookcheck',   // Same
-    'toclipboard_hooked',       // Same
-    'canary_dump',              // Can false-fire on executors with file caching
-    'canary_dump_file',
-    'canary_dump_listfiles',
-    'ghost_trap',               // Ghost trap can fire on line-by-line executors
+  // IMPORTANT: use an allowlist, not a denylist.
+  // New detector names get added frequently and many of them can false-fire on normal executors.
+  // Only auto-ban when we have explicit exfiltration/webhook evidence from the loader itself.
+  const exactHardBanReasons = new Set([
+    'writefile_exfil',
+    'exfil_webhook',
+    'http_func_exfil_active',
+    'gc_exfil_combo',
+  ]);
+
+  if (exactHardBanReasons.has(normalizedReason)) {
+    return true;
+  }
+
+  const hardBanReasonPrefixes = [
+    'exfil_in_hook_',
+    'exfil_global_',
   ];
 
-  return !softSignals.some((signal) => normalizedReason.includes(signal) || normalizedDetails.includes(signal));
+  if (hardBanReasonPrefixes.some((prefix) => normalizedReason.startsWith(prefix))) {
+    return true;
+  }
+
+  const hardBanDetailSignals = [
+    'http_func_exfil_',
+    'webhook_url_in_',
+    'exfiltration_url_in_upvalue',
+    'writefile_upvalue_has_exfil_url',
+    'function_with_loadstring_and_webhook_in_gc',
+    'exfiltration_function_in_globals',
+  ];
+
+  return hardBanDetailSignals.some((signal) => normalizedDetails.includes(signal));
 }
 
 function isBlockedUserAgent(ua: string): boolean {
@@ -3734,17 +3723,11 @@ Deno.serve(async (req) => {
       // Ghost trap and other report actions
       if (reportAction === 'ghost_trap') {
         const reportUid = url.searchParams.get('uid') || '';
-        autoBanNewIp(earlyIp, 'ghost_trap_triggered', reportUid || null, null);
-        if (reportUid && /^\d+$/.test(reportUid) && parseInt(reportUid) > 1000) {
-          await supabase.from('global_bans').upsert({
-            ban_type: 'roblox_id', ban_value: reportUid,
-            reason: 'Auto-banned: ghost trap triggered (code decompilation detected)', is_active: true,
-          }, { onConflict: 'ban_type,ban_value' }).then(() => {}).catch(() => {});
-          globalBanCache.robloxIds.add(reportUid);
-        }
-        logThreat('ghost_trap_triggered', earlyIp, reportUid || null, null, {
-          ghost: url.searchParams.get('ghost'), wm: url.searchParams.get('wm'),
-        }, 'critical', true);
+        logThreat('ghost_trap_logged_only', earlyIp, reportUid || null, null, {
+          ghost: url.searchParams.get('ghost'),
+          wm: url.searchParams.get('wm'),
+          action: 'logged_only',
+        }, 'high', false);
         return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
       }
       
