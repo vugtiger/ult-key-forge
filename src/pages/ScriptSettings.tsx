@@ -6,8 +6,9 @@ import TabHelpSection from "@/components/onboarding/TabHelpSection";
 import { scriptSettingsHelp } from "@/components/onboarding/helpContent";
 import AccessMonitor from "@/components/AccessMonitor";
 import GameBindingsManager from "@/components/GameBindingsManager";
+import OwnerBansManager from "@/components/OwnerBansManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, Gamepad2, Settings } from "lucide-react";
+import { Eye, Gamepad2, Settings, ShieldBan } from "lucide-react";
 
 const ScriptSettings = () => {
   const navigate = useNavigate();
@@ -41,18 +42,23 @@ const ScriptSettings = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Script Settings</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Manage access monitoring and game restrictions for your scripts</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Manage access monitoring, bans, and game restrictions</p>
           </div>
         </div>
 
         <TabHelpSection {...scriptSettingsHelp} />
 
         <Tabs defaultValue="monitor" className="w-full">
-          <TabsList className="grid w-full max-w-sm grid-cols-2 h-9 bg-card/30 border border-primary/10 rounded-lg p-0.5">
+          <TabsList className="grid w-full max-w-md grid-cols-3 h-9 bg-card/30 border border-primary/10 rounded-lg p-0.5">
             <TabsTrigger value="monitor" type="button" className="flex items-center gap-1.5 text-xs rounded-md data-[state=active]:bg-primary/15 data-[state=active]:text-foreground">
               <Eye className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Access Monitor</span>
               <span className="sm:hidden">Monitor</span>
+            </TabsTrigger>
+            <TabsTrigger value="bans" type="button" className="flex items-center gap-1.5 text-xs rounded-md data-[state=active]:bg-destructive/15 data-[state=active]:text-foreground">
+              <ShieldBan className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Banned</span>
+              <span className="sm:hidden">Bans</span>
             </TabsTrigger>
             <TabsTrigger value="games" type="button" className="flex items-center gap-1.5 text-xs rounded-md data-[state=active]:bg-primary/15 data-[state=active]:text-foreground">
               <Gamepad2 className="h-3.5 w-3.5" />
@@ -61,6 +67,7 @@ const ScriptSettings = () => {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="monitor" className="mt-4"><AccessMonitor /></TabsContent>
+          <TabsContent value="bans" className="mt-4"><OwnerBansManager /></TabsContent>
           <TabsContent value="games" className="mt-4"><GameBindingsManager /></TabsContent>
         </Tabs>
       </div>
