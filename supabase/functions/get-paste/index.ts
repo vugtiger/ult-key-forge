@@ -2301,6 +2301,8 @@ pcall(function()
     {35, "Checking protections..."},
     {50, "Fetching payload..."},
   }
+  -- Always re-create console so it works on re-execution and after rejoining
+  pcall(function() if rconsolecreate then rconsolecreate() end end)
   local _hasRC = pcall(function() rconsoleclear() end)
   if _hasRC then
     pcall(function() rconsolesettitle("ULT Protection") end)
