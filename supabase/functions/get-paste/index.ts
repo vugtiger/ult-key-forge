@@ -2434,6 +2434,7 @@ if s and r then
 
 ${options?.showConsoleFeedback ? `    pcall(function()
       local _barLen = 30
+      pcall(function() if rconsolecreate then rconsolecreate() end end)
       local _hasRC = pcall(function() rconsoleclear() end)
       if _hasRC then
         for i = 50, 100 do
