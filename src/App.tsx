@@ -18,6 +18,7 @@ import Install from "./pages/Install";
 import Analytics from "./pages/Analytics";
 import Changelog from "./pages/Changelog";
 import ScriptSettings from "./pages/ScriptSettings";
+import Status from "./pages/Status";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

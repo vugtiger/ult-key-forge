@@ -4,17 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
+  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
 import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye, Volume2, VolumeX } from "lucide-react";
@@ -102,20 +93,17 @@ const AppSidebar = ({ user }: { user: User | null }) => {
 
   return (
     <Sidebar className={state === "collapsed" ? "w-14" : "w-56"} collapsible="icon">
-      <SidebarContent className="bg-background/40 backdrop-blur-2xl border-r border-primary/10 relative">
-        {/* Purple gradient rail */}
-        <div className="absolute inset-y-0 right-0 w-[2px] bg-gradient-to-b from-primary/50 via-primary/20 to-primary/50 pointer-events-none" />
+      <SidebarContent className="bg-card/60 backdrop-blur-2xl border-r border-border relative">
+        <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-foreground/10 via-foreground/5 to-foreground/10 pointer-events-none" />
         
-        <div className="p-3 border-b border-primary/10 flex items-center gap-2.5">
+        <div className="p-3 border-b border-border flex items-center gap-2.5">
           {state !== "collapsed" ? (
             <>
-              <CloudLogo size={24} className="text-primary" />
-              <h1 className="text-sm font-bold tracking-wider">
-                ULT <span className="text-primary cloud-glow-text">CLOUD</span>
-              </h1>
+              <CloudLogo size={24} />
+              <h1 className="text-sm font-bold tracking-wider">ULT CLOUD</h1>
             </>
           ) : (
-            <CloudLogo size={22} className="text-primary mx-auto" />
+            <CloudLogo size={22} className="mx-auto" />
           )}
         </div>
 
@@ -131,8 +119,8 @@ const AppSidebar = ({ user }: { user: User | null }) => {
                     <NavLink
                       to={item.url}
                       end
-                      className="rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-primary/8 transition-all duration-200"
-                      activeClassName="bg-primary/12 text-foreground border border-primary/20 shadow-[0_0_12px_hsl(var(--primary)/0.15)]"
+                      className="rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all duration-200"
+                      activeClassName="bg-foreground/10 text-foreground border border-border"
                     >
                       <item.icon className={state === "collapsed" ? "" : "mr-2.5"} size={17} />
                       {state !== "collapsed" && <span className="text-[13px]">{item.title}</span>}
@@ -144,7 +132,7 @@ const AppSidebar = ({ user }: { user: User | null }) => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <div className="mt-auto p-2 border-t border-primary/10">
+        <div className="mt-auto p-2 border-t border-border">
           <Button variant="ghost" className="w-full justify-start rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-destructive/10" onClick={handleLogout}>
             <LogOut className={state === "collapsed" ? "" : "mr-2.5"} size={17} />
             {state !== "collapsed" && <span className="text-[13px]">Logout</span>}
@@ -158,7 +146,7 @@ const AppSidebar = ({ user }: { user: User | null }) => {
 const SoundToggle = () => {
   const [soundOn, setSoundOn] = useState(isSnowSoundOn());
   return (
-    <Button variant="ghost" size="icon" onClick={() => setSoundOn(toggleSnowSound())} className="text-muted-foreground/60 hover:text-foreground h-8 w-8 rounded-lg" title={soundOn ? "Mute snow sound" : "Unmute snow sound"}>
+    <Button variant="ghost" size="icon" onClick={() => setSoundOn(toggleSnowSound())} className="text-muted-foreground/60 hover:text-foreground h-8 w-8 rounded-lg" title={soundOn ? "Mute" : "Unmute"}>
       {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
     </Button>
   );
@@ -244,7 +232,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <SnowEffect />
         <AppSidebar user={user} />
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
-          <header className="h-12 border-b border-primary/8 flex items-center px-5 sticky top-0 bg-background/50 backdrop-blur-2xl z-10">
+          <header className="h-12 border-b border-border flex items-center px-5 sticky top-0 bg-background/60 backdrop-blur-2xl z-10">
             <SidebarTrigger className="mr-3 h-7 w-7" />
             <div className="flex-1" />
             <SoundToggle />
