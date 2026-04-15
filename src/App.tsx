@@ -18,6 +18,7 @@ import Install from "./pages/Install";
 import Analytics from "./pages/Analytics";
 import Changelog from "./pages/Changelog";
 import ScriptSettings from "./pages/ScriptSettings";
+import Status from "./pages/Status";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/changelog" element={<Changelog />} />
           <Route path="/script-settings" element={<ScriptSettings />} />
+          <Route path="/status" element={<Status />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
