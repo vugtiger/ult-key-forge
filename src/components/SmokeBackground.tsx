@@ -4,22 +4,23 @@ import * as THREE from "three";
 
 const SmokeParticle = ({ position, speed, scale, opacity }: { position: [number, number, number]; speed: number; scale: number; opacity: number }) => {
   const ref = useRef<THREE.Mesh>(null);
+  const matRef = useRef<THREE.MeshBasicMaterial>(null);
   const startY = position[1];
 
   useFrame((state) => {
-    if (!ref.current) return;
+    if (!ref.current || !matRef.current) return;
     const t = state.clock.elapsedTime * speed;
     ref.current.position.y = startY + Math.sin(t) * 0.5 + (t % 8) * 0.3;
     ref.current.position.x = position[0] + Math.sin(t * 0.7) * 0.8;
     ref.current.rotation.z = t * 0.1;
     const cycle = (t % 8) / 8;
-    ref.current.material.opacity = cycle < 0.3 ? cycle / 0.3 * opacity : cycle > 0.7 ? (1 - cycle) / 0.3 * opacity : opacity;
+    matRef.current.opacity = cycle < 0.3 ? cycle / 0.3 * opacity : cycle > 0.7 ? (1 - cycle) / 0.3 * opacity : opacity;
   });
 
   return (
     <mesh ref={ref} position={position}>
       <planeGeometry args={[scale, scale]} />
-      <meshBasicMaterial color="#ffffff" transparent opacity={opacity} depthWrite={false} blending={THREE.AdditiveBlending} />
+      <meshBasicMaterial ref={matRef} color="#ffffff" transparent opacity={opacity} depthWrite={false} blending={THREE.AdditiveBlending} />
     </mesh>
   );
 };
