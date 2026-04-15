@@ -1,0 +1,64 @@
+# Project Memory
+
+## Core
+- "Free forever" policy: strictly no premium tiers, affiliate systems, or payment methods.
+- Black & White Theme: monochrome palette, Inter+Space Grotesk fonts, glass-card styling, grain texture, 3D smoke bg, shield+cloud logo.
+- Keep clean UI edges: Avoid outer transparent glow shells or wrapper elements around UI cards.
+- Enforce `overflow-x: hidden` on root and main layout containers to prevent scrolling bugs.
+- Zero Raw Content: No system path ever returns raw plaintext code.
+- Executor stability: Provide Lua polyfills, avoid mutating bytecode on bypass, decouple flows to prevent 'attempt to call a nil value'.
+- Fail-open execution: Non-critical DB/security failures must not block script loading.
+- No interactive walkthroughs: Use only static help documentation in tab dropdowns.
+- Domain stability: Do not change the default Supabase project URL to avoid breaking active scripts.
+- Ban separation: Website user profile bans do not automatically trigger global script execution bans.
+
+## Memories
+- [Project Overview](mem://project/overview) — ULT CLOUD Lua protection platform with script obfuscation and security features
+- [Free forever policy](mem://project/philosophy-free-forever) — Strict prohibition on all monetization and premium features
+- [Theme design](mem://style/theme-design) — Black & White monochrome, glassmorphism, Inter+Space Grotesk, 3D smoke, shield+cloud logo
+- [Hide Code](mem://features/hide-code) — Security policy replacing script source with loaders and blocking unauthorized browser access
+- [PWA configuration](mem://features/pwa-installation) — Progressive Web App setup with dedicated /install page
+- [Lua Obfuscator](mem://features/lua-obfuscator) — 7-layer Lua obfuscation engine (src/lib/luaObfuscator.ts) optimized for Luau
+- [Session auth](mem://auth/session-management) — IP-based session management allowing active session termination, 2FA disabled
+- [Branding rules](mem://style/branding) — Shield+cloud logo, zero emoji policy
+- [Game ID binding](mem://features/game-id-binding) — Authorized Roblox game IDs per-script to restrict execution
+- [Public protection](mem://features/public-protection) — Encrypted script distribution without specific user whitelists
+- [Discord OAuth gating](mem://features/discord-oauth-gating) — Forced OAuth via 60s bypass window for browser visits with IP tracking
+- [UI Visual Indicators](mem://style/ui-visual-indicators) — 'NEW' badges and icons to highlight recently added features
+- [Logout reliability](mem://auth/logout-implementation) — Forced logout resilient to invalid sessions via localStorage wipe
+- [Onboarding rules](mem://features/onboarding-and-help) — Static help in dropdowns; interactive walkthrough tours strictly removed
+- [Landing layout](mem://style/landing-page-layout) — Hero with status dot, 3-pillar features, signal cards, tab previews, CTA
+- [Language localizer](mem://features/language-localization) — Custom UI wrapper for Google Translate overriding toolbars
+- [Dynamic Loader](mem://architecture/dynamic-loader-generation) — 'get-paste' edge function generates unique loaders with 30s tokens
+- [Roblox console](mem://features/roblox-console-feedback) — Multi-phase loading bar via rconsole functions (no emojis)
+- [Layout constraints](mem://style/layout-constraints) — `overflow-x: hidden` enforced on main views for mobile compatibility
+- [Rate limits](mem://features/rate-limiting) — 24h signup cooldown, 60s paste creation, 10 logins/hr IP constraint
+- [Key System UI](mem://features/automated-key-system-wizard) — Two-panel (720x408) Key System design, 28px corners, Live Preview
+- [Whitelist logic](mem://features/whitelist-logic) — Time-limited Date.now() access, cache-busting nonces, crash-safe wrapping
+- [Key Sys Decoupling](mem://architecture/key-system-decoupling) — 2-stage execution via bypass token to avoid nested loadstring crashes
+- [Anti-Fetch](mem://features/anti-fetch) — Mini-loader payload to prevent script dumping via HTTP requests
+- [Panel Decoupling](mem://architecture/control-panel-decoupling) — `is_keysystem` flag differentiates access panels from in-game UI
+- [Honeypot](mem://security/honeypot) — 200KB text bomb for bots, Discord/Meta crawler exemption, 1/hr throttle
+- [Global Ban Guard](mem://security/ban-enforcement) — Triple-check system (profile, IP, subnet), unique ban indexes, admin immunity
+- [JARVIS Assistant](mem://admin/jarvis-assistant) — Voice-only admin assistant with internal tab switching and conflict buffer
+- [Hardening stack](mem://security/hardening-and-architecture) — Deno.serve, JWT auth bypasses, random values, public schema safety
+- [Domain Strategy](mem://project/domain-strategy) — Preservation of original Supabase URL for backwards script compatibility
+- [Performance](mem://architecture/performance-optimizations) — 15s DB timeout, fire-and-forget logs, sync tokens, max 8 slug throttle
+- [Roblox detection](mem://architecture/roblox-detection-strategy) — Legit executor identification via UA string and whitelisted headers
+- [Fail-open logic](mem://security/fail-open-logic) — Allows script execution if non-critical advanced security DB queries fail
+- [Ban Taxonomy](mem://security/ban-taxonomy) — Distinct separation between website profile bans and global execution bans
+- [Password Security](mem://auth/password-security) — Canonical URL recovery, force-navigate out of auto-login, signout after reset
+- [Discord showcase](mem://features/discord-server-showcase) — Real-time server showcase with 5-min caching to prevent API 429
+- [Protection Stack](mem://security/protection-layers) — Multi-layered shields (Smart IP, HWID Lock, ULT Fortress, Anti-Exfiltration)
+- [Identity v15](mem://security/v15-identity-verification) — HWID Cross-Validation against UID spoofing and automatic scraper IP banning
+- [Executor support](mem://architecture/executor-compatibility) — Fallbacks for HttpService, Lua polyfills for missing libs, crash avoidance
+- [Zero Raw Content](mem://security/zero-raw-content-policy) — Initial loader forces IP-bound exchange to prevent plain-text serving
+- [Discord Bot](mem://features/discord-integration) — Access management via /commands, strict file size and extension filters
+- [Access Logs](mem://features/access-monitoring) — Real-time feed distinguishing browsers from executors, deduplicated user tracking
+- [Admin Dash](mem://admin/dashboard-overview) — Specialized tabs, 3-way ban split, cross-ban automation via IPs
+- [Loadstring guard](mem://security/loadstring-hook-protection) — Writes decrypted code to hidden files, executing via loadfile()
+- [Soft banning](mem://security/soft-banning-policy) — Noisy signal buffering via 'bypass_report_logged_only' instead of instant bans
+- [Delivery Obfuscation](mem://security/delivery-obfuscation) — Chunked encryption, shuffle scrambling, decoy flooding during execution
+- [Key Validation](mem://features/key-system-validation-rules) — Strict 1:1 binding between a key, its control panel, and the exact paste
+- [Bypass response](mem://security/bypass-response-strategy) — Log threats but never mutate bytecode to prevent false positive crashes
+- [Status page](mem://features/status-page) — /status route with full service breakdown (Website, API, DB, Discord Bot, Paste)
