@@ -55,22 +55,26 @@ Deno.serve(async (req) => {
       .in('paste_id', pasteIds)
       .order('last_seen_at', { ascending: false });
 
-    // Get threat logs related to user's paste IPs/roblox IDs
-    const { data: threats } = await serviceClient
-      .from('threat_log')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(500);
+    // Collect unique identifiers from user's access logs to scope ban queries
+    const userPasteIps = new Set((logs || []).map(l => l.ip_address).filter(Boolean));
+    const userRobloxIds = new Set((logs || []).map(l => l.roblox_user_id).filter(Boolean));
+    const userDiscordIds = new Set((logs || []).map(l => l.discord_user_id).filter(Boolean));
 
-    // Get global bans
-    const { data: bans } = await serviceClient
-      .from('global_bans')
-      .select('*')
-      .eq('is_active', true);
+    // Get only global bans relevant to this user's paste access logs
+    const allBanValues = [...userPasteIps, ...userRobloxIds, ...userDiscordIds];
+    let bans: any[] = [];
+    if (allBanValues.length > 0) {
+      const { data: bansData } = await serviceClient
+        .from('global_bans')
+        .select('*')
+        .eq('is_active', true)
+        .in('ban_value', allBanValues);
+      bans = bansData || [];
+    }
 
-    const bannedIpSet = new Set((bans || []).filter(b => b.ban_type === 'ip').map(b => b.ban_value));
-    const bannedRobloxSet = new Set((bans || []).filter(b => b.ban_type === 'roblox_id').map(b => b.ban_value));
-    const bannedDiscordSet = new Set((bans || []).filter(b => b.ban_type === 'discord_id').map(b => b.ban_value));
+    const bannedIpSet = new Set(bans.filter(b => b.ban_type === 'ip').map(b => b.ban_value));
+    const bannedRobloxSet = new Set(bans.filter(b => b.ban_type === 'roblox_id').map(b => b.ban_value));
+    const bannedDiscordSet = new Set(bans.filter(b => b.ban_type === 'discord_id').map(b => b.ban_value));
 
     // Collect unique IPs from user's access logs
     const userPasteIps = new Set((logs || []).map(l => l.ip_address));
