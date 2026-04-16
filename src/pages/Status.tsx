@@ -33,12 +33,12 @@ const Status = () => {
     // Website check
     results[0] = { ...results[0], status: "operational", latency: 0 };
 
-    // API check
+    // API check - use a lightweight public endpoint
     try {
       const start = Date.now();
-      const { error } = await supabase.functions.invoke('heartbeat', { body: {} });
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-paste?slug=_api_health`);
       const latency = Date.now() - start;
-      results[1] = { ...results[1], status: error ? "degraded" : "operational", latency };
+      results[1] = { ...results[1], status: resp.ok || resp.status === 200 ? "operational" : "degraded", latency };
     } catch {
       results[1] = { ...results[1], status: "down" };
     }
