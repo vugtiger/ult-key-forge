@@ -1,5 +1,11 @@
 import SmokeBackground from "./SmokeBackground";
+import FloatingShapes from "./FloatingShapes";
 
-const CloudBackground = () => <SmokeBackground />;
+const CloudBackground = () => (
+  <>
+    <SmokeBackground />
+    <FloatingShapes />
+  </>
+);
 
 export default CloudBackground;
