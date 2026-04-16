@@ -16,6 +16,7 @@ import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect, { isSnowSoundOn, toggleSnowSound } from "@/components/SnowEffect";
 import TabPreviews from "@/components/landing/TabPreviews";
+import Tilt3DCard from "@/components/Tilt3DCard";
 import { buildAppUrl, isRecoveryLinkPayload } from "@/lib/site-url";
 
 const SoundToggleBtn = () => {
@@ -170,10 +171,12 @@ const Index = () => {
 
               <div className="mt-10 grid gap-3 sm:grid-cols-3">
                 {stats.map((stat) => (
-                  <div key={stat.label} className="glass-card rounded-xl p-4">
-                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                    <p className="mt-1 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{stat.label}</p>
-                  </div>
+                  <Tilt3DCard key={stat.label} className="glass-card rounded-2xl">
+                    <div className="p-5">
+                      <p className="text-2xl font-black text-foreground">{stat.value}</p>
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{stat.label}</p>
+                    </div>
+                  </Tilt3DCard>
                 ))}
               </div>
 
@@ -197,13 +200,15 @@ const Index = () => {
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               {featureColumns.map((col) => (
-                <div key={col.title} className="glass-card rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1">
-                  <div className="w-12 h-12 rounded-xl bg-foreground/5 border border-border flex items-center justify-center mb-5">
-                    <col.icon className="text-foreground" size={20} />
+                <Tilt3DCard key={col.title} className="glass-card rounded-2xl">
+                  <div className="p-7 transition-all duration-300">
+                    <div className="w-12 h-12 rounded-xl bg-foreground/5 border border-border flex items-center justify-center mb-5">
+                      <col.icon className="text-foreground" size={20} />
+                    </div>
+                    <h3 className="text-xl font-bold mb-3">{col.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{col.description}</p>
                   </div>
-                  <h3 className="text-xl font-bold mb-3">{col.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{col.description}</p>
-                </div>
+                </Tilt3DCard>
               ))}
             </div>
           </section>
@@ -216,13 +221,15 @@ const Index = () => {
             </div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {signalCards.map((card) => (
-                <div key={card.label} className="glass-card group rounded-xl p-5 transition-all duration-300 hover:-translate-y-0.5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-foreground/5 border border-border">
-                    <card.icon className="text-foreground" size={16} />
+                <Tilt3DCard key={card.label} className="glass-card rounded-2xl" intensity={10}>
+                  <div className="p-6">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground/5 border border-border">
+                      <card.icon className="text-foreground" size={16} />
+                    </div>
+                    <h3 className="mt-4 text-sm font-semibold">{card.label}</h3>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{card.description}</p>
                   </div>
-                  <h3 className="mt-4 text-sm font-semibold">{card.label}</h3>
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">{card.description}</p>
-                </div>
+                </Tilt3DCard>
               ))}
             </div>
           </section>

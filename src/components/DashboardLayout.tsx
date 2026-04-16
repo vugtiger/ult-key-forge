@@ -16,15 +16,15 @@ import CloudBackground from "@/components/CloudBackground";
 import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEffect";
 
 const navigationItems = [
-  { title: "Key System Gen", url: "/dashboard", icon: Zap },
-  { title: "Script Storage", url: "/scripts", icon: Save },
+  { title: "Key System", url: "/dashboard", icon: Zap },
+  { title: "Scripts", url: "/scripts", icon: Save },
   { title: "Pastebin", url: "/pastebin", icon: FileCode },
-  { title: "Script Settings", url: "/script-settings", icon: Eye },
-  { title: "AI Assistant", url: "/ai-assistant", icon: Bot },
-  { title: "Discord Bot", url: "/discord-bot", icon: MessageSquare },
+  { title: "Settings", url: "/script-settings", icon: Eye },
+  { title: "AI", url: "/ai-assistant", icon: Bot },
+  { title: "Discord", url: "/discord-bot", icon: MessageSquare },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Changelog", url: "/changelog", icon: History },
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Preferences", url: "/settings", icon: Settings },
 ];
 
 const adminItems = [
@@ -79,6 +79,7 @@ const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
 
 const AppSidebar = ({ user }: { user: User | null }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { state } = useSidebar();
   const { isAdmin } = useAdminStatus(user?.id);
 
@@ -90,52 +91,65 @@ const AppSidebar = ({ user }: { user: User | null }) => {
   };
 
   const navItems = isAdmin ? adminItems : navigationItems;
+  const collapsed = state === "collapsed";
 
   return (
-    <Sidebar className={state === "collapsed" ? "w-14" : "w-56"} collapsible="icon">
-      <SidebarContent className="bg-card/60 backdrop-blur-2xl border-r border-border relative">
-        <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-foreground/10 via-foreground/5 to-foreground/10 pointer-events-none" />
-        
-        <div className="p-3 border-b border-border flex items-center gap-2.5">
-          {state !== "collapsed" ? (
-            <>
-              <CloudLogo size={24} />
-              <h1 className="text-sm font-bold tracking-wider">ULT CLOUD</h1>
-            </>
-          ) : (
-            <CloudLogo size={22} className="mx-auto" />
+    <Sidebar className={collapsed ? "w-[60px]" : "w-[220px]"} collapsible="icon">
+      <SidebarContent className="bg-background/80 backdrop-blur-3xl border-r border-border/40 relative flex flex-col">
+        {/* Brand */}
+        <div className={`flex items-center gap-3 border-b border-border/30 ${collapsed ? "px-2 py-4 justify-center" : "px-5 py-5"}`}>
+          <CloudLogo size={collapsed ? 24 : 22} />
+          {!collapsed && (
+            <div>
+              <h1 className="text-xs font-black tracking-[0.25em] text-foreground">ULT CLOUD</h1>
+              <p className="text-[9px] text-muted-foreground/50 tracking-wider mt-0.5">PROTECTION</p>
+            </div>
           )}
         </div>
 
-        <SidebarGroup className="mt-2">
-          <SidebarGroupLabel className={`text-[10px] tracking-[0.2em] text-muted-foreground/50 uppercase ${state === "collapsed" ? "sr-only" : "px-3 mb-1"}`}>
-            {isAdmin ? "Owner" : "Menu"}
+        {/* Nav */}
+        <SidebarGroup className="flex-1 mt-3 px-2">
+          <SidebarGroupLabel className={`text-[9px] tracking-[0.3em] text-muted-foreground/40 uppercase mb-2 ${collapsed ? "sr-only" : "px-3"}`}>
+            {isAdmin ? "Owner" : "Navigation"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-0.5 px-1.5">
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      end
-                      className="rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all duration-200"
-                      activeClassName="bg-foreground/10 text-foreground border border-border"
-                    >
-                      <item.icon className={state === "collapsed" ? "" : "mr-2.5"} size={17} />
-                      {state !== "collapsed" && <span className="text-[13px]">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+            <SidebarMenu className="space-y-0.5">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        end
+                        className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] transition-all duration-200 ${
+                          isActive
+                            ? "bg-foreground/[0.08] text-foreground shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.1)]"
+                            : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]"
+                        }`}
+                        activeClassName=""
+                      >
+                        {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-foreground" />}
+                        <item.icon size={16} className={isActive ? "text-foreground" : "text-muted-foreground/70 group-hover:text-foreground"} />
+                        {!collapsed && <span className="font-medium">{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <div className="mt-auto p-2 border-t border-border">
-          <Button variant="ghost" className="w-full justify-start rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-destructive/10" onClick={handleLogout}>
-            <LogOut className={state === "collapsed" ? "" : "mr-2.5"} size={17} />
-            {state !== "collapsed" && <span className="text-[13px]">Logout</span>}
+        {/* Logout */}
+        <div className="p-2 border-t border-border/30 mt-auto">
+          <Button
+            variant="ghost"
+            className={`w-full rounded-xl px-3 py-2.5 text-[13px] text-muted-foreground/70 hover:text-foreground hover:bg-destructive/[0.08] transition-all ${collapsed ? "justify-center" : "justify-start"}`}
+            onClick={handleLogout}
+          >
+            <LogOut size={16} className={collapsed ? "" : "mr-3"} />
+            {!collapsed && <span className="font-medium">Logout</span>}
           </Button>
         </div>
       </SidebarContent>
@@ -146,8 +160,8 @@ const AppSidebar = ({ user }: { user: User | null }) => {
 const SoundToggle = () => {
   const [soundOn, setSoundOn] = useState(isSnowSoundOn());
   return (
-    <Button variant="ghost" size="icon" onClick={() => setSoundOn(toggleSnowSound())} className="text-muted-foreground/60 hover:text-foreground h-8 w-8 rounded-lg" title={soundOn ? "Mute" : "Unmute"}>
-      {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
+    <Button variant="ghost" size="icon" onClick={() => setSoundOn(toggleSnowSound())} className="text-muted-foreground/50 hover:text-foreground h-8 w-8 rounded-lg" title={soundOn ? "Mute" : "Unmute"}>
+      {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
     </Button>
   );
 };
@@ -232,12 +246,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <SnowEffect />
         <AppSidebar user={user} />
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
-          <header className="h-12 border-b border-border flex items-center px-5 sticky top-0 bg-background/60 backdrop-blur-2xl z-10">
-            <SidebarTrigger className="mr-3 h-7 w-7" />
+          <header className="h-14 border-b border-border/30 flex items-center px-6 sticky top-0 bg-background/50 backdrop-blur-3xl z-10">
+            <SidebarTrigger className="mr-4 h-8 w-8 rounded-lg hover:bg-foreground/[0.06]" />
             <div className="flex-1" />
             <SoundToggle />
           </header>
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-5">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-6 lg:p-8">
             {children}
           </main>
         </div>
