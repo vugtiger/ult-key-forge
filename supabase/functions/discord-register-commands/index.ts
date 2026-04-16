@@ -1,4 +1,4 @@
-
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -365,6 +365,42 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+
+    // Require authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Verify user
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Verify admin role
+    const { data: roleData } = await userClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (!roleData) {
+      return new Response(JSON.stringify({ error: 'Forbidden: admin role required' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const DISCORD_BOT_TOKEN = Deno.env.get("DISCORD_BOT_TOKEN");
     const DISCORD_APPLICATION_ID = Deno.env.get("DISCORD_APPLICATION_ID");
 
@@ -405,7 +441,7 @@ Deno.serve(async (req) => {
     });
   } catch (error: any) {
     console.error("Error registering commands:", error);
-    return new Response(JSON.stringify({ error: error?.message || "Unknown error" }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });

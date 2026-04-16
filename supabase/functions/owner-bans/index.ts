@@ -55,25 +55,28 @@ Deno.serve(async (req) => {
       .in('paste_id', pasteIds)
       .order('last_seen_at', { ascending: false });
 
-    // Get threat logs related to user's paste IPs/roblox IDs
-    const { data: threats } = await serviceClient
-      .from('threat_log')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(500);
+    // Collect unique identifiers from user's access logs to scope ban queries
+    const userPasteIps = new Set((logs || []).map(l => l.ip_address).filter(Boolean));
+    const userRobloxIds = new Set((logs || []).map(l => l.roblox_user_id).filter(Boolean));
+    const userDiscordIds = new Set((logs || []).map(l => l.discord_user_id).filter(Boolean));
 
-    // Get global bans
-    const { data: bans } = await serviceClient
-      .from('global_bans')
-      .select('*')
-      .eq('is_active', true);
+    // Get only global bans relevant to this user's paste access logs
+    const allBanValues = [...userPasteIps, ...userRobloxIds, ...userDiscordIds];
+    let bans: any[] = [];
+    if (allBanValues.length > 0) {
+      const { data: bansData } = await serviceClient
+        .from('global_bans')
+        .select('*')
+        .eq('is_active', true)
+        .in('ban_value', allBanValues);
+      bans = bansData || [];
+    }
 
-    const bannedIpSet = new Set((bans || []).filter(b => b.ban_type === 'ip').map(b => b.ban_value));
-    const bannedRobloxSet = new Set((bans || []).filter(b => b.ban_type === 'roblox_id').map(b => b.ban_value));
-    const bannedDiscordSet = new Set((bans || []).filter(b => b.ban_type === 'discord_id').map(b => b.ban_value));
+    const bannedIpSet = new Set(bans.filter(b => b.ban_type === 'ip').map(b => b.ban_value));
+    const bannedRobloxSet = new Set(bans.filter(b => b.ban_type === 'roblox_id').map(b => b.ban_value));
+    const bannedDiscordSet = new Set(bans.filter(b => b.ban_type === 'discord_id').map(b => b.ban_value));
 
-    // Collect unique IPs from user's access logs
-    const userPasteIps = new Set((logs || []).map(l => l.ip_address));
+    // Build banned Roblox users list (from access logs + global bans)
 
     // Build banned Roblox users list (from access logs + global bans)
     const bannedUsersMap = new Map<string, any>();
@@ -126,7 +129,7 @@ Deno.serve(async (req) => {
     }
 
     // Also add global bans for roblox/discord IDs that have NO matching access logs
-    for (const ban of (bans || [])) {
+    for (const ban of bans) {
       if (ban.ban_type === 'roblox_id' && !bannedUsersMap.has(ban.ban_value)) {
         bannedUsersMap.set(ban.ban_value, {
           roblox_user_id: ban.ban_value,
@@ -174,7 +177,7 @@ Deno.serve(async (req) => {
 
     for (const log of (logs || [])) {
       if (bannedIpSet.has(log.ip_address) && !bannedIpsMap.has(log.ip_address)) {
-        const ban = (bans || []).find(b => b.ban_type === 'ip' && b.ban_value === log.ip_address);
+        const ban = bans.find(b => b.ban_type === 'ip' && b.ban_value === log.ip_address);
         bannedIpsMap.set(log.ip_address, {
           ip_address: log.ip_address,
           roblox_user_id: log.roblox_user_id,
@@ -193,7 +196,7 @@ Deno.serve(async (req) => {
     }
 
     // Also add banned IPs with no matching access logs
-    for (const ban of (bans || [])) {
+    for (const ban of bans) {
       if (ban.ban_type === 'ip' && !bannedIpsMap.has(ban.ban_value)) {
         bannedIpsMap.set(ban.ban_value, {
           ip_address: ban.ban_value,
