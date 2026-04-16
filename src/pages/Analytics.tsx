@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import TabHelpSection from "@/components/onboarding/TabHelpSection";
 import { analyticsHelp } from "@/components/onboarding/helpContent";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 import { Activity, Users, FileCode, TrendingUp, BarChart3 } from "lucide-react";
-import Tilt3DCard from "@/components/Tilt3DCard";
 
 interface ExecutionData { date: string; count: number; }
 interface PasteStats { total_pastes: number; protected_pastes: number; total_executions: number; }
@@ -56,104 +56,94 @@ const Analytics = () => {
   }, []);
 
   const statCards = [
-    { title: "Total Pastes", value: pasteStats.total_pastes, icon: FileCode, accent: "from-foreground/10 to-foreground/5" },
-    { title: "Protected", value: pasteStats.protected_pastes, icon: Activity, accent: "from-foreground/10 to-foreground/5" },
-    { title: "Executions", value: pasteStats.total_executions, icon: TrendingUp, accent: "from-foreground/10 to-foreground/5" },
-    { title: "Protection Rate", value: `${pasteStats.total_pastes > 0 ? Math.round((pasteStats.protected_pastes / pasteStats.total_pastes) * 100) : 0}%`, icon: Users, accent: "from-foreground/10 to-foreground/5" },
+    { title: "Total Pastes", value: pasteStats.total_pastes, icon: FileCode },
+    { title: "Protected", value: pasteStats.protected_pastes, icon: Activity },
+    { title: "Executions", value: pasteStats.total_executions, icon: TrendingUp },
+    { title: "Protection Rate", value: `${pasteStats.total_pastes > 0 ? Math.round((pasteStats.protected_pastes / pasteStats.total_pastes) * 100) : 0}%`, icon: Users },
   ];
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-6xl mx-auto">
+      <div className="space-y-5">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-foreground/10 to-foreground/5 border border-border/40 flex items-center justify-center">
-            <BarChart3 className="text-foreground" size={18} />
+          <div className="w-10 h-10 rounded-xl bg-primary/12 flex items-center justify-center">
+            <BarChart3 className="text-primary" size={18} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
+            <h1 className="text-2xl font-bold">Analytics</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Track your script executions and usage</p>
           </div>
         </div>
 
         <TabHelpSection {...analyticsHelp} />
 
-        {/* Stats with 3D tilt */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
           {statCards.map((stat, i) => (
-            <Tilt3DCard key={i} className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-xl">
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{stat.title}</p>
-                  <div className="w-8 h-8 rounded-xl bg-foreground/[0.06] flex items-center justify-center">
-                    <stat.icon className="h-3.5 w-3.5 text-foreground/60" />
-                  </div>
-                </div>
-                <p className="text-3xl font-black tracking-tight">{loading ? "..." : stat.value}</p>
+            <div key={i} className="rounded-xl border border-primary/10 bg-card/20 p-4 backdrop-blur-xl">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{stat.title}</p>
+                <stat.icon className="h-4 w-4 text-primary/60" />
               </div>
-            </Tilt3DCard>
+              <p className="text-2xl font-bold">{loading ? "..." : stat.value}</p>
+            </div>
           ))}
         </div>
 
-        {/* Charts with 3D tilt */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Tilt3DCard className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-xl" intensity={6}>
-            <div className="p-6">
-              <h3 className="text-sm font-semibold mb-1">Executions (7 Days)</h3>
-              <p className="text-[10px] text-muted-foreground mb-5">Number of times your scripts were executed</p>
-              <div className="h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={executionData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} />
-                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: '12px' }} />
-                    <Bar dataKey="count" fill="hsl(var(--foreground))" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="rounded-xl border border-primary/10 bg-card/20 p-5 backdrop-blur-xl">
+            <h3 className="text-sm font-semibold mb-1">Executions (7 Days)</h3>
+            <p className="text-[10px] text-muted-foreground mb-4">Number of times your scripts were executed</p>
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={executionData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          </Tilt3DCard>
+          </div>
 
-          <Tilt3DCard className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-xl" intensity={6}>
-            <div className="p-6">
-              <h3 className="text-sm font-semibold mb-1">Execution Trend</h3>
-              <p className="text-[10px] text-muted-foreground mb-5">Track your script usage over time</p>
-              <div className="h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={executionData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} />
-                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: '12px' }} />
-                    <Line type="monotone" dataKey="count" stroke="hsl(var(--foreground))" strokeWidth={2} dot={{ fill: 'hsl(var(--foreground))' }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+          <div className="rounded-xl border border-primary/10 bg-card/20 p-5 backdrop-blur-xl">
+            <h3 className="text-sm font-semibold mb-1">Execution Trend</h3>
+            <p className="text-[10px] text-muted-foreground mb-4">Track your script usage over time</p>
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={executionData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
+                  <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))' }} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-          </Tilt3DCard>
+          </div>
 
-          <Tilt3DCard className="lg:col-span-2 rounded-2xl border border-border/40 bg-card/30 backdrop-blur-xl" intensity={4}>
-            <div className="p-6">
-              <h3 className="text-sm font-semibold mb-1">Activity Breakdown</h3>
-              <p className="text-[10px] text-muted-foreground mb-5">Your activity distribution across the platform</p>
-              <div className="h-[260px]">
-                {activityData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={activityData} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={5} dataKey="count" nameKey="type" label={({ type, count }) => `${type}: ${count}`}>
-                        {activityData.map((_, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-                    No activity data yet. Start using the platform to see your activity breakdown!
-                  </div>
-                )}
-              </div>
+          <div className="lg:col-span-2 rounded-xl border border-primary/10 bg-card/20 p-5 backdrop-blur-xl">
+            <h3 className="text-sm font-semibold mb-1">Activity Breakdown</h3>
+            <p className="text-[10px] text-muted-foreground mb-4">Your activity distribution across the platform</p>
+            <div className="h-[260px]">
+              {activityData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={activityData} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={5} dataKey="count" nameKey="type" label={({ type, count }) => `${type}: ${count}`}>
+                      {activityData.map((_, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+                  No activity data yet. Start using the platform to see your activity breakdown!
+                </div>
+              )}
             </div>
-          </Tilt3DCard>
+          </div>
         </div>
       </div>
     </DashboardLayout>

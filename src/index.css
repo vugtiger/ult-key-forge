@@ -112,32 +112,13 @@
 
   .glass-card {
     background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(24px);
+    backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    transition: all 0.3s cubic-bezier(0.03, 0.98, 0.52, 0.99);
   }
 
   .glass-card:hover {
     background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  }
-
-  /* 3D depth card */
-  .depth-card {
-    background: rgba(255, 255, 255, 0.025);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 
-      0 2px 8px rgba(0, 0, 0, 0.2),
-      0 0 0 1px rgba(255, 255, 255, 0.03) inset;
-    transition: all 0.3s ease;
-  }
-
-  .depth-card:hover {
-    box-shadow: 
-      0 8px 32px rgba(0, 0, 0, 0.4),
-      0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .glow-text {
