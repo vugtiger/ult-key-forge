@@ -16,6 +16,7 @@ import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect, { isSnowSoundOn, toggleSnowSound } from "@/components/SnowEffect";
 import TabPreviews from "@/components/landing/TabPreviews";
+import Tilt3DCard from "@/components/Tilt3DCard";
 import { buildAppUrl, isRecoveryLinkPayload } from "@/lib/site-url";
 
 const SoundToggleBtn = () => {
