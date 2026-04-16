@@ -476,21 +476,21 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-3xl mx-auto space-y-5">
+      <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-primary/12 flex items-center justify-center">
-            <Zap className="text-primary" size={18} />
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-foreground/10 to-foreground/5 border border-border/40 flex items-center justify-center">
+            <Zap className="text-foreground" size={18} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Key System Generator</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Key System Generator</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Create and manage key systems linked to your pastes</p>
           </div>
         </div>
 
         <Tabs defaultValue="create">
-          <TabsList className="mb-5 h-9 bg-card/30 border border-primary/10 rounded-lg p-0.5">
-            <TabsTrigger value="create" className="gap-1.5 text-xs rounded-md data-[state=active]:bg-primary/15"><Plus size={13} /> Create New</TabsTrigger>
-            <TabsTrigger value="manage" className="gap-1.5 text-xs rounded-md data-[state=active]:bg-primary/15"><Settings size={13} /> Manage</TabsTrigger>
+          <TabsList className="mb-5 h-10 bg-card/40 border border-border/30 rounded-xl p-1">
+            <TabsTrigger value="create" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-foreground/[0.08] data-[state=active]:shadow-none"><Plus size={13} /> Create New</TabsTrigger>
+            <TabsTrigger value="manage" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-foreground/[0.08] data-[state=active]:shadow-none"><Settings size={13} /> Manage</TabsTrigger>
           </TabsList>
 
           {/* ════════════════ CREATE TAB ════════════════ */}
