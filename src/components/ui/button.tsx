@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { playButtonClickSound, createSnowBurst } from "@/components/SnowEffect";
 
 const buttonVariants = cva(
-  "btn-3d inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:translate-y-[1px] active:scale-[0.98]",
+  "btn-3d inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:translate-y-[1px] active:scale-[0.98] min-w-0 max-w-full overflow-hidden text-ellipsis [&>span]:truncate [&>span]:min-w-0",
   {
     variants: {
       variant: {
