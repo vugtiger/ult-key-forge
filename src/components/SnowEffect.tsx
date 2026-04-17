@@ -1,253 +1,117 @@
 import { useEffect, useRef } from "react";
 
-// Shared audio context for the entire app
-let globalAudioCtx: AudioContext | null = null;
-let globalGainNode: GainNode | null = null;
-let globalSourceNode: AudioBufferSourceNode | null = null;
+// Background music (looping) + UI click sound system.
+// Kept the file name for backwards compatibility with existing imports.
+
+let audioEl: HTMLAudioElement | null = null;
 let audioInitialized = false;
 let audioMuted = false;
+let clickCtx: AudioContext | null = null;
+
+const MUSIC_SRC = "/audio/bg-music.mp3";
+
+const ensureClickCtx = () => {
+  if (!clickCtx) {
+    try {
+      clickCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    } catch {}
+  }
+  return clickCtx;
+};
 
 const initAudio = () => {
   if (audioInitialized) return;
   audioInitialized = true;
 
-  // Check saved preference
-  const saved = localStorage.getItem('snow-sound-muted');
-  audioMuted = saved === 'true';
+  const saved = localStorage.getItem("bg-music-muted");
+  audioMuted = saved === "true";
 
   try {
-    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    globalAudioCtx = audioCtx;
-
-    const bufferSize = audioCtx.sampleRate * 8;
-    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-    const data = buffer.getChannelData(0);
-
-    const fadeLen = audioCtx.sampleRate * 0.5;
-    for (let i = 0; i < bufferSize; i++) {
-      let sample = (Math.random() * 2 - 1) * 0.025;
-      if (i < fadeLen) sample *= i / fadeLen;
-      if (i > bufferSize - fadeLen) sample *= (bufferSize - i) / fadeLen;
-      data[i] = sample;
-    }
-
-    const source = audioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-    source.loopStart = 0;
-    source.loopEnd = buffer.duration;
-
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.value = 600;
-    filter.Q.value = 0.4;
-
-    const lowpass = audioCtx.createBiquadFilter();
-    lowpass.type = "lowpass";
-    lowpass.frequency.value = 2000;
-
-    const gain = audioCtx.createGain();
-    gain.gain.value = audioMuted ? 0 : 0.18;
-
-    source.connect(filter);
-    filter.connect(lowpass);
-    lowpass.connect(gain);
-    gain.connect(audioCtx.destination);
-    source.start();
-
-    globalGainNode = gain;
-    globalSourceNode = source;
-
-    const handleVisibility = () => {
-      if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
-        globalAudioCtx.resume();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('focus', handleVisibility);
-  } catch (e) {
-    // Audio not supported
-  }
+    audioEl = new Audio(MUSIC_SRC);
+    audioEl.loop = true;
+    audioEl.volume = audioMuted ? 0 : 0.35;
+    audioEl.preload = "auto";
+    audioEl.play().catch(() => {
+      // Autoplay blocked; will retry on next interaction
+      const retry = () => {
+        audioEl?.play().catch(() => {});
+        document.removeEventListener("click", retry);
+        document.removeEventListener("keydown", retry);
+      };
+      document.addEventListener("click", retry);
+      document.addEventListener("keydown", retry);
+    });
+  } catch {}
 };
 
-// Toggle sound on/off
 export const toggleSnowSound = (): boolean => {
   audioMuted = !audioMuted;
-  localStorage.setItem('snow-sound-muted', String(audioMuted));
-  if (globalGainNode) {
-    globalGainNode.gain.value = audioMuted ? 0 : 0.18;
-  }
-  return !audioMuted; // returns true if sound is ON
+  localStorage.setItem("bg-music-muted", String(audioMuted));
+  if (audioEl) audioEl.volume = audioMuted ? 0 : 0.35;
+  return !audioMuted;
 };
 
 export const isSnowSoundOn = (): boolean => {
-  const saved = localStorage.getItem('snow-sound-muted');
-  return saved !== 'true';
+  const saved = localStorage.getItem("bg-music-muted");
+  return saved !== "true";
 };
 
-// Button click snow sound effect
+// Modern soft "tick" click sound (replaces previous snow noise)
 export const playButtonClickSound = () => {
   if (audioMuted) return;
   try {
-    const ctx = globalAudioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
-    if (!globalAudioCtx) globalAudioCtx = ctx;
+    const ctx = ensureClickCtx();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
 
-    const duration = 0.15;
-    const sampleRate = ctx.sampleRate;
-    const bufferSize = Math.floor(sampleRate * duration);
-    const buffer = ctx.createBuffer(1, bufferSize, sampleRate);
-    const data = buffer.getChannelData(0);
+    const now = ctx.currentTime;
 
-    for (let i = 0; i < bufferSize; i++) {
-      const t = i / sampleRate;
-      const envelope = Math.exp(-t * 25);
-      const noise = (Math.random() * 2 - 1) * 0.4;
-      data[i] = noise * envelope;
-    }
-
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.value = 1200;
-    filter.Q.value = 1.5;
+    // Soft sine "pop"
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.exponentialRampToValueAtTime(320, now + 0.08);
 
     const gain = ctx.createGain();
-    gain.gain.value = 0.25;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
 
-    source.connect(filter);
-    filter.connect(gain);
+    osc.connect(gain);
     gain.connect(ctx.destination);
-    source.start();
-  } catch (e) {
-    // Ignore
-  }
+    osc.start(now);
+    osc.stop(now + 0.13);
+  } catch {}
 };
 
-// Snow burst animation at coordinates
-export const createSnowBurst = (x: number, y: number) => {
-  const count = 8;
-  for (let i = 0; i < count; i++) {
-    const particle = document.createElement('div');
-    particle.style.cssText = `
-      position: fixed;
-      left: ${x}px;
-      top: ${y}px;
-      width: ${Math.random() * 4 + 2}px;
-      height: ${Math.random() * 4 + 2}px;
-      background: white;
-      border-radius: 50%;
-      pointer-events: none;
-      z-index: 9999;
-      opacity: 0.8;
-    `;
-    document.body.appendChild(particle);
-
-    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
-    const speed = 30 + Math.random() * 40;
-    const dx = Math.cos(angle) * speed;
-    const dy = Math.sin(angle) * speed - 20;
-
-    particle.animate([
-      { transform: 'translate(0, 0) scale(1)', opacity: 0.8 },
-      { transform: `translate(${dx}px, ${dy + 40}px) scale(0)`, opacity: 0 },
-    ], {
-      duration: 400 + Math.random() * 200,
-      easing: 'cubic-bezier(0, 0.5, 0.5, 1)',
-    }).onfinish = () => particle.remove();
-  }
-};
+// Burst kept as no-op to preserve existing call sites
+export const createSnowBurst = (_x: number, _y: number) => {};
 
 const SnowEffect = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const initRef = useRef(false);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (initRef.current) return;
+    initRef.current = true;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let animationId: number;
-    let w = window.innerWidth;
-    let h = window.innerHeight;
-    canvas.width = w;
-    canvas.height = h;
-
-    const flakeCount = 120;
-    const flakes: { x: number; y: number; r: number; speed: number; wind: number; opacity: number }[] = [];
-
-    for (let i = 0; i < flakeCount; i++) {
-      flakes.push({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        r: Math.random() * 3 + 1,
-        speed: Math.random() * 1.5 + 0.5,
-        wind: Math.random() * 0.5 - 0.25,
-        opacity: Math.random() * 0.6 + 0.2,
-      });
-    }
-
-    const draw = () => {
-      ctx.clearRect(0, 0, w, h);
-      for (const f of flakes) {
-        ctx.beginPath();
-        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${f.opacity})`;
-        ctx.fill();
-
-        f.y += f.speed;
-        f.x += f.wind + Math.sin(f.y * 0.01) * 0.3;
-
-        if (f.y > h) { f.y = -5; f.x = Math.random() * w; }
-        if (f.x > w) f.x = 0;
-        if (f.x < 0) f.x = w;
-      }
-      animationId = requestAnimationFrame(draw);
-    };
-
-    draw();
-
-    const handleResize = () => {
-      w = window.innerWidth;
-      h = window.innerHeight;
-      canvas.width = w;
-      canvas.height = h;
-    };
-    window.addEventListener("resize", handleResize);
-
-    const startAudio = () => {
+    const start = () => {
       initAudio();
-      document.removeEventListener("click", startAudio);
-      document.removeEventListener("keydown", startAudio);
+      document.removeEventListener("click", start);
+      document.removeEventListener("keydown", start);
     };
-    document.addEventListener("click", startAudio);
-    document.addEventListener("keydown", startAudio);
+    document.addEventListener("click", start);
+    document.addEventListener("keydown", start);
 
-    const handleVisibility = () => {
-      if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
-        globalAudioCtx.resume();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
+    // Try immediately too (works after first SPA navigation)
+    initAudio();
 
     return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", handleResize);
-      document.removeEventListener("click", startAudio);
-      document.removeEventListener("keydown", startAudio);
-      document.removeEventListener('visibilitychange', handleVisibility);
+      document.removeEventListener("click", start);
+      document.removeEventListener("keydown", start);
     };
   }, []);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-[1]"
-      style={{ mixBlendMode: "screen" }}
-    />
-  );
+  return null;
 };
 
 export default SnowEffect;
