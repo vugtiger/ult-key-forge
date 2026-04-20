@@ -2291,6 +2291,34 @@ if not ${v.antiEnvLog}() then _reportBypass("pre_fetch_env", "env_logger_before_
 if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_failed") end
 if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
+-- v15.1: VM / Emulator detection (heuristic)
+pcall(function()
+  local _vmFlags = 0
+  if not game or typeof(game) ~= "Instance" then _vmFlags = _vmFlags + 1 end
+  if not workspace or not workspace.FindFirstChild then _vmFlags = _vmFlags + 1 end
+  if not task or not task.wait then _vmFlags = _vmFlags + 1 end
+  if rawget(_G, "io") and rawget(_G, "os") and rawget(_G, "package") then _vmFlags = _vmFlags + 2 end
+  if rawget(_G, "require") and not rawget(_G, "game") then _vmFlags = _vmFlags + 2 end
+  if _vmFlags >= 2 then
+    _reportBypass("vm_detected", "non_roblox_environment_flags_" .. tostring(_vmFlags))
+  end
+end)
+
+-- v15.1: Hooked-function deep detection
+pcall(function()
+  local _checks = {game.HttpGet, game.HttpGetAsync, loadstring}
+  for _, fn in ipairs(_checks) do
+    if hookcheck and pcall(hookcheck, fn) and hookcheck(fn) then
+      _reportBypass("hook_detected", "core_function_hooked")
+      break
+    end
+    if iscclosure and not iscclosure(fn) then
+      _reportBypass("hook_detected", "core_function_replaced_with_lua")
+      break
+    end
+  end
+end)
+
 ${options?.showConsoleFeedback ? `
 -- DevConsole (F9) animated loading bar — visible in real Roblox dev console via warn()
 _G._ULT_AUTH_START = tick()
