@@ -7,8 +7,9 @@ import { scriptSettingsHelp } from "@/components/onboarding/helpContent";
 import AccessMonitor from "@/components/AccessMonitor";
 import GameBindingsManager from "@/components/GameBindingsManager";
 import OwnerBansManager from "@/components/OwnerBansManager";
+import AdvancedProtectionManager from "@/components/AdvancedProtectionManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, Gamepad2, Settings, ShieldBan } from "lucide-react";
+import { Eye, Gamepad2, Settings, ShieldBan, Sparkles } from "lucide-react";
 
 const ScriptSettings = () => {
   const navigate = useNavigate();
@@ -49,7 +50,7 @@ const ScriptSettings = () => {
         <TabHelpSection {...scriptSettingsHelp} />
 
         <Tabs defaultValue="monitor" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-3 h-9 bg-card/30 border border-primary/10 rounded-lg p-0.5">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4 h-9 bg-card/30 border border-primary/10 rounded-lg p-0.5">
             <TabsTrigger value="monitor" type="button" className="flex items-center gap-1.5 text-xs rounded-md data-[state=active]:bg-primary/15 data-[state=active]:text-foreground">
               <Eye className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Access Monitor</span>
@@ -65,10 +66,16 @@ const ScriptSettings = () => {
               <span className="hidden sm:inline">Game Bindings</span>
               <span className="sm:hidden">Games</span>
             </TabsTrigger>
+            <TabsTrigger value="advanced" type="button" className="flex items-center gap-1.5 text-xs rounded-md data-[state=active]:bg-primary/15 data-[state=active]:text-foreground">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Advanced</span>
+              <span className="sm:hidden">Pro</span>
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="monitor" className="mt-4"><AccessMonitor /></TabsContent>
           <TabsContent value="bans" className="mt-4"><OwnerBansManager /></TabsContent>
           <TabsContent value="games" className="mt-4"><GameBindingsManager /></TabsContent>
+          <TabsContent value="advanced" className="mt-4"><AdvancedProtectionManager /></TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>
