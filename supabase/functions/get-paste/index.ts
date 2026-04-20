@@ -3580,6 +3580,39 @@ async function applyV12Protections(
     }
   }
 
+  // 4. Executor Blacklist — block specific executors by name (UA-based)
+  if (paste.executor_blacklist_enabled) {
+    try {
+      const { data: blacklist } = await supabaseClient
+        .from('paste_executor_blacklist')
+        .select('executor_name')
+        .eq('paste_id', paste.id);
+      if (blacklist && blacklist.length > 0) {
+        const ua = (paste._ua || '').toLowerCase();
+        const blocked = blacklist.find((b: any) => ua.includes(b.executor_name.toLowerCase()));
+        if (blocked) {
+          console.log(`[v12] EXECUTOR_BLOCKED: ${blocked.executor_name} on paste ${paste.id}`);
+          fireWebhookAlert(paste, uid, clientIp, hwid, 'executor_blocked', { executor: blocked.executor_name });
+          return new Response(generateKickEncrypted(`Executor "${blocked.executor_name}" is not supported on this script`, slug, tk, uid), {
+            status: 200, headers: textHeaders,
+          });
+        }
+      }
+    } catch (e) { /* fail-open */ }
+  }
+
+  // 5. Forced Latest Version — kick if user is on outdated version
+  if (paste.force_latest_version && paste.current_version) {
+    const clientVersion = paste._client_version || '';
+    if (clientVersion && clientVersion !== paste.current_version) {
+      console.log(`[v12] VERSION_MISMATCH: client=${clientVersion} required=${paste.current_version}`);
+      fireWebhookAlert(paste, uid, clientIp, hwid, 'version_mismatch', { client: clientVersion, required: paste.current_version });
+      return new Response(generateKickEncrypted(`Outdated script version (${clientVersion}). Latest: ${paste.current_version}. Please update.`, slug, tk, uid), {
+        status: 200, headers: textHeaders,
+      });
+    }
+  }
+
   return null; // All checks passed
 }
 
