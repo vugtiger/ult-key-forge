@@ -4387,6 +4387,8 @@ end)`;
           .eq('id', tokenData.id).is('used_at', null);
         
         // v12: Protection checks for non-protected pastes too
+        paste._ua = req.headers.get('user-agent') || '';
+        paste._client_version = req.headers.get('x-script-version') || url.searchParams.get('_v') || '';
         const v12NonProtResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
         if (v12NonProtResult) return v12NonProtResult;
 
@@ -4719,6 +4721,8 @@ end)`;
       }
 
       // ===== v12: NEW PROTECTION CHECKS (public protection path) =====
+      paste._ua = req.headers.get('user-agent') || '';
+      paste._client_version = req.headers.get('x-script-version') || url.searchParams.get('_v') || '';
       const v12PubResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
       if (v12PubResult) return v12PubResult;
 
@@ -4907,6 +4911,8 @@ end)`;
     }
 
     // ===== v12: NEW PROTECTION CHECKS =====
+    paste._ua = req.headers.get('user-agent') || '';
+    paste._client_version = req.headers.get('x-script-version') || url.searchParams.get('_v') || '';
     const v12Result = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
     if (v12Result) return v12Result;
 
