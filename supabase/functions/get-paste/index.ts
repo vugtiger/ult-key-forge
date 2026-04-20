@@ -2292,40 +2292,24 @@ if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_f
 if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
 ${options?.showConsoleFeedback ? `
--- Animated rconsole loading bar
+-- DevConsole (F9) animated loading bar — visible in real Roblox dev console via warn()
+_G._ULT_AUTH_START = tick()
 pcall(function()
-  local _barLen = 30
+  local _barLen = 24
   local _steps = {
-    {0, "Scanning environment..."},
-    {15, "Verifying integrity..."},
-    {35, "Checking protections..."},
-    {50, "Fetching payload..."},
+    {12, "scanning environment"},
+    {28, "verifying integrity"},
+    {44, "checking protections"},
+    {60, "authenticating"},
   }
-  -- Always re-create console so it works on re-execution and after rejoining
-  pcall(function() if rconsolecreate then rconsolecreate() end end)
-  local _hasRC = pcall(function() rconsoleclear() end)
-  if _hasRC then
-    pcall(function() rconsolesettitle("ULT Protection") end)
-    for _, step in ipairs(_steps) do
-      local _target = step[1]
-      local _msg = step[2]
-      for i = (_steps[math.max(1, _ - 1)] and _steps[_ - 1] and _steps[_ - 1][1] or 0), _target do
-        local _pct = i / 100
-        local _eased = 1 - (1 - _pct)^2
-        local _filled = math.floor(_eased * _barLen)
-        local _empty = _barLen - _filled
-        local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-        pcall(rconsoleclear)
-        pcall(rconsoleprint, string.format("Loading... [%s] %d%%\\n%s\\n", _bar, math.floor(_eased * 100), _msg))
-        task.wait(0.03)
-      end
-    end
-  else
-    for _, step in ipairs(_steps) do
-      local _filled = math.floor(_barLen * step[1] / 100)
-      local _empty = _barLen - _filled
-      print("[ULT] [" .. string.rep("#", _filled) .. string.rep("-", _empty) .. "] " .. step[1] .. "% - " .. step[2])
-    end
+  warn("[ult ~ whitelist] \\xe2\\x97\\x87 initializing secure handshake")
+  for _, step in ipairs(_steps) do
+    local _pct = step[1] / 100
+    local _filled = math.floor(_pct * _barLen)
+    local _empty = _barLen - _filled
+    local _bar = string.rep("\\xe2\\x96\\x88", _filled) .. string.rep("\\xe2\\x96\\x91", _empty)
+    warn(string.format("[ult ~ whitelist] [%s] %d%% - %s", _bar, step[1], step[2]))
+    task.wait(0.04)
   end
 end)
 ` : ''}
@@ -2433,28 +2417,20 @@ if s and r then
     _pieces = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local _barLen = 30
-      pcall(function() if rconsolecreate then rconsolecreate() end end)
-      local _hasRC = pcall(function() rconsoleclear() end)
-      if _hasRC then
-        for i = 50, 100 do
-          local _pct = i / 100
-          local _eased = 1 - (1 - _pct)^2
-          local _filled = math.floor(_eased * _barLen)
-          local _empty = _barLen - _filled
-          local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-          local _msg = i < 75 and "Decrypting chunks..." or (i < 100 and "Executing..." or "Done.")
-          pcall(rconsoleclear)
-          pcall(rconsoleprint, string.format("Loading... [%s] %d%%\\n%s\\n", _bar, math.floor(_eased * 100), _msg))
-          task.wait(0.03)
-        end
-        pcall(rconsoleclear)
-        pcall(rconsoleprint, "Loading... [" .. string.rep("#", _barLen) .. "] 100%\\nDone.\\n")
-      else
-        print("[ULT] [" .. string.rep("#", _barLen) .. "] 100% - Script loaded successfully.")
+      local _barLen = 24
+      local _phases = {{72, "decrypting chunks"}, {88, "assembling"}, {100, "executing"}}
+      for _, ph in ipairs(_phases) do
+        local _pct = ph[1] / 100
+        local _filled = math.floor(_pct * _barLen)
+        local _empty = _barLen - _filled
+        local _bar = string.rep("\\xe2\\x96\\x88", _filled) .. string.rep("\\xe2\\x96\\x91", _empty)
+        warn(string.format("[ult ~ whitelist] [%s] %d%% - %s", _bar, ph[1], ph[2]))
+        task.wait(0.03)
       end
+      local _elapsed = string.format("%.2f", tick() - (_G._ULT_AUTH_START or tick()))
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("[ULT] Welcome, " .. tostring(pName) .. ". Protected by ULT Protection v10.3")
+      warn("[ult ~ whitelist] \\xe2\\x97\\x86 authenticated successfully in " .. _elapsed .. "s")
+      warn("[ult ~ whitelist] \\xe2\\x97\\x86 welcome, " .. tostring(pName) .. " - protected by ULT Cloud")
     end)
 ` : ''}
     -- v12.2: Decoys moved post-execution for instant loading
@@ -2537,28 +2513,20 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     decoded = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local _barLen = 30
-      pcall(function() if rconsolecreate then rconsolecreate() end end)
-      local _hasRC = pcall(function() rconsoleclear() end)
-      if _hasRC then
-        for i = 50, 100 do
-          local _pct = i / 100
-          local _eased = 1 - (1 - _pct)^2
-          local _filled = math.floor(_eased * _barLen)
-          local _empty = _barLen - _filled
-          local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-          local _msg = i < 75 and "Decrypting..." or (i < 100 and "Executing..." or "Done.")
-          pcall(rconsoleclear)
-          pcall(rconsoleprint, string.format("Loading... [%s] %d%%\\n%s\\n", _bar, math.floor(_eased * 100), _msg))
-          task.wait(0.03)
-        end
-        pcall(rconsoleclear)
-        pcall(rconsoleprint, "Loading... [" .. string.rep("#", _barLen) .. "] 100%\\nDone.\\n")
-      else
-        print("[ULT] [" .. string.rep("#", _barLen) .. "] 100% - Script loaded successfully.")
+      local _barLen = 24
+      local _phases = {{72, "decrypting"}, {88, "compiling"}, {100, "executing"}}
+      for _, ph in ipairs(_phases) do
+        local _pct = ph[1] / 100
+        local _filled = math.floor(_pct * _barLen)
+        local _empty = _barLen - _filled
+        local _bar = string.rep("\\xe2\\x96\\x88", _filled) .. string.rep("\\xe2\\x96\\x91", _empty)
+        warn(string.format("[ult ~ whitelist] [%s] %d%% - %s", _bar, ph[1], ph[2]))
+        task.wait(0.03)
       end
+      local _elapsed = string.format("%.2f", tick() - (_G._ULT_AUTH_START or tick()))
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("[ULT] Welcome, " .. tostring(pName) .. ". Protected by ULT Protection v10.3")
+      warn("[ult ~ whitelist] \\xe2\\x97\\x86 authenticated successfully in " .. _elapsed .. "s")
+      warn("[ult ~ whitelist] \\xe2\\x97\\x86 welcome, " .. tostring(pName) .. " - protected by ULT Cloud")
     end)
 ` : ''}
 
@@ -3470,24 +3438,69 @@ end
 ${code}`;
 }
 
-// Webhook alert (fire-and-forget)
-function fireWebhookAlert(paste: any, uid: string, ip: string, hwid: string | null, eventType: string) {
+// Webhook alert (fire-and-forget) — supports rich event types and per-paste event filtering
+function fireWebhookAlert(paste: any, uid: string, ip: string, hwid: string | null, eventType: string, extra?: Record<string, any>) {
   if (!paste.webhook_alerts_enabled || !paste.webhook_url) return;
   const webhookUrl = paste.webhook_url;
   if (!webhookUrl.startsWith('https://discord.com/api/webhooks/') && 
       !webhookUrl.startsWith('https://canary.discord.com/api/webhooks/') &&
       !webhookUrl.startsWith('https://ptb.discord.com/api/webhooks/')) return;
-  
+
+  // Per-paste event filter — only fire if event category is enabled
+  const enabledEvents: string[] = Array.isArray(paste.webhook_events) ? paste.webhook_events : ['redeem','exec','ban','bypass'];
+  const cat =
+    eventType === 'execution' ? 'exec' :
+    eventType.startsWith('ban') || eventType.includes('blocked') ? 'ban' :
+    eventType.includes('bypass') || eventType.includes('hook') || eventType.includes('vm') ? 'bypass' :
+    eventType.includes('redeem') || eventType.includes('key') || eventType.includes('hwid') ? 'redeem' :
+    'exec';
+  if (!enabledEvents.includes(cat)) return;
+
+  const titleMap: Record<string,string> = {
+    execution: 'Script Executed',
+    time_bomb_expired: 'Time Bomb Expired',
+    execution_limit_reached: 'Execution Limit Reached',
+    multi_account_blocked: 'Multi-Account Blocked',
+    geo_blocked: 'Geo-Blocked Region',
+    executor_blocked: 'Blacklisted Executor',
+    vm_detected: 'Virtual Machine Detected',
+    hook_detected: 'Hooked Function Detected',
+    hwid_locked: 'HWID Locked',
+    hwid_reset: 'HWID Reset',
+    key_redeemed: 'Key Redeemed',
+    key_transferred: 'Key Transferred',
+    bypass_attempt: 'Bypass Attempt',
+    version_mismatch: 'Outdated Script Version',
+  };
+  const colorMap: Record<string,number> = {
+    execution: 0x9b87f5, key_redeemed: 0x57f287, hwid_locked: 0x5865f2,
+    bypass_attempt: 0xed4245, executor_blocked: 0xed4245, vm_detected: 0xed4245,
+    hook_detected: 0xed4245, multi_account_blocked: 0xed4245, time_bomb_expired: 0xfee75c,
+  };
+
+  const fields: any[] = [
+    { name: 'Roblox ID', value: uid || 'unknown', inline: true },
+    { name: 'IP', value: `||${ip || 'unknown'}||`, inline: true },
+    { name: 'HWID', value: hwid ? `\`${hwid.substring(0, 16)}...\`` : 'N/A', inline: true },
+  ];
+  if (extra) {
+    for (const [k, v] of Object.entries(extra)) {
+      if (v == null) continue;
+      fields.push({ name: k, value: String(v).substring(0, 256), inline: true });
+    }
+  }
+
   const embed = {
     embeds: [{
-      title: `🔔 Script ${eventType === 'execution' ? 'Executed' : 'Alert'}`,
-      description: `**Paste:** ${paste.title || paste.slug}\n**Roblox ID:** ${uid}\n**IP:** ||${ip}||\n**HWID:** ${hwid ? hwid.substring(0, 16) + '...' : 'N/A'}`,
-      color: eventType === 'execution' ? 0x00ff00 : 0xff0000,
+      title: titleMap[eventType] || `Event: ${eventType}`,
+      description: `**Paste:** ${paste.title || paste.slug}`,
+      color: colorMap[eventType] ?? 0x9b87f5,
+      fields,
       timestamp: new Date().toISOString(),
-      footer: { text: 'ULT Protection v12' },
+      footer: { text: 'ULT Cloud Protection' },
     }],
   };
-  
+
   fetch(webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
