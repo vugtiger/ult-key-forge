@@ -395,6 +395,38 @@ export type Database = {
         }
         Relationships: []
       }
+      hwid_reset_log: {
+        Row: {
+          id: string
+          paste_id: string
+          reset_at: string
+          reset_by: string | null
+          roblox_user_id: string
+        }
+        Insert: {
+          id?: string
+          paste_id: string
+          reset_at?: string
+          reset_by?: string | null
+          roblox_user_id: string
+        }
+        Update: {
+          id?: string
+          paste_id?: string
+          reset_at?: string
+          reset_by?: string | null
+          roblox_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hwid_reset_log_paste_id_fkey"
+            columns: ["paste_id"]
+            isOneToOne: false
+            referencedRelation: "pastes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       key_systems: {
         Row: {
           ascii_text: string
@@ -427,6 +459,51 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      key_transfer_log: {
+        Row: {
+          from_discord_id: string | null
+          id: string
+          key_id: string
+          panel_id: string
+          to_discord_id: string | null
+          transferred_at: string
+          transferred_by: string | null
+        }
+        Insert: {
+          from_discord_id?: string | null
+          id?: string
+          key_id: string
+          panel_id: string
+          to_discord_id?: string | null
+          transferred_at?: string
+          transferred_by?: string | null
+        }
+        Update: {
+          from_discord_id?: string | null
+          id?: string
+          key_id?: string
+          panel_id?: string
+          to_discord_id?: string | null
+          transferred_at?: string
+          transferred_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "key_transfer_log_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "control_panel_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_transfer_log_panel_id_fkey"
+            columns: ["panel_id"]
+            isOneToOne: false
+            referencedRelation: "control_panels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       paste_access_control: {
         Row: {
@@ -663,6 +740,35 @@ export type Database = {
           },
         ]
       }
+      paste_executor_blacklist: {
+        Row: {
+          created_at: string
+          executor_name: string
+          id: string
+          paste_id: string
+        }
+        Insert: {
+          created_at?: string
+          executor_name: string
+          id?: string
+          paste_id: string
+        }
+        Update: {
+          created_at?: string
+          executor_name?: string
+          id?: string
+          paste_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paste_executor_blacklist_paste_id_fkey"
+            columns: ["paste_id"]
+            isOneToOne: false
+            referencedRelation: "pastes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       paste_game_bindings: {
         Row: {
           created_at: string
@@ -765,6 +871,44 @@ export type Database = {
           },
         ]
       }
+      paste_versions: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_current: boolean
+          notes: string | null
+          paste_id: string
+          version: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_current?: boolean
+          notes?: string | null
+          paste_id: string
+          version: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_current?: boolean
+          notes?: string | null
+          paste_id?: string
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paste_versions_paste_id_fkey"
+            columns: ["paste_id"]
+            isOneToOne: false
+            referencedRelation: "pastes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pastes: {
         Row: {
           anti_fetch_enabled: boolean | null
@@ -772,13 +916,19 @@ export type Database = {
           content: string
           crash_detection_enabled: boolean | null
           created_at: string
+          current_version: string | null
+          dev_console_loader: boolean | null
           execution_limit_enabled: boolean | null
           execution_limit_per_user: number | null
           execution_limit_window: string | null
+          executor_blacklist_enabled: boolean | null
+          force_latest_version: boolean | null
           game_restriction_enabled: boolean | null
           geo_blocked_countries: string[] | null
           geo_blocking_enabled: boolean | null
           hide_code: boolean | null
+          hook_detection_enabled: boolean | null
+          hwid_reset_cooldown_hours: number | null
           id: string
           ip_tracking_enabled: boolean
           multi_account_detection: boolean | null
@@ -794,7 +944,9 @@ export type Database = {
           title: string | null
           updated_at: string
           user_id: string
+          vm_detection_enabled: boolean | null
           webhook_alerts_enabled: boolean | null
+          webhook_events: Json | null
           webhook_url: string | null
         }
         Insert: {
@@ -803,13 +955,19 @@ export type Database = {
           content: string
           crash_detection_enabled?: boolean | null
           created_at?: string
+          current_version?: string | null
+          dev_console_loader?: boolean | null
           execution_limit_enabled?: boolean | null
           execution_limit_per_user?: number | null
           execution_limit_window?: string | null
+          executor_blacklist_enabled?: boolean | null
+          force_latest_version?: boolean | null
           game_restriction_enabled?: boolean | null
           geo_blocked_countries?: string[] | null
           geo_blocking_enabled?: boolean | null
           hide_code?: boolean | null
+          hook_detection_enabled?: boolean | null
+          hwid_reset_cooldown_hours?: number | null
           id?: string
           ip_tracking_enabled?: boolean
           multi_account_detection?: boolean | null
@@ -825,7 +983,9 @@ export type Database = {
           title?: string | null
           updated_at?: string
           user_id: string
+          vm_detection_enabled?: boolean | null
           webhook_alerts_enabled?: boolean | null
+          webhook_events?: Json | null
           webhook_url?: string | null
         }
         Update: {
@@ -834,13 +994,19 @@ export type Database = {
           content?: string
           crash_detection_enabled?: boolean | null
           created_at?: string
+          current_version?: string | null
+          dev_console_loader?: boolean | null
           execution_limit_enabled?: boolean | null
           execution_limit_per_user?: number | null
           execution_limit_window?: string | null
+          executor_blacklist_enabled?: boolean | null
+          force_latest_version?: boolean | null
           game_restriction_enabled?: boolean | null
           geo_blocked_countries?: string[] | null
           geo_blocking_enabled?: boolean | null
           hide_code?: boolean | null
+          hook_detection_enabled?: boolean | null
+          hwid_reset_cooldown_hours?: number | null
           id?: string
           ip_tracking_enabled?: boolean
           multi_account_detection?: boolean | null
@@ -856,7 +1022,9 @@ export type Database = {
           title?: string | null
           updated_at?: string
           user_id?: string
+          vm_detection_enabled?: boolean | null
           webhook_alerts_enabled?: boolean | null
+          webhook_events?: Json | null
           webhook_url?: string | null
         }
         Relationships: []

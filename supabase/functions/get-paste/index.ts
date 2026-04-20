@@ -2291,41 +2291,53 @@ if not ${v.antiEnvLog}() then _reportBypass("pre_fetch_env", "env_logger_before_
 if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_failed") end
 if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
-${options?.showConsoleFeedback ? `
--- Animated rconsole loading bar
+-- v15.1: VM / Emulator detection (heuristic)
 pcall(function()
-  local _barLen = 30
+  local _vmFlags = 0
+  if not game or typeof(game) ~= "Instance" then _vmFlags = _vmFlags + 1 end
+  if not workspace or not workspace.FindFirstChild then _vmFlags = _vmFlags + 1 end
+  if not task or not task.wait then _vmFlags = _vmFlags + 1 end
+  if rawget(_G, "io") and rawget(_G, "os") and rawget(_G, "package") then _vmFlags = _vmFlags + 2 end
+  if rawget(_G, "require") and not rawget(_G, "game") then _vmFlags = _vmFlags + 2 end
+  if _vmFlags >= 2 then
+    _reportBypass("vm_detected", "non_roblox_environment_flags_" .. tostring(_vmFlags))
+  end
+end)
+
+-- v15.1: Hooked-function deep detection
+pcall(function()
+  local _checks = {game.HttpGet, game.HttpGetAsync, loadstring}
+  for _, fn in ipairs(_checks) do
+    if hookcheck and pcall(hookcheck, fn) and hookcheck(fn) then
+      _reportBypass("hook_detected", "core_function_hooked")
+      break
+    end
+    if iscclosure and not iscclosure(fn) then
+      _reportBypass("hook_detected", "core_function_replaced_with_lua")
+      break
+    end
+  end
+end)
+
+${options?.showConsoleFeedback ? `
+-- DevConsole (F9) animated loading bar — visible in real Roblox dev console via warn()
+_G._ULT_AUTH_START = tick()
+pcall(function()
+  local _barLen = 24
   local _steps = {
-    {0, "Scanning environment..."},
-    {15, "Verifying integrity..."},
-    {35, "Checking protections..."},
-    {50, "Fetching payload..."},
+    {12, "scanning environment"},
+    {28, "verifying integrity"},
+    {44, "checking protections"},
+    {60, "authenticating"},
   }
-  -- Always re-create console so it works on re-execution and after rejoining
-  pcall(function() if rconsolecreate then rconsolecreate() end end)
-  local _hasRC = pcall(function() rconsoleclear() end)
-  if _hasRC then
-    pcall(function() rconsolesettitle("ULT Protection") end)
-    for _, step in ipairs(_steps) do
-      local _target = step[1]
-      local _msg = step[2]
-      for i = (_steps[math.max(1, _ - 1)] and _steps[_ - 1] and _steps[_ - 1][1] or 0), _target do
-        local _pct = i / 100
-        local _eased = 1 - (1 - _pct)^2
-        local _filled = math.floor(_eased * _barLen)
-        local _empty = _barLen - _filled
-        local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-        pcall(rconsoleclear)
-        pcall(rconsoleprint, string.format("Loading... [%s] %d%%\\n%s\\n", _bar, math.floor(_eased * 100), _msg))
-        task.wait(0.03)
-      end
-    end
-  else
-    for _, step in ipairs(_steps) do
-      local _filled = math.floor(_barLen * step[1] / 100)
-      local _empty = _barLen - _filled
-      print("[ULT] [" .. string.rep("#", _filled) .. string.rep("-", _empty) .. "] " .. step[1] .. "% - " .. step[2])
-    end
+  warn("[ult ~ whitelist] \\xe2\\x97\\x87 initializing secure handshake")
+  for _, step in ipairs(_steps) do
+    local _pct = step[1] / 100
+    local _filled = math.floor(_pct * _barLen)
+    local _empty = _barLen - _filled
+    local _bar = string.rep("\\xe2\\x96\\x88", _filled) .. string.rep("\\xe2\\x96\\x91", _empty)
+    warn(string.format("[ult ~ whitelist] [%s] %d%% - %s", _bar, step[1], step[2]))
+    task.wait(0.04)
   end
 end)
 ` : ''}
@@ -2433,28 +2445,20 @@ if s and r then
     _pieces = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local _barLen = 30
-      pcall(function() if rconsolecreate then rconsolecreate() end end)
-      local _hasRC = pcall(function() rconsoleclear() end)
-      if _hasRC then
-        for i = 50, 100 do
-          local _pct = i / 100
-          local _eased = 1 - (1 - _pct)^2
-          local _filled = math.floor(_eased * _barLen)
-          local _empty = _barLen - _filled
-          local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-          local _msg = i < 75 and "Decrypting chunks..." or (i < 100 and "Executing..." or "Done.")
-          pcall(rconsoleclear)
-          pcall(rconsoleprint, string.format("Loading... [%s] %d%%\\n%s\\n", _bar, math.floor(_eased * 100), _msg))
-          task.wait(0.03)
-        end
-        pcall(rconsoleclear)
-        pcall(rconsoleprint, "Loading... [" .. string.rep("#", _barLen) .. "] 100%\\nDone.\\n")
-      else
-        print("[ULT] [" .. string.rep("#", _barLen) .. "] 100% - Script loaded successfully.")
+      local _barLen = 24
+      local _phases = {{72, "decrypting chunks"}, {88, "assembling"}, {100, "executing"}}
+      for _, ph in ipairs(_phases) do
+        local _pct = ph[1] / 100
+        local _filled = math.floor(_pct * _barLen)
+        local _empty = _barLen - _filled
+        local _bar = string.rep("\\xe2\\x96\\x88", _filled) .. string.rep("\\xe2\\x96\\x91", _empty)
+        warn(string.format("[ult ~ whitelist] [%s] %d%% - %s", _bar, ph[1], ph[2]))
+        task.wait(0.03)
       end
+      local _elapsed = string.format("%.2f", tick() - (_G._ULT_AUTH_START or tick()))
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("[ULT] Welcome, " .. tostring(pName) .. ". Protected by ULT Protection v10.3")
+      warn("[ult ~ whitelist] \\xe2\\x97\\x86 authenticated successfully in " .. _elapsed .. "s")
+      warn("[ult ~ whitelist] \\xe2\\x97\\x86 welcome, " .. tostring(pName) .. " - protected by ULT Cloud")
     end)
 ` : ''}
     -- v12.2: Decoys moved post-execution for instant loading
@@ -2537,28 +2541,20 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     decoded = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local _barLen = 30
-      pcall(function() if rconsolecreate then rconsolecreate() end end)
-      local _hasRC = pcall(function() rconsoleclear() end)
-      if _hasRC then
-        for i = 50, 100 do
-          local _pct = i / 100
-          local _eased = 1 - (1 - _pct)^2
-          local _filled = math.floor(_eased * _barLen)
-          local _empty = _barLen - _filled
-          local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-          local _msg = i < 75 and "Decrypting..." or (i < 100 and "Executing..." or "Done.")
-          pcall(rconsoleclear)
-          pcall(rconsoleprint, string.format("Loading... [%s] %d%%\\n%s\\n", _bar, math.floor(_eased * 100), _msg))
-          task.wait(0.03)
-        end
-        pcall(rconsoleclear)
-        pcall(rconsoleprint, "Loading... [" .. string.rep("#", _barLen) .. "] 100%\\nDone.\\n")
-      else
-        print("[ULT] [" .. string.rep("#", _barLen) .. "] 100% - Script loaded successfully.")
+      local _barLen = 24
+      local _phases = {{72, "decrypting"}, {88, "compiling"}, {100, "executing"}}
+      for _, ph in ipairs(_phases) do
+        local _pct = ph[1] / 100
+        local _filled = math.floor(_pct * _barLen)
+        local _empty = _barLen - _filled
+        local _bar = string.rep("\\xe2\\x96\\x88", _filled) .. string.rep("\\xe2\\x96\\x91", _empty)
+        warn(string.format("[ult ~ whitelist] [%s] %d%% - %s", _bar, ph[1], ph[2]))
+        task.wait(0.03)
       end
+      local _elapsed = string.format("%.2f", tick() - (_G._ULT_AUTH_START or tick()))
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      print("[ULT] Welcome, " .. tostring(pName) .. ". Protected by ULT Protection v10.3")
+      warn("[ult ~ whitelist] \\xe2\\x97\\x86 authenticated successfully in " .. _elapsed .. "s")
+      warn("[ult ~ whitelist] \\xe2\\x97\\x86 welcome, " .. tostring(pName) .. " - protected by ULT Cloud")
     end)
 ` : ''}
 
@@ -3470,24 +3466,69 @@ end
 ${code}`;
 }
 
-// Webhook alert (fire-and-forget)
-function fireWebhookAlert(paste: any, uid: string, ip: string, hwid: string | null, eventType: string) {
+// Webhook alert (fire-and-forget) — supports rich event types and per-paste event filtering
+function fireWebhookAlert(paste: any, uid: string, ip: string, hwid: string | null, eventType: string, extra?: Record<string, any>) {
   if (!paste.webhook_alerts_enabled || !paste.webhook_url) return;
   const webhookUrl = paste.webhook_url;
   if (!webhookUrl.startsWith('https://discord.com/api/webhooks/') && 
       !webhookUrl.startsWith('https://canary.discord.com/api/webhooks/') &&
       !webhookUrl.startsWith('https://ptb.discord.com/api/webhooks/')) return;
-  
+
+  // Per-paste event filter — only fire if event category is enabled
+  const enabledEvents: string[] = Array.isArray(paste.webhook_events) ? paste.webhook_events : ['redeem','exec','ban','bypass'];
+  const cat =
+    eventType === 'execution' ? 'exec' :
+    eventType.startsWith('ban') || eventType.includes('blocked') ? 'ban' :
+    eventType.includes('bypass') || eventType.includes('hook') || eventType.includes('vm') ? 'bypass' :
+    eventType.includes('redeem') || eventType.includes('key') || eventType.includes('hwid') ? 'redeem' :
+    'exec';
+  if (!enabledEvents.includes(cat)) return;
+
+  const titleMap: Record<string,string> = {
+    execution: 'Script Executed',
+    time_bomb_expired: 'Time Bomb Expired',
+    execution_limit_reached: 'Execution Limit Reached',
+    multi_account_blocked: 'Multi-Account Blocked',
+    geo_blocked: 'Geo-Blocked Region',
+    executor_blocked: 'Blacklisted Executor',
+    vm_detected: 'Virtual Machine Detected',
+    hook_detected: 'Hooked Function Detected',
+    hwid_locked: 'HWID Locked',
+    hwid_reset: 'HWID Reset',
+    key_redeemed: 'Key Redeemed',
+    key_transferred: 'Key Transferred',
+    bypass_attempt: 'Bypass Attempt',
+    version_mismatch: 'Outdated Script Version',
+  };
+  const colorMap: Record<string,number> = {
+    execution: 0x9b87f5, key_redeemed: 0x57f287, hwid_locked: 0x5865f2,
+    bypass_attempt: 0xed4245, executor_blocked: 0xed4245, vm_detected: 0xed4245,
+    hook_detected: 0xed4245, multi_account_blocked: 0xed4245, time_bomb_expired: 0xfee75c,
+  };
+
+  const fields: any[] = [
+    { name: 'Roblox ID', value: uid || 'unknown', inline: true },
+    { name: 'IP', value: `||${ip || 'unknown'}||`, inline: true },
+    { name: 'HWID', value: hwid ? `\`${hwid.substring(0, 16)}...\`` : 'N/A', inline: true },
+  ];
+  if (extra) {
+    for (const [k, v] of Object.entries(extra)) {
+      if (v == null) continue;
+      fields.push({ name: k, value: String(v).substring(0, 256), inline: true });
+    }
+  }
+
   const embed = {
     embeds: [{
-      title: `🔔 Script ${eventType === 'execution' ? 'Executed' : 'Alert'}`,
-      description: `**Paste:** ${paste.title || paste.slug}\n**Roblox ID:** ${uid}\n**IP:** ||${ip}||\n**HWID:** ${hwid ? hwid.substring(0, 16) + '...' : 'N/A'}`,
-      color: eventType === 'execution' ? 0x00ff00 : 0xff0000,
+      title: titleMap[eventType] || `Event: ${eventType}`,
+      description: `**Paste:** ${paste.title || paste.slug}`,
+      color: colorMap[eventType] ?? 0x9b87f5,
+      fields,
       timestamp: new Date().toISOString(),
-      footer: { text: 'ULT Protection v12' },
+      footer: { text: 'ULT Cloud Protection' },
     }],
   };
-  
+
   fetch(webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -3564,6 +3605,39 @@ async function applyV12Protections(
     }
     if (maResult.flagged) {
       fireWebhookAlert(paste, uid, clientIp, hwid, 'multi_account_flagged');
+    }
+  }
+
+  // 4. Executor Blacklist — block specific executors by name (UA-based)
+  if (paste.executor_blacklist_enabled) {
+    try {
+      const { data: blacklist } = await supabaseClient
+        .from('paste_executor_blacklist')
+        .select('executor_name')
+        .eq('paste_id', paste.id);
+      if (blacklist && blacklist.length > 0) {
+        const ua = (paste._ua || '').toLowerCase();
+        const blocked = blacklist.find((b: any) => ua.includes(b.executor_name.toLowerCase()));
+        if (blocked) {
+          console.log(`[v12] EXECUTOR_BLOCKED: ${blocked.executor_name} on paste ${paste.id}`);
+          fireWebhookAlert(paste, uid, clientIp, hwid, 'executor_blocked', { executor: blocked.executor_name });
+          return new Response(generateKickEncrypted(`Executor "${blocked.executor_name}" is not supported on this script`, slug, tk, uid), {
+            status: 200, headers: textHeaders,
+          });
+        }
+      }
+    } catch (e) { /* fail-open */ }
+  }
+
+  // 5. Forced Latest Version — kick if user is on outdated version
+  if (paste.force_latest_version && paste.current_version) {
+    const clientVersion = paste._client_version || '';
+    if (clientVersion && clientVersion !== paste.current_version) {
+      console.log(`[v12] VERSION_MISMATCH: client=${clientVersion} required=${paste.current_version}`);
+      fireWebhookAlert(paste, uid, clientIp, hwid, 'version_mismatch', { client: clientVersion, required: paste.current_version });
+      return new Response(generateKickEncrypted(`Outdated script version (${clientVersion}). Latest: ${paste.current_version}. Please update.`, slug, tk, uid), {
+        status: 200, headers: textHeaders,
+      });
     }
   }
 
@@ -4341,6 +4415,8 @@ end)`;
           .eq('id', tokenData.id).is('used_at', null);
         
         // v12: Protection checks for non-protected pastes too
+        paste._ua = req.headers.get('user-agent') || '';
+        paste._client_version = req.headers.get('x-script-version') || url.searchParams.get('_v') || '';
         const v12NonProtResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
         if (v12NonProtResult) return v12NonProtResult;
 
@@ -4673,6 +4749,8 @@ end)`;
       }
 
       // ===== v12: NEW PROTECTION CHECKS (public protection path) =====
+      paste._ua = req.headers.get('user-agent') || '';
+      paste._client_version = req.headers.get('x-script-version') || url.searchParams.get('_v') || '';
       const v12PubResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
       if (v12PubResult) return v12PubResult;
 
@@ -4861,6 +4939,8 @@ end)`;
     }
 
     // ===== v12: NEW PROTECTION CHECKS =====
+    paste._ua = req.headers.get('user-agent') || '';
+    paste._client_version = req.headers.get('x-script-version') || url.searchParams.get('_v') || '';
     const v12Result = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
     if (v12Result) return v12Result;
 
