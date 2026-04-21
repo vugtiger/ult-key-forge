@@ -4305,6 +4305,98 @@ loadstring(game:HttpGet(_url))()`;
       }
     }
 
+    // ===== PROTECTION KEY MODE =====
+    // When pastes.protection_mode = 'protection_key', the user must set _G.ScriptKey before loadstring.
+    // The loader reads _G.ScriptKey, sends it as ?pkey=, we validate + bind to first roblox uid (anti-spoof).
+    if (paste.protection_mode === 'protection_key' && !isLikelyBrowser) {
+      const pkey = url.searchParams.get('pkey') || '';
+
+      // Phase 1: no pkey yet → return tiny key-grabber loader that reads _G.ScriptKey
+      if (!pkey && !tk && !kbt) {
+        const keyGrabber = `-- ULT Cloud Protection Key Loader
+local _ok, _err = pcall(function()
+  local _key = tostring(_G.ScriptKey or "")
+  local _p = game:GetService("Players").LocalPlayer
+  if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
+  if _key == "" then
+    _p:Kick("[ULT Cloud] No key provided. Set _G.ScriptKey before loading.")
+    return
+  end
+  local _s, _r = pcall(function()
+    return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&pkey=" .. _key .. "&_=" .. tostring(tick()))
+  end)
+  if not _s or not _r or _r == "" then return end
+  local _f, _e = loadstring(_r)
+  if not _f then return end
+  _f()
+end)`;
+        return new Response(keyGrabber, { status: 200, headers: textHeaders });
+      }
+
+      // Phase 2: pkey present → validate, bind, and return real encrypted loader
+      if (pkey && uid) {
+        const { data: pkRow } = await supabase
+          .from('protection_keys' as any)
+          .select('*')
+          .eq('paste_id', paste.id)
+          .eq('key_value', pkey)
+          .eq('is_active', true)
+          .maybeSingle() as { data: any };
+
+        const logEvent = (eventType: string, keyId: string | null) => {
+          supabase.from('protection_key_events' as any).insert({
+            key_id: keyId, paste_id: paste.id, event_type: eventType,
+            roblox_user_id: uid, ip_address: clientIp,
+            user_agent: req.headers.get('user-agent') || '',
+          } as any).then(() => {}).catch(() => {});
+        };
+
+        if (!pkRow) {
+          logEvent('kick_invalid', null);
+          return new Response(generateKickPlain('Incorrect key'), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          });
+        }
+
+        // Expiry check
+        if (pkRow.expires_at && new Date(pkRow.expires_at) < new Date()) {
+          logEvent('kick_expired', pkRow.id);
+          return new Response(generateKickPlain('This key has expired'), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          });
+        }
+
+        // Anti-spoof: bind to first user that uses it; reject anyone else
+        if (pkRow.bound_roblox_user_id && pkRow.bound_roblox_user_id !== uid) {
+          logEvent('kick_spoof', pkRow.id);
+          return new Response(generateKickPlain('This key is bound to another account'), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          });
+        }
+
+        // First-time use → bind it
+        if (!pkRow.bound_roblox_user_id) {
+          await (supabase.from('protection_keys' as any) as any)
+            .update({ bound_roblox_user_id: uid, bound_at: new Date().toISOString(), bound_ip: clientIp })
+            .eq('id', pkRow.id);
+          logEvent('redeem', pkRow.id);
+        }
+        logEvent('success', pkRow.id);
+
+        // Issue a regular execution token + return the standard encrypted loader
+        const newToken = generateToken();
+        const sessionSecret = generateToken().slice(0, 16);
+        await supabase.from('paste_execution_tokens').insert({
+          paste_id: paste.id, roblox_user_id: uid, token: newToken,
+          expires_at: new Date(Date.now() + 30000).toISOString(), bound_ip: clientIp,
+        });
+        const pkLoader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
+          showConsoleFeedback: paste.show_loading_bar !== false,
+        });
+        return new Response(pkLoader, { status: 200, headers: textHeaders });
+      }
+    }
+
     // ===== GLOBAL ANTI-FETCH PROTECTION =====
     // This runs for ALL paste types (protected, public-protection, non-protected).
     // When anti_fetch_enabled is on and there's no execution context (no uid, no tk, no kbt, no key),
@@ -4394,7 +4486,6 @@ end)`;
         
         // v12: Protection checks for non-protected pastes too
         paste._ua = req.headers.get('user-agent') || '';
-        paste._client_version = req.headers.get('x-script-version') || url.searchParams.get('_v') || '';
         const v12NonProtResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
         if (v12NonProtResult) return v12NonProtResult;
 
@@ -4728,7 +4819,6 @@ end)`;
 
       // ===== v12: NEW PROTECTION CHECKS (public protection path) =====
       paste._ua = req.headers.get('user-agent') || '';
-      paste._client_version = req.headers.get('x-script-version') || url.searchParams.get('_v') || '';
       const v12PubResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
       if (v12PubResult) return v12PubResult;
 
@@ -4918,7 +5008,6 @@ end)`;
 
     // ===== v12: NEW PROTECTION CHECKS =====
     paste._ua = req.headers.get('user-agent') || '';
-    paste._client_version = req.headers.get('x-script-version') || url.searchParams.get('_v') || '';
     const v12Result = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
     if (v12Result) return v12Result;
 
