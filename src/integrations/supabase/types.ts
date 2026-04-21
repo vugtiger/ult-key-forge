@@ -795,6 +795,7 @@ export type Database = {
           updated_at: string
           user_id: string
           webhook_alerts_enabled: boolean | null
+          webhook_events: Json | null
           webhook_url: string | null
         }
         Insert: {
@@ -826,6 +827,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           webhook_alerts_enabled?: boolean | null
+          webhook_events?: Json | null
           webhook_url?: string | null
         }
         Update: {
@@ -857,6 +859,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           webhook_alerts_enabled?: boolean | null
+          webhook_events?: Json | null
           webhook_url?: string | null
         }
         Relationships: []
@@ -902,6 +905,110 @@ export type Database = {
           username?: string | null
         }
         Relationships: []
+      }
+      protection_key_events: {
+        Row: {
+          created_at: string
+          details: Json | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          key_id: string | null
+          paste_id: string
+          roblox_user_id: string | null
+          roblox_username: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          key_id?: string | null
+          paste_id: string
+          roblox_user_id?: string | null
+          roblox_username?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          key_id?: string | null
+          paste_id?: string
+          roblox_user_id?: string | null
+          roblox_username?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protection_key_events_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "protection_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protection_key_events_paste_id_fkey"
+            columns: ["paste_id"]
+            isOneToOne: false
+            referencedRelation: "pastes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protection_keys: {
+        Row: {
+          bound_at: string | null
+          bound_ip: string | null
+          bound_roblox_user_id: string | null
+          bound_roblox_username: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          key_value: string
+          notes: string | null
+          paste_id: string
+        }
+        Insert: {
+          bound_at?: string | null
+          bound_ip?: string | null
+          bound_roblox_user_id?: string | null
+          bound_roblox_username?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_value: string
+          notes?: string | null
+          paste_id: string
+        }
+        Update: {
+          bound_at?: string | null
+          bound_ip?: string | null
+          bound_roblox_user_id?: string | null
+          bound_roblox_username?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_value?: string
+          notes?: string | null
+          paste_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protection_keys_paste_id_fkey"
+            columns: ["paste_id"]
+            isOneToOne: false
+            referencedRelation: "pastes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rate_limits: {
         Row: {
@@ -1314,8 +1421,12 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          layout_preset: string
           neon_enabled: boolean | null
           primary_color: string
+          tab_density: string
+          tab_radius: number
+          tab_shape: string
           ult_lua_style: boolean | null
           updated_at: string | null
           user_id: string
@@ -1323,8 +1434,12 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          layout_preset?: string
           neon_enabled?: boolean | null
           primary_color?: string
+          tab_density?: string
+          tab_radius?: number
+          tab_shape?: string
           ult_lua_style?: boolean | null
           updated_at?: string | null
           user_id: string
@@ -1332,8 +1447,12 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          layout_preset?: string
           neon_enabled?: boolean | null
           primary_color?: string
+          tab_density?: string
+          tab_radius?: number
+          tab_shape?: string
           ult_lua_style?: boolean | null
           updated_at?: string | null
           user_id?: string
