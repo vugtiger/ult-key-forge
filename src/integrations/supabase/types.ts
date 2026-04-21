@@ -1421,8 +1421,12 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          layout_preset: string
           neon_enabled: boolean | null
           primary_color: string
+          tab_density: string
+          tab_radius: number
+          tab_shape: string
           ult_lua_style: boolean | null
           updated_at: string | null
           user_id: string
@@ -1430,8 +1434,12 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          layout_preset?: string
           neon_enabled?: boolean | null
           primary_color?: string
+          tab_density?: string
+          tab_radius?: number
+          tab_shape?: string
           ult_lua_style?: boolean | null
           updated_at?: string | null
           user_id: string
@@ -1439,8 +1447,12 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          layout_preset?: string
           neon_enabled?: boolean | null
           primary_color?: string
+          tab_density?: string
+          tab_radius?: number
+          tab_shape?: string
           ult_lua_style?: boolean | null
           updated_at?: string | null
           user_id?: string
