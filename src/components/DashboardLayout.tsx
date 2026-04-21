@@ -8,13 +8,12 @@ import {
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye, Volume2, VolumeX, Key } from "lucide-react";
+import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEffect";
-import { applyDashboardLayout, LayoutPreset, TabDensity, TabShape } from "@/components/DashboardCustomizer";
 
 const navigationItems = [
   { title: "Key System", url: "/dashboard", icon: Zap },
@@ -24,7 +23,6 @@ const navigationItems = [
   { title: "AI", url: "/ai-assistant", icon: Bot },
   { title: "Discord", url: "/discord-bot", icon: MessageSquare },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
-  { title: "Protection Keys", url: "/protection-keys", icon: Key },
   { title: "Changelog", url: "/changelog", icon: History },
   { title: "Preferences", url: "/settings", icon: Settings },
 ];
@@ -179,18 +177,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   useEffect(() => {
     const loadUserTheme = async (userId: string) => {
       try {
-        const { data } = await supabase.from('user_themes')
-          .select('primary_color, neon_enabled, ult_lua_style, layout_preset, tab_radius, tab_density, tab_shape')
-          .eq('user_id', userId).single();
-        if (data) {
-          applyTheme(data.primary_color, data.neon_enabled || false, data.ult_lua_style || false);
-          applyDashboardLayout(
-            (data.layout_preset as LayoutPreset) || "default",
-            data.tab_radius ?? 12,
-            (data.tab_density as TabDensity) || "normal",
-            (data.tab_shape as TabShape) || "pill",
-          );
-        }
+        const { data } = await supabase.from('user_themes').select('primary_color, neon_enabled, ult_lua_style').eq('user_id', userId).single();
+        if (data) applyTheme(data.primary_color, data.neon_enabled || false, data.ult_lua_style || false);
       } catch (error) { console.error('Error loading theme:', error); }
     };
 

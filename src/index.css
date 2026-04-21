@@ -157,39 +157,22 @@
     opacity: 0.4;
   }
 
-  /* Neon text effect — softer, single-layer to avoid double/blurred text */
-  .neon-text-enabled {
-    --neon-c: var(--neon-color, hsl(var(--foreground)));
-    --neon-g: var(--neon-color-glow, hsl(var(--foreground) / 0.4));
-  }
+  /* Neon text effect */
   .neon-text-enabled h1,
   .neon-text-enabled h2,
   .neon-text-enabled h3,
   .neon-text-enabled h4,
-  .neon-text-enabled h5,
-  .neon-text-enabled h6 {
-    text-shadow: 0 0 6px var(--neon-g), 0 0 14px var(--neon-g);
-  }
   .neon-text-enabled p,
   .neon-text-enabled span,
   .neon-text-enabled a,
   .neon-text-enabled label,
-  .neon-text-enabled li {
-    text-shadow: 0 0 4px var(--neon-g);
-  }
-  /* Never apply neon glow to inputs, buttons, code, or interactive controls — it makes text look doubled */
-  .neon-text-enabled input,
-  .neon-text-enabled textarea,
-  .neon-text-enabled select,
-  .neon-text-enabled button,
-  .neon-text-enabled code,
-  .neon-text-enabled pre,
-  .neon-text-enabled [role="combobox"],
-  .neon-text-enabled [role="tab"],
-  .neon-text-enabled [data-radix-collection-item],
-  .neon-text-enabled .no-neon,
-  .neon-text-enabled .no-neon * {
-    text-shadow: none !important;
+  .neon-text-enabled button {
+    text-shadow: 
+      0 0 5px var(--neon-color, currentColor),
+      0 0 10px var(--neon-color, currentColor),
+      0 0 20px var(--neon-color-glow, currentColor),
+      0 0 40px var(--neon-color-glow, currentColor),
+      0 0 80px var(--neon-color-glow, currentColor);
   }
 
   /* ULT LUA style (bold italic) */

@@ -2292,47 +2292,42 @@ if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_f
 if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
 ${options?.showConsoleFeedback ? `
--- rconsole loading bar — only on PC executors that support rconsole.
--- On mobile (no rconsole), we skip the console UI entirely and only chat-print the welcome later.
-_G._ULT_IS_MOBILE = false
+-- Animated rconsole loading bar
 pcall(function()
-  local _uis = game:GetService("UserInputService")
-  local _plat = _uis:GetPlatform()
-  if _plat == Enum.Platform.Android or _plat == Enum.Platform.IOS then
-    _G._ULT_IS_MOBILE = true
-  end
-  if not _G._ULT_IS_MOBILE and _uis.TouchEnabled and not _uis.MouseEnabled and not _uis.KeyboardEnabled then
-    _G._ULT_IS_MOBILE = true
+  local _barLen = 30
+  local _steps = {
+    {0, "Scanning environment..."},
+    {15, "Verifying integrity..."},
+    {35, "Checking protections..."},
+    {50, "Fetching payload..."},
+  }
+  -- Always re-create console so it works on re-execution and after rejoining
+  pcall(function() if rconsolecreate then rconsolecreate() end end)
+  local _hasRC = pcall(function() rconsoleclear() end)
+  if _hasRC then
+    pcall(function() rconsolesettitle("ULT Protection") end)
+    for _, step in ipairs(_steps) do
+      local _target = step[1]
+      local _msg = step[2]
+      for i = (_steps[math.max(1, _ - 1)] and _steps[_ - 1] and _steps[_ - 1][1] or 0), _target do
+        local _pct = i / 100
+        local _eased = 1 - (1 - _pct)^2
+        local _filled = math.floor(_eased * _barLen)
+        local _empty = _barLen - _filled
+        local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
+        pcall(rconsoleclear)
+        pcall(rconsoleprint, string.format("Loading... [%s] %d%%\\n%s\\n", _bar, math.floor(_eased * 100), _msg))
+        task.wait(0.03)
+      end
+    end
+  else
+    for _, step in ipairs(_steps) do
+      local _filled = math.floor(_barLen * step[1] / 100)
+      local _empty = _barLen - _filled
+      print("[ULT] [" .. string.rep("#", _filled) .. string.rep("-", _empty) .. "] " .. step[1] .. "% - " .. step[2])
+    end
   end
 end)
-
-local _hasRConsole = (type(rconsoleprint) == "function") or (type(rconsoleinfo) == "function") or (type(rconsolewarn) == "function")
-local _rPrint = rconsoleprint or rconsoleinfo or rconsolewarn or function() end
-local _rClear = rconsoleclear or function() end
-local _rName  = rconsolename or rconsolesettitle or function() end
-
-if _hasRConsole and not _G._ULT_IS_MOBILE then
-  pcall(function()
-    _rName("ULT Cloud - Whitelist")
-    _rClear()
-    _rPrint("[ULT Cloud] Initializing secure handshake...\\n")
-    local _barLen = 24
-    local _steps = {
-      {12, "scanning environment"},
-      {28, "verifying integrity"},
-      {44, "checking protections"},
-      {60, "authenticating"},
-    }
-    for _, step in ipairs(_steps) do
-      local _pct = step[1] / 100
-      local _filled = math.floor(_pct * _barLen)
-      local _empty = _barLen - _filled
-      local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-      _rPrint(string.format("[ULT Cloud] [%s] %d%% - %s\\n", _bar, step[1], step[2]))
-      task.wait(0.04)
-    end
-  end)
-end
 ` : ''}
 
 -- Execute HTTP request
@@ -2438,29 +2433,28 @@ if s and r then
     _pieces = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local pName = ${v.player}.DisplayName or ${v.player}.Name
-      if _hasRConsole and not _G._ULT_IS_MOBILE then
-        local _barLen = 24
-        local _phases = {{72, "decrypting chunks"}, {88, "assembling"}, {100, "executing"}}
-        for _, ph in ipairs(_phases) do
-          local _pct = ph[1] / 100
-          local _filled = math.floor(_pct * _barLen)
+      local _barLen = 30
+      pcall(function() if rconsolecreate then rconsolecreate() end end)
+      local _hasRC = pcall(function() rconsoleclear() end)
+      if _hasRC then
+        for i = 50, 100 do
+          local _pct = i / 100
+          local _eased = 1 - (1 - _pct)^2
+          local _filled = math.floor(_eased * _barLen)
           local _empty = _barLen - _filled
           local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-          _rPrint(string.format("[ULT Cloud] [%s] %d%% - %s\\n", _bar, ph[1], ph[2]))
+          local _msg = i < 75 and "Decrypting chunks..." or (i < 100 and "Executing..." or "Done.")
+          pcall(rconsoleclear)
+          pcall(rconsoleprint, string.format("Loading... [%s] %d%%\\n%s\\n", _bar, math.floor(_eased * 100), _msg))
           task.wait(0.03)
         end
-        _rPrint("[ULT Cloud] Authenticated. Welcome, " .. tostring(pName) .. "\\n")
+        pcall(rconsoleclear)
+        pcall(rconsoleprint, "Loading... [" .. string.rep("#", _barLen) .. "] 100%\\nDone.\\n")
       else
-        pcall(function()
-          local _sg = game:GetService("StarterGui")
-          _sg:SetCore("ChatMakeSystemMessage", {
-            Text = "[ULT Cloud] Welcome, " .. tostring(pName) .. " - protected by ULT Cloud",
-            Color = Color3.fromRGB(180, 134, 255),
-            Font = Enum.Font.SourceSansBold,
-          })
-        end)
+        print("[ULT] [" .. string.rep("#", _barLen) .. "] 100% - Script loaded successfully.")
       end
+      local pName = ${v.player}.DisplayName or ${v.player}.Name
+      print("[ULT] Welcome, " .. tostring(pName) .. ". Protected by ULT Protection v10.3")
     end)
 ` : ''}
     -- v12.2: Decoys moved post-execution for instant loading
@@ -2543,29 +2537,28 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     decoded = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local pName = ${v.player}.DisplayName or ${v.player}.Name
-      if _hasRConsole and not _G._ULT_IS_MOBILE then
-        local _barLen = 24
-        local _phases = {{72, "decrypting"}, {88, "compiling"}, {100, "executing"}}
-        for _, ph in ipairs(_phases) do
-          local _pct = ph[1] / 100
-          local _filled = math.floor(_pct * _barLen)
+      local _barLen = 30
+      pcall(function() if rconsolecreate then rconsolecreate() end end)
+      local _hasRC = pcall(function() rconsoleclear() end)
+      if _hasRC then
+        for i = 50, 100 do
+          local _pct = i / 100
+          local _eased = 1 - (1 - _pct)^2
+          local _filled = math.floor(_eased * _barLen)
           local _empty = _barLen - _filled
           local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-          _rPrint(string.format("[ULT Cloud] [%s] %d%% - %s\\n", _bar, ph[1], ph[2]))
+          local _msg = i < 75 and "Decrypting..." or (i < 100 and "Executing..." or "Done.")
+          pcall(rconsoleclear)
+          pcall(rconsoleprint, string.format("Loading... [%s] %d%%\\n%s\\n", _bar, math.floor(_eased * 100), _msg))
           task.wait(0.03)
         end
-        _rPrint("[ULT Cloud] Authenticated. Welcome, " .. tostring(pName) .. "\\n")
+        pcall(rconsoleclear)
+        pcall(rconsoleprint, "Loading... [" .. string.rep("#", _barLen) .. "] 100%\\nDone.\\n")
       else
-        pcall(function()
-          local _sg = game:GetService("StarterGui")
-          _sg:SetCore("ChatMakeSystemMessage", {
-            Text = "[ULT Cloud] Welcome, " .. tostring(pName) .. " - protected by ULT Cloud",
-            Color = Color3.fromRGB(180, 134, 255),
-            Font = Enum.Font.SourceSansBold,
-          })
-        end)
+        print("[ULT] [" .. string.rep("#", _barLen) .. "] 100% - Script loaded successfully.")
       end
+      local pName = ${v.player}.DisplayName or ${v.player}.Name
+      print("[ULT] Welcome, " .. tostring(pName) .. ". Protected by ULT Protection v10.3")
     end)
 ` : ''}
 
@@ -3477,69 +3470,24 @@ end
 ${code}`;
 }
 
-// Webhook alert (fire-and-forget) — supports rich event types and per-paste event filtering
-function fireWebhookAlert(paste: any, uid: string, ip: string, hwid: string | null, eventType: string, extra?: Record<string, any>) {
+// Webhook alert (fire-and-forget)
+function fireWebhookAlert(paste: any, uid: string, ip: string, hwid: string | null, eventType: string) {
   if (!paste.webhook_alerts_enabled || !paste.webhook_url) return;
   const webhookUrl = paste.webhook_url;
   if (!webhookUrl.startsWith('https://discord.com/api/webhooks/') && 
       !webhookUrl.startsWith('https://canary.discord.com/api/webhooks/') &&
       !webhookUrl.startsWith('https://ptb.discord.com/api/webhooks/')) return;
-
-  // Per-paste event filter — only fire if event category is enabled
-  const enabledEvents: string[] = Array.isArray(paste.webhook_events) ? paste.webhook_events : ['redeem','exec','ban','bypass'];
-  const cat =
-    eventType === 'execution' ? 'exec' :
-    eventType.startsWith('ban') || eventType.includes('blocked') ? 'ban' :
-    eventType.includes('bypass') || eventType.includes('hook') || eventType.includes('vm') ? 'bypass' :
-    eventType.includes('redeem') || eventType.includes('key') || eventType.includes('hwid') ? 'redeem' :
-    'exec';
-  if (!enabledEvents.includes(cat)) return;
-
-  const titleMap: Record<string,string> = {
-    execution: 'Script Executed',
-    time_bomb_expired: 'Time Bomb Expired',
-    execution_limit_reached: 'Execution Limit Reached',
-    multi_account_blocked: 'Multi-Account Blocked',
-    geo_blocked: 'Geo-Blocked Region',
-    executor_blocked: 'Blacklisted Executor',
-    vm_detected: 'Virtual Machine Detected',
-    hook_detected: 'Hooked Function Detected',
-    hwid_locked: 'HWID Locked',
-    hwid_reset: 'HWID Reset',
-    key_redeemed: 'Key Redeemed',
-    key_transferred: 'Key Transferred',
-    bypass_attempt: 'Bypass Attempt',
-    version_mismatch: 'Outdated Script Version',
-  };
-  const colorMap: Record<string,number> = {
-    execution: 0x9b87f5, key_redeemed: 0x57f287, hwid_locked: 0x5865f2,
-    bypass_attempt: 0xed4245, executor_blocked: 0xed4245, vm_detected: 0xed4245,
-    hook_detected: 0xed4245, multi_account_blocked: 0xed4245, time_bomb_expired: 0xfee75c,
-  };
-
-  const fields: any[] = [
-    { name: 'Roblox ID', value: uid || 'unknown', inline: true },
-    { name: 'IP', value: `||${ip || 'unknown'}||`, inline: true },
-    { name: 'HWID', value: hwid ? `\`${hwid.substring(0, 16)}...\`` : 'N/A', inline: true },
-  ];
-  if (extra) {
-    for (const [k, v] of Object.entries(extra)) {
-      if (v == null) continue;
-      fields.push({ name: k, value: String(v).substring(0, 256), inline: true });
-    }
-  }
-
+  
   const embed = {
     embeds: [{
-      title: titleMap[eventType] || `Event: ${eventType}`,
-      description: `**Paste:** ${paste.title || paste.slug}`,
-      color: colorMap[eventType] ?? 0x9b87f5,
-      fields,
+      title: `🔔 Script ${eventType === 'execution' ? 'Executed' : 'Alert'}`,
+      description: `**Paste:** ${paste.title || paste.slug}\n**Roblox ID:** ${uid}\n**IP:** ||${ip}||\n**HWID:** ${hwid ? hwid.substring(0, 16) + '...' : 'N/A'}`,
+      color: eventType === 'execution' ? 0x00ff00 : 0xff0000,
       timestamp: new Date().toISOString(),
-      footer: { text: 'ULT Cloud Protection' },
+      footer: { text: 'ULT Protection v12' },
     }],
   };
-
+  
   fetch(webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -4305,98 +4253,6 @@ loadstring(game:HttpGet(_url))()`;
       }
     }
 
-    // ===== PROTECTION KEY MODE =====
-    // When pastes.protection_mode = 'protection_key', the user must set _G.ScriptKey before loadstring.
-    // The loader reads _G.ScriptKey, sends it as ?pkey=, we validate + bind to first roblox uid (anti-spoof).
-    if (paste.protection_mode === 'protection_key' && !isLikelyBrowser) {
-      const pkey = url.searchParams.get('pkey') || '';
-
-      // Phase 1: no pkey yet → return tiny key-grabber loader that reads _G.ScriptKey
-      if (!pkey && !tk && !kbt) {
-        const keyGrabber = `-- ULT Cloud Protection Key Loader
-local _ok, _err = pcall(function()
-  local _key = tostring(_G.ScriptKey or "")
-  local _p = game:GetService("Players").LocalPlayer
-  if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
-  if _key == "" then
-    _p:Kick("[ULT Cloud] No key provided. Set _G.ScriptKey before loading.")
-    return
-  end
-  local _s, _r = pcall(function()
-    return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&pkey=" .. _key .. "&_=" .. tostring(tick()))
-  end)
-  if not _s or not _r or _r == "" then return end
-  local _f, _e = loadstring(_r)
-  if not _f then return end
-  _f()
-end)`;
-        return new Response(keyGrabber, { status: 200, headers: textHeaders });
-      }
-
-      // Phase 2: pkey present → validate, bind, and return real encrypted loader
-      if (pkey && uid) {
-        const { data: pkRow } = await supabase
-          .from('protection_keys' as any)
-          .select('*')
-          .eq('paste_id', paste.id)
-          .eq('key_value', pkey)
-          .eq('is_active', true)
-          .maybeSingle() as { data: any };
-
-        const logEvent = (eventType: string, keyId: string | null) => {
-          supabase.from('protection_key_events' as any).insert({
-            key_id: keyId, paste_id: paste.id, event_type: eventType,
-            roblox_user_id: uid, ip_address: clientIp,
-            user_agent: req.headers.get('user-agent') || '',
-          } as any).then(() => {}).catch(() => {});
-        };
-
-        if (!pkRow) {
-          logEvent('kick_invalid', null);
-          return new Response(generateKickPlain('Incorrect key'), {
-            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-          });
-        }
-
-        // Expiry check
-        if (pkRow.expires_at && new Date(pkRow.expires_at) < new Date()) {
-          logEvent('kick_expired', pkRow.id);
-          return new Response(generateKickPlain('This key has expired'), {
-            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-          });
-        }
-
-        // Anti-spoof: bind to first user that uses it; reject anyone else
-        if (pkRow.bound_roblox_user_id && pkRow.bound_roblox_user_id !== uid) {
-          logEvent('kick_spoof', pkRow.id);
-          return new Response(generateKickPlain('This key is bound to another account'), {
-            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-          });
-        }
-
-        // First-time use → bind it
-        if (!pkRow.bound_roblox_user_id) {
-          await (supabase.from('protection_keys' as any) as any)
-            .update({ bound_roblox_user_id: uid, bound_at: new Date().toISOString(), bound_ip: clientIp })
-            .eq('id', pkRow.id);
-          logEvent('redeem', pkRow.id);
-        }
-        logEvent('success', pkRow.id);
-
-        // Issue a regular execution token + return the standard encrypted loader
-        const newToken = generateToken();
-        const sessionSecret = generateToken().slice(0, 16);
-        await supabase.from('paste_execution_tokens').insert({
-          paste_id: paste.id, roblox_user_id: uid, token: newToken,
-          expires_at: new Date(Date.now() + 30000).toISOString(), bound_ip: clientIp,
-        });
-        const pkLoader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
-          showConsoleFeedback: paste.show_loading_bar !== false,
-        });
-        return new Response(pkLoader, { status: 200, headers: textHeaders });
-      }
-    }
-
     // ===== GLOBAL ANTI-FETCH PROTECTION =====
     // This runs for ALL paste types (protected, public-protection, non-protected).
     // When anti_fetch_enabled is on and there's no execution context (no uid, no tk, no kbt, no key),
@@ -4485,7 +4341,6 @@ end)`;
           .eq('id', tokenData.id).is('used_at', null);
         
         // v12: Protection checks for non-protected pastes too
-        paste._ua = req.headers.get('user-agent') || '';
         const v12NonProtResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
         if (v12NonProtResult) return v12NonProtResult;
 
@@ -4818,7 +4673,6 @@ end)`;
       }
 
       // ===== v12: NEW PROTECTION CHECKS (public protection path) =====
-      paste._ua = req.headers.get('user-agent') || '';
       const v12PubResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
       if (v12PubResult) return v12PubResult;
 
@@ -5007,7 +4861,6 @@ end)`;
     }
 
     // ===== v12: NEW PROTECTION CHECKS =====
-    paste._ua = req.headers.get('user-agent') || '';
     const v12Result = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
     if (v12Result) return v12Result;
 

@@ -13,7 +13,6 @@ import { settingsHelp } from "@/components/onboarding/helpContent";
 import GoogleTranslate from "@/components/GoogleTranslate";
 import SessionManager from "@/components/SessionManager";
 import AccountInfo from "@/components/AccountInfo";
-import DashboardCustomizer from "@/components/DashboardCustomizer";
 
 const Settings = () => {
   const [themeColor, setThemeColor] = useState("255, 255, 255");
@@ -209,9 +208,6 @@ const Settings = () => {
             </Button>
           </div>
         </div>
-
-        {/* Dashboard Layout Customizer */}
-        <DashboardCustomizer />
 
         {/* Color Presets */}
         <div className="rounded-xl border border-primary/10 bg-card/20 p-5 backdrop-blur-xl">
