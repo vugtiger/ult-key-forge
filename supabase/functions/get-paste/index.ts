@@ -2291,55 +2291,48 @@ if not ${v.antiEnvLog}() then _reportBypass("pre_fetch_env", "env_logger_before_
 if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_failed") end
 if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
--- v15.1: VM / Emulator detection (heuristic)
-pcall(function()
-  local _vmFlags = 0
-  if not game or typeof(game) ~= "Instance" then _vmFlags = _vmFlags + 1 end
-  if not workspace or not workspace.FindFirstChild then _vmFlags = _vmFlags + 1 end
-  if not task or not task.wait then _vmFlags = _vmFlags + 1 end
-  if rawget(_G, "io") and rawget(_G, "os") and rawget(_G, "package") then _vmFlags = _vmFlags + 2 end
-  if rawget(_G, "require") and not rawget(_G, "game") then _vmFlags = _vmFlags + 2 end
-  if _vmFlags >= 2 then
-    _reportBypass("vm_detected", "non_roblox_environment_flags_" .. tostring(_vmFlags))
-  end
-end)
-
--- v15.1: Hooked-function deep detection
-pcall(function()
-  local _checks = {game.HttpGet, game.HttpGetAsync, loadstring}
-  for _, fn in ipairs(_checks) do
-    if hookcheck and pcall(hookcheck, fn) and hookcheck(fn) then
-      _reportBypass("hook_detected", "core_function_hooked")
-      break
-    end
-    if iscclosure and not iscclosure(fn) then
-      _reportBypass("hook_detected", "core_function_replaced_with_lua")
-      break
-    end
-  end
-end)
-
 ${options?.showConsoleFeedback ? `
--- DevConsole (F9) animated loading bar — visible in real Roblox dev console via warn()
-_G._ULT_AUTH_START = tick()
+-- rconsole loading bar — only on PC executors that support rconsole.
+-- On mobile (no rconsole), we skip the console UI entirely and only chat-print the welcome later.
+_G._ULT_IS_MOBILE = false
 pcall(function()
-  local _barLen = 24
-  local _steps = {
-    {12, "scanning environment"},
-    {28, "verifying integrity"},
-    {44, "checking protections"},
-    {60, "authenticating"},
-  }
-  warn("[ult ~ whitelist] \\xe2\\x97\\x87 initializing secure handshake")
-  for _, step in ipairs(_steps) do
-    local _pct = step[1] / 100
-    local _filled = math.floor(_pct * _barLen)
-    local _empty = _barLen - _filled
-    local _bar = string.rep("\\xe2\\x96\\x88", _filled) .. string.rep("\\xe2\\x96\\x91", _empty)
-    warn(string.format("[ult ~ whitelist] [%s] %d%% - %s", _bar, step[1], step[2]))
-    task.wait(0.04)
+  local _uis = game:GetService("UserInputService")
+  local _plat = _uis:GetPlatform()
+  if _plat == Enum.Platform.Android or _plat == Enum.Platform.IOS then
+    _G._ULT_IS_MOBILE = true
+  end
+  if not _G._ULT_IS_MOBILE and _uis.TouchEnabled and not _uis.MouseEnabled and not _uis.KeyboardEnabled then
+    _G._ULT_IS_MOBILE = true
   end
 end)
+
+local _hasRConsole = (type(rconsoleprint) == "function") or (type(rconsoleinfo) == "function") or (type(rconsolewarn) == "function")
+local _rPrint = rconsoleprint or rconsoleinfo or rconsolewarn or function() end
+local _rClear = rconsoleclear or function() end
+local _rName  = rconsolename or rconsolesettitle or function() end
+
+if _hasRConsole and not _G._ULT_IS_MOBILE then
+  pcall(function()
+    _rName("ULT Cloud - Whitelist")
+    _rClear()
+    _rPrint("[ULT Cloud] Initializing secure handshake...\\n")
+    local _barLen = 24
+    local _steps = {
+      {12, "scanning environment"},
+      {28, "verifying integrity"},
+      {44, "checking protections"},
+      {60, "authenticating"},
+    }
+    for _, step in ipairs(_steps) do
+      local _pct = step[1] / 100
+      local _filled = math.floor(_pct * _barLen)
+      local _empty = _barLen - _filled
+      local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
+      _rPrint(string.format("[ULT Cloud] [%s] %d%% - %s\\n", _bar, step[1], step[2]))
+      task.wait(0.04)
+    end
+  end)
+end
 ` : ''}
 
 -- Execute HTTP request
@@ -2445,20 +2438,29 @@ if s and r then
     _pieces = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local _barLen = 24
-      local _phases = {{72, "decrypting chunks"}, {88, "assembling"}, {100, "executing"}}
-      for _, ph in ipairs(_phases) do
-        local _pct = ph[1] / 100
-        local _filled = math.floor(_pct * _barLen)
-        local _empty = _barLen - _filled
-        local _bar = string.rep("\\xe2\\x96\\x88", _filled) .. string.rep("\\xe2\\x96\\x91", _empty)
-        warn(string.format("[ult ~ whitelist] [%s] %d%% - %s", _bar, ph[1], ph[2]))
-        task.wait(0.03)
-      end
-      local _elapsed = string.format("%.2f", tick() - (_G._ULT_AUTH_START or tick()))
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      warn("[ult ~ whitelist] \\xe2\\x97\\x86 authenticated successfully in " .. _elapsed .. "s")
-      warn("[ult ~ whitelist] \\xe2\\x97\\x86 welcome, " .. tostring(pName) .. " - protected by ULT Cloud")
+      if _hasRConsole and not _G._ULT_IS_MOBILE then
+        local _barLen = 24
+        local _phases = {{72, "decrypting chunks"}, {88, "assembling"}, {100, "executing"}}
+        for _, ph in ipairs(_phases) do
+          local _pct = ph[1] / 100
+          local _filled = math.floor(_pct * _barLen)
+          local _empty = _barLen - _filled
+          local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
+          _rPrint(string.format("[ULT Cloud] [%s] %d%% - %s\\n", _bar, ph[1], ph[2]))
+          task.wait(0.03)
+        end
+        _rPrint("[ULT Cloud] Authenticated. Welcome, " .. tostring(pName) .. "\\n")
+      else
+        pcall(function()
+          local _sg = game:GetService("StarterGui")
+          _sg:SetCore("ChatMakeSystemMessage", {
+            Text = "[ULT Cloud] Welcome, " .. tostring(pName) .. " - protected by ULT Cloud",
+            Color = Color3.fromRGB(180, 134, 255),
+            Font = Enum.Font.SourceSansBold,
+          })
+        end)
+      end
     end)
 ` : ''}
     -- v12.2: Decoys moved post-execution for instant loading
@@ -2541,20 +2543,29 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     decoded = nil
 
 ${options?.showConsoleFeedback ? `    pcall(function()
-      local _barLen = 24
-      local _phases = {{72, "decrypting"}, {88, "compiling"}, {100, "executing"}}
-      for _, ph in ipairs(_phases) do
-        local _pct = ph[1] / 100
-        local _filled = math.floor(_pct * _barLen)
-        local _empty = _barLen - _filled
-        local _bar = string.rep("\\xe2\\x96\\x88", _filled) .. string.rep("\\xe2\\x96\\x91", _empty)
-        warn(string.format("[ult ~ whitelist] [%s] %d%% - %s", _bar, ph[1], ph[2]))
-        task.wait(0.03)
-      end
-      local _elapsed = string.format("%.2f", tick() - (_G._ULT_AUTH_START or tick()))
       local pName = ${v.player}.DisplayName or ${v.player}.Name
-      warn("[ult ~ whitelist] \\xe2\\x97\\x86 authenticated successfully in " .. _elapsed .. "s")
-      warn("[ult ~ whitelist] \\xe2\\x97\\x86 welcome, " .. tostring(pName) .. " - protected by ULT Cloud")
+      if _hasRConsole and not _G._ULT_IS_MOBILE then
+        local _barLen = 24
+        local _phases = {{72, "decrypting"}, {88, "compiling"}, {100, "executing"}}
+        for _, ph in ipairs(_phases) do
+          local _pct = ph[1] / 100
+          local _filled = math.floor(_pct * _barLen)
+          local _empty = _barLen - _filled
+          local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
+          _rPrint(string.format("[ULT Cloud] [%s] %d%% - %s\\n", _bar, ph[1], ph[2]))
+          task.wait(0.03)
+        end
+        _rPrint("[ULT Cloud] Authenticated. Welcome, " .. tostring(pName) .. "\\n")
+      else
+        pcall(function()
+          local _sg = game:GetService("StarterGui")
+          _sg:SetCore("ChatMakeSystemMessage", {
+            Text = "[ULT Cloud] Welcome, " .. tostring(pName) .. " - protected by ULT Cloud",
+            Color = Color3.fromRGB(180, 134, 255),
+            Font = Enum.Font.SourceSansBold,
+          })
+        end)
+      end
     end)
 ` : ''}
 
@@ -3605,39 +3616,6 @@ async function applyV12Protections(
     }
     if (maResult.flagged) {
       fireWebhookAlert(paste, uid, clientIp, hwid, 'multi_account_flagged');
-    }
-  }
-
-  // 4. Executor Blacklist — block specific executors by name (UA-based)
-  if (paste.executor_blacklist_enabled) {
-    try {
-      const { data: blacklist } = await supabaseClient
-        .from('paste_executor_blacklist')
-        .select('executor_name')
-        .eq('paste_id', paste.id);
-      if (blacklist && blacklist.length > 0) {
-        const ua = (paste._ua || '').toLowerCase();
-        const blocked = blacklist.find((b: any) => ua.includes(b.executor_name.toLowerCase()));
-        if (blocked) {
-          console.log(`[v12] EXECUTOR_BLOCKED: ${blocked.executor_name} on paste ${paste.id}`);
-          fireWebhookAlert(paste, uid, clientIp, hwid, 'executor_blocked', { executor: blocked.executor_name });
-          return new Response(generateKickEncrypted(`Executor "${blocked.executor_name}" is not supported on this script`, slug, tk, uid), {
-            status: 200, headers: textHeaders,
-          });
-        }
-      }
-    } catch (e) { /* fail-open */ }
-  }
-
-  // 5. Forced Latest Version — kick if user is on outdated version
-  if (paste.force_latest_version && paste.current_version) {
-    const clientVersion = paste._client_version || '';
-    if (clientVersion && clientVersion !== paste.current_version) {
-      console.log(`[v12] VERSION_MISMATCH: client=${clientVersion} required=${paste.current_version}`);
-      fireWebhookAlert(paste, uid, clientIp, hwid, 'version_mismatch', { client: clientVersion, required: paste.current_version });
-      return new Response(generateKickEncrypted(`Outdated script version (${clientVersion}). Latest: ${paste.current_version}. Please update.`, slug, tk, uid), {
-        status: 200, headers: textHeaders,
-      });
     }
   }
 
