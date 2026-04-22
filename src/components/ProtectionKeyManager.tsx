@@ -102,6 +102,34 @@ const ProtectionKeyManager = () => {
     toast({ title: "Protection Key mode enabled" });
   };
 
+  const disableMode = async () => {
+    if (!paste) return;
+    if (!confirm("Disable Protection Key mode? Existing keys will stop working until you re-enable it.")) return;
+    const { error } = await supabase
+      .from("pastes")
+      .update({ protection_mode: "whitelist" })
+      .eq("id", paste.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    setPaste({ ...paste, protection_mode: "whitelist" });
+    setPastes(pastes.map((p) => (p.id === paste.id ? { ...p, protection_mode: "whitelist" } : p)));
+    toast({ title: "Protection Key mode disabled", description: "Script reverted to whitelist mode. Keys are kept but inactive." });
+  };
+
+  const toggleKeyActive = async (k: PKey) => {
+    const { error } = await (supabase.from("protection_keys" as any) as any)
+      .update({ is_active: !k.is_active })
+      .eq("id", k.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    setKeys(keys.map((x) => (x.id === k.id ? { ...x, is_active: !k.is_active } : x)));
+    toast({ title: k.is_active ? "Key disabled" : "Key enabled" });
+  };
+
   const addKey = async (val: string) => {
     if (!paste || !val.trim()) return;
     const { data, error } = await (supabase.from("protection_keys" as any) as any)
