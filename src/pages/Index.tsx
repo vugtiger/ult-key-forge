@@ -139,20 +139,20 @@ const Index = () => {
               <StatusDot />
 
               <h1 className="mt-6 max-w-4xl text-4xl font-black leading-[0.92] tracking-[-0.04em] text-foreground md:text-6xl xl:text-7xl glow-text">
-                Protect scripts
+                Lua script protection
                 <br />
-                <span className="text-muted-foreground">with a loader that</span>
+                <span className="text-muted-foreground">that does not get</span>
                 <br />
-                feels instant.
+                in your way.
               </h1>
 
               <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">
-                Key delivery, protection, and live console feedback wrapped into a faster flow that feels cleaner and more premium.
+                Key delivery, source protection, and a real loader for Roblox executors. Free, no paid tiers.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
                 <Button size="lg" onClick={() => navigate("/auth")} className="rounded-xl bg-foreground text-background px-8 py-5 text-sm font-semibold hover:bg-foreground/90">
-                  Launch Dashboard
+                  Open dashboard
                   <ArrowRight className="ml-2" size={16} />
                 </Button>
                 <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
@@ -163,21 +163,10 @@ const Index = () => {
                 </a>
               </div>
 
-              <div className="mt-10 grid gap-3 sm:grid-cols-3">
-                {stats.map((stat) => (
-                  <Tilt3DCard key={stat.label} className="glass-card rounded-2xl">
-                    <div className="p-5">
-                      <p className="text-2xl font-black text-foreground">{stat.value}</p>
-                      <p className="mt-1 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{stat.label}</p>
-                    </div>
-                  </Tilt3DCard>
-                ))}
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-5 text-xs text-muted-foreground">
-                <div className="flex items-center gap-2"><Shield size={13} /> 100% free forever</div>
+              <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2"><Shield size={13} /> Free, no paid tiers</div>
                 <div className="flex items-center gap-2"><Zap size={13} /> Unlimited keys</div>
-                <div className="flex items-center gap-2"><Terminal size={13} /> Live executor feedback</div>
+                <div className="flex items-center gap-2"><Terminal size={13} /> Console output in-game</div>
               </div>
             </div>
 
