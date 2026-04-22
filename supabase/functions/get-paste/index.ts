@@ -4313,14 +4313,28 @@ loadstring(game:HttpGet(_url))()`;
 
       // Phase 1: no pkey yet → return tiny key-grabber loader that reads _G.ScriptKey
       if (!pkey && !tk && !kbt) {
+        // Hardened key grabber: validates key shape, blocks empty/oversized payloads,
+        // strips whitespace, and refuses to send if the executor is missing core funcs.
         const keyGrabber = `local ok, err = pcall(function()
-  local key = tostring(_G.ScriptKey or "")
+  if type(game) ~= "userdata" or type(game.HttpGet) ~= "function" then return end
+  if type(loadstring) ~= "function" then return end
+  local raw = _G.ScriptKey
+  if type(raw) ~= "string" and type(raw) ~= "number" then
+    raw = ""
+  end
+  local key = tostring(raw):gsub("%s+", "")
   local p = game:GetService("Players").LocalPlayer
   if not p then p = game:GetService("Players").PlayerAdded:Wait() end
   if key == "" then
     p:Kick("no key set. assign _G.ScriptKey before loading")
     return
   end
+  if #key < 4 or #key > 128 then
+    p:Kick("invalid key format")
+    return
+  end
+  -- Strip the global so it cannot be re-read by other scripts after load.
+  pcall(function() _G.ScriptKey = nil end)
   local s, r = pcall(function()
     return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(p.UserId) .. "&pkey=" .. key .. "&_=" .. tostring(tick()))
   end)
@@ -4334,12 +4348,47 @@ end)`;
 
       // Phase 2: pkey present → validate, bind, and return real encrypted loader
       if (pkey && uid) {
+        // === HARDENING LAYER 1: shape validation ===
+        if (pkey.length < 4 || pkey.length > 128 || /[\r\n\t\0]/.test(pkey)) {
+          return new Response(generateKickPlain('invalid key format'), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          });
+        }
+
+        // === HARDENING LAYER 2: brute-force rate limit per IP ===
+        // Count invalid attempts from this IP in the last 5 minutes against this paste.
+        try {
+          const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+          const { count: badCount } = await supabase
+            .from('protection_key_events' as any)
+            .select('id', { count: 'exact', head: true })
+            .eq('paste_id', paste.id)
+            .eq('ip_address', clientIp)
+            .in('event_type', ['kick_invalid', 'kick_spoof', 'kick_expired', 'kick_disabled'] as any)
+            .gte('created_at', fiveMinAgo) as any;
+          if ((badCount || 0) >= 10) {
+            return new Response(generateKickPlain('too many failed key attempts. try again in a few minutes'), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+            });
+          }
+        } catch { /* fail-open on rate limit lookup */ }
+
+        // === HARDENING LAYER 3: executor signal check ===
+        // The key flow only runs from real Roblox HttpGet; reject if request lacks any
+        // executor/Roblox markers (already gated by !isLikelyBrowser, but double-guard).
+        const ua = (req.headers.get('user-agent') || '').toLowerCase();
+        if (!ua && !req.headers.get('roblox-id') && !req.headers.get('roblox-game-id')) {
+          // No identifying headers AT ALL — almost certainly a scraper.
+          return new Response(generateKickPlain('unauthorized client'), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          });
+        }
+
         const { data: pkRow } = await supabase
           .from('protection_keys' as any)
           .select('*')
           .eq('paste_id', paste.id)
           .eq('key_value', pkey)
-          .eq('is_active', true)
           .maybeSingle() as { data: any };
 
         const logEvent = (eventType: string, keyId: string | null) => {
@@ -4353,6 +4402,14 @@ end)`;
         if (!pkRow) {
           logEvent('kick_invalid', null);
           return new Response(generateKickPlain('Incorrect key'), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+          });
+        }
+
+        // === HARDENING LAYER 4: explicit disabled-key check (separate event) ===
+        if (!pkRow.is_active) {
+          logEvent('kick_disabled', pkRow.id);
+          return new Response(generateKickPlain('This key has been disabled'), {
             status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
           });
         }
@@ -4371,6 +4428,13 @@ end)`;
           return new Response(generateKickPlain('This key is bound to another account'), {
             status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
           });
+        }
+
+        // === HARDENING LAYER 5: IP-jump detection on bound keys ===
+        // If a key is bound and has a recorded IP, log when it suddenly changes IP.
+        // (Doesn't block — VPN/mobile-data switches are legit — but flags the event.)
+        if (pkRow.bound_ip && pkRow.bound_ip !== clientIp) {
+          logEvent('ip_change', pkRow.id);
         }
 
         // First-time use → bind it

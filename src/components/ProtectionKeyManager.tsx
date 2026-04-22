@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Key, Plus, Copy, Trash2, BarChart3, ShieldCheck } from "lucide-react";
+import { Key, Plus, Copy, Trash2, BarChart3, ShieldCheck, ShieldOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -100,6 +100,34 @@ const ProtectionKeyManager = () => {
     setPaste({ ...paste, protection_mode: "protection_key" });
     setPastes(pastes.map((p) => (p.id === paste.id ? { ...p, protection_mode: "protection_key" } : p)));
     toast({ title: "Protection Key mode enabled" });
+  };
+
+  const disableMode = async () => {
+    if (!paste) return;
+    if (!confirm("Disable Protection Key mode? Existing keys will stop working until you re-enable it.")) return;
+    const { error } = await supabase
+      .from("pastes")
+      .update({ protection_mode: "whitelist" })
+      .eq("id", paste.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    setPaste({ ...paste, protection_mode: "whitelist" });
+    setPastes(pastes.map((p) => (p.id === paste.id ? { ...p, protection_mode: "whitelist" } : p)));
+    toast({ title: "Protection Key mode disabled", description: "Script reverted to whitelist mode. Keys are kept but inactive." });
+  };
+
+  const toggleKeyActive = async (k: PKey) => {
+    const { error } = await (supabase.from("protection_keys" as any) as any)
+      .update({ is_active: !k.is_active })
+      .eq("id", k.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    setKeys(keys.map((x) => (x.id === k.id ? { ...x, is_active: !k.is_active } : x)));
+    toast({ title: k.is_active ? "Key disabled" : "Key enabled" });
   };
 
   const addKey = async (val: string) => {
@@ -200,10 +228,13 @@ const ProtectionKeyManager = () => {
       {paste && paste.protection_mode === "protection_key" && (
         <>
           <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" /> Key Analytics
               </CardTitle>
+              <Button size="sm" variant="outline" onClick={disableMode} className="text-xs h-7 border-destructive/40 text-destructive hover:bg-destructive/10">
+                <ShieldOff className="h-3 w-3 mr-1" /> Disable Key Mode
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
@@ -261,10 +292,11 @@ const ProtectionKeyManager = () => {
                 <p className="text-xs text-muted-foreground">No keys yet.</p>
               ) : (
                 keys.map((k) => (
-                  <div key={k.id} className="flex items-center justify-between p-2 rounded-md border border-border/30 bg-background/30 gap-2">
+                  <div key={k.id} className={`flex items-center justify-between p-2 rounded-md border gap-2 ${k.is_active ? 'border-border/30 bg-background/30' : 'border-destructive/20 bg-destructive/5 opacity-70'}`}>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-mono truncate">{k.key_value}</span>
+                        {!k.is_active && <Badge variant="destructive" className="text-[10px]">disabled</Badge>}
                         {k.bound_roblox_user_id ? (
                           <Badge variant="default" className="text-[10px]">bound: {k.bound_roblox_user_id}</Badge>
                         ) : (
@@ -272,6 +304,9 @@ const ProtectionKeyManager = () => {
                         )}
                       </div>
                     </div>
+                    <Button size="sm" variant="ghost" onClick={() => toggleKeyActive(k)} title={k.is_active ? "Disable key" : "Enable key"}>
+                      {k.is_active ? <ShieldOff className="h-3 w-3 text-muted-foreground" /> : <ShieldCheck className="h-3 w-3 text-primary" />}
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => copyKey(k.key_value)} title="Copy key">
                       <Copy className="h-3 w-3" />
                     </Button>
