@@ -64,37 +64,31 @@ const Index = () => {
     });
   }, [navigate]);
 
-  const stats = [
-    { label: "Protected Scripts", value: "10K+" },
-    { label: "Keys Generated", value: "1M+" },
-    { label: "Uptime", value: "99.9%" },
-  ];
-
   const featureColumns = [
     {
       title: "Protect",
-      description: "Hide code, public protection, and user-locked access keep raw source invisible.",
+      description: "Hide source, lock by user, and keep raw script content out of the URL.",
       icon: Shield,
     },
     {
       title: "Control",
-      description: "Generate keys, manage game binds, HWID checks, and track access from one panel.",
+      description: "Generate keys, bind games, check HWID, and watch access from one panel.",
       icon: Key,
     },
     {
       title: "Scale",
-      description: "Cloud-synced scripts, AI tools, and Discord integration in one platform.",
+      description: "Cloud-synced scripts, AI tools, and Discord integration in one place.",
       icon: Database,
     },
   ];
 
   const signalCards = [
-    { icon: EyeOff, label: "Hide Code", description: "Raw URL stays blank while the executor pulls the protected payload." },
-    { icon: Zap, label: "Instant Sync", description: "Key checks, feedback, and script delivery happen in one fast motion." },
-    { icon: Bot, label: "Discord Panels", description: "Attach script delivery and key redemption to your Discord workflow." },
-    { icon: Save, label: "Cloud Storage", description: "Scripts, keys, and access history stay backed up and synced." },
-    { icon: Lock, label: "User Locks", description: "Restrict access by Roblox account, device signals, and protection mode." },
-    { icon: Terminal, label: "Console Feedback", description: "Animated loading bars and status output directly in the executor." },
+    { icon: EyeOff, label: "Hide code", description: "Raw URL returns nothing useful. The executor pulls the protected payload." },
+    { icon: Zap, label: "Fast loader", description: "Key check, feedback, and delivery happen in one round trip." },
+    { icon: Bot, label: "Discord panels", description: "Hook script delivery and key redemption into your Discord workflow." },
+    { icon: Save, label: "Cloud storage", description: "Scripts, keys, and access history stay synced." },
+    { icon: Lock, label: "User locks", description: "Restrict by Roblox account, device, and protection mode." },
+    { icon: Terminal, label: "Console output", description: "Loading bars and status print in the executor console." },
   ];
 
   return (
