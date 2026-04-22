@@ -244,13 +244,13 @@ const Index = () => {
             <div className="relative overflow-hidden glass-card rounded-2xl p-10 text-center">
               <div className="absolute inset-x-20 top-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
               <CloudLogo size={48} className="mx-auto" />
-              <h2 className="mt-6 text-2xl font-bold md:text-3xl">Ready to get started?</h2>
+              <h2 className="mt-6 text-2xl font-bold md:text-3xl">Set up a script.</h2>
               <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-muted-foreground">
-                Sign in, generate keys, protect the URL, and let the loader do the rest.
+                Sign in, paste your script, generate a key or pick a protection mode, copy the loader. Done.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <Button onClick={() => navigate("/auth")} className="rounded-xl bg-foreground text-background px-8 font-semibold hover:bg-foreground/90" size="lg">
-                  Create Free Account
+                  Create account
                 </Button>
                 <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="lg" className="rounded-xl border-border bg-card/30 hover:bg-card/50">
