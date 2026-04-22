@@ -65,7 +65,7 @@
     font-family: 'Space Grotesk', 'Inter', sans-serif;
   }
 
-  /* Smoke particle animation */
+  /* drifting smoke particles used in CloudBackground */
   @keyframes smoke-drift-1 {
     0% { transform: translate(0, 0) scale(1); opacity: 0; }
     15% { opacity: 0.06; }

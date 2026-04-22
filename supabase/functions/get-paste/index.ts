@@ -2313,14 +2313,14 @@ local _rName  = rconsolename or rconsolesettitle or function() end
 
 if _hasRConsole and not _G._ULT_IS_MOBILE then
   pcall(function()
-    _rName("ULT Cloud - Whitelist")
+    _rName("loader")
     _rClear()
-    _rPrint("[ULT Cloud] Initializing secure handshake...\\n")
+    _rPrint("initializing...\\n")
     local _barLen = 24
     local _steps = {
-      {12, "scanning environment"},
-      {28, "verifying integrity"},
-      {44, "checking protections"},
+      {12, "scanning"},
+      {28, "verifying"},
+      {44, "checking"},
       {60, "authenticating"},
     }
     for _, step in ipairs(_steps) do
@@ -2328,7 +2328,7 @@ if _hasRConsole and not _G._ULT_IS_MOBILE then
       local _filled = math.floor(_pct * _barLen)
       local _empty = _barLen - _filled
       local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-      _rPrint(string.format("[ULT Cloud] [%s] %d%% - %s\\n", _bar, step[1], step[2]))
+      _rPrint(string.format("[%s] %d%% %s\\n", _bar, step[1], step[2]))
       task.wait(0.04)
     end
   end)
@@ -2441,29 +2441,30 @@ ${options?.showConsoleFeedback ? `    pcall(function()
       local pName = ${v.player}.DisplayName or ${v.player}.Name
       if _hasRConsole and not _G._ULT_IS_MOBILE then
         local _barLen = 24
-        local _phases = {{72, "decrypting chunks"}, {88, "assembling"}, {100, "executing"}}
+        local _phases = {{72, "decrypting"}, {88, "compiling"}, {100, "ready"}}
         for _, ph in ipairs(_phases) do
           local _pct = ph[1] / 100
           local _filled = math.floor(_pct * _barLen)
           local _empty = _barLen - _filled
           local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-          _rPrint(string.format("[ULT Cloud] [%s] %d%% - %s\\n", _bar, ph[1], ph[2]))
+          _rPrint(string.format("[%s] %d%% %s\\n", _bar, ph[1], ph[2]))
           task.wait(0.03)
         end
-        _rPrint("[ULT Cloud] Authenticated. Welcome, " .. tostring(pName) .. "\\n")
-      else
-        pcall(function()
-          local _sg = game:GetService("StarterGui")
-          _sg:SetCore("ChatMakeSystemMessage", {
-            Text = "[ULT Cloud] Welcome, " .. tostring(pName) .. " - protected by ULT Cloud",
-            Color = Color3.fromRGB(180, 134, 255),
-            Font = Enum.Font.SourceSansBold,
-          })
-        end)
+        _rPrint("ready. welcome " .. tostring(pName) .. "\\n")
       end
+      -- Always fire a chat message too (PC + mobile) so the user sees it loaded
+      -- even when their dev console is full of game-side errors.
+      pcall(function()
+        local _sg = game:GetService("StarterGui")
+        _sg:SetCore("ChatMakeSystemMessage", {
+          Text = "loaded. welcome " .. tostring(pName),
+          Color = Color3.fromRGB(235, 235, 235),
+          Font = Enum.Font.SourceSans,
+        })
+      end)
     end)
 ` : ''}
-    -- v12.2: Decoys moved post-execution for instant loading
+    
 
     if ${v.dumpPoison} then
       _assembled = _assembled:gsub("(%d+)", function(n)
@@ -2546,26 +2547,25 @@ ${options?.showConsoleFeedback ? `    pcall(function()
       local pName = ${v.player}.DisplayName or ${v.player}.Name
       if _hasRConsole and not _G._ULT_IS_MOBILE then
         local _barLen = 24
-        local _phases = {{72, "decrypting"}, {88, "compiling"}, {100, "executing"}}
+        local _phases = {{72, "decrypting"}, {88, "compiling"}, {100, "ready"}}
         for _, ph in ipairs(_phases) do
           local _pct = ph[1] / 100
           local _filled = math.floor(_pct * _barLen)
           local _empty = _barLen - _filled
           local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-          _rPrint(string.format("[ULT Cloud] [%s] %d%% - %s\\n", _bar, ph[1], ph[2]))
+          _rPrint(string.format("[%s] %d%% %s\\n", _bar, ph[1], ph[2]))
           task.wait(0.03)
         end
-        _rPrint("[ULT Cloud] Authenticated. Welcome, " .. tostring(pName) .. "\\n")
-      else
-        pcall(function()
-          local _sg = game:GetService("StarterGui")
-          _sg:SetCore("ChatMakeSystemMessage", {
-            Text = "[ULT Cloud] Welcome, " .. tostring(pName) .. " - protected by ULT Cloud",
-            Color = Color3.fromRGB(180, 134, 255),
-            Font = Enum.Font.SourceSansBold,
-          })
-        end)
+        _rPrint("ready. welcome " .. tostring(pName) .. "\\n")
       end
+      pcall(function()
+        local _sg = game:GetService("StarterGui")
+        _sg:SetCore("ChatMakeSystemMessage", {
+          Text = "loaded. welcome " .. tostring(pName),
+          Color = Color3.fromRGB(235, 235, 235),
+          Font = Enum.Font.SourceSans,
+        })
+      end)
     end)
 ` : ''}
 
@@ -4313,22 +4313,21 @@ loadstring(game:HttpGet(_url))()`;
 
       // Phase 1: no pkey yet → return tiny key-grabber loader that reads _G.ScriptKey
       if (!pkey && !tk && !kbt) {
-        const keyGrabber = `-- ULT Cloud Protection Key Loader
-local _ok, _err = pcall(function()
-  local _key = tostring(_G.ScriptKey or "")
-  local _p = game:GetService("Players").LocalPlayer
-  if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
-  if _key == "" then
-    _p:Kick("[ULT Cloud] No key provided. Set _G.ScriptKey before loading.")
+        const keyGrabber = `local ok, err = pcall(function()
+  local key = tostring(_G.ScriptKey or "")
+  local p = game:GetService("Players").LocalPlayer
+  if not p then p = game:GetService("Players").PlayerAdded:Wait() end
+  if key == "" then
+    p:Kick("no key set. assign _G.ScriptKey before loading")
     return
   end
-  local _s, _r = pcall(function()
-    return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&pkey=" .. _key .. "&_=" .. tostring(tick()))
+  local s, r = pcall(function()
+    return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(p.UserId) .. "&pkey=" .. key .. "&_=" .. tostring(tick()))
   end)
-  if not _s or not _r or _r == "" then return end
-  local _f, _e = loadstring(_r)
-  if not _f then return end
-  _f()
+  if not s or not r or r == "" then return end
+  local f = loadstring(r)
+  if not f then return end
+  f()
 end)`;
         return new Response(keyGrabber, { status: 200, headers: textHeaders });
       }

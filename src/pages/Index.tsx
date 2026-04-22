@@ -64,37 +64,31 @@ const Index = () => {
     });
   }, [navigate]);
 
-  const stats = [
-    { label: "Protected Scripts", value: "10K+" },
-    { label: "Keys Generated", value: "1M+" },
-    { label: "Uptime", value: "99.9%" },
-  ];
-
   const featureColumns = [
     {
       title: "Protect",
-      description: "Hide code, public protection, and user-locked access keep raw source invisible.",
+      description: "Hide source, lock by user, and keep raw script content out of the URL.",
       icon: Shield,
     },
     {
       title: "Control",
-      description: "Generate keys, manage game binds, HWID checks, and track access from one panel.",
+      description: "Generate keys, bind games, check HWID, and watch access from one panel.",
       icon: Key,
     },
     {
       title: "Scale",
-      description: "Cloud-synced scripts, AI tools, and Discord integration in one platform.",
+      description: "Cloud-synced scripts, AI tools, and Discord integration in one place.",
       icon: Database,
     },
   ];
 
   const signalCards = [
-    { icon: EyeOff, label: "Hide Code", description: "Raw URL stays blank while the executor pulls the protected payload." },
-    { icon: Zap, label: "Instant Sync", description: "Key checks, feedback, and script delivery happen in one fast motion." },
-    { icon: Bot, label: "Discord Panels", description: "Attach script delivery and key redemption to your Discord workflow." },
-    { icon: Save, label: "Cloud Storage", description: "Scripts, keys, and access history stay backed up and synced." },
-    { icon: Lock, label: "User Locks", description: "Restrict access by Roblox account, device signals, and protection mode." },
-    { icon: Terminal, label: "Console Feedback", description: "Animated loading bars and status output directly in the executor." },
+    { icon: EyeOff, label: "Hide code", description: "Raw URL returns nothing useful. The executor pulls the protected payload." },
+    { icon: Zap, label: "Fast loader", description: "Key check, feedback, and delivery happen in one round trip." },
+    { icon: Bot, label: "Discord panels", description: "Hook script delivery and key redemption into your Discord workflow." },
+    { icon: Save, label: "Cloud storage", description: "Scripts, keys, and access history stay synced." },
+    { icon: Lock, label: "User locks", description: "Restrict by Roblox account, device, and protection mode." },
+    { icon: Terminal, label: "Console output", description: "Loading bars and status print in the executor console." },
   ];
 
   return (
@@ -145,20 +139,20 @@ const Index = () => {
               <StatusDot />
 
               <h1 className="mt-6 max-w-4xl text-4xl font-black leading-[0.92] tracking-[-0.04em] text-foreground md:text-6xl xl:text-7xl glow-text">
-                Protect scripts
+                Lua script protection
                 <br />
-                <span className="text-muted-foreground">with a loader that</span>
+                <span className="text-muted-foreground">that does not get</span>
                 <br />
-                feels instant.
+                in your way.
               </h1>
 
               <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">
-                Key delivery, protection, and live console feedback wrapped into a faster flow that feels cleaner and more premium.
+                Key delivery, source protection, and a real loader for Roblox executors. Free, no paid tiers.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
                 <Button size="lg" onClick={() => navigate("/auth")} className="rounded-xl bg-foreground text-background px-8 py-5 text-sm font-semibold hover:bg-foreground/90">
-                  Launch Dashboard
+                  Open dashboard
                   <ArrowRight className="ml-2" size={16} />
                 </Button>
                 <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
@@ -169,21 +163,10 @@ const Index = () => {
                 </a>
               </div>
 
-              <div className="mt-10 grid gap-3 sm:grid-cols-3">
-                {stats.map((stat) => (
-                  <Tilt3DCard key={stat.label} className="glass-card rounded-2xl">
-                    <div className="p-5">
-                      <p className="text-2xl font-black text-foreground">{stat.value}</p>
-                      <p className="mt-1 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{stat.label}</p>
-                    </div>
-                  </Tilt3DCard>
-                ))}
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-5 text-xs text-muted-foreground">
-                <div className="flex items-center gap-2"><Shield size={13} /> 100% free forever</div>
+              <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2"><Shield size={13} /> Free, no paid tiers</div>
                 <div className="flex items-center gap-2"><Zap size={13} /> Unlimited keys</div>
-                <div className="flex items-center gap-2"><Terminal size={13} /> Live executor feedback</div>
+                <div className="flex items-center gap-2"><Terminal size={13} /> Console output in-game</div>
               </div>
             </div>
 
@@ -216,8 +199,8 @@ const Index = () => {
           {/* Signal cards */}
           <section>
             <div className="max-w-2xl mb-10">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">Built for the full stack</p>
-              <h2 className="text-2xl font-bold md:text-3xl">Everything around the loader feels tighter.</h2>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">Around the loader</p>
+              <h2 className="text-2xl font-bold md:text-3xl">Tools that come with it.</h2>
             </div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {signalCards.map((card) => (
@@ -239,15 +222,15 @@ const Index = () => {
           {/* AI & Discord */}
           <section className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">AI + Community</p>
-              <h2 className="text-2xl font-bold md:text-3xl">AI tools and communities stay front and center.</h2>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">Extras</p>
+              <h2 className="text-2xl font-bold md:text-3xl">AI helpers and a Discord workflow.</h2>
               <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                Script help, Discord presence, and live platform previews wrapped in a cleaner system.
+                There is an AI script assistant built in, plus Discord bot commands for keys and panels.
               </p>
               <div className="mt-6 glass-card rounded-2xl p-5">
                 <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-2">
-                  <div className="rounded-xl bg-background/40 border border-border p-3">Custom key systems, strong protection, instant loaders.</div>
-                  <div className="rounded-xl bg-background/40 border border-border p-3">Cloud storage, Discord tools, and AI built in.</div>
+                  <div className="rounded-xl bg-background/40 border border-border p-3">Custom key systems and protection modes.</div>
+                  <div className="rounded-xl bg-background/40 border border-border p-3">Cloud storage, Discord bot, and AI helper.</div>
                 </div>
               </div>
             </div>
@@ -261,13 +244,13 @@ const Index = () => {
             <div className="relative overflow-hidden glass-card rounded-2xl p-10 text-center">
               <div className="absolute inset-x-20 top-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
               <CloudLogo size={48} className="mx-auto" />
-              <h2 className="mt-6 text-2xl font-bold md:text-3xl">Ready to get started?</h2>
+              <h2 className="mt-6 text-2xl font-bold md:text-3xl">Set up a script.</h2>
               <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-muted-foreground">
-                Sign in, generate keys, protect the URL, and let the loader do the rest.
+                Sign in, paste your script, generate a key or pick a protection mode, copy the loader. Done.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <Button onClick={() => navigate("/auth")} className="rounded-xl bg-foreground text-background px-8 font-semibold hover:bg-foreground/90" size="lg">
-                  Create Free Account
+                  Create account
                 </Button>
                 <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="lg" className="rounded-xl border-border bg-card/30 hover:bg-card/50">
