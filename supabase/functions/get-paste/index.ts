@@ -2313,14 +2313,14 @@ local _rName  = rconsolename or rconsolesettitle or function() end
 
 if _hasRConsole and not _G._ULT_IS_MOBILE then
   pcall(function()
-    _rName("ULT Cloud - Whitelist")
+    _rName("loader")
     _rClear()
-    _rPrint("[ULT Cloud] Initializing secure handshake...\\n")
+    _rPrint("initializing...\\n")
     local _barLen = 24
     local _steps = {
-      {12, "scanning environment"},
-      {28, "verifying integrity"},
-      {44, "checking protections"},
+      {12, "scanning"},
+      {28, "verifying"},
+      {44, "checking"},
       {60, "authenticating"},
     }
     for _, step in ipairs(_steps) do
@@ -2328,7 +2328,7 @@ if _hasRConsole and not _G._ULT_IS_MOBILE then
       local _filled = math.floor(_pct * _barLen)
       local _empty = _barLen - _filled
       local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-      _rPrint(string.format("[ULT Cloud] [%s] %d%% - %s\\n", _bar, step[1], step[2]))
+      _rPrint(string.format("[%s] %d%% %s\\n", _bar, step[1], step[2]))
       task.wait(0.04)
     end
   end)
