@@ -305,7 +305,7 @@ const ProtectionKeyManager = () => {
                       </div>
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => toggleKeyActive(k)} title={k.is_active ? "Disable key" : "Enable key"}>
-                      {k.is_active ? <ShieldOff className="h-3 w-3 text-amber-500" /> : <ShieldCheck className="h-3 w-3 text-emerald-500" />}
+                      {k.is_active ? <ShieldOff className="h-3 w-3 text-muted-foreground" /> : <ShieldCheck className="h-3 w-3 text-primary" />}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => copyKey(k.key_value)} title="Copy key">
                       <Copy className="h-3 w-3" />
