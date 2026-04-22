@@ -292,10 +292,11 @@ const ProtectionKeyManager = () => {
                 <p className="text-xs text-muted-foreground">No keys yet.</p>
               ) : (
                 keys.map((k) => (
-                  <div key={k.id} className="flex items-center justify-between p-2 rounded-md border border-border/30 bg-background/30 gap-2">
+                  <div key={k.id} className={`flex items-center justify-between p-2 rounded-md border gap-2 ${k.is_active ? 'border-border/30 bg-background/30' : 'border-destructive/20 bg-destructive/5 opacity-70'}`}>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-mono truncate">{k.key_value}</span>
+                        {!k.is_active && <Badge variant="destructive" className="text-[10px]">disabled</Badge>}
                         {k.bound_roblox_user_id ? (
                           <Badge variant="default" className="text-[10px]">bound: {k.bound_roblox_user_id}</Badge>
                         ) : (
@@ -303,6 +304,9 @@ const ProtectionKeyManager = () => {
                         )}
                       </div>
                     </div>
+                    <Button size="sm" variant="ghost" onClick={() => toggleKeyActive(k)} title={k.is_active ? "Disable key" : "Enable key"}>
+                      {k.is_active ? <ShieldOff className="h-3 w-3 text-amber-500" /> : <ShieldCheck className="h-3 w-3 text-emerald-500" />}
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => copyKey(k.key_value)} title="Copy key">
                       <Copy className="h-3 w-3" />
                     </Button>
