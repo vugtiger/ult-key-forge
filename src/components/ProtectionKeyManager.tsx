@@ -228,10 +228,13 @@ const ProtectionKeyManager = () => {
       {paste && paste.protection_mode === "protection_key" && (
         <>
           <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" /> Key Analytics
               </CardTitle>
+              <Button size="sm" variant="outline" onClick={disableMode} className="text-xs h-7 border-destructive/40 text-destructive hover:bg-destructive/10">
+                <ShieldOff className="h-3 w-3 mr-1" /> Disable Key Mode
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
