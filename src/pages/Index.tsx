@@ -199,8 +199,8 @@ const Index = () => {
           {/* Signal cards */}
           <section>
             <div className="max-w-2xl mb-10">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">Built for the full stack</p>
-              <h2 className="text-2xl font-bold md:text-3xl">Everything around the loader feels tighter.</h2>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">Around the loader</p>
+              <h2 className="text-2xl font-bold md:text-3xl">Tools that come with it.</h2>
             </div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {signalCards.map((card) => (
@@ -222,15 +222,15 @@ const Index = () => {
           {/* AI & Discord */}
           <section className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">AI + Community</p>
-              <h2 className="text-2xl font-bold md:text-3xl">AI tools and communities stay front and center.</h2>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">Extras</p>
+              <h2 className="text-2xl font-bold md:text-3xl">AI helpers and a Discord workflow.</h2>
               <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                Script help, Discord presence, and live platform previews wrapped in a cleaner system.
+                There is an AI script assistant built in, plus Discord bot commands for keys and panels.
               </p>
               <div className="mt-6 glass-card rounded-2xl p-5">
                 <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-2">
-                  <div className="rounded-xl bg-background/40 border border-border p-3">Custom key systems, strong protection, instant loaders.</div>
-                  <div className="rounded-xl bg-background/40 border border-border p-3">Cloud storage, Discord tools, and AI built in.</div>
+                  <div className="rounded-xl bg-background/40 border border-border p-3">Custom key systems and protection modes.</div>
+                  <div className="rounded-xl bg-background/40 border border-border p-3">Cloud storage, Discord bot, and AI helper.</div>
                 </div>
               </div>
             </div>
