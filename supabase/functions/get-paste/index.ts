@@ -4313,22 +4313,21 @@ loadstring(game:HttpGet(_url))()`;
 
       // Phase 1: no pkey yet → return tiny key-grabber loader that reads _G.ScriptKey
       if (!pkey && !tk && !kbt) {
-        const keyGrabber = `-- ULT Cloud Protection Key Loader
-local _ok, _err = pcall(function()
-  local _key = tostring(_G.ScriptKey or "")
-  local _p = game:GetService("Players").LocalPlayer
-  if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
-  if _key == "" then
-    _p:Kick("[ULT Cloud] No key provided. Set _G.ScriptKey before loading.")
+        const keyGrabber = `local ok, err = pcall(function()
+  local key = tostring(_G.ScriptKey or "")
+  local p = game:GetService("Players").LocalPlayer
+  if not p then p = game:GetService("Players").PlayerAdded:Wait() end
+  if key == "" then
+    p:Kick("no key set. assign _G.ScriptKey before loading")
     return
   end
-  local _s, _r = pcall(function()
-    return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&pkey=" .. _key .. "&_=" .. tostring(tick()))
+  local s, r = pcall(function()
+    return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(p.UserId) .. "&pkey=" .. key .. "&_=" .. tostring(tick()))
   end)
-  if not _s or not _r or _r == "" then return end
-  local _f, _e = loadstring(_r)
-  if not _f then return end
-  _f()
+  if not s or not r or r == "" then return end
+  local f = loadstring(r)
+  if not f then return end
+  f()
 end)`;
         return new Response(keyGrabber, { status: 200, headers: textHeaders });
       }
