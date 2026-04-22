@@ -2547,26 +2547,25 @@ ${options?.showConsoleFeedback ? `    pcall(function()
       local pName = ${v.player}.DisplayName or ${v.player}.Name
       if _hasRConsole and not _G._ULT_IS_MOBILE then
         local _barLen = 24
-        local _phases = {{72, "decrypting"}, {88, "compiling"}, {100, "executing"}}
+        local _phases = {{72, "decrypting"}, {88, "compiling"}, {100, "ready"}}
         for _, ph in ipairs(_phases) do
           local _pct = ph[1] / 100
           local _filled = math.floor(_pct * _barLen)
           local _empty = _barLen - _filled
           local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-          _rPrint(string.format("[ULT Cloud] [%s] %d%% - %s\\n", _bar, ph[1], ph[2]))
+          _rPrint(string.format("[%s] %d%% %s\\n", _bar, ph[1], ph[2]))
           task.wait(0.03)
         end
-        _rPrint("[ULT Cloud] Authenticated. Welcome, " .. tostring(pName) .. "\\n")
-      else
-        pcall(function()
-          local _sg = game:GetService("StarterGui")
-          _sg:SetCore("ChatMakeSystemMessage", {
-            Text = "[ULT Cloud] Welcome, " .. tostring(pName) .. " - protected by ULT Cloud",
-            Color = Color3.fromRGB(180, 134, 255),
-            Font = Enum.Font.SourceSansBold,
-          })
-        end)
+        _rPrint("ready. welcome " .. tostring(pName) .. "\\n")
       end
+      pcall(function()
+        local _sg = game:GetService("StarterGui")
+        _sg:SetCore("ChatMakeSystemMessage", {
+          Text = "loaded. welcome " .. tostring(pName),
+          Color = Color3.fromRGB(235, 235, 235),
+          Font = Enum.Font.SourceSans,
+        })
+      end)
     end)
 ` : ''}
 
