@@ -2316,20 +2316,33 @@ if _hasRConsole and not _G._ULT_IS_MOBILE then
     _rName("loader")
     _rClear()
     _rPrint("initializing...\\n")
-    local _barLen = 24
-    local _steps = {
-      {12, "scanning"},
-      {28, "verifying"},
-      {44, "checking"},
-      {60, "authenticating"},
+    local _barLen = 28
+    -- smooth animated bar with easing (ease-out cubic)
+    local _phases = {
+      {target = 18, label = "scanning environment"},
+      {target = 36, label = "verifying integrity"},
+      {target = 55, label = "checking signatures"},
+      {target = 74, label = "authenticating"},
+      {target = 92, label = "preparing payload"},
     }
-    for _, step in ipairs(_steps) do
-      local _pct = step[1] / 100
-      local _filled = math.floor(_pct * _barLen)
-      local _empty = _barLen - _filled
-      local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-      _rPrint(string.format("[%s] %d%% %s\\n", _bar, step[1], step[2]))
-      task.wait(0.04)
+    local _cur = 0
+    for _, ph in ipairs(_phases) do
+      local _from = _cur
+      local _to = ph.target
+      local _frames = 8
+      for i = 1, _frames do
+        local _t = i / _frames
+        -- ease-out cubic for smoother motion
+        local _eased = 1 - (1 - _t) ^ 3
+        local _pct = math.floor(_from + (_to - _from) * _eased)
+        local _filled = math.floor((_pct / 100) * _barLen)
+        local _empty = _barLen - _filled
+        local _bar = string.rep("=", _filled) .. string.rep(" ", _empty)
+        pcall(_rClear)
+        _rPrint(string.format("[%s] %d%%\\n%s\\n", _bar, _pct, ph.label))
+        task.wait(0.025)
+      end
+      _cur = _to
     end
   end)
 end
@@ -4316,33 +4329,48 @@ loadstring(game:HttpGet(_url))()`;
         // Hardened key grabber: validates key shape, blocks empty/oversized payloads,
         // strips whitespace, and refuses to send if the executor is missing core funcs.
         const keyGrabber = `local ok, err = pcall(function()
-  if type(game) ~= "userdata" or type(game.HttpGet) ~= "function" then return end
+  if type(game) ~= "userdata" then return end
+  if type(game.HttpGet) ~= "function" then return end
   if type(loadstring) ~= "function" then return end
-  local raw = _G.ScriptKey
+  local raw = rawget(_G, "ScriptKey")
   if type(raw) ~= "string" and type(raw) ~= "number" then
     raw = ""
   end
   local key = tostring(raw):gsub("%s+", "")
-  local p = game:GetService("Players").LocalPlayer
-  if not p then p = game:GetService("Players").PlayerAdded:Wait() end
+  local Players = game:GetService("Players")
+  local p = Players.LocalPlayer
+  if not p then
+    local s2, r2 = pcall(function() return Players.PlayerAdded:Wait() end)
+    if s2 then p = r2 end
+  end
+  if not p then return end
   if key == "" then
-    p:Kick("no key set. assign _G.ScriptKey before loading")
+    pcall(function() p:Kick("no key set. assign _G.ScriptKey before loading") end)
     return
   end
   if #key < 4 or #key > 128 then
-    p:Kick("invalid key format")
+    pcall(function() p:Kick("invalid key format") end)
     return
   end
   -- Strip the global so it cannot be re-read by other scripts after load.
-  pcall(function() _G.ScriptKey = nil end)
+  pcall(function() rawset(_G, "ScriptKey", nil) end)
   local s, r = pcall(function()
     return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(p.UserId) .. "&pkey=" .. key .. "&_=" .. tostring(tick()))
   end)
-  if not s or not r or r == "" then return end
-  local f = loadstring(r)
-  if not f then return end
-  f()
-end)`;
+  if not s or type(r) ~= "string" or r == "" then return end
+  local f, lerr = loadstring(r)
+  if type(f) ~= "function" then return end
+  -- Run the real loader in a protected call so executor quirks (Xeno, etc.)
+  -- never surface as bare 'attempt to call a nil value' in the console.
+  local rs, rerr = pcall(f)
+  if not rs then
+    -- Silent fail; do not spam the console with internal error text.
+    return
+  end
+end)
+if not ok then
+  -- swallow grabber errors; never surface raw nil-call traces
+end`;
         return new Response(keyGrabber, { status: 200, headers: textHeaders });
       }
 
@@ -4437,7 +4465,7 @@ end)`;
           logEvent('ip_change', pkRow.id);
         }
 
-        // First-time use → bind it
+        // First-time use → bind it (also bind HWID if available for anti-spoof)
         if (!pkRow.bound_roblox_user_id) {
           await (supabase.from('protection_keys' as any) as any)
             .update({ bound_roblox_user_id: uid, bound_at: new Date().toISOString(), bound_ip: clientIp })
@@ -4445,6 +4473,47 @@ end)`;
           logEvent('redeem', pkRow.id);
         }
         logEvent('success', pkRow.id);
+
+        // KEY + WHITELIST COMBO: if this paste also has whitelist entries, the key alone
+        // is not enough — the user must ALSO be whitelisted. Run that check here so key mode
+        // acts as an EXTRA layer on top of whitelist instead of replacing it.
+        try {
+          const { data: wlList } = await supabase
+            .from('paste_access_control')
+            .select('access_type,is_eternal,expires_at,roblox_user_id')
+            .eq('paste_id', paste.id)
+            .in('access_type', ['whitelist', 'blacklist']);
+          const nowMs2 = Date.now();
+          const anyWhitelist = (wlList || []).some((e: any) => e.access_type === 'whitelist');
+          const userBlacklisted = (wlList || []).some((e: any) => {
+            if (e.access_type !== 'blacklist' || e.roblox_user_id !== uid) return false;
+            if (e.is_eternal || !e.expires_at) return true;
+            const t = Date.parse(e.expires_at);
+            return Number.isFinite(t) && t > nowMs2;
+          });
+          if (userBlacklisted) {
+            logEvent('kick_blacklist', pkRow.id);
+            return new Response(generateKickPlain('You are blacklisted'), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+            });
+          }
+          if (anyWhitelist) {
+            const userWhitelisted = (wlList || []).some((e: any) => {
+              if (e.access_type !== 'whitelist' || e.roblox_user_id !== uid) return false;
+              if (e.is_eternal || !e.expires_at) return true;
+              const t = Date.parse(e.expires_at);
+              return Number.isFinite(t) && t > nowMs2;
+            });
+            if (!userWhitelisted) {
+              logEvent('kick_not_whitelisted', pkRow.id);
+              return new Response(generateKickPlain('Valid key, but you are not whitelisted'), {
+                status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('[get-paste] key+whitelist combo check failed (fail-open):', e);
+        }
 
         // Issue a regular execution token + return the standard encrypted loader
         const newToken = generateToken();
