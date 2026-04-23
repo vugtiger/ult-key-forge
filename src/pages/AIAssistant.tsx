@@ -1,432 +1,389 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import {
-  Send, Loader2, Sparkles, Code, Globe, HelpCircle, Trash2,
-  MessageSquare, Zap, Bot, Paperclip, X, Image as ImageIcon, Film, FileText,
-} from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import TabHelpSection from "@/components/onboarding/TabHelpSection";
-import { aiAssistantHelp } from "@/components/onboarding/helpContent";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
+import Editor from "@monaco-editor/react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Sparkles, Copy, Download, Sun, Moon, Plus, Eye, Layers, Code2,
+  Square, Type, MousePointer2, Image as ImageIcon, Box, Wrench, Palette,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { FileTree, TabBar } from "@/components/studio/FileTree";
+import { StudioChat } from "@/components/studio/StudioChat";
+import { Explorer } from "@/components/studio/Explorer";
+import { DesignerCanvas } from "@/components/studio/DesignerCanvas";
+import { Properties } from "@/components/studio/Properties";
+import { CodePreview } from "@/components/studio/CodePreview";
+import type { InstanceClass, RInstance, StudioFile } from "@/components/studio/types";
+import { defaultInstance, exportToLua, nextIndexFor, uid } from "@/components/studio/utils";
 
-type Attachment = { url: string; name: string; mime: string };
-type Part = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
-interface Message {
-  role: "user" | "assistant";
-  content: string;          // plain text rendered
-  attachments?: Attachment[]; // shown above text
-}
-
-const suggestedPrompts = [
-  { icon: <Code className="h-4 w-4" />, text: "Write a complete kill-all script for Roblox" },
-  { icon: <Globe className="h-4 w-4" />, text: "Build a modern landing page in React + Tailwind" },
-  { icon: <HelpCircle className="h-4 w-4" />, text: "Fix this Lua error: attempt to call a nil value" },
-  { icon: <Zap className="h-4 w-4" />, text: "Optimize my Roblox script for performance" },
+const INSTANCE_PALETTE: { cls: InstanceClass; icon: JSX.Element; label: string }[] = [
+  { cls: "Frame", icon: <Square className="h-3.5 w-3.5" />, label: "Frame" },
+  { cls: "ScrollingFrame", icon: <Box className="h-3.5 w-3.5" />, label: "Scroll" },
+  { cls: "TextLabel", icon: <Type className="h-3.5 w-3.5" />, label: "Label" },
+  { cls: "TextButton", icon: <MousePointer2 className="h-3.5 w-3.5" />, label: "Button" },
+  { cls: "TextBox", icon: <Type className="h-3.5 w-3.5" />, label: "Input" },
+  { cls: "ImageLabel", icon: <ImageIcon className="h-3.5 w-3.5" />, label: "Image" },
+  { cls: "ImageButton", icon: <ImageIcon className="h-3.5 w-3.5" />, label: "ImgBtn" },
 ];
 
-const isImage = (m: string) => m.startsWith("image/");
-const isVideo = (m: string) => m.startsWith("video/");
+const MODIFIERS: InstanceClass[] = [
+  "UICorner", "UIStroke", "UIGradient", "UIPadding",
+  "UIListLayout", "UIGridLayout", "UIAspectRatioConstraint", "UISizeConstraint",
+];
+
+const newProject = () => {
+  const sg = defaultInstance("ScreenGui", null);
+  return {
+    files: [] as StudioFile[],
+    activeFileId: null as string | null,
+    openTabs: [] as string[],
+    uiInstances: [sg] as RInstance[],
+    selectedInstanceId: sg.id,
+    canvasSize: { width: 600, height: 400 },
+    theme: "dark" as "dark" | "light",
+  };
+};
 
 const AIAssistant = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [pending, setPending] = useState<Attachment[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const [project, setProject] = useState(newProject);
+  const [bottomTab, setBottomTab] = useState<"preview" | "console">("preview");
+  const [mainTab, setMainTab] = useState<"editor" | "designer">("designer");
   const { toast } = useToast();
 
-  // Load history on mount
-  useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from("ai_chat_messages")
-        .select("role, content")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: true })
-        .limit(200);
-      if (data?.length) {
-        setMessages(data.map((m: any) => ({
-          role: m.role,
-          content: m.content?.text ?? "",
-          attachments: m.content?.attachments ?? [],
-        })));
-      }
-    })();
+  const activeFile = project.files.find((f) => f.id === project.activeFileId) ?? null;
+  const selectedInstance = project.uiInstances.find((i) => i.id === project.selectedInstanceId) ?? null;
+
+  const updateFile = useCallback((id: string, content: string) => {
+    setProject((p) => ({
+      ...p,
+      files: p.files.map((f) => (f.id === id ? { ...f, content } : f)),
+    }));
   }, []);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  const openFile = useCallback((id: string) => {
+    setProject((p) => ({
+      ...p,
+      activeFileId: id,
+      openTabs: p.openTabs.includes(id) ? p.openTabs : [...p.openTabs, id],
+    }));
+    setMainTab("editor");
+  }, []);
 
-  const persist = async (role: "user" | "assistant", content: string, attachments?: Attachment[]) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from("ai_chat_messages").insert({
-      user_id: user.id, role, content: { text: content, attachments: attachments ?? [] },
+  const closeTab = useCallback((id: string) => {
+    setProject((p) => {
+      const openTabs = p.openTabs.filter((t) => t !== id);
+      const activeFileId = p.activeFileId === id ? (openTabs[openTabs.length - 1] ?? null) : p.activeFileId;
+      return { ...p, openTabs, activeFileId };
     });
-  };
-
-  const handleFiles = async (files: FileList | null) => {
-    if (!files?.length) return;
-    setUploading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Sign in required");
-      const uploaded: Attachment[] = [];
-      for (const file of Array.from(files)) {
-        if (file.size > 50 * 1024 * 1024) {
-          toast({ title: "Too large", description: `${file.name} exceeds 50MB`, variant: "destructive" });
-          continue;
-        }
-        const path = `${user.id}/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
-        const { error } = await supabase.storage.from("ai-uploads").upload(path, file, {
-          contentType: file.type, upsert: false,
-        });
-        if (error) throw error;
-        const { data } = supabase.storage.from("ai-uploads").getPublicUrl(path);
-        uploaded.push({ url: data.publicUrl, name: file.name, mime: file.type || "application/octet-stream" });
-      }
-      setPending((p) => [...p, ...uploaded]);
-    } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  const buildApiContent = (text: string, attachments: Attachment[]): string | Part[] => {
-    if (!attachments.length) return text;
-    const parts: Part[] = [];
-    if (text.trim()) parts.push({ type: "text", text });
-    for (const a of attachments) {
-      if (isImage(a.mime)) {
-        parts.push({ type: "image_url", image_url: { url: a.url } });
-      } else {
-        parts.push({
-          type: "text",
-          text: `[Attached ${isVideo(a.mime) ? "video" : "file"}: ${a.name} (${a.mime})] URL: ${a.url}`,
-        });
-      }
-    }
-    return parts.length ? parts : text;
-  };
-
-  const handleSendMessage = async (override?: string) => {
-    const textToSend = (override ?? input).trim();
-    if ((!textToSend && pending.length === 0) || loading) return;
-
-    const attachments = pending;
-    setPending([]);
-    setInput("");
-    const userMsg: Message = { role: "user", content: textToSend, attachments };
-    setMessages((prev) => [...prev, userMsg, { role: "assistant", content: "" }]);
-    setLoading(true);
-    persist("user", textToSend, attachments);
-
-    try {
-      // Build API messages from full history
-      const apiMessages = [...messages, userMsg].map((m) => ({
-        role: m.role,
-        content: buildApiContent(m.content, m.attachments ?? []),
-      }));
-
-      const { data: { session } } = await supabase.auth.getSession();
-      const url = `https://iyfvpnjrghsownkpazec.supabase.co/functions/v1/ai-chat`;
-      abortRef.current?.abort();
-      abortRef.current = new AbortController();
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token ?? ""}`,
-        },
-        body: JSON.stringify({ messages: apiMessages }),
-        signal: abortRef.current.signal,
-      });
-
-      if (!res.ok || !res.body) {
-        const errText = await res.text().catch(() => "");
-        throw new Error(errText || `HTTP ${res.status}`);
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-      let assistantText = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop() ?? "";
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data:")) continue;
-          const payload = trimmed.slice(5).trim();
-          if (payload === "[DONE]") continue;
-          try {
-            const json = JSON.parse(payload);
-            const delta = json.choices?.[0]?.delta?.content;
-            if (delta) {
-              assistantText += delta;
-              setMessages((prev) => {
-                const next = [...prev];
-                next[next.length - 1] = { role: "assistant", content: assistantText };
-                return next;
-              });
-            }
-          } catch {}
-        }
-      }
-
-      if (assistantText) persist("assistant", assistantText);
-    } catch (err: any) {
-      const msg = err?.name === "AbortError" ? "Stopped." : (err?.message || "Failed to get AI response");
-      setMessages((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = { role: "assistant", content: `⚠️ ${msg}` };
-        return next;
-      });
-      toast({ title: "Error", description: msg, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const clearChat = useCallback(async () => {
-    setMessages([]);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) await supabase.from("ai_chat_messages").delete().eq("user_id", user.id);
   }, []);
 
-  const stop = () => abortRef.current?.abort();
+  const createFile = useCallback((file: StudioFile) => {
+    setProject((p) => ({
+      ...p,
+      files: [...p.files, file],
+      openTabs: [...p.openTabs, file.id],
+      activeFileId: file.id,
+    }));
+    setMainTab("editor");
+  }, []);
+
+  const deleteFile = useCallback((id: string) => {
+    setProject((p) => {
+      const files = p.files.filter((f) => f.id !== id);
+      const openTabs = p.openTabs.filter((t) => t !== id);
+      return {
+        ...p,
+        files,
+        openTabs,
+        activeFileId: p.activeFileId === id ? (openTabs[openTabs.length - 1] ?? null) : p.activeFileId,
+      };
+    });
+  }, []);
+
+  const addInstance = useCallback((cls: InstanceClass) => {
+    setProject((p) => {
+      const parent = p.selectedInstanceId
+        ? p.uiInstances.find((i) => i.id === p.selectedInstanceId)
+        : p.uiInstances.find((i) => i.className === "ScreenGui");
+      if (!parent) return p;
+      // Modifiers go inside the selected GUI; GUIs go inside ScreenGui or selected container
+      const isModifier = MODIFIERS.includes(cls);
+      const targetParent = isModifier
+        ? parent
+        : (parent.className === "ScreenGui" || parent.className === "Frame" || parent.className === "ScrollingFrame" || parent.className === "ImageButton" || parent.className === "TextButton")
+          ? parent
+          : p.uiInstances.find((i) => i.className === "ScreenGui")!;
+      const inst = defaultInstance(cls, targetParent.id, nextIndexFor(cls, p.uiInstances));
+      return {
+        ...p,
+        uiInstances: [...p.uiInstances, inst],
+        selectedInstanceId: inst.id,
+      };
+    });
+    setMainTab("designer");
+  }, []);
+
+  const updateInstance = useCallback((id: string, patch: Partial<RInstance>) => {
+    setProject((p) => ({
+      ...p,
+      uiInstances: p.uiInstances.map((i) => (i.id === id ? { ...i, ...patch } : i)),
+    }));
+  }, []);
+
+  const deleteInstance = useCallback((id: string) => {
+    setProject((p) => {
+      // Recursively collect descendants
+      const toDelete = new Set<string>([id]);
+      let added = true;
+      while (added) {
+        added = false;
+        for (const inst of p.uiInstances) {
+          if (inst.parentId && toDelete.has(inst.parentId) && !toDelete.has(inst.id)) {
+            toDelete.add(inst.id);
+            added = true;
+          }
+        }
+      }
+      return {
+        ...p,
+        uiInstances: p.uiInstances.filter((i) => !toDelete.has(i.id)),
+        selectedInstanceId: toDelete.has(p.selectedInstanceId ?? "") ? null : p.selectedInstanceId,
+      };
+    });
+  }, []);
+
+  const reparentInstance = useCallback((id: string, newParentId: string) => {
+    setProject((p) => {
+      // Prevent cycles
+      const ancestors = new Set<string>();
+      let cursor: string | null = newParentId;
+      while (cursor) {
+        ancestors.add(cursor);
+        cursor = p.uiInstances.find((i) => i.id === cursor)?.parentId ?? null;
+      }
+      if (ancestors.has(id)) return p;
+      return {
+        ...p,
+        uiInstances: p.uiInstances.map((i) => (i.id === id ? { ...i, parentId: newParentId } : i)),
+      };
+    });
+  }, []);
+
+  const applyAIUI = useCallback((instances: RInstance[]) => {
+    setProject((p) => ({
+      ...p,
+      uiInstances: instances,
+      selectedInstanceId: instances.find((i) => i.className === "ScreenGui")?.id ?? null,
+    }));
+    setMainTab("designer");
+    toast({ title: "UI loaded", description: `${instances.length} instances rendered on canvas.` });
+  }, [toast]);
+
+  const exportLua = useCallback(() => {
+    const lua = exportToLua(project.uiInstances);
+    createFile({ id: uid(), name: `ui-export-${Date.now()}.lua`, language: "lua", content: lua });
+    navigator.clipboard.writeText(lua).catch(() => {});
+    toast({ title: "Exported", description: "Lua copied to clipboard and saved as a file." });
+  }, [project.uiInstances, createFile, toast]);
+
+  const previewLanguage = useMemo(() => activeFile?.language ?? "plaintext", [activeFile]);
+  const previewCode = useMemo(() => activeFile?.content ?? "", [activeFile]);
 
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/5 border border-primary/30 shadow-[0_8px_24px_-8px_hsl(var(--primary)/0.5)]">
-              <Sparkles className="h-8 w-8 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold flex items-center gap-2 flex-wrap">
-                AI Coding Agent
-                <Badge variant="outline" className="text-xs">Streaming • Multimodal</Badge>
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Drops complete code instantly — Lua, web, debugging, image/video/file analysis.
-              </p>
-            </div>
+      <div className="h-[calc(100vh-4rem)] flex flex-col bg-background overflow-hidden">
+        {/* Top bar */}
+        <div className="h-10 border-b border-border flex items-center justify-between px-3 shrink-0">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-blue-500" />
+            <span className="text-sm font-medium">AI Studio</span>
+            <span className="text-[10px] text-muted-foreground ml-2">Roblox UI Designer + Code Editor</span>
           </div>
-          {messages.length > 0 && (
-            <Button variant="outline" size="sm" onClick={clearChat} className="gap-2">
-              <Trash2 className="h-4 w-4" />
-              <span>Clear</span>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5" onClick={() => setProject((p) => ({ ...p, theme: p.theme === "dark" ? "light" : "dark" }))}>
+              {project.theme === "dark" ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+              Canvas
             </Button>
-          )}
+            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1.5" onClick={exportLua}>
+              <Download className="h-3.5 w-3.5" /> Export Lua
+            </Button>
+          </div>
         </div>
 
-        <TabHelpSection {...aiAssistantHelp} />
-
-        <Card className="cyber-border bg-card/50 backdrop-blur-xl flex flex-col overflow-hidden h-[calc(100vh-16rem)] min-h-[600px]">
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-            {messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center px-4">
-                <div className="p-4 rounded-full bg-primary/10 mb-6 border border-primary/20">
-                  <Bot className="h-12 w-12 text-primary" />
+        <PanelGroup direction="horizontal" className="flex-1">
+          {/* LEFT: file tree + explorer */}
+          <Panel defaultSize={16} minSize={12}>
+            <div className="h-full flex flex-col border-r border-border">
+              <FileTree
+                files={project.files}
+                activeFileId={project.activeFileId}
+                onOpen={openFile}
+                onDelete={deleteFile}
+                onCreate={createFile}
+              />
+              <div className="border-t border-border flex-1 overflow-y-auto">
+                <div className="px-2 py-1.5 border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Explorer
                 </div>
-                <h2 className="text-2xl font-bold mb-2">What are we building?</h2>
-                <p className="text-muted-foreground mb-8 max-w-md">
-                  Drop a prompt, paste a screenshot, or upload a video — I'll just do it.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
-                  {suggestedPrompts.map((prompt, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      className="justify-start gap-3 h-auto py-3 px-4 text-left hover:bg-primary/10 hover:border-primary/30"
-                      onClick={() => handleSendMessage(prompt.text)}
-                    >
-                      <div className="p-1.5 rounded-md bg-primary/10 text-primary shrink-0">
-                        {prompt.icon}
-                      </div>
-                      <span className="text-sm whitespace-normal break-words flex-1">{prompt.text}</span>
-                    </Button>
-                  ))}
-                </div>
+                <Explorer
+                  instances={project.uiInstances}
+                  selectedId={project.selectedInstanceId}
+                  onSelect={(selectedInstanceId) => setProject((p) => ({ ...p, selectedInstanceId }))}
+                  onRename={(id, name) => updateInstance(id, { name })}
+                  onDelete={deleteInstance}
+                  onReparent={reparentInstance}
+                />
               </div>
-            ) : (
-              <>
-                {messages.map((message, index) => (
-                  <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div
-                      className={`max-w-[90%] rounded-2xl p-4 ${
-                        message.role === "user"
-                          ? "bg-primary text-primary-foreground rounded-br-md shadow-[0_4px_16px_-4px_hsl(var(--primary)/0.5)]"
-                          : "bg-muted/50 border border-border/50 rounded-bl-md"
-                      }`}
-                    >
-                      {message.role === "assistant" && (
-                        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border/30">
-                          <Sparkles className="h-4 w-4 text-primary" />
-                          <span className="text-xs font-medium text-primary">AI Agent</span>
-                        </div>
-                      )}
-                      {message.attachments && message.attachments.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          {message.attachments.map((a, i) => (
-                            <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
-                               className="block rounded-lg overflow-hidden border border-border/50 bg-background/40 max-w-[180px]">
-                              {isImage(a.mime) ? (
-                                <img src={a.url} alt={a.name} className="w-full h-24 object-cover" />
-                              ) : isVideo(a.mime) ? (
-                                <video src={a.url} className="w-full h-24 object-cover" muted />
-                              ) : (
-                                <div className="p-3 flex items-center gap-2 text-xs">
-                                  <FileText className="h-4 w-4 shrink-0" />
-                                  <span className="truncate">{a.name}</span>
-                                </div>
-                              )}
-                            </a>
+            </div>
+          </Panel>
+          <PanelResizeHandle className="w-px bg-border hover:bg-blue-500/50 transition-colors" />
+
+          {/* CENTER: editor / designer */}
+          <Panel defaultSize={56} minSize={30}>
+            <PanelGroup direction="vertical">
+              <Panel defaultSize={70} minSize={30}>
+                <div className="h-full flex flex-col">
+                  <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "editor" | "designer")} className="h-full flex flex-col">
+                    <div className="flex items-center justify-between border-b border-border px-2 shrink-0">
+                      <TabsList className="h-9 bg-transparent border-0 rounded-none p-0">
+                        <TabsTrigger value="designer" className="h-9 data-[state=active]:bg-background data-[state=active]:shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 gap-1.5 text-xs">
+                          <Layers className="h-3.5 w-3.5" /> UI Designer
+                        </TabsTrigger>
+                        <TabsTrigger value="editor" className="h-9 data-[state=active]:bg-background data-[state=active]:shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 gap-1.5 text-xs">
+                          <Code2 className="h-3.5 w-3.5" /> Code Editor
+                        </TabsTrigger>
+                      </TabsList>
+                      {mainTab === "designer" && (
+                        <div className="flex items-center gap-1 py-1 overflow-x-auto">
+                          {INSTANCE_PALETTE.map((p) => (
+                            <Button key={p.cls} size="sm" variant="ghost" className="h-7 text-[11px] gap-1 px-2" onClick={() => addInstance(p.cls)}>
+                              {p.icon} {p.label}
+                            </Button>
+                          ))}
+                          <div className="w-px h-5 bg-border mx-1" />
+                          {MODIFIERS.map((cls) => (
+                            <Button key={cls} size="sm" variant="ghost" className="h-7 text-[11px] gap-1 px-2" onClick={() => addInstance(cls)} title={cls}>
+                              {cls === "UIGradient" ? <Palette className="h-3.5 w-3.5" /> : <Wrench className="h-3.5 w-3.5" />}
+                              {cls.replace("UI", "")}
+                            </Button>
                           ))}
                         </div>
                       )}
-                      {message.role === "assistant" ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none prose-pre:bg-muted/40 prose-pre:border prose-pre:border-border/40 prose-pre:rounded-lg prose-code:before:content-none prose-code:after:content-none break-words">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {message.content || "▍"}
-                          </ReactMarkdown>
-                        </div>
-                      ) : (
-                        <div className="whitespace-pre-wrap text-sm leading-relaxed break-words">
-                          {message.content}
-                        </div>
-                      )}
                     </div>
+
+                    <TabsContent value="designer" className="flex-1 m-0 overflow-hidden">
+                      <DesignerCanvas
+                        instances={project.uiInstances}
+                        selectedId={project.selectedInstanceId}
+                        onSelect={(selectedInstanceId) => setProject((p) => ({ ...p, selectedInstanceId }))}
+                        onUpdate={updateInstance}
+                        canvasSize={project.canvasSize}
+                        theme={project.theme}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="editor" className="flex-1 m-0 flex flex-col overflow-hidden">
+                      <TabBar
+                        files={project.files}
+                        openTabs={project.openTabs}
+                        activeFileId={project.activeFileId}
+                        onSelect={openFile}
+                        onClose={closeTab}
+                      />
+                      <div className="flex-1 overflow-hidden">
+                        {activeFile ? (
+                          <Editor
+                            height="100%"
+                            language={activeFile.language === "tsx" ? "typescript" : activeFile.language}
+                            value={activeFile.content}
+                            theme="vs-dark"
+                            onChange={(v) => updateFile(activeFile.id, v ?? "")}
+                            options={{
+                              fontSize: 13,
+                              minimap: { enabled: false },
+                              scrollBeyondLastLine: false,
+                              wordWrap: "on",
+                              automaticLayout: true,
+                            }}
+                          />
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                            <div className="text-center space-y-1">
+                              <FileTreeEmptyIcon />
+                              <div>Open or create a file to start coding</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              </Panel>
+              <PanelResizeHandle className="h-px bg-border hover:bg-blue-500/50 transition-colors" />
+
+              {/* BOTTOM: preview */}
+              <Panel defaultSize={30} minSize={15}>
+                <div className="h-full flex flex-col">
+                  <div className="flex items-center justify-between border-b border-border px-2 h-8 shrink-0">
+                    <Tabs value={bottomTab} onValueChange={(v) => setBottomTab(v as "preview" | "console")}>
+                      <TabsList className="h-7 bg-transparent border-0 rounded-none p-0">
+                        <TabsTrigger value="preview" className="h-7 data-[state=active]:bg-muted/50 data-[state=active]:shadow-none rounded gap-1.5 text-[11px] px-2">
+                          <Eye className="h-3 w-3" /> Live Preview
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                    {activeFile && (
+                      <Button size="sm" variant="ghost" className="h-6 text-[11px] gap-1" onClick={() => { navigator.clipboard.writeText(activeFile.content); toast({ title: "Copied" }); }}>
+                        <Copy className="h-3 w-3" /> Copy
+                      </Button>
+                    )}
                   </div>
-                ))}
-                {loading && messages[messages.length - 1]?.content === "" && (
-                  <div className="flex justify-start">
-                    <div className="bg-muted/50 border border-border/50 rounded-2xl rounded-bl-md p-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="flex-1 overflow-hidden bg-muted/20">
+                    <CodePreview language={previewLanguage} code={previewCode} />
+                  </div>
+                </div>
+              </Panel>
+            </PanelGroup>
+          </Panel>
+          <PanelResizeHandle className="w-px bg-border hover:bg-blue-500/50 transition-colors" />
+
+          {/* RIGHT: chat or properties */}
+          <Panel defaultSize={28} minSize={20}>
+            <PanelGroup direction="vertical">
+              <Panel defaultSize={selectedInstance ? 55 : 100} minSize={30}>
+                <StudioChat
+                  onApplyUI={applyAIUI}
+                  onCreateFile={createFile}
+                  uiInstances={project.uiInstances}
+                />
+              </Panel>
+              {selectedInstance && (
+                <>
+                  <PanelResizeHandle className="h-px bg-border hover:bg-blue-500/50 transition-colors" />
+                  <Panel defaultSize={45} minSize={20}>
+                    <div className="h-full flex flex-col border-l border-border">
+                      <div className="px-2 py-1.5 border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Properties
+                      </div>
+                      <div className="flex-1 overflow-y-auto">
+                        <Properties inst={selectedInstance} onUpdate={(patch) => updateInstance(selectedInstance.id, patch)} />
                       </div>
                     </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </>
-            )}
-          </div>
-
-          <div className="p-4 border-t border-border/50 bg-background/50">
-            {pending.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {pending.map((a, i) => (
-                  <div key={i} className="relative group rounded-lg overflow-hidden border border-border/50 bg-background/40">
-                    {isImage(a.mime) ? (
-                      <img src={a.url} alt={a.name} className="w-16 h-16 object-cover" />
-                    ) : isVideo(a.mime) ? (
-                      <div className="w-16 h-16 flex items-center justify-center"><Film className="h-5 w-5" /></div>
-                    ) : (
-                      <div className="w-16 h-16 flex items-center justify-center"><FileText className="h-5 w-5" /></div>
-                    )}
-                    <button
-                      onClick={() => setPending((p) => p.filter((_, j) => j !== i))}
-                      className="absolute top-0.5 right-0.5 bg-background/80 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2 items-end">
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*,video/*,.pdf,.txt,.md,.json,.lua,.js,.ts,.tsx,.jsx,.html,.css"
-                className="hidden"
-                onChange={(e) => handleFiles(e.target.files)}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-[56px] w-[56px] shrink-0"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                title="Attach images, videos, files"
-              >
-                {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
-              </Button>
-              <div className="flex-1 relative">
-                <Textarea
-                  placeholder="Ask anything — paste code, upload screenshots, drop a video..."
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  className="min-h-[56px] max-h-[240px] resize-none pr-12 bg-background/50 border-border/50 focus:border-primary/50"
-                  rows={1}
-                />
-              </div>
-              {loading ? (
-                <Button onClick={stop} size="lg" variant="destructive" className="px-6 h-[56px] shrink-0">
-                  <X className="h-5 w-5" />
-                </Button>
-              ) : (
-                <Button
-                  onClick={() => handleSendMessage()}
-                  disabled={!input.trim() && pending.length === 0}
-                  size="lg"
-                  className="px-6 h-[56px] shrink-0 cyber-glow"
-                >
-                  <Send className="h-5 w-5" />
-                </Button>
+                  </Panel>
+                </>
               )}
-            </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground gap-2 flex-wrap">
-              <span className="flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" />
-                {messages.length} messages
-              </span>
-              <span className="flex items-center gap-1">
-                <ImageIcon className="h-3 w-3" /> Images
-                <span className="mx-1">·</span>
-                <Film className="h-3 w-3" /> Video
-                <span className="mx-1">·</span>
-                <FileText className="h-3 w-3" /> Files
-              </span>
-            </div>
-          </div>
-        </Card>
+            </PanelGroup>
+          </Panel>
+        </PanelGroup>
       </div>
     </DashboardLayout>
   );
 };
+
+const FileTreeEmptyIcon = () => (
+  <Plus className="h-8 w-8 mx-auto opacity-30" />
+);
 
 export default AIAssistant;
