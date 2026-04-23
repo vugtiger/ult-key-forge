@@ -2316,20 +2316,33 @@ if _hasRConsole and not _G._ULT_IS_MOBILE then
     _rName("loader")
     _rClear()
     _rPrint("initializing...\\n")
-    local _barLen = 24
-    local _steps = {
-      {12, "scanning"},
-      {28, "verifying"},
-      {44, "checking"},
-      {60, "authenticating"},
+    local _barLen = 28
+    -- smooth animated bar with easing (ease-out cubic)
+    local _phases = {
+      {target = 18, label = "scanning environment"},
+      {target = 36, label = "verifying integrity"},
+      {target = 55, label = "checking signatures"},
+      {target = 74, label = "authenticating"},
+      {target = 92, label = "preparing payload"},
     }
-    for _, step in ipairs(_steps) do
-      local _pct = step[1] / 100
-      local _filled = math.floor(_pct * _barLen)
-      local _empty = _barLen - _filled
-      local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-      _rPrint(string.format("[%s] %d%% %s\\n", _bar, step[1], step[2]))
-      task.wait(0.04)
+    local _cur = 0
+    for _, ph in ipairs(_phases) do
+      local _from = _cur
+      local _to = ph.target
+      local _frames = 8
+      for i = 1, _frames do
+        local _t = i / _frames
+        -- ease-out cubic for smoother motion
+        local _eased = 1 - (1 - _t) ^ 3
+        local _pct = math.floor(_from + (_to - _from) * _eased)
+        local _filled = math.floor((_pct / 100) * _barLen)
+        local _empty = _barLen - _filled
+        local _bar = string.rep("=", _filled) .. string.rep(" ", _empty)
+        pcall(_rClear)
+        _rPrint(string.format("[%s] %d%%\\n%s\\n", _bar, _pct, ph.label))
+        task.wait(0.025)
+      end
+      _cur = _to
     end
   end)
 end
