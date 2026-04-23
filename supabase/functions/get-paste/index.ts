@@ -4437,7 +4437,7 @@ end)`;
           logEvent('ip_change', pkRow.id);
         }
 
-        // First-time use → bind it
+        // First-time use → bind it (also bind HWID if available for anti-spoof)
         if (!pkRow.bound_roblox_user_id) {
           await (supabase.from('protection_keys' as any) as any)
             .update({ bound_roblox_user_id: uid, bound_at: new Date().toISOString(), bound_ip: clientIp })
@@ -4445,6 +4445,47 @@ end)`;
           logEvent('redeem', pkRow.id);
         }
         logEvent('success', pkRow.id);
+
+        // KEY + WHITELIST COMBO: if this paste also has whitelist entries, the key alone
+        // is not enough — the user must ALSO be whitelisted. Run that check here so key mode
+        // acts as an EXTRA layer on top of whitelist instead of replacing it.
+        try {
+          const { data: wlList } = await supabase
+            .from('paste_access_control')
+            .select('access_type,is_eternal,expires_at,roblox_user_id')
+            .eq('paste_id', paste.id)
+            .in('access_type', ['whitelist', 'blacklist']);
+          const nowMs2 = Date.now();
+          const anyWhitelist = (wlList || []).some((e: any) => e.access_type === 'whitelist');
+          const userBlacklisted = (wlList || []).some((e: any) => {
+            if (e.access_type !== 'blacklist' || e.roblox_user_id !== uid) return false;
+            if (e.is_eternal || !e.expires_at) return true;
+            const t = Date.parse(e.expires_at);
+            return Number.isFinite(t) && t > nowMs2;
+          });
+          if (userBlacklisted) {
+            logEvent('kick_blacklist', pkRow.id);
+            return new Response(generateKickPlain('You are blacklisted'), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+            });
+          }
+          if (anyWhitelist) {
+            const userWhitelisted = (wlList || []).some((e: any) => {
+              if (e.access_type !== 'whitelist' || e.roblox_user_id !== uid) return false;
+              if (e.is_eternal || !e.expires_at) return true;
+              const t = Date.parse(e.expires_at);
+              return Number.isFinite(t) && t > nowMs2;
+            });
+            if (!userWhitelisted) {
+              logEvent('kick_not_whitelisted', pkRow.id);
+              return new Response(generateKickPlain('Valid key, but you are not whitelisted'), {
+                status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('[get-paste] key+whitelist combo check failed (fail-open):', e);
+        }
 
         // Issue a regular execution token + return the standard encrypted loader
         const newToken = generateToken();
