@@ -4316,33 +4316,48 @@ loadstring(game:HttpGet(_url))()`;
         // Hardened key grabber: validates key shape, blocks empty/oversized payloads,
         // strips whitespace, and refuses to send if the executor is missing core funcs.
         const keyGrabber = `local ok, err = pcall(function()
-  if type(game) ~= "userdata" or type(game.HttpGet) ~= "function" then return end
+  if type(game) ~= "userdata" then return end
+  if type(game.HttpGet) ~= "function" then return end
   if type(loadstring) ~= "function" then return end
-  local raw = _G.ScriptKey
+  local raw = rawget(_G, "ScriptKey")
   if type(raw) ~= "string" and type(raw) ~= "number" then
     raw = ""
   end
   local key = tostring(raw):gsub("%s+", "")
-  local p = game:GetService("Players").LocalPlayer
-  if not p then p = game:GetService("Players").PlayerAdded:Wait() end
+  local Players = game:GetService("Players")
+  local p = Players.LocalPlayer
+  if not p then
+    local s2, r2 = pcall(function() return Players.PlayerAdded:Wait() end)
+    if s2 then p = r2 end
+  end
+  if not p then return end
   if key == "" then
-    p:Kick("no key set. assign _G.ScriptKey before loading")
+    pcall(function() p:Kick("no key set. assign _G.ScriptKey before loading") end)
     return
   end
   if #key < 4 or #key > 128 then
-    p:Kick("invalid key format")
+    pcall(function() p:Kick("invalid key format") end)
     return
   end
   -- Strip the global so it cannot be re-read by other scripts after load.
-  pcall(function() _G.ScriptKey = nil end)
+  pcall(function() rawset(_G, "ScriptKey", nil) end)
   local s, r = pcall(function()
     return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(p.UserId) .. "&pkey=" .. key .. "&_=" .. tostring(tick()))
   end)
-  if not s or not r or r == "" then return end
-  local f = loadstring(r)
-  if not f then return end
-  f()
-end)`;
+  if not s or type(r) ~= "string" or r == "" then return end
+  local f, lerr = loadstring(r)
+  if type(f) ~= "function" then return end
+  -- Run the real loader in a protected call so executor quirks (Xeno, etc.)
+  -- never surface as bare 'attempt to call a nil value' in the console.
+  local rs, rerr = pcall(f)
+  if not rs then
+    -- Silent fail; do not spam the console with internal error text.
+    return
+  end
+end)
+if not ok then
+  -- swallow grabber errors; never surface raw nil-call traces
+end`;
         return new Response(keyGrabber, { status: 200, headers: textHeaders });
       }
 
