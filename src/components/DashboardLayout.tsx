@@ -124,16 +124,16 @@ const AppSidebar = ({ user }: { user: User | null }) => {
                       <NavLink
                         to={item.url}
                         end
-                        className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] transition-all duration-200 ${
+                        className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-all duration-150 ${
                           isActive
-                            ? "bg-foreground/[0.08] text-foreground shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.1)]"
-                            : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]"
+                            ? "bg-gradient-to-b from-foreground/[0.13] to-foreground/[0.06] text-foreground shadow-[inset_0_1px_0_0_hsl(var(--foreground)/0.18),inset_0_-1px_0_0_hsl(0_0%_0%/0.4),0_2px_6px_-2px_hsl(0_0%_0%/0.6),0_1px_0_0_hsl(0_0%_0%/0.3)] -translate-y-px"
+                            : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] hover:shadow-[inset_0_1px_0_0_hsl(var(--foreground)/0.06)] active:translate-y-px"
                         }`}
                         activeClassName=""
                       >
-                        {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-foreground" />}
-                        <item.icon size={16} className={isActive ? "text-foreground" : "text-muted-foreground/70 group-hover:text-foreground"} />
-                        {!collapsed && <span className="font-medium">{item.title}</span>}
+                        {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-foreground shadow-[0_0_8px_hsl(var(--foreground)/0.5)]" />}
+                        <item.icon size={16} className={isActive ? "text-foreground drop-shadow-[0_1px_1px_hsl(0_0%_0%/0.5)]" : "text-muted-foreground/70 group-hover:text-foreground"} />
+                        {!collapsed && <span className={isActive ? "font-semibold" : "font-medium"}>{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
