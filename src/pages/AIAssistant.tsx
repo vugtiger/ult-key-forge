@@ -125,7 +125,7 @@ const AIAssistant = () => {
                       size="sm"
                       variant="ghost"
                       className="h-7 text-[10px] px-1 hover:bg-foreground/5"
-                      onClick={() => newBlankFile(l.ext === "js" ? "javascript" : l.ext === "ts" ? "typescript" : l.ext)}
+                      onClick={() => newBlankFile((l.ext === "js" ? "javascript" : l.ext === "ts" ? "typescript" : l.ext) as StudioFile["language"])}
                     >
                       <Plus className="h-2.5 w-2.5 mr-0.5" />
                       {l.label}
