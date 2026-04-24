@@ -47,7 +47,7 @@ const AIAssistant = () => {
     });
   }, []);
 
-  const newBlankFile = useCallback((language: string) => {
+  const newBlankFile = useCallback((language: StudioFile["language"]) => {
     const ext = language === "javascript" ? "js" : language === "typescript" ? "ts" : language === "markdown" ? "md" : language;
     createFile({
       id: uid(),
