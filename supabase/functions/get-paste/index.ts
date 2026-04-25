@@ -3560,26 +3560,25 @@ function fireWebhookAlert(paste: any, uid: string, ip: string, hwid: string | nu
   }).catch(() => {});
 }
 
-// Re-obfuscation on delivery — structurally transform the code each time
+// Re-obfuscation on delivery — structurally transform the code each time.
+// IMPORTANT: We do NOT wrap user code in an inner function. Wrapping breaks:
+//   - top-level `return` statements (very common in module-style scripts)
+//   - vararg `...` (becomes nil inside a non-vararg inner function)
+//   - getfenv/setfenv level assumptions
+// Instead, we only PREPEND randomized junk locals at chunk scope. This changes
+// the bytecode/string hash on every delivery without altering execution semantics.
 function applyDeliveryObfuscation(code: string): string {
-  // Wrap in a random closure with junk variables
-  const vars = Array.from({ length: 5 }, () => '_' + Math.random().toString(36).substring(2, 10));
-  const junk = vars.map(v => `local ${v} = ${Math.floor(Math.random() * 99999)}`).join('\n');
-  const wrapVar = '_' + Math.random().toString(36).substring(2, 10);
-  const execVar = '_' + Math.random().toString(36).substring(2, 10);
-  
-  // Randomize string literals by XOR encoding them differently each time
-  const seed = Math.floor(Math.random() * 255) + 1;
-  
-  return `${junk}
-local ${wrapVar} = (function()
-  local ${execVar} = ${Math.floor(Math.random() * 9999)}
-  ${vars.map(v => `${v} = ${v} + ${execVar}`).join('\n  ')}
-  return function()
-    ${code}
-  end
-end)()
-${wrapVar}()`;
+  const vars = Array.from({ length: 6 }, () => '_' + Math.random().toString(36).substring(2, 10));
+  const junkLines: string[] = [];
+  for (const v of vars) {
+    const n = Math.floor(Math.random() * 999999);
+    junkLines.push(`local ${v}=${n};`);
+  }
+  // Random no-op pcall wrapper line (still chunk-level, no scoping change)
+  const noop = '_' + Math.random().toString(36).substring(2, 10);
+  junkLines.push(`local ${noop}=function() return ${Math.floor(Math.random() * 99999)} end; ${noop}();`);
+  // All junk on a single leading line so user line numbers stay close to original
+  return junkLines.join(' ') + '\n' + code;
 }
 
 // Main v12 protection gate — runs before content delivery
