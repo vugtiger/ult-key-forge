@@ -3875,10 +3875,11 @@ Deno.serve(async (req) => {
       console.log(`[get-paste] BOT BLOCKED (no ban): ${validationResult.reason} from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
       // Only log once per IP per hour to avoid flooding threat log with routine bot traffic
       const botLogKey = `bot_log:${clientIp}`;
-      const lastBotLog = ipMismatchTracker.get(botLogKey);
+      const lastBotLog = ipMismatchTracker.get(botLogKey) as any;
       const now = Date.now();
-      if (!lastBotLog || (now - lastBotLog) > 3600_000) {
-        ipMismatchTracker.set(botLogKey, now);
+      const lastTs = typeof lastBotLog === 'number' ? lastBotLog : (lastBotLog?.firstSeen ?? 0);
+      if (!lastTs || (now - lastTs) > 3600_000) {
+        (ipMismatchTracker as any).set(botLogKey, now);
         logThreat('bot_access_attempt', clientIp, uid || null, null, { 
           reason: validationResult.reason, 
           user_agent: userAgent.substring(0, 200),
