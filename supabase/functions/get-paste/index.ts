@@ -67,7 +67,7 @@ function logThreat(type: string, ip: string | null, robloxId: string | null, dis
     threat_type: type, source_ip: ip, roblox_user_id: robloxId,
     discord_user_id: discordId, details, severity,
     resolved: autoResolve, auto_banned: autoResolve,
-  }).then(() => {}).catch(e => console.error('Threat log failed:', e));
+  }).then(() => {}, (e: any) => console.error('Threat log failed:', e));
 }
 
 // ===== AUTO-BAN: When a globally banned user connects from a new IP, ban that IP too =====
@@ -123,7 +123,7 @@ function autoBanNewIp(ip: string, reason: string, robloxId: string | null, disco
     is_active: true,
   }, { onConflict: 'ban_type,ban_value' })
     .then(() => console.log(`[AUTO-BAN] IP ${ip} banned: ${banReason}`))
-    .catch(e => console.error('Auto-ban insert failed:', e));
+.then(undefined, (e: any) => console.error('Auto-ban insert failed:', e));
   
   // Log threat
   logThreat('auto_ban_vpn_ip', ip, robloxId, discordId, { 
@@ -3445,7 +3445,7 @@ async function checkMultiAccount(paste: any, uid: string, hwid: string | null, s
         const flagged = ids.length > 1;
         supabaseClient.from('paste_multi_account_flags')
           .update({ roblox_user_ids: ids, is_blocked: ids.length > 3, flagged_at: new Date().toISOString() })
-          .eq('id', existing.id).then(() => {}).catch(() => {});
+          .eq('id', existing.id).then(() => {}, () => {});
         if (ids.length > 3) return { allowed: false, flagged: true };
         return { allowed: true, flagged };
       }
@@ -3453,7 +3453,7 @@ async function checkMultiAccount(paste: any, uid: string, hwid: string | null, s
     } else {
       supabaseClient.from('paste_multi_account_flags')
         .upsert({ paste_id: paste.id, hwid, roblox_user_ids: [uid] }, { onConflict: 'paste_id,hwid' })
-        .then(() => {}).catch(() => {});
+        .then(() => {}, () => {});
       return { allowed: true, flagged: false };
     }
   } catch (e) {
@@ -3557,7 +3557,7 @@ function fireWebhookAlert(paste: any, uid: string, ip: string, hwid: string | nu
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(embed),
-  }).catch(() => {});
+  }).then(undefined, () => {});
 }
 
 // Re-obfuscation on delivery — structurally transform the code each time.
@@ -3655,7 +3655,7 @@ Deno.serve(async (req) => {
       threat_type: 'banned_ip_access', source_ip: earlyIp, roblox_user_id: null,
       discord_user_id: null, details: { action: 'blocked_at_gate' }, severity: 'high',
       resolved: true, auto_banned: true,
-    }).then(() => {}).catch(e => console.error('Threat log failed:', e));
+    }).then(() => {}, (e: any) => console.error('Threat log failed:', e));
     return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
   }
 
@@ -3709,7 +3709,7 @@ Deno.serve(async (req) => {
         await supabase.from('global_bans').upsert({
           ban_type: 'roblox_id', ban_value: reportUid,
           reason: banReason, is_active: true,
-        }, { onConflict: 'ban_type,ban_value' }).then(() => {}).catch(() => {});
+        }, { onConflict: 'ban_type,ban_value' }).then(() => {}, () => {});
         globalBanCache.robloxIds.add(reportUid);
         
         // Ban IP
@@ -3738,7 +3738,7 @@ Deno.serve(async (req) => {
               await supabase.from('global_bans').upsert({
                 ban_type: 'discord_id', ban_value: log.discord_user_id,
                 reason: banReason, is_active: true,
-              }, { onConflict: 'ban_type,ban_value' }).then(() => {}).catch(() => {});
+              }, { onConflict: 'ban_type,ban_value' }).then(() => {}, () => {});
               globalBanCache.discordIds.add(log.discord_user_id);
             }
           }
@@ -3760,7 +3760,7 @@ Deno.serve(async (req) => {
                 await supabase.from('global_bans').upsert({
                   ban_type: 'roblox_id', ban_value: altId,
                   reason: `Auto-banned: alt of bypass attacker ${reportUid}`, is_active: true,
-                }, { onConflict: 'ban_type,ban_value' }).then(() => {}).catch(() => {});
+                }, { onConflict: 'ban_type,ban_value' }).then(() => {}, () => {});
                 globalBanCache.robloxIds.add(altId);
               }
             }
@@ -3875,10 +3875,11 @@ Deno.serve(async (req) => {
       console.log(`[get-paste] BOT BLOCKED (no ban): ${validationResult.reason} from ${clientIp} ua="${userAgent.substring(0, 80)}"`);
       // Only log once per IP per hour to avoid flooding threat log with routine bot traffic
       const botLogKey = `bot_log:${clientIp}`;
-      const lastBotLog = ipMismatchTracker.get(botLogKey);
+      const lastBotLog = ipMismatchTracker.get(botLogKey) as any;
       const now = Date.now();
-      if (!lastBotLog || (now - lastBotLog) > 3600_000) {
-        ipMismatchTracker.set(botLogKey, now);
+      const lastTs = typeof lastBotLog === 'number' ? lastBotLog : (lastBotLog?.firstSeen ?? 0);
+      if (!lastTs || (now - lastTs) > 3600_000) {
+        (ipMismatchTracker as any).set(botLogKey, now);
         logThreat('bot_access_attempt', clientIp, uid || null, null, { 
           reason: validationResult.reason, 
           user_agent: userAgent.substring(0, 200),
@@ -4423,7 +4424,7 @@ end`;
             key_id: keyId, paste_id: paste.id, event_type: eventType,
             roblox_user_id: uid, ip_address: clientIp,
             user_agent: req.headers.get('user-agent') || '',
-          } as any).then(() => {}).catch(() => {});
+          } as any).then(() => {}, () => {});
         };
 
         if (!pkRow) {
@@ -4621,7 +4622,7 @@ end)`;
         if (v12NonProtResult) return v12NonProtResult;
 
         logAccess(uid, 'execution', true).catch(() => {});
-        supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid }).then(() => {}).catch(() => {});
+        supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid }).then(() => {}, () => {});
         
         fireWebhookAlert(paste, uid, clientIp, hwid, 'execution');
 
@@ -4755,7 +4756,7 @@ end)`;
         paste_id: paste.id, roblox_user_id: '0', token: newToken,
         expires_at: new Date(Date.now() + 30000).toISOString(),
         bound_ip: clientIp,
-      }).then(() => {}).catch(() => {});
+      }).then(() => {}, () => {});
       const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
         showConsoleFeedback: paste.show_loading_bar !== false,
         serverNonce,
@@ -4856,7 +4857,7 @@ end)`;
       .update({ used_at: new Date().toISOString(), roblox_user_id: uid })
       .eq('id', tokenData.id)
       .is('used_at', null)
-      .then(() => {}).catch(() => {});
+      .then(() => {}, () => {});
 
     if (paste.game_restriction_enabled && gid && pid) {
       const { data: gameBindings } = await supabase.from('paste_game_bindings').select('game_id').eq('paste_id', paste.id);
@@ -4954,7 +4955,7 @@ end)`;
       if (v12PubResult) return v12PubResult;
 
       logAccess(uid, 'execution', true).catch(() => {});
-      supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid }).then(() => {}).catch(() => {});
+      supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid }).then(() => {}, () => {});
       console.log(`Public protection access granted: ${uid} for paste: ${paste.id}`);
       
       fireWebhookAlert(paste, uid, clientIp, hwid, 'execution');
@@ -5133,7 +5134,7 @@ end)`;
           paste_id: paste.id, roblox_user_id: uid, hwid,
         }).then(() => {
           console.log(`[get-paste] v15 AUTO_HWID_BIND: uid=${uid} hwid=${hwid.substring(0,8)}... slug=${slug}`);
-        }).catch(() => {});
+        }).then(undefined, () => {});
       }
     }
 
@@ -5143,7 +5144,7 @@ end)`;
     if (v12Result) return v12Result;
 
     logAccess(uid, 'execution', true).catch(() => {});
-    supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid }).then(() => {}).catch(() => {});
+    supabase.from('paste_executions').insert({ paste_id: paste.id, roblox_user_id: uid }).then(() => {}, () => {});
     console.log(`Access granted: ${uid} for paste: ${paste.id}`);
 
     // v12: Send webhook alert if enabled
