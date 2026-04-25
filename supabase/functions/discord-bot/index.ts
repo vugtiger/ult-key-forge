@@ -2449,8 +2449,8 @@ Deno.serve(async (req) => {
         const response = await handleCommand(interaction);
         const content = response?.data?.content || "✅ Done!";
         const flags = response?.data?.flags;
-        const components = response?.data?.components;
-        const embeds = response?.data?.embeds;
+        const components = (response as any)?.data?.components;
+        const embeds = (response as any)?.data?.embeds;
         
         const followupBody: any = { content };
         if (flags) followupBody.flags = flags;
@@ -2519,8 +2519,8 @@ Deno.serve(async (req) => {
         const response = await handleButton(interaction);
         const content = response?.data?.content || "✅ Done!";
         const flags = response?.data?.flags;
-        const components = response?.data?.components;
-        const embeds = response?.data?.embeds;
+        const components = (response as any)?.data?.components;
+        const embeds = (response as any)?.data?.embeds;
         
         const followupBody: any = { content };
         if (flags) followupBody.flags = flags;
@@ -2567,8 +2567,8 @@ Deno.serve(async (req) => {
         const response = await handleModal(interaction);
         const content = response?.data?.content || "✅ Done!";
         const flags = response?.data?.flags;
-        const components = response?.data?.components;
-        const embeds = response?.data?.embeds;
+        const components = (response as any)?.data?.components;
+        const embeds = (response as any)?.data?.embeds;
         
         const followupBody: any = { content };
         if (flags) followupBody.flags = flags;
