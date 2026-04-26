@@ -1497,6 +1497,33 @@ export type Database = {
           },
         ]
       }
+      v2_discord_link_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          used: boolean
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          used?: boolean
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          used?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       v2_keys: {
         Row: {
           bound_discord_id: string | null
@@ -1592,6 +1619,8 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          discord_id: string | null
+          discord_username: string | null
           display_name: string | null
           id: string
           plan: string
@@ -1600,6 +1629,8 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          discord_id?: string | null
+          discord_username?: string | null
           display_name?: string | null
           id: string
           plan?: string
@@ -1608,6 +1639,8 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          discord_id?: string | null
+          discord_username?: string | null
           display_name?: string | null
           id?: string
           plan?: string
