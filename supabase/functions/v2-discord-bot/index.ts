@@ -1,6 +1,5 @@
 // v2 Discord bot — interaction handler
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import nacl from "npm:tweetnacl@1.0.3";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const PUBLIC_KEY = Deno.env.get("V2_DISCORD_PUBLIC_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -11,10 +10,19 @@ const InteractionType = { PING: 1, APPLICATION_COMMAND: 2 };
 const InteractionResponseType = { PONG: 1, CHANNEL_MESSAGE_WITH_SOURCE: 4 };
 const FLAG_EPHEMERAL = 64;
 
-function hexToBytes(hex: string) {
-  const a = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < a.length; i++) a[i] = parseInt(hex.substr(i * 2, 2), 16);
-  return a;
+async function verifyRequest(req: Request, body: string): Promise<boolean> {
+  const signature = req.headers.get("X-Signature-Ed25519");
+  const timestamp = req.headers.get("X-Signature-Timestamp");
+  if (!signature || !timestamp) return false;
+  try {
+    const message = new TextEncoder().encode(timestamp + body);
+    const keyData = new Uint8Array(PUBLIC_KEY.match(/.{1,2}/g)!.map(b => parseInt(b, 16)));
+    const sigData = new Uint8Array(signature.match(/.{1,2}/g)!.map(b => parseInt(b, 16)));
+    const key = await crypto.subtle.importKey("raw", keyData, { name: "Ed25519", namedCurve: "Ed25519" } as any, false, ["verify"]);
+    return await crypto.subtle.verify("Ed25519", key, sigData, message);
+  } catch {
+    return false;
+  }
 }
 
 function reply(content: string, ephemeral = true) {
@@ -212,16 +220,8 @@ async function handleCommand(name: string, options: any[], discordId: string, di
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("OK", { status: 200 });
 
-  const sig = req.headers.get("X-Signature-Ed25519");
-  const ts = req.headers.get("X-Signature-Timestamp");
   const body = await req.text();
-  if (!sig || !ts) return new Response("Missing signature", { status: 401 });
-
-  const valid = nacl.sign.detached.verify(
-    new TextEncoder().encode(ts + body),
-    hexToBytes(sig),
-    hexToBytes(PUBLIC_KEY),
-  );
+  const valid = await verifyRequest(req, body);
   if (!valid) return new Response("Invalid signature", { status: 401 });
 
   const interaction = JSON.parse(body);
