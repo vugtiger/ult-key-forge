@@ -42,51 +42,62 @@ const V2Auth = () => {
   };
 
   return (
-    <div className="v2-root flex items-center justify-center px-4 py-12">
-      <div className="absolute inset-0 v2-grid-bg opacity-30 pointer-events-none" />
-      <div className="relative w-full max-w-md">
-        <Link to="/v2" className="inline-flex items-center gap-2 text-sm mb-6" style={{ color: "hsl(var(--v2-fg-muted))" }}>
-          <ArrowLeft size={14} /> Back
+    <div className="v2-root v2-grain min-h-screen relative overflow-hidden">
+      <div className="absolute inset-0 v2-grid-bg opacity-60" />
+      <div className="v2-orb" style={{ top: "10%", left: "30%", width: 400, height: 400, background: "rgba(255,255,255,0.05)" }} />
+
+      <div className="relative min-h-screen flex flex-col items-center justify-center px-4 py-12">
+        <Link to="/v2" className="inline-flex items-center gap-2 text-sm mb-8 text-white/50 hover:text-white transition">
+          <ArrowLeft size={14} /> Back to home
         </Link>
-        <div className="v2-card p-8">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-9 h-9 rounded-md flex items-center justify-center" style={{ background: "hsl(var(--v2-accent))" }}>
-              <Shield size={18} />
+
+        <div className="w-full max-w-sm v2-animate">
+          <div className="v2-card p-8 backdrop-blur-2xl">
+            <div className="flex items-center gap-2.5 mb-7">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-white text-black">
+                <Shield size={17} strokeWidth={2.5} />
+              </div>
+              <div>
+                <h1 className="font-semibold text-base">Phantom <span className="text-[10px] ml-0.5 px-1 py-0.5 rounded bg-white/10 text-white/50 align-middle">v2</span></h1>
+                <p className="text-xs text-white/50 mt-0.5">{isSignup ? "Create your account" : "Welcome back"}</p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-semibold">Phantom <span className="text-xs ml-1 opacity-60">v2</span></h1>
-              <p className="text-xs" style={{ color: "hsl(var(--v2-fg-muted))" }}>{isSignup ? "Create your account" : "Welcome back"}</p>
+
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              {isSignup && (
+                <div>
+                  <label className="text-xs block mb-1.5 text-white/60 font-medium">Username</label>
+                  <input className="v2-input" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="yourname" />
+                </div>
+              )}
+              <div>
+                <label className="text-xs block mb-1.5 text-white/60 font-medium">Email</label>
+                <input type="email" required className="v2-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+              </div>
+              <div>
+                <label className="text-xs block mb-1.5 text-white/60 font-medium">Password</label>
+                <input type="password" required minLength={6} className="v2-input" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+              </div>
+              {error && (
+                <div className="text-xs p-3 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20">
+                  {error}
+                </div>
+              )}
+              <button type="submit" disabled={loading} className="v2-btn v2-btn-primary w-full" style={{ padding: "0.65rem", marginTop: "0.5rem" }}>
+                {loading ? "Loading..." : isSignup ? "Create account" : "Sign in"}
+              </button>
+            </form>
+
+            <div className="mt-5 pt-5 border-t border-white/5 text-center">
+              <button onClick={() => setIsSignup(!isSignup)} className="text-xs text-white/50 hover:text-white transition">
+                {isSignup ? "Already have an account? Sign in" : "No account? Create one"}
+              </button>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignup && (
-              <div>
-                <label className="text-xs block mb-1.5" style={{ color: "hsl(var(--v2-fg-muted))" }}>Username</label>
-                <input className="v2-input" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="yourname" />
-              </div>
-            )}
-            <div>
-              <label className="text-xs block mb-1.5" style={{ color: "hsl(var(--v2-fg-muted))" }}>Email</label>
-              <input type="email" required className="v2-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-            </div>
-            <div>
-              <label className="text-xs block mb-1.5" style={{ color: "hsl(var(--v2-fg-muted))" }}>Password</label>
-              <input type="password" required minLength={6} className="v2-input" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-            </div>
-            {error && (
-              <div className="text-xs p-3 rounded" style={{ background: "hsl(var(--v2-danger) / 0.1)", color: "hsl(var(--v2-danger))", border: "1px solid hsl(var(--v2-danger) / 0.3)" }}>
-                {error}
-              </div>
-            )}
-            <button type="submit" disabled={loading} className="v2-btn v2-btn-primary w-full" style={{ padding: "0.625rem" }}>
-              {loading ? "Loading..." : isSignup ? "Create account" : "Sign in"}
-            </button>
-          </form>
-
-          <button onClick={() => setIsSignup(!isSignup)} className="text-xs mt-4 w-full text-center" style={{ color: "hsl(var(--v2-fg-muted))" }}>
-            {isSignup ? "Already have an account? Sign in" : "No account? Create one"}
-          </button>
+          <p className="text-center text-[11px] text-white/30 mt-6">
+            By continuing you agree to our terms · v2 accounts are separate from v1
+          </p>
         </div>
       </div>
     </div>
