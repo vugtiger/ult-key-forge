@@ -1459,6 +1459,316 @@ export type Database = {
         }
         Relationships: []
       }
+      v2_blacklist: {
+        Row: {
+          created_at: string
+          entry_type: string
+          entry_value: string
+          id: string
+          project_id: string
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entry_type: string
+          entry_value: string
+          id?: string
+          project_id: string
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entry_type?: string
+          entry_value?: string
+          id?: string
+          project_id?: string
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_blacklist_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v2_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v2_keys: {
+        Row: {
+          bound_discord_id: string | null
+          bound_hwid: string | null
+          bound_ip: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          key_value: string
+          note: string | null
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          bound_discord_id?: string | null
+          bound_hwid?: string | null
+          bound_ip?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_value: string
+          note?: string | null
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          bound_discord_id?: string | null
+          bound_hwid?: string | null
+          bound_ip?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_value?: string
+          note?: string | null
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_keys_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v2_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v2_logs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          event_type: string
+          hwid: string | null
+          id: string
+          ip_address: string | null
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          hwid?: string | null
+          id?: string
+          ip_address?: string | null
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          hwid?: string | null
+          id?: string
+          ip_address?: string | null
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v2_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v2_profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          plan: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          plan?: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          plan?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      v2_projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      v2_scripts: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          name: string
+          obfuscated: boolean
+          project_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          name: string
+          obfuscated?: boolean
+          project_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          name?: string
+          obfuscated?: boolean
+          project_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_scripts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v2_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v2_settings: {
+        Row: {
+          accent_color: string
+          created_at: string
+          id: string
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accent_color?: string
+          created_at?: string
+          id?: string
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accent_color?: string
+          created_at?: string
+          id?: string
+          theme?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      v2_user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["v2_app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["v2_app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["v2_app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      v2_webhooks: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          events: Json
+          id: string
+          project_id: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          events?: Json
+          id?: string
+          project_id: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          events?: Json
+          id?: string
+          project_id?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_webhooks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v2_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1474,9 +1784,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_v2_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["v2_app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      v2_app_role: "owner" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1605,6 +1923,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      v2_app_role: ["owner", "user"],
     },
   },
 } as const
