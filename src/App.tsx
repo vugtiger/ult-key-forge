@@ -24,7 +24,13 @@ import NotFound from "./pages/NotFound";
 import V2Landing from "./v2/pages/V2Landing";
 import V2Auth from "./v2/pages/V2Auth";
 import V2Dashboard from "./v2/pages/V2Dashboard";
-import V2Placeholder from "./v2/pages/V2Placeholder";
+import V2Scripts from "./v2/pages/V2Scripts";
+import V2Keys from "./v2/pages/V2Keys";
+import V2Users from "./v2/pages/V2Users";
+import V2Blacklist from "./v2/pages/V2Blacklist";
+import V2Logs from "./v2/pages/V2Logs";
+import V2Webhooks from "./v2/pages/V2Webhooks";
+import V2Settings from "./v2/pages/V2Settings";
 
 const queryClient = new QueryClient();
 
@@ -57,13 +63,13 @@ const App = () => (
           <Route path="/v2" element={<V2Landing />} />
           <Route path="/v2/auth" element={<V2Auth />} />
           <Route path="/v2/dashboard" element={<V2Dashboard />} />
-          <Route path="/v2/scripts" element={<V2Placeholder title="Scripts" />} />
-          <Route path="/v2/keys" element={<V2Placeholder title="Keys" />} />
-          <Route path="/v2/users" element={<V2Placeholder title="Users" />} />
-          <Route path="/v2/blacklist" element={<V2Placeholder title="Blacklist" />} />
-          <Route path="/v2/logs" element={<V2Placeholder title="Logs" />} />
-          <Route path="/v2/webhooks" element={<V2Placeholder title="Webhooks" />} />
-          <Route path="/v2/settings" element={<V2Placeholder title="Settings" />} />
+          <Route path="/v2/scripts" element={<V2Scripts />} />
+          <Route path="/v2/keys" element={<V2Keys />} />
+          <Route path="/v2/users" element={<V2Users />} />
+          <Route path="/v2/blacklist" element={<V2Blacklist />} />
+          <Route path="/v2/logs" element={<V2Logs />} />
+          <Route path="/v2/webhooks" element={<V2Webhooks />} />
+          <Route path="/v2/settings" element={<V2Settings />} />
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
