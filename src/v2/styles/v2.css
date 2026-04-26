@@ -1,0 +1,78 @@
+/* v2 — Luarmor-inspired dark theme, scoped to .v2-root */
+.v2-root {
+  --v2-bg: 240 10% 3.9%;
+  --v2-bg-elev: 240 6% 7%;
+  --v2-bg-card: 240 5% 9%;
+  --v2-border: 240 4% 16%;
+  --v2-fg: 0 0% 98%;
+  --v2-fg-muted: 240 5% 64%;
+  --v2-accent: 263 70% 60%;
+  --v2-accent-fg: 0 0% 100%;
+  --v2-success: 142 71% 45%;
+  --v2-danger: 0 72% 51%;
+  --v2-warning: 38 92% 50%;
+
+  background: hsl(var(--v2-bg));
+  color: hsl(var(--v2-fg));
+  min-height: 100vh;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif;
+}
+
+.v2-root *,
+.v2-root *::before,
+.v2-root *::after {
+  border-color: hsl(var(--v2-border));
+}
+
+.v2-card {
+  background: hsl(var(--v2-bg-card));
+  border: 1px solid hsl(var(--v2-border));
+  border-radius: 0.5rem;
+}
+
+.v2-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.v2-btn-primary {
+  background: hsl(var(--v2-accent));
+  color: hsl(var(--v2-accent-fg));
+}
+.v2-btn-primary:hover { background: hsl(var(--v2-accent) / 0.9); }
+
+.v2-btn-secondary {
+  background: hsl(var(--v2-bg-elev));
+  color: hsl(var(--v2-fg));
+  border-color: hsl(var(--v2-border));
+}
+.v2-btn-secondary:hover { background: hsl(var(--v2-bg-card)); }
+
+.v2-input {
+  width: 100%;
+  background: hsl(var(--v2-bg-elev));
+  border: 1px solid hsl(var(--v2-border));
+  color: hsl(var(--v2-fg));
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.v2-input:focus { border-color: hsl(var(--v2-accent)); }
+
+.v2-grid-bg {
+  background-image:
+    linear-gradient(hsl(var(--v2-border) / 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--v2-border) / 0.3) 1px, transparent 1px);
+  background-size: 40px 40px;
+}

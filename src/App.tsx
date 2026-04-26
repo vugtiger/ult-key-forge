@@ -21,6 +21,10 @@ import ScriptSettings from "./pages/ScriptSettings";
 import Status from "./pages/Status";
 import ProtectionKeysAnalytics from "./pages/ProtectionKeysAnalytics";
 import NotFound from "./pages/NotFound";
+import V2Landing from "./v2/pages/V2Landing";
+import V2Auth from "./v2/pages/V2Auth";
+import V2Dashboard from "./v2/pages/V2Dashboard";
+import V2Placeholder from "./v2/pages/V2Placeholder";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +52,19 @@ const App = () => (
           <Route path="/script-settings" element={<ScriptSettings />} />
           <Route path="/protection-keys" element={<ProtectionKeysAnalytics />} />
           <Route path="/status" element={<Status />} />
+
+          {/* v2 — separate site */}
+          <Route path="/v2" element={<V2Landing />} />
+          <Route path="/v2/auth" element={<V2Auth />} />
+          <Route path="/v2/dashboard" element={<V2Dashboard />} />
+          <Route path="/v2/scripts" element={<V2Placeholder title="Scripts" />} />
+          <Route path="/v2/keys" element={<V2Placeholder title="Keys" />} />
+          <Route path="/v2/users" element={<V2Placeholder title="Users" />} />
+          <Route path="/v2/blacklist" element={<V2Placeholder title="Blacklist" />} />
+          <Route path="/v2/logs" element={<V2Placeholder title="Logs" />} />
+          <Route path="/v2/webhooks" element={<V2Placeholder title="Webhooks" />} />
+          <Route path="/v2/settings" element={<V2Placeholder title="Settings" />} />
+
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
