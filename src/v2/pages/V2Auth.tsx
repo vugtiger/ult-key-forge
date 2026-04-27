@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { Shield, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import NebulaLogo from "../components/NebulaLogo";
 import { v2SignIn, v2SignUp } from "../lib/v2Auth";
 import { supabase } from "@/integrations/supabase/client";
 import "../styles/v2.css";
@@ -54,11 +55,9 @@ const V2Auth = () => {
         <div className="w-full max-w-sm v2-animate">
           <div className="v2-card p-8 backdrop-blur-2xl">
             <div className="flex items-center gap-2.5 mb-7">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-white text-black">
-                <Shield size={17} strokeWidth={2.5} />
-              </div>
+              <NebulaLogo size={32} className="text-white" />
               <div>
-                <h1 className="font-semibold text-base">Phantom <span className="text-[10px] ml-0.5 px-1 py-0.5 rounded bg-white/10 text-white/50 align-middle">v2</span></h1>
+                <h1 className="font-semibold text-base">Nebula</h1>
                 <p className="text-xs text-white/50 mt-0.5">{isSignup ? "Create your account" : "Welcome back"}</p>
               </div>
             </div>
@@ -96,7 +95,7 @@ const V2Auth = () => {
           </div>
 
           <p className="text-center text-[11px] text-white/30 mt-6">
-            By continuing you agree to our terms · v2 accounts are separate from v1
+            By continuing you agree to our terms · Nebula accounts are separate from v1
           </p>
         </div>
       </div>
