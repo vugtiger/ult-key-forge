@@ -1459,6 +1459,33 @@ export type Database = {
         }
         Relationships: []
       }
+      v2_api_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          last_used_at: string | null
+          name: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          name: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       v2_blacklist: {
         Row: {
           created_at: string
@@ -1497,6 +1524,82 @@ export type Database = {
           },
         ]
       }
+      v2_checkpoint_progress: {
+        Row: {
+          completed_at: string
+          hwid: string
+          id: string
+          ip: string | null
+          project_id: string
+          step_number: number
+        }
+        Insert: {
+          completed_at?: string
+          hwid: string
+          id?: string
+          ip?: string | null
+          project_id: string
+          step_number: number
+        }
+        Update: {
+          completed_at?: string
+          hwid?: string
+          id?: string
+          ip?: string | null
+          project_id?: string
+          step_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_checkpoint_progress_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v2_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v2_checkpoints: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          project_id: string
+          reward_days: number
+          step_number: number
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          project_id: string
+          reward_days?: number
+          step_number: number
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          project_id?: string
+          reward_days?: number
+          step_number?: number
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_checkpoints_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v2_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v2_discord_link_codes: {
         Row: {
           code: string
@@ -1524,45 +1627,122 @@ export type Database = {
         }
         Relationships: []
       }
+      v2_exec_stats: {
+        Row: {
+          day: string
+          exec_count: number
+          id: string
+          project_id: string
+          unique_users: number
+          user_id: string
+        }
+        Insert: {
+          day: string
+          exec_count?: number
+          id?: string
+          project_id: string
+          unique_users?: number
+          user_id: string
+        }
+        Update: {
+          day?: string
+          exec_count?: number
+          id?: string
+          project_id?: string
+          unique_users?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_exec_stats_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v2_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v2_key_resets: {
+        Row: {
+          id: string
+          key_id: string
+          old_hwid: string | null
+          reset_at: string
+          reset_by: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          key_id: string
+          old_hwid?: string | null
+          reset_at?: string
+          reset_by?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          key_id?: string
+          old_hwid?: string | null
+          reset_at?: string
+          reset_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       v2_keys: {
         Row: {
           bound_discord_id: string | null
           bound_hwid: string | null
           bound_ip: string | null
           created_at: string
+          discord_id: string | null
           expires_at: string | null
+          hwid: string | null
           id: string
           is_active: boolean
           key_value: string
+          last_used_at: string | null
           note: string | null
           project_id: string
+          reset_count: number
           user_id: string
+          uses_count: number
         }
         Insert: {
           bound_discord_id?: string | null
           bound_hwid?: string | null
           bound_ip?: string | null
           created_at?: string
+          discord_id?: string | null
           expires_at?: string | null
+          hwid?: string | null
           id?: string
           is_active?: boolean
           key_value: string
+          last_used_at?: string | null
           note?: string | null
           project_id: string
+          reset_count?: number
           user_id: string
+          uses_count?: number
         }
         Update: {
           bound_discord_id?: string | null
           bound_hwid?: string | null
           bound_ip?: string | null
           created_at?: string
+          discord_id?: string | null
           expires_at?: string | null
+          hwid?: string | null
           id?: string
           is_active?: boolean
           key_value?: string
+          last_used_at?: string | null
           note?: string | null
           project_id?: string
+          reset_count?: number
           user_id?: string
+          uses_count?: number
         }
         Relationships: [
           {
@@ -1675,36 +1855,80 @@ export type Database = {
         }
         Relationships: []
       }
+      v2_resellers: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string
+          permissions: Json
+          project_id: string | null
+          reseller_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id: string
+          permissions?: Json
+          project_id?: string | null
+          reseller_user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+          permissions?: Json
+          project_id?: string | null
+          reseller_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_resellers_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v2_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v2_scripts: {
         Row: {
           content: string
           created_at: string
+          encryption_seed: string | null
           id: string
           name: string
           obfuscated: boolean
           project_id: string
+          protection_level: string
           updated_at: string
           user_id: string
+          watermark_seed: string | null
         }
         Insert: {
           content?: string
           created_at?: string
+          encryption_seed?: string | null
           id?: string
           name: string
           obfuscated?: boolean
           project_id: string
+          protection_level?: string
           updated_at?: string
           user_id: string
+          watermark_seed?: string | null
         }
         Update: {
           content?: string
           created_at?: string
+          encryption_seed?: string | null
           id?: string
           name?: string
           obfuscated?: boolean
           project_id?: string
+          protection_level?: string
           updated_at?: string
           user_id?: string
+          watermark_seed?: string | null
         }
         Relationships: [
           {
