@@ -31,6 +31,10 @@ import V2Blacklist from "./v2/pages/V2Blacklist";
 import V2Logs from "./v2/pages/V2Logs";
 import V2Webhooks from "./v2/pages/V2Webhooks";
 import V2Settings from "./v2/pages/V2Settings";
+import V2Checkpoints from "./v2/pages/V2Checkpoints";
+import V2Resellers from "./v2/pages/V2Resellers";
+import V2Api from "./v2/pages/V2Api";
+import V2Analytics from "./v2/pages/V2Analytics";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +74,10 @@ const App = () => (
           <Route path="/v2/logs" element={<V2Logs />} />
           <Route path="/v2/webhooks" element={<V2Webhooks />} />
           <Route path="/v2/settings" element={<V2Settings />} />
+          <Route path="/v2/checkpoints" element={<V2Checkpoints />} />
+          <Route path="/v2/resellers" element={<V2Resellers />} />
+          <Route path="/v2/api" element={<V2Api />} />
+          <Route path="/v2/analytics" element={<V2Analytics />} />
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
