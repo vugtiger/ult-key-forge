@@ -1,8 +1,9 @@
 import { ReactNode, useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, FolderKanban, FileCode2, Key, Users, Ban, Activity, Webhook, Settings, LogOut, Menu, X } from "lucide-react";
+import { FolderKanban, FileCode2, Key, Users, Ban, Activity, Webhook, Settings, LogOut, Menu, X, BarChart3, GitBranch, Code2, UserCog } from "lucide-react";
 import { v2SignOut } from "../lib/v2Auth";
+import NebulaLogo from "./NebulaLogo";
 import "../styles/v2.css";
 
 const navItems = [
@@ -11,6 +12,10 @@ const navItems = [
   { to: "/v2/keys", label: "Keys", icon: Key },
   { to: "/v2/users", label: "Users", icon: Users },
   { to: "/v2/blacklist", label: "Blacklist", icon: Ban },
+  { to: "/v2/checkpoints", label: "Checkpoints", icon: GitBranch },
+  { to: "/v2/resellers", label: "Resellers", icon: UserCog },
+  { to: "/v2/api", label: "API", icon: Code2 },
+  { to: "/v2/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/v2/logs", label: "Logs", icon: Activity },
   { to: "/v2/webhooks", label: "Webhooks", icon: Webhook },
   { to: "/v2/settings", label: "Settings", icon: Settings },
@@ -44,11 +49,8 @@ const V2Layout = ({ children, title, subtitle, actions }: { children: ReactNode;
       {/* Sidebar */}
       <aside className={`fixed lg:sticky top-0 h-screen z-40 w-60 flex flex-col border-r border-white/[0.06] bg-black/80 backdrop-blur-xl transition-transform ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         <div className="px-5 h-16 flex items-center gap-2.5 border-b border-white/[0.06]">
-          <div className="w-7 h-7 rounded-md flex items-center justify-center bg-white text-black">
-            <Shield size={14} strokeWidth={2.5} />
-          </div>
-          <span className="font-semibold text-sm tracking-tight">Phantom</span>
-          <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-white/50 border border-white/10">v2</span>
+          <NebulaLogo size={22} className="text-white" />
+          <span className="font-semibold text-sm tracking-tight">Nebula</span>
           <button onClick={() => setOpen(false)} className="lg:hidden ml-auto text-white/50 hover:text-white">
             <X size={16} />
           </button>
