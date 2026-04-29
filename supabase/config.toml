@@ -33,12 +33,3 @@ verify_jwt = false
 
 [functions.discord-identify]
 verify_jwt = false
-
-[functions.v2-discord-bot]
-verify_jwt = false
-
-[functions.v2-discord-register]
-verify_jwt = false
-
-[functions.nebula-api]
-verify_jwt = false
