@@ -14,7 +14,7 @@ import { useAdminStatus } from "@/hooks/useAdminStatus";
 import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEffect";
-import { applyDashboardLayout, LayoutPreset, TabDensity, TabShape } from "@/components/DashboardCustomizer";
+
 
 const navigationItems = [
   { title: "Key System", url: "/dashboard", icon: Zap },
@@ -180,16 +180,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     const loadUserTheme = async (userId: string) => {
       try {
         const { data } = await supabase.from('user_themes')
-          .select('primary_color, neon_enabled, ult_lua_style, layout_preset, tab_radius, tab_density, tab_shape')
+          .select('primary_color, neon_enabled, ult_lua_style')
           .eq('user_id', userId).single();
         if (data) {
           applyTheme(data.primary_color, data.neon_enabled || false, data.ult_lua_style || false);
-          applyDashboardLayout(
-            (data.layout_preset as LayoutPreset) || "default",
-            data.tab_radius ?? 12,
-            (data.tab_density as TabDensity) || "normal",
-            (data.tab_shape as TabShape) || "pill",
-          );
         }
       } catch (error) { console.error('Error loading theme:', error); }
     };
