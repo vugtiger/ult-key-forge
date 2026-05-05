@@ -14,7 +14,7 @@ import { useAdminStatus } from "@/hooks/useAdminStatus";
 import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEffect";
-import { applyDashboardLayout, LayoutPreset, TabDensity, TabShape } from "@/components/DashboardCustomizer";
+
 
 const navigationItems = [
   { title: "Key System", url: "/dashboard", icon: Zap },
@@ -97,14 +97,14 @@ const AppSidebar = ({ user }: { user: User | null }) => {
 
   return (
     <Sidebar className={collapsed ? "w-[60px]" : "w-[220px]"} collapsible="icon">
-      <SidebarContent className="bg-background/80 backdrop-blur-3xl border-r border-border/40 relative flex flex-col">
+      <SidebarContent className="bg-sidebar/80 backdrop-blur-3xl border-r border-primary/15 relative flex flex-col shadow-[inset_-1px_0_0_hsl(var(--primary)/0.08)]">
         {/* Brand */}
-        <div className={`flex items-center gap-3 border-b border-border/30 ${collapsed ? "px-2 py-4 justify-center" : "px-5 py-5"}`}>
+        <div className={`flex items-center gap-3 border-b border-primary/10 ${collapsed ? "px-2 py-4 justify-center" : "px-5 py-5"}`}>
           <CloudLogo size={collapsed ? 24 : 22} />
           {!collapsed && (
             <div>
-              <h1 className="text-xs font-black tracking-[0.25em] text-foreground">ULT CLOUD</h1>
-              <p className="text-[9px] text-muted-foreground/50 tracking-wider mt-0.5">PROTECTION</p>
+              <h1 className="text-xs font-black tracking-[0.25em] gradient-text">ULT CLOUD</h1>
+              <p className="text-[9px] text-muted-foreground/60 tracking-wider mt-0.5">PROTECTION</p>
             </div>
           )}
         </div>
@@ -124,15 +124,15 @@ const AppSidebar = ({ user }: { user: User | null }) => {
                       <NavLink
                         to={item.url}
                         end
-                        className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-all duration-150 ${
+                        className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-all duration-200 ${
                           isActive
-                            ? "bg-gradient-to-b from-foreground/[0.13] to-foreground/[0.06] text-foreground shadow-[inset_0_1px_0_0_hsl(var(--foreground)/0.18),inset_0_-1px_0_0_hsl(0_0%_0%/0.4),0_2px_6px_-2px_hsl(0_0%_0%/0.6),0_1px_0_0_hsl(0_0%_0%/0.3)] -translate-y-px"
-                            : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] hover:shadow-[inset_0_1px_0_0_hsl(var(--foreground)/0.06)] active:translate-y-px"
+                            ? "bg-gradient-to-r from-primary/20 via-primary/10 to-accent/15 text-foreground border border-primary/30 shadow-[0_0_18px_hsl(var(--primary)/0.25),inset_0_1px_0_hsl(0_0%_100%/0.08)]"
+                            : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04] border border-transparent hover:border-white/[0.06]"
                         }`}
                         activeClassName=""
                       >
-                        {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-foreground shadow-[0_0_8px_hsl(var(--foreground)/0.5)]" />}
-                        <item.icon size={16} className={isActive ? "text-foreground drop-shadow-[0_1px_1px_hsl(0_0%_0%/0.5)]" : "text-muted-foreground/70 group-hover:text-foreground"} />
+                        {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary shadow-[0_0_10px_hsl(var(--primary)/0.8)]" />}
+                        <item.icon size={16} className={isActive ? "text-primary drop-shadow-[0_0_6px_hsl(var(--primary)/0.7)]" : "text-muted-foreground/70 group-hover:text-foreground"} />
                         {!collapsed && <span className={isActive ? "font-semibold" : "font-medium"}>{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
@@ -180,16 +180,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     const loadUserTheme = async (userId: string) => {
       try {
         const { data } = await supabase.from('user_themes')
-          .select('primary_color, neon_enabled, ult_lua_style, layout_preset, tab_radius, tab_density, tab_shape')
+          .select('primary_color, neon_enabled, ult_lua_style')
           .eq('user_id', userId).single();
         if (data) {
           applyTheme(data.primary_color, data.neon_enabled || false, data.ult_lua_style || false);
-          applyDashboardLayout(
-            (data.layout_preset as LayoutPreset) || "default",
-            data.tab_radius ?? 12,
-            (data.tab_density as TabDensity) || "normal",
-            (data.tab_shape as TabShape) || "pill",
-          );
         }
       } catch (error) { console.error('Error loading theme:', error); }
     };
@@ -258,7 +252,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <SnowEffect />
         <AppSidebar user={user} />
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
-          <header className="h-14 border-b border-border/30 flex items-center px-6 sticky top-0 bg-background/50 backdrop-blur-3xl z-10">
+          <header className="h-14 border-b border-primary/10 flex items-center px-6 sticky top-0 bg-background/60 backdrop-blur-3xl z-10 shadow-[0_1px_0_hsl(var(--primary)/0.06)]">
             <SidebarTrigger className="mr-4 h-8 w-8 rounded-lg hover:bg-foreground/[0.06]" />
             <div className="flex-1" />
             <SoundToggle />
