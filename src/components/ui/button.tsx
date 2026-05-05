@@ -10,8 +10,8 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_4px_0_0_hsl(var(--foreground)/0.15),0_6px_16px_-4px_hsl(var(--foreground)/0.3)] hover:shadow-[0_6px_0_0_hsl(var(--foreground)/0.18),0_10px_24px_-4px_hsl(var(--foreground)/0.4)] hover:-translate-y-0.5",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-[0_4px_0_0_hsl(var(--destructive)/0.4),0_6px_16px_-4px_hsl(var(--destructive)/0.4)] hover:-translate-y-0.5",
+        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_hsl(var(--primary)/0.4),0_4px_12px_-2px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_28px_hsl(var(--primary)/0.6),0_6px_16px_-2px_hsl(var(--primary)/0.6)] hover:-translate-y-0.5",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-[0_0_18px_hsl(var(--destructive)/0.4),0_4px_12px_-2px_hsl(var(--destructive)/0.5)] hover:-translate-y-0.5",
         outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground shadow-[0_3px_0_0_hsl(var(--border)),0_4px_12px_-2px_hsl(0_0%_0%/0.3)] hover:-translate-y-0.5",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-[0_3px_0_0_hsl(var(--border)),0_4px_12px_-2px_hsl(0_0%_0%/0.3)] hover:-translate-y-0.5",
         ghost: "hover:bg-accent hover:text-accent-foreground",
