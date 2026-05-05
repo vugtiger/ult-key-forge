@@ -5118,44 +5118,22 @@ end)`;
       }
     }
 
-    // v16: HWID-FIRST BINDING (Luarmor-style anti-spoof)
-    // For whitelist-only mode: enforce HWID presence if a lock already exists for this UID,
-    // and auto-bind on first execution. This closes the "omit HWID to bypass cross-check" gap.
-    if (protectionMode === 'whitelist') {
+    // v15: Auto-bind HWID for ALL protected pastes (even whitelist-only mode)
+    // This ensures uid spoofing is always detectable on subsequent requests
+    if (hwid && hwid.length >= 4 && protectionMode === 'whitelist') {
       const { data: existingAutoLock } = await supabase
         .from('paste_hwid_locks')
         .select('id, hwid')
         .eq('paste_id', paste.id)
         .eq('roblox_user_id', uid)
         .maybeSingle();
-
-      if (existingAutoLock) {
-        // UID has been seen before — HWID MUST be present and match
-        if (!hwid || hwid.length < 4) {
-          console.log(`[get-paste] v16 HWID_OMITTED_BYPASS: uid=${uid} slug=${slug} ip=${clientIp}`);
-          logThreat('hwid_omitted_bypass', clientIp, uid, null, {
-            uid, slug, reason: 'UID has prior HWID lock but request omitted HWID',
-          }, 'high', false);
-          return new Response(generateKickEncrypted('HWID required - your executor must support gethwid()', slug, tk, uid), {
-            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-          });
-        }
-        if (existingAutoLock.hwid !== hwid) {
-          console.log(`[get-paste] v16 HWID_AUTO_MISMATCH: uid=${uid} slug=${slug}`);
-          logThreat('hwid_auto_mismatch', clientIp, uid, null, {
-            expected: existingAutoLock.hwid.substring(0, 16),
-            actual: hwid.substring(0, 16), slug,
-          }, 'high', false);
-          return new Response(generateKickEncrypted('HWID mismatch - locked to another device. Contact owner to reset.', slug, tk, uid), {
-            status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
-          });
-        }
-      } else if (hwid && hwid.length >= 4) {
-        // First execution — bind UID↔HWID immediately (HWID-first binding)
+      
+      if (!existingAutoLock) {
+        // First execution — silently bind HWID for anti-spoof tracking
         supabase.from('paste_hwid_locks').insert({
           paste_id: paste.id, roblox_user_id: uid, hwid,
         }).then(() => {
-          console.log(`[get-paste] v16 HWID_FIRST_BIND: uid=${uid} hwid=${hwid.substring(0,8)}... slug=${slug}`);
+          console.log(`[get-paste] v15 AUTO_HWID_BIND: uid=${uid} hwid=${hwid.substring(0,8)}... slug=${slug}`);
         }).then(undefined, () => {});
       }
     }
