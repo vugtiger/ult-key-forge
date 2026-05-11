@@ -1,35 +1,27 @@
 project_id = "iyfvpnjrghsownkpazec"
 
-[functions.ai-chat]
-verify_jwt = false
-
-[functions.track-ip]
-verify_jwt = false
-
-
-[functions.get-paste]
-verify_jwt = false
-
-[functions.discord-bot]
-verify_jwt = false
-
-[functions.discord-register-commands]
-verify_jwt = false
-
-[functions.admin-api]
-verify_jwt = false
-
-[functions.discord-bot-guilds]
-verify_jwt = false
-
-[functions.jarvis-voice]
-verify_jwt = false
-
-[functions.owner-bans]
-verify_jwt = false
-
-[functions.heartbeat]
-verify_jwt = false
-
-[functions.discord-identify]
-verify_jwt = false
+[functions]
+  [functions.admin-api]
+    verify_jwt = false
+  [functions.ai-chat]
+    verify_jwt = false
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.discord-bot]
+    verify_jwt = false
+  [functions.discord-bot-guilds]
+    verify_jwt = false
+  [functions.discord-identify]
+    verify_jwt = false
+  [functions.discord-register-commands]
+    verify_jwt = false
+  [functions.get-paste]
+    verify_jwt = false
+  [functions.heartbeat]
+    verify_jwt = false
+  [functions.jarvis-voice]
+    verify_jwt = false
+  [functions.owner-bans]
+    verify_jwt = false
+  [functions.track-ip]
+    verify_jwt = false
