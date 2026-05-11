@@ -92,31 +92,14 @@ const PasswordReset = () => {
         return;
       }
 
-      // Use AI to handle the conversation
-      const { data, error: aiError } = await supabase.functions.invoke("ai-chat", {
-        body: {
-          messages: [
-            {
-              role: "user",
-              content: `You are a friendly password reset assistant for ULT CLOUD website. Keep responses short and helpful. The user is trying to reset their password. 
-              
-Context: ${emailSent ? "A reset email has already been sent." : "No reset email sent yet. You need to ask for their email."}
-
-User said: "${text}"
-
-If they haven't given an email yet, ask for it. If they seem confused about receiving the email, tell them to check spam. Keep it short and friendly.`,
-            },
-          ],
-        },
-      });
-
-      if (aiError) throw aiError;
-
-      const aiResponse: Message = {
+      // Static replies — AI chat requires authentication, which signed-out users don't have
+      const reply: Message = {
         role: "assistant",
-        content: data?.response || "Let me help you! What's your email address?",
+        content: emailSent
+          ? "I've already sent your reset link! Check your inbox and spam folder. Click the link in the email to set a new password."
+          : "Just type your email address (e.g. you@example.com) and I'll send the reset link right over.",
       };
-      setMessages([...newMessages, aiResponse]);
+      setMessages([...newMessages, reply]);
     } catch (err: any) {
       toast({
         title: "Error",
