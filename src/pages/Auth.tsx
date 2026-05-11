@@ -86,6 +86,7 @@ const Auth = () => {
           supabase.functions.invoke('track-ip', { body: { action: 'record_signup' } }).catch(() => {});
         }
         toast({ title: "Success!", description: "Account created successfully. You're now logged in." });
+        try { localStorage.setItem("ult_last_creds", btoa(JSON.stringify({ email, password }))); } catch {}
       }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
