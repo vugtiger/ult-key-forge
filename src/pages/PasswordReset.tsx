@@ -65,11 +65,21 @@ const PasswordReset = () => {
         const error = await sendResetEmail(email);
 
         if (error) {
-          const errorMsg: Message = {
-            role: "assistant",
-            content: `Hmm, I ran into an issue: "${error.message}". Could you double-check that email address and try again?`,
-          };
+          const msg = (error.message || "").toLowerCase();
+          const isRateLimit =
+            msg.includes("rate limit") ||
+            msg.includes("too many") ||
+            (error as any).status === 429;
+
+          const friendly = isRateLimit
+            ? `You've requested too many password reset emails in a short time. For security reasons, please wait about 60 seconds before trying again. If you already received an email, check your inbox (and spam folder).`
+            : `Hmm, I ran into an issue: "${error.message}". Could you double-check that email address and try again?`;
+
+          const errorMsg: Message = { role: "assistant", content: friendly };
           setMessages([...newMessages, errorMsg]);
+
+          // Treat rate-limit as "email already sent" so the user doesn't keep retrying
+          if (isRateLimit) setEmailSent(true);
         } else {
           setEmailSent(true);
           const successMsg: Message = {
