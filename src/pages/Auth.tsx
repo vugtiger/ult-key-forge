@@ -13,8 +13,19 @@ import SnowEffect from "@/components/SnowEffect";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const getSavedCreds = () => {
+    try {
+      const raw = localStorage.getItem("ult_last_creds");
+      if (!raw) return { email: "", password: "" };
+      const decoded = JSON.parse(atob(raw));
+      return { email: decoded.email || "", password: decoded.password || "" };
+    } catch {
+      return { email: "", password: "" };
+    }
+  };
+  const saved = getSavedCreds();
+  const [email, setEmail] = useState(saved.email);
+  const [password, setPassword] = useState(saved.password);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
