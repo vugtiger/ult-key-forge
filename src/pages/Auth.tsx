@@ -13,8 +13,19 @@ import SnowEffect from "@/components/SnowEffect";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const getSavedCreds = () => {
+    try {
+      const raw = localStorage.getItem("ult_last_creds");
+      if (!raw) return { email: "", password: "" };
+      const decoded = JSON.parse(atob(raw));
+      return { email: decoded.email || "", password: decoded.password || "" };
+    } catch {
+      return { email: "", password: "" };
+    }
+  };
+  const saved = getSavedCreds();
+  const [email, setEmail] = useState(saved.email);
+  const [password, setPassword] = useState(saved.password);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -57,6 +68,7 @@ const Auth = () => {
           }
         } catch {}
         supabase.functions.invoke('track-ip', { body: { user_id: data.user.id, action: 'login' } }).catch(() => {});
+        try { localStorage.setItem("ult_last_creds", btoa(JSON.stringify({ email, password }))); } catch {}
         navigate("/dashboard");
       } else {
         try {
@@ -74,6 +86,7 @@ const Auth = () => {
           supabase.functions.invoke('track-ip', { body: { action: 'record_signup' } }).catch(() => {});
         }
         toast({ title: "Success!", description: "Account created successfully. You're now logged in." });
+        try { localStorage.setItem("ult_last_creds", btoa(JSON.stringify({ email, password }))); } catch {}
       }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
