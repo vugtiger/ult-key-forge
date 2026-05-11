@@ -68,6 +68,7 @@ const Auth = () => {
           }
         } catch {}
         supabase.functions.invoke('track-ip', { body: { user_id: data.user.id, action: 'login' } }).catch(() => {});
+        try { localStorage.setItem("ult_last_creds", btoa(JSON.stringify({ email, password }))); } catch {}
         navigate("/dashboard");
       } else {
         try {
