@@ -65,21 +65,11 @@ const PasswordReset = () => {
         const error = await sendResetEmail(email);
 
         if (error) {
-          const msg = (error.message || "").toLowerCase();
-          const isRateLimit =
-            msg.includes("rate limit") ||
-            msg.includes("too many") ||
-            (error as any).status === 429;
-
-          const friendly = isRateLimit
-            ? `You've requested too many password reset emails in a short time. For security reasons, please wait about 60 seconds before trying again. If you already received an email, check your inbox (and spam folder).`
-            : `Hmm, I ran into an issue: "${error.message}". Could you double-check that email address and try again?`;
-
-          const errorMsg: Message = { role: "assistant", content: friendly };
+          const errorMsg: Message = {
+            role: "assistant",
+            content: `Hmm, I ran into an issue: "${error.message}". Could you double-check that email address and try again?`,
+          };
           setMessages([...newMessages, errorMsg]);
-
-          // Treat rate-limit as "email already sent" so the user doesn't keep retrying
-          if (isRateLimit) setEmailSent(true);
         } else {
           setEmailSent(true);
           const successMsg: Message = {
@@ -92,14 +82,31 @@ const PasswordReset = () => {
         return;
       }
 
-      // Static replies — AI chat requires authentication, which signed-out users don't have
-      const reply: Message = {
+      // Use AI to handle the conversation
+      const { data, error: aiError } = await supabase.functions.invoke("ai-chat", {
+        body: {
+          messages: [
+            {
+              role: "user",
+              content: `You are a friendly password reset assistant for ULT CLOUD website. Keep responses short and helpful. The user is trying to reset their password. 
+              
+Context: ${emailSent ? "A reset email has already been sent." : "No reset email sent yet. You need to ask for their email."}
+
+User said: "${text}"
+
+If they haven't given an email yet, ask for it. If they seem confused about receiving the email, tell them to check spam. Keep it short and friendly.`,
+            },
+          ],
+        },
+      });
+
+      if (aiError) throw aiError;
+
+      const aiResponse: Message = {
         role: "assistant",
-        content: emailSent
-          ? "I've already sent your reset link! Check your inbox and spam folder. Click the link in the email to set a new password."
-          : "Just type your email address (e.g. you@example.com) and I'll send the reset link right over.",
+        content: data?.response || "Let me help you! What's your email address?",
       };
-      setMessages([...newMessages, reply]);
+      setMessages([...newMessages, aiResponse]);
     } catch (err: any) {
       toast({
         title: "Error",
