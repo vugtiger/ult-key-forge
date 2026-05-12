@@ -37,7 +37,7 @@ const LastUpdatedBadge = () => {
   if (!lastUpdated) return null;
 
   return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card/50 border border-border/50 rounded-lg px-3 py-1.5">
+    <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground bg-card/50 border border-border/50 rounded-lg px-3 py-1.5">
       <Clock className="h-4 w-4" />
       <span>Last updated: <span className="text-foreground">{lastUpdated}</span></span>
     </div>
