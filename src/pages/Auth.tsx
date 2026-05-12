@@ -10,6 +10,7 @@ import { Eye, EyeOff, ArrowLeft, ShieldAlert } from "lucide-react";
 import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect from "@/components/SnowEffect";
+import { buildAppUrl } from "@/lib/site-url";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
