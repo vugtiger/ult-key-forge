@@ -10,6 +10,7 @@ import { Eye, EyeOff, ArrowLeft, ShieldAlert } from "lucide-react";
 import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect from "@/components/SnowEffect";
+import { buildAppUrl } from "@/lib/site-url";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -79,7 +80,7 @@ const Auth = () => {
         } catch (rateErr: any) {
           if (rateErr?.message?.includes('wait 24 hours')) throw rateErr;
         }
-        const { data: signupData, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/` } });
+        const { data: signupData, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: buildAppUrl("/") } });
         if (error) throw error;
         if (signupData.user) {
           supabase.functions.invoke('track-ip', { body: { user_id: signupData.user.id, action: 'register' } }).catch(() => {});
