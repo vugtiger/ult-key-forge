@@ -1,6 +1,6 @@
 const CANONICAL_APP_URL = "https://ultluaprotectsyourluacode.netlify.app";
 
-const PREVIEW_HOST_PATTERNS = ["localhost", "127.0.0.1", ".lovable.app"];
+const PREVIEW_HOST_PATTERNS = ["localhost", "127.0.0.1", ".lovable.app", ".lovableproject.com", ".lovable.dev"];
 
 const normalizeUrl = (value: string) => value.replace(/\/$/, "");
 
