@@ -125,7 +125,7 @@ const Index = () => {
                 <Download size={14} />
                 <span className="hidden sm:inline">Install</span>
               </Button>
-              <Button onClick={() => navigate("/auth")} size="sm" className="rounded-xl bg-foreground text-background px-5 h-8 text-xs font-semibold hover:bg-foreground/90">
+              <Button onClick={() => navigate("/auth")} size="sm" className="rounded-xl bg-foreground text-background px-3 sm:px-5 h-8 text-xs font-semibold hover:bg-foreground/90 whitespace-nowrap">
                 Sign In
               </Button>
             </div>
