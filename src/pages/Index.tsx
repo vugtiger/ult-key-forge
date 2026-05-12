@@ -98,34 +98,34 @@ const Index = () => {
 
       <div className="relative z-10 pb-12">
         {/* Navbar */}
-        <nav className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between rounded-2xl border border-border bg-card/40 px-5 py-3 backdrop-blur-2xl">
-            <div className="flex items-center gap-3">
+        <nav className="container mx-auto px-3 py-4 sm:px-4">
+          <div className="flex items-center justify-between gap-2 rounded-2xl border border-border bg-card/40 px-2.5 py-2 backdrop-blur-2xl sm:px-5 sm:py-3">
+            <div className="flex items-center gap-2 shrink-0">
               <CloudLogo size={28} />
               <h2 className="hidden text-sm font-bold tracking-wider text-foreground sm:block">
                 ULT CLOUD
               </h2>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-0.5 sm:gap-1.5 min-w-0">
               <SoundToggleBtn />
               <LastUpdatedBadge />
               <GoogleTranslate />
               <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
-                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 text-xs">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
                   <MessageSquare size={14} />
                   <span className="hidden sm:inline">Discord</span>
                 </Button>
               </a>
-              <Button onClick={() => navigate("/status")} variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 text-xs">
+              <Button onClick={() => navigate("/status")} variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
                 <Activity size={14} />
                 <span className="hidden sm:inline">Status</span>
               </Button>
-              <Button onClick={() => navigate("/install")} variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 text-xs">
+              <Button onClick={() => navigate("/install")} variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
                 <Download size={14} />
                 <span className="hidden sm:inline">Install</span>
               </Button>
-              <Button onClick={() => navigate("/auth")} size="sm" className="rounded-xl bg-foreground text-background px-3 sm:px-5 h-8 text-xs font-semibold hover:bg-foreground/90 whitespace-nowrap">
+              <Button onClick={() => navigate("/auth")} size="sm" className="rounded-xl bg-foreground text-background px-2.5 sm:px-5 h-8 text-xs font-semibold hover:bg-foreground/90 whitespace-nowrap">
                 Sign In
               </Button>
             </div>
