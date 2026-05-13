@@ -2010,6 +2010,194 @@ async function handleCommand(interaction: any) {
       return { type: 4, data: { content: `✅ User <@${targetUserId}> has been force expired from panel **${panel.name}**.\n\n• All their keys are now expired\n• Roblox User IDs removed from whitelist\n• Discord role removed`, flags: 64 } };
     }
 
+    case 'antifetch':
+    case 'backgroundprotection':
+    case 'crashdetection':
+    case 'multiaccountdetection':
+    case 'obfuscation': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
+      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      const colMap: Record<string, string> = {
+        antifetch: 'anti_fetch_enabled',
+        backgroundprotection: 'background_protection',
+        crashdetection: 'crash_detection_enabled',
+        multiaccountdetection: 'multi_account_detection',
+        obfuscation: 'obfuscation_on_delivery',
+      };
+      const labelMap: Record<string, string> = {
+        antifetch: 'Anti-fetch',
+        backgroundprotection: 'Background protection',
+        crashdetection: 'Crash detection',
+        multiaccountdetection: 'Multi-account detection',
+        obfuscation: 'Delivery obfuscation',
+      };
+      const col = colMap[commandName];
+      const { error } = await supabase.from('pastes').update({ [col]: enabled }).eq('id', paste.id);
+      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
+      return { type: 4, data: { content: `✅ ${labelMap[commandName]} ${enabled ? 'enabled' : 'disabled'} for paste **${paste.title || 'Untitled'}**!`, flags: 64 } };
+    }
+
+    case 'executionlimit': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
+      const max = data.options?.find((o: any) => o.name === 'max')?.value;
+      const win = data.options?.find((o: any) => o.name === 'window')?.value;
+      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      const update: any = { execution_limit_enabled: enabled };
+      if (typeof max === 'number') update.execution_limit_per_user = max;
+      if (win) update.execution_limit_window = win;
+      const { error } = await supabase.from('pastes').update(update).eq('id', paste.id);
+      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
+      return { type: 4, data: { content: `✅ Execution limit ${enabled ? 'enabled' : 'disabled'} for **${paste.title || 'Untitled'}**${typeof max === 'number' ? ` (max ${max}` : ''}${win ? ` per ${win})` : (typeof max === 'number' ? ')' : '')}`, flags: 64 } };
+    }
+
+    case 'geoblock': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
+      const countriesStr = data.options?.find((o: any) => o.name === 'countries')?.value;
+      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      const update: any = { geo_blocking_enabled: enabled };
+      if (countriesStr) {
+        update.geo_blocked_countries = countriesStr.split(',').map((c: string) => c.trim().toUpperCase()).filter(Boolean);
+      }
+      const { error } = await supabase.from('pastes').update(update).eq('id', paste.id);
+      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
+      return { type: 4, data: { content: `✅ Geo-blocking ${enabled ? 'enabled' : 'disabled'} for **${paste.title || 'Untitled'}**${countriesStr ? ` (countries: ${update.geo_blocked_countries.join(', ')})` : ''}`, flags: 64 } };
+    }
+
+    case 'timebomb': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
+      const hours = data.options?.find((o: any) => o.name === 'hours')?.value;
+      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      const update: any = { time_bomb_enabled: enabled };
+      if (enabled) {
+        if (!hours) return { type: 4, data: { content: '❌ Please provide `hours` when enabling time bomb.', flags: 64 } };
+        update.time_bomb_expires_at = new Date(Date.now() + hours * 3600 * 1000).toISOString();
+      } else {
+        update.time_bomb_expires_at = null;
+      }
+      const { error } = await supabase.from('pastes').update(update).eq('id', paste.id);
+      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
+      return { type: 4, data: { content: `✅ Time bomb ${enabled ? `armed — expires <t:${Math.floor(new Date(update.time_bomb_expires_at).getTime()/1000)}:R>` : 'disarmed'} for **${paste.title || 'Untitled'}**`, flags: 64 } };
+    }
+
+    case 'hwidlocks': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      const { data: locks } = await supabase.from('paste_hwid_locks').select('roblox_user_id, hwid, created_at').eq('paste_id', paste.id).order('created_at', { ascending: false }).limit(25);
+      if (!locks || locks.length === 0) return { type: 4, data: { content: `📭 No HWID locks for **${paste.title || 'Untitled'}**.`, flags: 64 } };
+      const lines = locks.map((l: any) => `• \`${l.roblox_user_id}\` → \`${String(l.hwid).slice(0, 16)}...\``).join('\n');
+      return { type: 4, data: { content: `🔒 **HWID locks for ${paste.title || 'Untitled'}** (${locks.length}):\n${lines}`, flags: 64 } };
+    }
+
+    case 'clearhwidlock': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const robloxUserId = data.options?.find((o: any) => o.name === 'userid')?.value;
+      if (!pasteName || !robloxUserId) return { type: 4, data: { content: '❌ Please provide paste name and user ID.', flags: 64 } };
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      const { error } = await supabase.from('paste_hwid_locks').delete().eq('paste_id', paste.id).eq('roblox_user_id', robloxUserId);
+      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
+      return { type: 4, data: { content: `✅ HWID lock cleared for user **${robloxUserId}** on **${paste.title || 'Untitled'}**.`, flags: 64 } };
+    }
+
+    case 'webhookalerts': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const enabled = data.options?.find((o: any) => o.name === 'enabled')?.value;
+      const url = data.options?.find((o: any) => o.name === 'url')?.value;
+      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      const update: any = { webhook_alerts_enabled: enabled };
+      if (enabled) {
+        if (!url || !/^https:\/\/(canary\.|ptb\.)?discord(app)?\.com\/api\/webhooks\//i.test(url)) {
+          return { type: 4, data: { content: '❌ When enabling, provide a valid Discord webhook URL.', flags: 64 } };
+        }
+        update.webhook_url = url;
+      }
+      const { error } = await supabase.from('pastes').update(update).eq('id', paste.id);
+      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
+      return { type: 4, data: { content: `✅ Webhook alerts ${enabled ? 'enabled' : 'disabled'} for **${paste.title || 'Untitled'}**.`, flags: 64 } };
+    }
+
+    case 'createprotectionkey': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const amount = data.options?.find((o: any) => o.name === 'amount')?.value;
+      const hours = data.options?.find((o: any) => o.name === 'hours')?.value;
+      if (!pasteName || !amount) return { type: 4, data: { content: '❌ Please provide paste name and amount.', flags: 64 } };
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      const expiresAt = hours ? new Date(Date.now() + hours * 3600 * 1000).toISOString() : null;
+      const rows: any[] = [];
+      for (let i = 0; i < amount; i++) {
+        const k = `${generateRandomKey()}-${generateRandomKey()}-${generateRandomKey()}`;
+        rows.push({ paste_id: paste.id, key_value: k, expires_at: expiresAt, is_active: true });
+      }
+      const { data: inserted, error } = await supabase.from('protection_keys').insert(rows).select('key_value');
+      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
+      const list = (inserted || []).map((r: any) => `\`${r.key_value}\``).join('\n');
+      await sendDM(discordUserId, `🔑 **Protection keys created for ${paste.title || 'Untitled'}** (${amount}${expiresAt ? `, expires <t:${Math.floor(new Date(expiresAt).getTime()/1000)}:R>` : ', permanent'})\n\n${list}`);
+      return { type: 4, data: { content: `✅ Created **${amount}** protection key(s) for **${paste.title || 'Untitled'}**. Sent to your DMs.`, flags: 64 } };
+    }
+
+    case 'myprotectionkeys': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      if (!pasteName) return { type: 4, data: { content: '❌ Please provide paste name.', flags: 64 } };
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      const { data: keys } = await supabase.from('protection_keys').select('key_value, is_active, expires_at, bound_roblox_username, bound_at').eq('paste_id', paste.id).order('created_at', { ascending: false }).limit(25);
+      if (!keys || keys.length === 0) return { type: 4, data: { content: `📭 No protection keys for **${paste.title || 'Untitled'}**.`, flags: 64 } };
+      const lines = keys.map((k: any) => {
+        const status = !k.is_active ? '❌ revoked' : (k.expires_at && new Date(k.expires_at) < new Date()) ? '⏰ expired' : k.bound_at ? `🔗 ${k.bound_roblox_username || 'bound'}` : '🆓 unbound';
+        return `\`${k.key_value}\` — ${status}`;
+      }).join('\n');
+      return { type: 4, data: { content: `🔑 **Protection keys for ${paste.title || 'Untitled'}** (${keys.length}):\n${lines}`, flags: 64 } };
+    }
+
+    case 'revokeprotectionkey': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      const keyValue = data.options?.find((o: any) => o.name === 'key')?.value;
+      if (!keyValue) return { type: 4, data: { content: '❌ Please provide the key value.', flags: 64 } };
+      const { data: keyRow } = await supabase.from('protection_keys').select('id, paste_id').eq('key_value', keyValue).maybeSingle();
+      if (!keyRow) return { type: 4, data: { content: `❌ Key not found.`, flags: 64 } };
+      const { data: paste } = await supabase.from('pastes').select('id').eq('id', keyRow.paste_id).eq('user_id', user.userId).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ This key doesn't belong to one of your pastes.`, flags: 64 } };
+      const { error } = await supabase.from('protection_keys').update({ is_active: false }).eq('id', keyRow.id);
+      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
+      return { type: 4, data: { content: `✅ Protection key \`${keyValue}\` revoked.`, flags: 64 } };
+    }
+
     default:
       return { type: 4, data: { content: '❓ Unknown command. Use `/help` to see available commands.', flags: 64 } };
   }
