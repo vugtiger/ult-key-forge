@@ -1271,6 +1271,40 @@ const Pastebin = () => {
 
                       {editingId === paste.id && (
                         <div className="mt-4 space-y-2">
+                          <div className="flex justify-end">
+                            <label className="inline-flex items-center gap-1.5 text-[11px] text-primary cursor-pointer hover:underline">
+                              <FileUp className="h-3 w-3" />
+                              Upload from file
+                              <input
+                                type="file"
+                                accept=".lua,.txt,.luau,.js,.ts,.json,.html,.css,.md,text/*"
+                                className="hidden"
+                                multiple
+                                onChange={async (e) => {
+                                  const files = Array.from(e.target.files ?? []);
+                                  if (files.length === 0) return;
+                                  try {
+                                    const parts: string[] = [];
+                                    for (const f of files) {
+                                      if (f.size > 2 * 1024 * 1024) {
+                                        toast({ title: "File too large", description: `${f.name} exceeds 2MB`, variant: "destructive" });
+                                        continue;
+                                      }
+                                      const text = await f.text();
+                                      parts.push(files.length > 1 ? `-- === ${f.name} ===\n${text}` : text);
+                                    }
+                                    const merged = parts.join("\n\n");
+                                    setEditContent((prev) => (prev ? prev + "\n\n" + merged : merged));
+                                    toast({ title: "Loaded", description: `${files.length} file(s) appended` });
+                                  } catch (err: any) {
+                                    toast({ title: "Error", description: err.message, variant: "destructive" });
+                                  } finally {
+                                    e.target.value = "";
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
                           <Textarea
                             value={editContent}
                             onChange={(e) => setEditContent(e.target.value)}
