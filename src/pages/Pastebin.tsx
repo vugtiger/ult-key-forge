@@ -441,7 +441,42 @@ const Pastebin = () => {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="content" className="text-xs">Lua Code</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="content" className="text-xs">Lua Code</Label>
+                <label className="inline-flex items-center gap-1.5 text-[11px] text-primary cursor-pointer hover:underline">
+                  <FileUp className="h-3 w-3" />
+                  Upload from file
+                  <input
+                    type="file"
+                    accept=".lua,.txt,.luau,.js,.ts,.json,.html,.css,.md,text/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const files = Array.from(e.target.files ?? []);
+                      if (files.length === 0) return;
+                      try {
+                        const parts: string[] = [];
+                        for (const f of files) {
+                          if (f.size > 2 * 1024 * 1024) {
+                            toast({ title: "File too large", description: `${f.name} exceeds 2MB`, variant: "destructive" });
+                            continue;
+                          }
+                          const text = await f.text();
+                          parts.push(files.length > 1 ? `-- === ${f.name} ===\n${text}` : text);
+                        }
+                        const merged = parts.join("\n\n");
+                        setContent((prev) => (prev ? prev + "\n\n" + merged : merged));
+                        if (!title && files[0]) setTitle(files[0].name.replace(/\.[^.]+$/, ""));
+                        toast({ title: "Loaded", description: `${files.length} file(s) added to paste` });
+                      } catch (err: any) {
+                        toast({ title: "Error", description: err.message, variant: "destructive" });
+                      } finally {
+                        e.target.value = "";
+                      }
+                    }}
+                    multiple
+                  />
+                </label>
+              </div>
               <Textarea id="content" placeholder="-- Paste your Lua code here..." value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[180px] font-mono text-xs bg-background/50" />
             </div>
 
