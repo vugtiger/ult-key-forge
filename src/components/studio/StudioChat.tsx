@@ -212,20 +212,52 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
         </div>
       )}
 
-      <div className="border-t border-border p-2 flex gap-2">
-        <Textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); }
-          }}
-          placeholder="Build a login UI in Roblox..."
-          className="min-h-[40px] max-h-[120px] text-xs resize-none"
-          rows={1}
-        />
-        <Button onClick={() => send(input)} disabled={loading || !input.trim()} size="icon" className="h-10 w-10 shrink-0">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        </Button>
+      <div className="border-t border-border p-2 space-y-2">
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {attachments.map((a, i) => (
+              <div key={i} className="flex items-center gap-1 text-[10px] bg-muted rounded px-2 py-1">
+                <FileCode className="h-3 w-3" />
+                <span className="max-w-[120px] truncate">{a.name}</span>
+                <button onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}>
+                  <X className="h-3 w-3 opacity-60 hover:opacity-100" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            accept=".lua,.luau,.txt,.js,.ts,.tsx,.jsx,.json,.html,.css,.md,.py,text/*"
+            onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
+          />
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            size="icon"
+            variant="outline"
+            className="h-10 w-10 shrink-0"
+            title="Attach files"
+          >
+            <Paperclip className="h-4 w-4" />
+          </Button>
+          <Textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); }
+            }}
+            placeholder="Build a login UI in Roblox..."
+            className="min-h-[40px] max-h-[120px] text-xs resize-none"
+            rows={1}
+          />
+          <Button onClick={() => send(input)} disabled={loading || (!input.trim() && attachments.length === 0)} size="icon" className="h-10 w-10 shrink-0">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
     </div>
   );
