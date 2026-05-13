@@ -32,15 +32,22 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [attachments, setAttachments] = useState<{ name: string; content: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
   const send = useCallback(async (text: string) => {
-    if (!text.trim() || loading) return;
+    if ((!text.trim() && attachments.length === 0) || loading) return;
     setInput("");
-    const userMsg: ChatMsg = { role: "user", content: text.trim() };
+    const attachmentBlock = attachments.length
+      ? attachments.map((a) => `### File: ${a.name}\n\`\`\`\n${a.content}\n\`\`\``).join("\n\n") + "\n\n"
+      : "";
+    const finalText = (attachmentBlock + text).trim();
+    const userMsg: ChatMsg = { role: "user", content: finalText };
+    setAttachments([]);
     const next = [...messages, userMsg, { role: "assistant" as const, content: "" }];
     setMessages(next);
     setLoading(true);
