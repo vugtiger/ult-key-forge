@@ -114,7 +114,21 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
     } finally {
       setLoading(false);
     }
-  }, [messages, loading]);
+  }, [messages, loading, attachments]);
+
+  const handleFiles = useCallback(async (fileList: FileList | null) => {
+    if (!fileList) return;
+    const files = Array.from(fileList);
+    const loaded: { name: string; content: string }[] = [];
+    for (const f of files) {
+      if (f.size > 1024 * 1024) continue;
+      try {
+        const text = await f.text();
+        loaded.push({ name: f.name, content: text });
+      } catch { /* skip */ }
+    }
+    if (loaded.length) setAttachments((prev) => [...prev, ...loaded]);
+  }, []);
 
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant" && m.content);
   const luaBlock = lastAssistant ? extractFirstLuaBlock(lastAssistant.content) : null;
