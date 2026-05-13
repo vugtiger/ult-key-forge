@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2, Bot, User, Sparkles, Code2, FileCode, Layers } from "lucide-react";
+import { Send, Loader2, Bot, User, Sparkles, Code2, FileCode, Layers, Paperclip, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
