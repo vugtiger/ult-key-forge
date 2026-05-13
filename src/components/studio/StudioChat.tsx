@@ -67,7 +67,7 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
           messages: [
             { role: "system", content: SYSTEM_HINT },
             ...messages.map((m) => ({ role: m.role, content: m.content })),
-            { role: "user", content: text.trim() },
+            { role: "user", content: finalText },
           ],
         }),
         signal: abortRef.current.signal,
