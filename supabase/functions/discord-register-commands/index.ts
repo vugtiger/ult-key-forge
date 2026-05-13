@@ -352,6 +352,143 @@ const commands = [
     ]
   },
 
+  // ===== New: Advanced Security Toggles =====
+  {
+    name: "antifetch",
+    description: "Toggle anti-fetch (block HTTP dumping of your script)",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable anti-fetch", type: 5, required: true }
+    ]
+  },
+  {
+    name: "backgroundprotection",
+    description: "Toggle background protection (extra runtime shield)",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable background protection", type: 5, required: true }
+    ]
+  },
+  {
+    name: "crashdetection",
+    description: "Toggle crash detection on a paste",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable crash detection", type: 5, required: true }
+    ]
+  },
+  {
+    name: "multiaccountdetection",
+    description: "Toggle multi-account detection (HWID-based)",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable multi-account detection", type: 5, required: true }
+    ]
+  },
+  {
+    name: "obfuscation",
+    description: "Toggle delivery obfuscation (chunked + scrambled)",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable obfuscation on delivery", type: 5, required: true }
+    ]
+  },
+
+  // ===== New: Limits & Restrictions =====
+  {
+    name: "executionlimit",
+    description: "Set per-user execution limit on a paste",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable the limit", type: 5, required: true },
+      { name: "max", description: "Max executions per user (0 = unlimited)", type: 4, required: false, min_value: 0, max_value: 100000 },
+      {
+        name: "window",
+        description: "Reset window",
+        type: 3,
+        required: false,
+        choices: [
+          { name: "Hourly", value: "hourly" },
+          { name: "Daily", value: "daily" },
+          { name: "Weekly", value: "weekly" },
+          { name: "Monthly", value: "monthly" },
+          { name: "Lifetime", value: "lifetime" }
+        ]
+      }
+    ]
+  },
+  {
+    name: "geoblock",
+    description: "Toggle geo-blocking and set blocked country codes",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable geo-blocking", type: 5, required: true },
+      { name: "countries", description: "Comma-separated ISO country codes (e.g. RU,CN,KP)", type: 3, required: false }
+    ]
+  },
+  {
+    name: "timebomb",
+    description: "Auto-disable a paste after N hours",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable time bomb", type: 5, required: true },
+      { name: "hours", description: "Hours from now until expiration (required if enabling)", type: 4, required: false, min_value: 1, max_value: 87600 }
+    ]
+  },
+
+  // ===== New: HWID Locks =====
+  {
+    name: "hwidlocks",
+    description: "List HWID locks bound to a paste",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true }
+    ]
+  },
+  {
+    name: "clearhwidlock",
+    description: "Remove a Roblox user's HWID lock from a paste",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "userid", description: "Roblox user ID to clear", type: 3, required: true }
+    ]
+  },
+
+  // ===== New: Webhook Alerts =====
+  {
+    name: "webhookalerts",
+    description: "Set Discord webhook for paste event alerts",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "enabled", description: "Enable or disable webhook alerts", type: 5, required: true },
+      { name: "url", description: "Discord webhook URL (required if enabling)", type: 3, required: false }
+    ]
+  },
+
+  // ===== New: Protection Keys =====
+  {
+    name: "createprotectionkey",
+    description: "Create a protection key for a paste",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true },
+      { name: "amount", description: "Number of keys (1-50)", type: 4, required: true, min_value: 1, max_value: 50 },
+      { name: "hours", description: "Hours until expiration (blank = permanent)", type: 4, required: false, min_value: 1 }
+    ]
+  },
+  {
+    name: "myprotectionkeys",
+    description: "List protection keys for a paste",
+    options: [
+      { name: "paste", description: "Paste name/title", type: 3, required: true }
+    ]
+  },
+  {
+    name: "revokeprotectionkey",
+    description: "Revoke (deactivate) a protection key",
+    options: [
+      { name: "key", description: "The protection key value to revoke", type: 3, required: true }
+    ]
+  },
+
   // Help Command
   {
     name: "help",
