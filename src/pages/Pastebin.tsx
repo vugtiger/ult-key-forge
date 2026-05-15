@@ -406,6 +406,20 @@ const Pastebin = () => {
     toast({ title: "Copied!", description: "Link copied to clipboard" });
   };
 
+  const downloadPaste = (paste: Paste) => {
+    const safeTitle = (paste.title || paste.slug || "paste").replace(/[^a-z0-9_\-]+/gi, "_").slice(0, 60) || "paste";
+    const blob = new Blob([paste.content ?? ""], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safeTitle}.lua`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Downloaded", description: `${safeTitle}.lua` });
+  };
+
   const startEditing = (paste: Paste) => {
     setEditingId(paste.id);
     setEditContent(paste.content);
