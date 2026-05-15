@@ -2479,14 +2479,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
 ` : ''}
     
 
-    if ${v.dumpPoison} then
-      _assembled = _assembled:gsub("(%d+)", function(n)
-        if math.random() < 0.05 then
-          return tostring(tonumber(n) + math.random(-3, 3))
-        end
-        return n
-      end)
-    end
+    -- v15.1: code mutation removed (per policy: never mutate bytecode on bypass — caused silent loadstring failures on false positives)
 
     local ${v.execFunc}, _err = ${v.indirectExec}(_assembled)
     _assembled = nil
