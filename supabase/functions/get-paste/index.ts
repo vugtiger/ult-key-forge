@@ -1524,11 +1524,9 @@ local ${v.antiHook} = function()
     if ${v.hookGuard}.rawget_ref(_G, "old") ~= nil then
       local oldVal = ${v.hookGuard}.rawget_ref(_G, "old")
       if ${v.hookGuard}.type_ref(oldVal) == "function" then
-        local testOk, testFn = pcall(oldVal, "return 42")
-        if testOk and ${v.hookGuard}.type_ref(testFn) == "function" then
-          local testOk2, testResult = pcall(testFn)
-          if testOk2 and testResult == 42 then return false end
-        end
+        -- Do not execute unknown functions while probing: some executor/game functions
+        -- mutate state or trigger false bypass reports when called with Lua source.
+        if oldVal == loadstring or oldVal == ${v.cleanLS} then return false end
       end
     end
   end
@@ -1723,14 +1721,9 @@ local ${v.antiHook} = function()
               local hasWebhook = false
               for k, uv in pairs(ups) do
                 if ${v.hookGuard}.type_ref(uv) == "function" then
-                  -- Check if this upvalue IS loadstring (attacker stores old_ls = hookfunction(loadstring, ...))
-                  pcall(function()
-                    local testOk, testFn = pcall(uv, "return 123")
-                    if testOk and ${v.hookGuard}.type_ref(testFn) == "function" then
-                      local testOk2, testR = pcall(testFn)
-                      if testOk2 and testR == 123 then hasOldLS = true end
-                    end
-                  end)
+                  -- Reference-only check. Never call arbitrary GC upvalues; that was
+                  -- triggering _reportBypass("return 123") and breaking live execution.
+                  if uv == loadstring or uv == ${v.cleanLS} then hasOldLS = true end
                 end
                 if ${v.hookGuard}.type_ref(uv) == "string" then
                   local uvL = uv:lower()
