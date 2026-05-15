@@ -2575,16 +2575,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     end)
 ` : ''}
 
-    -- v9.5: Use indirect execution (coroutine-based) to bypass loadstring hooks
-    -- If dump poisoning is active, corrupt the code before execution
-    if ${v.dumpPoison} then
-      code = code:gsub("(%d+)", function(n)
-        if math.random() < 0.05 then
-          return tostring(tonumber(n) + math.random(-3, 3))
-        end
-        return n
-      end)
-    end
+    -- v15.1: code mutation removed (policy: log bypass attempts only, do NOT corrupt code — caused false-positive silent crashes)
 
     -- v9.5: Chunked assembly + indirect execution
     -- Split code into chunks, compile each separately, then reassemble
