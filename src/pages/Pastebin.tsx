@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe, EyeOff, Terminal, Hand, ShieldBan, Key, Fingerprint, Zap, Bug, MapPin, Users, Webhook, Shuffle, Timer, FileUp } from "lucide-react";
+import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, UserMinus, Clock, Globe, EyeOff, Terminal, Hand, ShieldBan, Key, Fingerprint, Zap, Bug, MapPin, Users, Webhook, Shuffle, Timer, FileUp, Download } from "lucide-react";
 import HWIDManager from "@/components/HWIDManager";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
 import CloudLogo from "@/components/CloudLogo";
@@ -404,6 +404,20 @@ const Pastebin = () => {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: "Copied!", description: "Link copied to clipboard" });
+  };
+
+  const downloadPaste = (paste: Paste) => {
+    const safeTitle = (paste.title || paste.slug || "paste").replace(/[^a-z0-9_\-]+/gi, "_").slice(0, 60) || "paste";
+    const blob = new Blob([paste.content ?? ""], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safeTitle}.lua`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Downloaded", description: `${safeTitle}.lua` });
   };
 
   const startEditing = (paste: Paste) => {
@@ -1240,6 +1254,14 @@ const Pastebin = () => {
                             title="Copy Raw URL"
                           >
                             <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => downloadPaste(paste)}
+                            title="Download .lua"
+                          >
+                            <Download className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
