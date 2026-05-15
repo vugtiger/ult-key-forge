@@ -92,7 +92,7 @@ const AppSidebar = ({ user }: { user: User | null }) => {
     navigate("/auth");
   };
 
-  const navItems = isAdmin ? adminItems : navigationItems;
+  const navItems = isAdmin ? [...navigationItems, ...adminItems] : navigationItems;
   const collapsed = state === "collapsed";
 
   return (
