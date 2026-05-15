@@ -1,13 +1,32 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import DashboardLayout from "@/components/DashboardLayout";
 import TabHelpSection from "@/components/onboarding/TabHelpSection";
 import { discordBotHelp } from "@/components/onboarding/helpContent";
-import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Globe, Sparkles, EyeOff } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Globe, Sparkles, EyeOff, RotateCw } from "lucide-react";
 
 const DiscordBot = () => {
+  const { toast } = useToast();
+  const [registering, setRegistering] = useState(false);
   const inviteUrl = "https://discord.com/oauth2/authorize?client_id=1407376197771595816&permissions=8&integration_type=0&scope=bot";
+
+  const registerCommands = async () => {
+    setRegistering(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("discord-register-commands", { method: "POST" });
+      if (error) throw error;
+      toast({ title: "Commands registered!", description: "Restart Discord (Ctrl+R) to see them." });
+    } catch (e: any) {
+      toast({ title: "Failed", description: e?.message || "Must be logged in as admin/owner.", variant: "destructive" });
+    } finally {
+      setRegistering(false);
+    }
+  };
+
 
   const features = [
     { icon: <Key className="w-4 h-4" />, title: "Key System Generation", description: "Generate custom key systems with unlimited keys directly from Discord" },
