@@ -2004,14 +2004,7 @@ end
 -- ====== PHASE 4: SANDBOXED EXECUTION (v9.5 Enhanced) ======
 local ${v.execSandbox} = function(code)
   -- v9.5: If dump poisoning active, corrupt the code subtly
-  if ${v.dumpPoison} then
-    code = code:gsub("(%d+)", function(n)
-      if math.random() < 0.05 then
-        return tostring(tonumber(n) + math.random(-3, 3))
-      end
-      return n
-    end)
-  end
+  -- v15.1: code mutation disabled (policy: never mutate bytecode on bypass)
   
   if not ${v.antiHook}() then
     _reportBypass("hook_in_sandbox", "hook_detected_at_exec")
@@ -2479,14 +2472,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
 ` : ''}
     
 
-    if ${v.dumpPoison} then
-      _assembled = _assembled:gsub("(%d+)", function(n)
-        if math.random() < 0.05 then
-          return tostring(tonumber(n) + math.random(-3, 3))
-        end
-        return n
-      end)
-    end
+    -- v15.1: code mutation removed (per policy: never mutate bytecode on bypass — caused silent loadstring failures on false positives)
 
     local ${v.execFunc}, _err = ${v.indirectExec}(_assembled)
     _assembled = nil
@@ -2582,16 +2568,7 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     end)
 ` : ''}
 
-    -- v9.5: Use indirect execution (coroutine-based) to bypass loadstring hooks
-    -- If dump poisoning is active, corrupt the code before execution
-    if ${v.dumpPoison} then
-      code = code:gsub("(%d+)", function(n)
-        if math.random() < 0.05 then
-          return tostring(tonumber(n) + math.random(-3, 3))
-        end
-        return n
-      end)
-    end
+    -- v15.1: code mutation removed (policy: log bypass attempts only, do NOT corrupt code — caused false-positive silent crashes)
 
     -- v9.5: Chunked assembly + indirect execution
     -- Split code into chunks, compile each separately, then reassemble
