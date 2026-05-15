@@ -105,9 +105,14 @@ const DiscordBot = () => {
               <Sparkles className="w-3 h-3 mr-1" /> New Features
             </Badge>
           </div>
-          <Button size="sm" className="gap-1.5 rounded-lg h-9 text-xs" onClick={() => window.open(inviteUrl, '_blank')}>
-            <Bot className="w-4 h-4" /> Invite Bot to Server <ExternalLink className="w-3 h-3" />
-          </Button>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <Button size="sm" className="gap-1.5 rounded-lg h-9 text-xs" onClick={() => window.open(inviteUrl, '_blank')}>
+              <Bot className="w-4 h-4" /> Invite Bot to Server <ExternalLink className="w-3 h-3" />
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5 rounded-lg h-9 text-xs border-primary/20" onClick={registerCommands} disabled={registering}>
+              <RotateCw className={`w-4 h-4 ${registering ? "animate-spin" : ""}`} /> {registering ? "Registering..." : "Register Commands"}
+            </Button>
+          </div>
         </div>
 
         <TabHelpSection {...discordBotHelp} />
