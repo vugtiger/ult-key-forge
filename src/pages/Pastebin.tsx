@@ -1258,6 +1258,14 @@ const Pastebin = () => {
                           <Button
                             variant="ghost"
                             size="icon"
+                            onClick={() => downloadPaste(paste)}
+                            title="Download .lua"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => startEditing(paste)}
                             title="Edit"
                           >
