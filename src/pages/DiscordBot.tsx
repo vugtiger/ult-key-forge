@@ -1,13 +1,32 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import DashboardLayout from "@/components/DashboardLayout";
 import TabHelpSection from "@/components/onboarding/TabHelpSection";
 import { discordBotHelp } from "@/components/onboarding/helpContent";
-import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Globe, Sparkles, EyeOff } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Globe, Sparkles, EyeOff, RotateCw } from "lucide-react";
 
 const DiscordBot = () => {
+  const { toast } = useToast();
+  const [registering, setRegistering] = useState(false);
   const inviteUrl = "https://discord.com/oauth2/authorize?client_id=1407376197771595816&permissions=8&integration_type=0&scope=bot";
+
+  const registerCommands = async () => {
+    setRegistering(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("discord-register-commands", { method: "POST" });
+      if (error) throw error;
+      toast({ title: "Commands registered!", description: "Restart Discord (Ctrl+R) to see them." });
+    } catch (e: any) {
+      toast({ title: "Failed", description: e?.message || "Must be logged in as admin/owner.", variant: "destructive" });
+    } finally {
+      setRegistering(false);
+    }
+  };
+
 
   const features = [
     { icon: <Key className="w-4 h-4" />, title: "Key System Generation", description: "Generate custom key systems with unlimited keys directly from Discord" },
@@ -86,9 +105,14 @@ const DiscordBot = () => {
               <Sparkles className="w-3 h-3 mr-1" /> New Features
             </Badge>
           </div>
-          <Button size="sm" className="gap-1.5 rounded-lg h-9 text-xs" onClick={() => window.open(inviteUrl, '_blank')}>
-            <Bot className="w-4 h-4" /> Invite Bot to Server <ExternalLink className="w-3 h-3" />
-          </Button>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <Button size="sm" className="gap-1.5 rounded-lg h-9 text-xs" onClick={() => window.open(inviteUrl, '_blank')}>
+              <Bot className="w-4 h-4" /> Invite Bot to Server <ExternalLink className="w-3 h-3" />
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5 rounded-lg h-9 text-xs border-primary/20" onClick={registerCommands} disabled={registering}>
+              <RotateCw className={`w-4 h-4 ${registering ? "animate-spin" : ""}`} /> {registering ? "Registering..." : "Register Commands"}
+            </Button>
+          </div>
         </div>
 
         <TabHelpSection {...discordBotHelp} />
