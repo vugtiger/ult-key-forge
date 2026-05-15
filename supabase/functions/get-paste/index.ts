@@ -4131,16 +4131,8 @@ Deno.serve(async (req) => {
     };
 
     const shouldRedirectToDiscord = (): boolean => {
-      // Only gate browser visits via Discord OAuth when IP tracking is on
-      // and Hide Code is off (Hide Code already serves a blank page to browsers).
-      if (!paste.ip_tracking_enabled) return false;
-      if (paste.hide_code) return false;
-      if (!isLikelyBrowser || isRobloxRequest) return false;
-      if (uid || tk) return false;
-      if (isDirectSlugBrowserView(url)) return false;
-      const tsNum = oauthTs ? Number(oauthTs) : NaN;
-      if (Number.isFinite(tsNum) && Date.now() - tsNum < 60_000) return false;
-      return true;
+      // Discord OAuth popup disabled per user request — never redirect.
+      return false;
     };
 
     const getDiscordRedirectResponse = (): Response | null => {
