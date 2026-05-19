@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2, Bot, User, Sparkles, Code2, FileCode, Layers, Paperclip, X } from "lucide-react";
+import { Send, Loader2, Bot, User, Sparkles, FileCode, Paperclip, X, Copy, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { extractFirstLuaBlock, extractWebBlock, parseLuaUI } from "./luaParser";
+import { extractFirstLuaBlock, extractWebBlock } from "./luaParser";
 import type { RInstance, StudioFile } from "./types";
 import { uid } from "./utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface ChatMsg {
   role: "user" | "assistant";
@@ -22,11 +23,23 @@ interface StudioChatProps {
 
 const SYSTEM_HINT = `You are an expert UI/code engineer inside ULT Cloud's AI Studio. The user can preview your output live.
 
-When the user wants a Roblox UI: output a complete, runnable Lua script using \`Instance.new\` with \`local\` declarations and explicit \`.Parent\` assignments. Always create a ScreenGui and parent everything under it. Use \`UDim2.new\`, \`UDim.new\`, \`Color3.fromRGB\`, \`Vector2.new\`, and \`Enum.\` values. Do NOT explain — output the lua block first, then a one-line note.
+When the user wants a Roblox UI: output a complete, runnable Lua script using \`Instance.new\` with \`local\` declarations and explicit \`.Parent\` assignments. Always create a ScreenGui and parent everything under it. Use \`UDim2.new\`, \`UDim.new\`, \`Color3.fromRGB\`, \`Vector2.new\`, and \`Enum.\` values.
 
 When the user wants web UI, output html / css / js fenced blocks separately so they can preview live.
 
-Keep responses tight. No yapping.`;
+ALWAYS wrap code in proper fenced markdown blocks with a language tag (\`\`\`lua, \`\`\`html, \`\`\`css, \`\`\`js, etc.) so the user can copy/download it. Keep replies tight — no yapping.`;
+
+const langToExt = (lang: string): { ext: string; language: StudioFile["language"] } => {
+  const l = (lang || "").toLowerCase();
+  if (l === "lua" || l === "luau") return { ext: "lua", language: "lua" };
+  if (l === "html") return { ext: "html", language: "html" };
+  if (l === "css") return { ext: "css", language: "css" };
+  if (l === "js" || l === "javascript") return { ext: "js", language: "javascript" };
+  if (l === "ts" || l === "typescript") return { ext: "ts", language: "typescript" };
+  if (l === "json") return { ext: "json", language: "json" };
+  if (l === "md" || l === "markdown") return { ext: "md", language: "markdown" };
+  return { ext: "txt", language: "lua" };
+};
 
 export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatProps) => {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -36,8 +49,46 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
   const fileInputRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const savedMsgIdxRef = useRef<Set<number>>(new Set());
+  const { toast } = useToast();
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
+
+  const downloadText = useCallback((name: string, content: string) => {
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const copyText = useCallback((content: string) => {
+    navigator.clipboard.writeText(content);
+    toast({ title: "Copied to clipboard" });
+  }, [toast]);
+
+  // Auto-save fenced code blocks from a completed assistant message into Files.
+  const autoSaveCodeBlocks = useCallback((markdown: string) => {
+    const re = /```(\w+)?\s*\n([\s\S]*?)```/g;
+    let m: RegExpExecArray | null;
+    const stamp = Date.now();
+    let i = 0;
+    while ((m = re.exec(markdown))) {
+      const rawLang = m[1] || "";
+      const code = m[2].trim();
+      if (!code) continue;
+      const { ext, language } = langToExt(rawLang);
+      onCreateFile({
+        id: uid(),
+        name: `ai-${stamp}-${++i}.${ext}`,
+        language,
+        content: code,
+      });
+    }
+    return i;
+  }, [onCreateFile]);
 
   const send = useCallback(async (text: string) => {
     if ((!text.trim() && attachments.length === 0) || loading) return;
@@ -50,6 +101,7 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
     setAttachments([]);
     const next = [...messages, userMsg, { role: "assistant" as const, content: "" }];
     setMessages(next);
+    const assistantIdx = next.length - 1;
     setLoading(true);
 
     try {
@@ -105,6 +157,15 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
           } catch { /* partial */ }
         }
       }
+
+      // Auto-save code blocks once streaming finishes
+      if (acc && !savedMsgIdxRef.current.has(assistantIdx)) {
+        savedMsgIdxRef.current.add(assistantIdx);
+        const count = autoSaveCodeBlocks(acc);
+        if (count > 0) {
+          toast({ title: `Saved ${count} code file${count > 1 ? "s" : ""}`, description: "Open the Code tab to view." });
+        }
+      }
     } catch (err) {
       setMessages((prev) => {
         const copy = [...prev];
@@ -114,7 +175,7 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
     } finally {
       setLoading(false);
     }
-  }, [messages, loading, attachments]);
+  }, [messages, loading, attachments, autoSaveCodeBlocks, toast]);
 
   const handleFiles = useCallback(async (fileList: FileList | null) => {
     if (!fileList) return;
@@ -130,93 +191,94 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
     if (loaded.length) setAttachments((prev) => [...prev, ...loaded]);
   }, []);
 
-  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant" && m.content);
-  const luaBlock = lastAssistant ? extractFirstLuaBlock(lastAssistant.content) : null;
-  const webBlock = lastAssistant ? extractWebBlock(lastAssistant.content) : null;
+  // Custom code block renderer with copy + download
+  const renderCodeBlock = (lang: string, code: string) => {
+    const { ext } = langToExt(lang);
+    const filename = `snippet-${Date.now()}.${ext}`;
+    return (
+      <div className="relative my-2 rounded-lg border border-border/50 overflow-hidden bg-muted/60">
+        <div className="flex items-center justify-between px-2.5 py-1.5 bg-foreground/5 border-b border-border/50">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-mono">{lang || "code"}</span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => copyText(code)}
+              className="h-6 px-2 rounded text-[10px] flex items-center gap-1 hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Copy code"
+            >
+              <Copy className="h-3 w-3" /> Copy
+            </button>
+            <button
+              onClick={() => downloadText(filename, code)}
+              className="h-6 px-2 rounded text-[10px] flex items-center gap-1 hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Download code"
+            >
+              <Download className="h-3 w-3" /> Download
+            </button>
+          </div>
+        </div>
+        <pre className="p-2.5 text-[11px] overflow-x-auto font-mono leading-relaxed">
+          <code>{code}</code>
+        </pre>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <div className="px-3 py-2 border-b border-border flex items-center gap-2">
+      <div className="px-3 py-2.5 border-b border-border flex items-center gap-2 shrink-0">
         <Sparkles className="h-4 w-4 text-white" />
         <span className="text-sm font-medium">AI Assistant</span>
+        <span className="ml-auto text-[10px] text-muted-foreground">Code auto-saves to Files</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center text-xs text-muted-foreground py-8 space-y-2">
-            <Bot className="h-8 w-8 mx-auto opacity-50" />
-            <div>Ask me to build a Roblox UI, fix code, or create a webpage.</div>
-            <div className="text-[10px] opacity-70">Lua UI output auto-renders in the Designer tab.</div>
+          <div className="text-center text-xs text-muted-foreground py-12 space-y-2 px-4">
+            <Bot className="h-10 w-10 mx-auto opacity-50" />
+            <div className="text-sm">Ask me to build a Roblox UI, fix code, or create a webpage.</div>
+            <div className="text-[11px] opacity-70">Every code block gets a Copy + Download button and auto-saves to your Files.</div>
           </div>
         )}
         {messages.map((m, i) => (
-          <div key={i} className="text-xs">
-            <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+          <div key={i} className="text-sm">
+            <div className="flex items-center gap-1.5 mb-1.5 text-muted-foreground">
               {m.role === "user" ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
               <span className="text-[10px] uppercase tracking-wide">{m.role}</span>
             </div>
-            <div className="prose prose-invert prose-xs max-w-none [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:rounded [&_pre]:text-[11px] [&_pre]:overflow-x-auto [&_code]:text-[11px] [&_p]:my-1">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content || (loading && i === messages.length - 1 ? "..." : "")}</ReactMarkdown>
+            <div className="prose prose-invert prose-sm max-w-none [&_p]:my-1 [&_p]:text-[13px] [&_ul]:text-[13px] [&_ol]:text-[13px] [&_:not(pre)>code]:bg-muted [&_:not(pre)>code]:px-1 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:rounded [&_:not(pre)>code]:text-[12px]">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  code({ inline, className, children, ...props }: any) {
+                    const match = /language-(\w+)/.exec(className || "");
+                    const codeStr = String(children).replace(/\n$/, "");
+                    if (!inline && match) {
+                      return renderCodeBlock(match[1], codeStr);
+                    }
+                    if (!inline) {
+                      return renderCodeBlock("", codeStr);
+                    }
+                    return <code className={className} {...props}>{children}</code>;
+                  },
+                  pre({ children }: any) {
+                    // The custom code renderer already wraps in <pre>, so unwrap markdown's outer <pre>
+                    return <>{children}</>;
+                  },
+                }}
+              >
+                {m.content || (loading && i === messages.length - 1 ? "..." : "")}
+              </ReactMarkdown>
             </div>
           </div>
         ))}
         <div ref={endRef} />
       </div>
 
-      {(luaBlock || webBlock) && !loading && (
-        <div className="border-t border-border p-2 space-y-1 bg-muted/30">
-          {luaBlock && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full h-7 text-xs justify-start gap-2"
-              onClick={() => {
-                const parsed = parseLuaUI(luaBlock);
-                if (parsed) onApplyUI(parsed);
-                onCreateFile({ id: uid(), name: `script-${Date.now()}.lua`, language: "lua", content: luaBlock });
-              }}
-            >
-              <Layers className="h-3 w-3" /> Send Lua to UI Designer + new file
-            </Button>
-          )}
-          {webBlock?.html && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full h-7 text-xs justify-start gap-2"
-              onClick={() => onCreateFile({ id: uid(), name: `page-${Date.now()}.html`, language: "html", content: webBlock.html })}
-            >
-              <Code2 className="h-3 w-3" /> New HTML file
-            </Button>
-          )}
-          {webBlock?.css && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full h-7 text-xs justify-start gap-2"
-              onClick={() => onCreateFile({ id: uid(), name: `style-${Date.now()}.css`, language: "css", content: webBlock.css })}
-            >
-              <FileCode className="h-3 w-3" /> New CSS file
-            </Button>
-          )}
-          {webBlock?.js && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full h-7 text-xs justify-start gap-2"
-              onClick={() => onCreateFile({ id: uid(), name: `script-${Date.now()}.js`, language: "javascript", content: webBlock.js })}
-            >
-              <FileCode className="h-3 w-3" /> New JS file
-            </Button>
-          )}
-        </div>
-      )}
-
-      <div className="border-t border-border p-2 space-y-2">
+      <div className="border-t border-border p-2.5 space-y-2 shrink-0">
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {attachments.map((a, i) => (
-              <div key={i} className="flex items-center gap-1 text-[10px] bg-muted rounded px-2 py-1">
+              <div key={i} className="flex items-center gap-1 text-[11px] bg-muted rounded px-2 py-1">
                 <FileCode className="h-3 w-3" />
                 <span className="max-w-[120px] truncate">{a.name}</span>
                 <button onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}>
@@ -226,7 +288,7 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
             ))}
           </div>
         )}
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-end">
           <input
             ref={fileInputRef}
             type="file"
@@ -239,7 +301,7 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
             onClick={() => fileInputRef.current?.click()}
             size="icon"
             variant="outline"
-            className="h-10 w-10 shrink-0"
+            className="h-11 w-11 shrink-0"
             title="Attach files"
           >
             <Paperclip className="h-4 w-4" />
@@ -250,11 +312,16 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); }
             }}
-            placeholder="Build a login UI in Roblox..."
-            className="min-h-[40px] max-h-[120px] text-xs resize-none"
+            placeholder="Ask anything... e.g. 'Build a login UI in Roblox'"
+            className="min-h-[44px] max-h-[140px] text-sm resize-none"
             rows={1}
           />
-          <Button onClick={() => send(input)} disabled={loading || (!input.trim() && attachments.length === 0)} size="icon" className="h-10 w-10 shrink-0">
+          <Button
+            onClick={() => send(input)}
+            disabled={loading || (!input.trim() && attachments.length === 0)}
+            size="icon"
+            className="h-11 w-11 shrink-0"
+          >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
