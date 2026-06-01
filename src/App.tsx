@@ -20,6 +20,7 @@ import Changelog from "./pages/Changelog";
 import ScriptSettings from "./pages/ScriptSettings";
 import Status from "./pages/Status";
 import ProtectionKeysAnalytics from "./pages/ProtectionKeysAnalytics";
+import Prompts from "./pages/Prompts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/changelog" element={<Changelog />} />
           <Route path="/script-settings" element={<ScriptSettings />} />
           <Route path="/protection-keys" element={<ProtectionKeysAnalytics />} />
+          <Route path="/prompts" element={<Prompts />} />
           <Route path="/status" element={<Status />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
