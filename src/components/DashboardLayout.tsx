@@ -8,7 +8,7 @@ import {
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye, Volume2, VolumeX, Key } from "lucide-react";
+import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye, Volume2, VolumeX, Key, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import CloudLogo from "@/components/CloudLogo";
@@ -22,6 +22,7 @@ const navigationItems = [
   { title: "Pastebin", url: "/pastebin", icon: FileCode },
   { title: "Settings", url: "/script-settings", icon: Eye },
   { title: "AI", url: "/ai-assistant", icon: Bot },
+  { title: "Prompt Vault", url: "/prompts", icon: Sparkles },
   { title: "Discord", url: "/discord-bot", icon: MessageSquare },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Protection Keys", url: "/protection-keys", icon: Key },
