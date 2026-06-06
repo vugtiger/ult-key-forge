@@ -1,20 +1,25 @@
-// Massive prompt generator for "Build me a script protection platform" prompts.
-// Generates thousands of unique long-form prompts via combinatorics, with a
-// daily-seeded shuffle so the visible set rotates every 24h.
+// Massive prompt generator for "build me a SaaS" prompts.
+// Every generated prompt is one of three honest, AI-buildable product shapes:
+//   1) License-key SaaS for Lua modules (plaintext upload, key issuance, place-ID allowlist)
+//   2) General digital-goods license platform (Gumroad-style, any file type)
+//   3) Lua minifier SaaS (whitespace/comment strip + identifier shortening; source viewable by buyer)
+//
+// Thousands of variants come from combining product shape x theme x name x size x tier.
 
 export type PromptTier = "free" | "paid";
 export type FeatureSize = "small" | "big";
+export type ProductShape = "lua-license" | "digital-goods" | "lua-minifier";
 
 export interface GeneratedPrompt {
   id: string;
   title: string;
-  category: string;       // theme category
+  category: string;
   tier: PromptTier;
   featureSize: FeatureSize;
   is3D: boolean;
-  price?: string;         // only when tier === "paid"
+  price?: string;
   paymentMethods?: string[];
-  body: string;           // long prompt
+  body: string;
   tags: string[];
 }
 
@@ -29,7 +34,7 @@ const THEMES = [
   { name: "Vaporwave Dream", category: "Retro / Y2K", palette: "pink #ff77e9, cyan #7df9ff, purple #b56bff", vibe: "VHS scanlines, 80s grid floor on hero, chromatic aberration on hover", logo: "a sunset palm-tree wireframe", three_d: true },
   { name: "Royal Emerald", category: "Luxury", palette: "deep emerald #064e3b, antique gold #c9a84c, ivory #f5f0e0", vibe: "serif typography, gold-leaf borders, slow elegant fade transitions", logo: "an emerald crest with crown", three_d: false },
   { name: "Paper & Ink", category: "Editorial", palette: "off-white #f5f3ee, bone #e8e4dd, rich black #0d0d0d", vibe: "Swiss typography, ruled lines, magazine grid, zero glow effects", logo: "an inked monogram stamp", three_d: false },
-  { name: "Terminal Hacker", category: "Hacker / Mono", palette: "phosphor green #00ff66, console black #0b0f0d", vibe: "monospace everywhere, blinking cursor, CRT scanline overlay, ASCII art header", logo: "an ASCII art skull", three_d: false },
+  { name: "Terminal Hacker", category: "Hacker / Mono", palette: "phosphor green #00ff66, console black #0b0f0d", vibe: "monospace everywhere, blinking cursor, CRT scanline overlay, ASCII art header", logo: "an ASCII art mark", three_d: false },
   { name: "Sakura Drift", category: "Soft / Pastel", palette: "blossom pink #f8c8d8, cream #fff8f0, sage #a8c0a0", vibe: "petals drifting across screen, soft handwritten serif, watercolor edges", logo: "a single sakura petal", three_d: false },
   { name: "Holo Bento", category: "Bento Grid", palette: "off-black #0e0e10, holographic gradient accent", vibe: "tight bento-grid layout, each tile a different aspect ratio, hover lifts the tile in 3D", logo: "a 3D cube logo that unfolds on hover", three_d: true },
   { name: "Desert Sandstorm", category: "Earth / Natural", palette: "terracotta #c2956b, sand #d4a574, dusk purple #574b90", vibe: "grainy noise texture, soft dunes silhouette, slow scrolling parallax sand", logo: "a sun rising over a dune", three_d: false },
@@ -49,57 +54,79 @@ const THEMES = [
 ];
 
 const NAMES = [
-  "ULT Shield","Aegis Cloud","Bastion","Veilforge","Obfuscat","Nullbyte","Cipher Cloud","Lockstep","Sigil",
-  "Vaultscript","Phantom Loader","Shroud","ScriptHaven","Keystone","Ironveil","Cryptforge","Sentinel Cloud",
-  "Glyphguard","Hexvault","Pyrelock","Voidshield","Stormgate","Echo Cipher","Onyx Loader","Helix Protect",
-  "Aurora Lock","Nightingale","Spectre Cloud","Forgekey","Riftguard","Tempest","Halocrypt","Nimbus Shield",
-  "Talon","Wraithloader","Quantum Vault","Zenith Cipher","Mythos Shield","Nova Loader","Pulsar Protect",
-  "Eclipse Lock","Lumen Cloud","Citadel Script","Vector Vault","Apex Shield","Sable Cipher","Mirage Loader",
+  "Keystone","Licenseroom","Vendcraft","Modulekit","Shipline","Stockpile","Ledgerly","Paperboat",
+  "Catalogue","Storefly","Tinybazaar","Indievault","Hatchsell","Quickstand","Modulemart","Goodstream",
+  "Vendora","Pricelane","Sellforge","Distrokit","Modulehub","Skuhaus","Marketloop","Tradepost",
+  "Bundlebar","Cratemark","Shipscript","Modulekey","Sourcepost","Crafted","Saltbox","Tinytap",
+  "Codeshelf","Devmarket","Modline","Indiekit","Pricelet","Vendline","Storehaus","Modkit",
+  "Slimline","Trimsource","Tidylua","Compactly","Pricepoint","Modulestore","Saletide","Goodsline",
 ];
 
+// Generic, AI-safe small-feature pool (no obfuscation / no anti-analysis language).
 const SMALL_FEATURES = [
-  "code minification and string-table compression for Lua source",
-  "single-script license validation tied to a user account",
-  "Discord webhook notifications on successful script load (developer's own server only)",
-  "time-limited license keys (24h rotation) with self-serve regeneration",
-  "client environment fingerprinting (executor name + version) for analytics",
-  "device pairing: one license -> one device, swap via dashboard",
-  "in-game console progress bar shown to the end-user during load",
-  "minified bootstrap loader served from the developer's own endpoint",
-  "single-use request tokens to prevent accidental replay of stale loader URLs",
-  "per-account request rate limiting (10/hour) to keep API costs predictable",
-  "Discord OAuth login as the primary auth method",
-  "compile-time string compression to keep the shipped payload small",
-  "graceful error handling with pcall so a failed load never crashes the host game",
-  "one-click copy of the loader snippet for the developer's docs",
-  "minimal dashboard with 4 tiles (scripts, licenses, loads, revenue)",
+  "email + Google OAuth authentication with required email verification",
+  "license-key generation with one-click copy and per-key revocation",
+  "a buyer dashboard listing all purchased products with re-download links",
+  "a seller dashboard with total revenue, active licenses, and last 30 days of sales",
+  "webhook notifications to a developer-supplied URL when a license is issued or revoked",
+  "CSV export of licenses, customers, and sales",
+  "self-serve license regeneration for the buyer if they lose their key",
+  "per-product custom thank-you page and post-purchase instructions",
+  "transactional emails (purchase receipt, license delivery, refund)",
+  "a public product page per item with screenshots, description, changelog, and price",
+  "basic per-account API rate limiting (60 req/min) to keep costs predictable",
+  "soft-delete for products so removing one does not break existing buyer downloads",
+  "a 'Files' tab where the buyer can re-download every version they have access to",
+  "Markdown-rendered product descriptions and a public changelog feed",
+  "a minimal admin panel: users, products, sales, refunds",
 ];
 
 const BIG_FEATURES = [
-  "multi-pass Lua minifier: identifier renaming, dead-code elimination, string-table compression, control-flow simplification, constant folding, table indirection, safe-call wrappers",
-  "per-request signed loader generation with 30-second single-use tokens bound to the requesting account session",
-  "tiered license management with separate revocation lists for accounts, devices, and refunded purchases, with admin allowlist support",
-  "Discord OAuth as the sole authentication method, with a 60-second first-visit grace window and full session management afterward",
-  "real-time load analytics dashboard that distinguishes browser visits from in-game loads, with deduplicated user profile cards",
-  "bot-detection endpoint that returns a lightweight decoy response to obvious scrapers while always serving valid clients (Discord/Meta crawlers exempt)",
-  "automated license-panel generator with a two-panel 720x408 design, 28px corner radius, live preview, and per-license paste binding",
-  "voice-driven admin assistant that navigates internal tabs and answers questions via low-latency TTS",
-  "lightweight integrity check that aborts gracefully when the loader is invoked outside the intended runtime",
-  "fail-open delivery pipeline: non-critical database or analytics failures must never block a paying customer's script from loading",
-  "Stripe / Paddle subscription billing for premium tiers with webhook-driven role updates and a customer portal",
-  "live community server showcase tab with 5-minute caching to stay under the Discord API rate limit",
-  "per-script allowlist of Roblox place IDs so the developer can scope distribution to specific games",
-  "device-id cross-validation against account-id mismatch, with automatic suspension of credential-sharing accounts",
-  "license-key validation that writes the decoded payload to a sandboxed temp slot and executes it from there",
-  "soft-flag telemetry that buffers suspicious-but-inconclusive signals into a review queue instead of auto-revoking",
-  "AI assistant tab (Lovable AI gateway) that auto-saves every generated code block into a Files tab with copy + download",
-  "performance hardening: 15s DB query timeout, fire-and-forget analytics writes, synchronous token issuance",
-  "delivery hardening: chunked transfer, payload shuffling, decoy traffic to keep CDN patterns smooth",
-  "strict 1:1 binding between a license key, its control panel, and the exact script it unlocks",
-  "API hardening that prevents naive scraping of script bodies and keeps the loader endpoint stateless",
-  "smart-rate-limit tier (subnet heuristics + ASN allowlist) plus a Fortress mode that hardens every public endpoint",
-  "fully responsive admin dashboard with specialized tabs and 3-tier license management",
-  "edge function written in Deno.serve with verify_jwt bypass, randomized response timing, and zero raw content policy",
+  "subscription billing (monthly + yearly) with proration, customer portal, and dunning emails on failed cards",
+  "team seats: a single subscription can invite N teammates, each with their own login and audit trail",
+  "role-based access control with a separate user_roles table and a has_role() SECURITY DEFINER function",
+  "version history per product: every upload is versioned, buyers can pick any version, defaults to latest",
+  "a public REST API for sellers (list products, list sales, issue license, revoke license) with bearer tokens",
+  "Stripe + Paddle as interchangeable billing backends, with webhook-driven subscription_tier sync",
+  "tax handling via Stripe Tax / Paddle MoR so the seller does not have to register in each jurisdiction",
+  "refund flow that auto-revokes the matching license and emails the buyer",
+  "coupon and promo-code engine with per-coupon limits, expiry dates, and first-time-buyer rules",
+  "affiliate / referral program with per-seller payout dashboards",
+  "fully responsive admin dashboard with specialized tabs (Users, Products, Sales, Refunds, Coupons, Logs)",
+  "analytics dashboard with daily revenue chart, MRR, churn, top products, and conversion funnel",
+  "Discord OAuth login as an additional sign-in option (alongside email + Google)",
+  "a public seller storefront page (gumroad.com/yourname style) with branding controls",
+  "real-time sale notifications to the seller's Discord via webhook",
+  "a 'Files' tab on the buyer dashboard with auto-saved download history and copy buttons",
+  "an AI assistant tab (via Lovable AI gateway) that helps sellers write product descriptions and changelogs",
+  "performance hardening: 15s DB query timeout, fire-and-forget analytics writes, indexed sales/license tables",
+  "Postgres edge functions written in Deno.serve for: issue-license, validate-license, stripe-webhook, paddle-webhook, ai-assist",
+  "full RLS on every public-schema table, with explicit GRANTs for anon / authenticated / service_role",
+  "buyer-facing review and rating system with seller reply",
+  "a community / showcase tab listing public products with category filters",
+  "a public status page with uptime, recent incidents, and a 'subscribe to updates' email box",
+  "white-label custom domain support per seller (CNAME -> storefront)",
+];
+
+// Minifier-specific feature pools (Lua minifier shape only)
+const MIN_SMALL = [
+  "paste-in or upload .lua file, click 'minify', download the result",
+  "side-by-side before/after view with original and minified size + percent saved",
+  "whitespace and comment stripping with a 'preserve license header' toggle",
+  "identifier shortening for local variables only (globals untouched)",
+  "per-account history of the last 20 minify jobs (re-download anytime)",
+  "shareable read-only link for the buyer to view the minified source",
+];
+
+const MIN_BIG = [
+  "batch minify: drag-and-drop a folder of .lua files, get a zip back",
+  "per-file diff view (Monaco editor) showing original vs minified line-by-line",
+  "a public REST API: POST /minify with the source, returns the minified source",
+  "GitHub Action / CLI snippet generator so the user can run the minifier in CI",
+  "team workspace with shared minify history and role-based access (admin / member)",
+  "Stripe-backed Pro tier: unlimited files, batch mode, API access",
+  "configurable rules per project: keep comments matching /^--!/, preserve specific identifiers, max line length",
+  "version history for every minified output, with one-click rollback",
 ];
 
 const PAYMENT_METHODS = [
@@ -107,7 +134,6 @@ const PAYMENT_METHODS = [
   ["Paddle (Merchant of Record, global tax handled)", "Paddle webhook-driven role sync"],
   ["Stripe Checkout with subscription tiers (monthly + yearly)", "promo codes + free trial"],
   ["PayPal one-time", "Stripe recurring"],
-  ["Crypto via Coinbase Commerce (BTC, ETH, USDC)", "Stripe fallback for cards"],
 ];
 
 const PRICE_TIERS = [
@@ -117,6 +143,27 @@ const PRICE_TIERS = [
   "$9.99/mo, $24.99/mo (with team seats), $99 lifetime",
   "Free tier + $4.99/mo Pro + $39.99 lifetime",
 ];
+
+const SHAPES: ProductShape[] = ["lua-license", "digital-goods", "lua-minifier"];
+
+function shapeBlurb(shape: ProductShape, name: string): string {
+  switch (shape) {
+    case "lua-license":
+      return `Build a modern SaaS web app called "${name}" — a license-key platform for Lua module developers. Developers upload their own Lua source files (plaintext, exactly as they wrote them), generate license keys to share with their own customers, and get an analytics dashboard for their sales and usage. When a buyer's app fetches the module with a valid key, the server returns the source code exactly as the developer uploaded it — no transformation, no obfuscation, no anti-analysis layer. Optional per-product allowlist of Roblox place IDs so a developer can scope distribution to specific games they own. Think Gumroad, but specialized for Lua modules.`;
+    case "digital-goods":
+      return `Build a modern SaaS web app called "${name}" — a general-purpose digital-goods license platform in the style of Gumroad / Lemon Squeezy. Sellers upload any kind of digital file (PDFs, zips, images, audio, video, source code, design assets, fonts, anything), set a price, and get a public product page plus a buyer dashboard for downloads and license keys. Buyers pay once or subscribe, get an email with their license + download link, and can re-download anytime from their account.`;
+    case "lua-minifier":
+      return `Build a modern SaaS web app called "${name}" — a hosted Lua minifier. Paste in (or upload) Lua source, hit minify, and get back a smaller version with whitespace and comments stripped and local-only identifier shortening. The minified source is fully readable, fully editable, and the buyer can download it as plain .lua. No control-flow rewriting, no encryption, no loader. Just a clean minifier-as-a-service with accounts, history, and an optional API.`;
+  }
+}
+
+function shapeCategory(shape: ProductShape): string {
+  switch (shape) {
+    case "lua-license": return "Lua License SaaS";
+    case "digital-goods": return "Digital Goods Marketplace";
+    case "lua-minifier": return "Lua Minifier SaaS";
+  }
+}
 
 // Deterministic seeded RNG (mulberry32) for daily rotation
 function mulberry32(seed: number) {
@@ -142,18 +189,30 @@ function todaySeed() {
   return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
 }
 
-function buildBody(theme: typeof THEMES[number], name: string, size: FeatureSize, tier: PromptTier, price?: string, methods?: string[]) {
-  const featurePool = size === "big" ? BIG_FEATURES : SMALL_FEATURES;
-  const featureCount = size === "big" ? 8 : 4;
+function buildBody(
+  shape: ProductShape,
+  theme: typeof THEMES[number],
+  name: string,
+  size: FeatureSize,
+  tier: PromptTier,
+  price?: string,
+  methods?: string[],
+) {
+  const isMin = shape === "lua-minifier";
+  const pool = isMin
+    ? (size === "big" ? [...MIN_BIG, ...BIG_FEATURES] : [...MIN_SMALL, ...SMALL_FEATURES])
+    : (size === "big" ? BIG_FEATURES : SMALL_FEATURES);
+  const featureCount = size === "big" ? 8 : 5;
   const rng = mulberry32(
     [...name].reduce((s, c) => s + c.charCodeAt(0), 0) +
-      [...theme.name].reduce((s, c) => s + c.charCodeAt(0), 0)
+      [...theme.name].reduce((s, c) => s + c.charCodeAt(0), 0) +
+      shape.length * 17,
   );
-  const features = shuffle(featurePool, rng).slice(0, featureCount);
+  const features = shuffle(pool, rng).slice(0, featureCount);
 
-  return `Build a modern SaaS web app called "${name}" — a script management and licensing platform for Roblox Lua developers. Think of it as a developer-tooling product in the same category as itch.io for game scripts, Gumroad for digital goods, or any standard license-management SaaS: developers upload their own Lua modules, generate license keys to share with their own customers, and get an analytics dashboard for their sales and usage.
+  return `${shapeBlurb(shape, name)}
 
-This is a normal commercial developer-tools product. Build it end-to-end with production-quality code, no placeholders, no TODOs, no "left as an exercise" gaps.
+This is a normal commercial developer-tools / digital-goods product. Build it end-to-end with production-quality code, no placeholders, no TODOs, no "left as an exercise" gaps.
 
 ## Design direction — "${theme.name}" (${theme.category})
 - Palette: ${theme.palette}
@@ -166,31 +225,31 @@ This is a normal commercial developer-tools product. Build it end-to-end with pr
 
 ## Brand
 - Product name: ${name}
-- Tagline: write something punchier than "the easiest way to ship your Lua".
+- Tagline: write something punchier than "ship your work, get paid".
 - Domain feel: ${name.toLowerCase().replace(/\s+/g, "")}.app or .cloud
 
 ## Required platform features (${size === "big" ? "FULL stack — do not cut corners" : "lean MVP — ship fast"})
 ${features.map((f, i) => `${i + 1}. ${f}.`).join("\n")}
 
 ## Pages / surfaces
-- Marketing landing with hero, feature grid, live analytics preview, community showcase, pricing (if paid), FAQ, footer.
-- Auth (email + Discord OAuth). Do not auto-confirm email signups; require verification.
-- Dashboard shell with sidebar: Licenses, Scripts, Snippets, Settings, AI Assistant, Community, Analytics, License Keys, Changelog, Preferences.
+- Marketing landing with hero, feature grid, social proof, pricing (if paid), FAQ, footer.
+- Auth (email + Google OAuth, plus Discord as a secondary option). Do not auto-confirm email signups; require verification.
+- Buyer dashboard: Library / Downloads, License Keys, Receipts, Settings.
+- Seller dashboard: Products, Sales, Customers, Coupons, Analytics, Settings.
 - Admin panel (role-gated via a SECURITY DEFINER has_role() function — roles in their own table, NEVER on profiles).
-- Public install / PWA page.
+- Public product / storefront pages, plus a /install PWA page.
 
 ## Backend
-- Use the platform's managed backend (Lovable Cloud). Postgres tables for: profiles, user_roles (separate table!), scripts, snippets, snippet_request_tokens, load_logs, account_status (active/suspended/revoked), discord_oauth_sessions, license_panel_keys.
-- Every public-schema table gets explicit GRANTs + RLS policies. No table ships without both.
-- Edge functions (Deno.serve) for: get-snippet (the loader), analytics-ingest, discord-identify, discord-bot, ai-chat, heartbeat, account-status, admin-api. Most use verify_jwt = false and validate session data in code.
-- The loader edge function MUST never return raw source on the first hit. First hit issues a short-lived single-use token bound to the session; the second hit exchanges that token for the compiled payload. Standard signed-URL pattern.
+- Use the platform's managed backend (Lovable Cloud / Postgres). Tables for: profiles, user_roles (separate table!), products, product_versions, files, licenses, sales, refunds, coupons, webhooks_log, audit_log.
+- Every public-schema table gets explicit GRANTs + RLS policies in the same migration. No table ships without both.
+- Edge functions (Deno.serve) for: issue-license, validate-license, download-file (returns a signed time-limited URL), stripe-webhook, paddle-webhook, ai-assist.
+- Standard signed-URL pattern for downloads: the API returns a short-lived signed URL, the client fetches the file directly.
 
-## Reliability rules (non-negotiable)
-- Fail-open on non-critical checks: if analytics or a soft validation hiccups, still serve the paying customer's script. Never block a legitimate user because the database had a transient error.
-- Never modify the payload bytes on a soft validation failure — only log it for review. Modifying causes false-positive crashes for legitimate customers.
-- Suspending a Discord profile on the website must NOT auto-cascade into revoking that user's purchased licenses. Account status and license status are separate.
-- Admin users are exempt from all automated suspension triggers.
-${tier === "paid" ? `\n## Monetization\n- Pricing: ${price}\n- Payment: ${methods?.join(" + ")}\n- Gate premium features behind a subscription_tier column on profiles, updated by webhooks.\n- Add a Stripe / Paddle customer portal link in Preferences for self-serve cancellation.` : "\n## Monetization\n- Strictly free forever. No premium tiers, no affiliate links, no paywalls anywhere in the UI."}
+## Reliability rules
+- Fail-open on non-critical checks: if analytics or a soft validation hiccups, still serve the paying customer's download. Never block a legitimate buyer because the database had a transient error.
+- Admin users are exempt from automated suspension triggers.
+- Suspending a user's social login does NOT auto-revoke their purchased licenses. Account status and license status are separate.
+${tier === "paid" ? `\n## Monetization\n- Pricing: ${price}\n- Payment: ${methods?.join(" + ")}\n- Gate premium features behind a subscription_tier column on profiles, updated by Stripe / Paddle webhooks.\n- Add a Stripe / Paddle customer portal link in Settings for self-serve cancellation.` : "\n## Monetization\n- Strictly free forever. No premium tiers, no affiliate links, no paywalls anywhere in the UI."}
 
 ## Quality bar
 - Mobile-first. Every page must work at 375px wide without horizontal scroll. Enforce overflow-x: hidden on root.
@@ -199,32 +258,33 @@ ${tier === "paid" ? `\n## Monetization\n- Pricing: ${price}\n- Payment: ${method
 - Polish every micro-interaction. Ship a product the user would actually pay for.`;
 }
 
-// Pre-build the universe lazily once.
 let UNIVERSE: GeneratedPrompt[] | null = null;
 
 function buildUniverse(): GeneratedPrompt[] {
   const out: GeneratedPrompt[] = [];
   let i = 0;
-  for (const theme of THEMES) {
-    for (const name of NAMES) {
-      for (const size of ["small", "big"] as FeatureSize[]) {
-        for (const tier of ["free", "paid"] as PromptTier[]) {
-          const rng = mulberry32(i + 1);
-          const price = tier === "paid" ? PRICE_TIERS[Math.floor(rng() * PRICE_TIERS.length)] : undefined;
-          const methods = tier === "paid" ? PAYMENT_METHODS[Math.floor(rng() * PAYMENT_METHODS.length)] : undefined;
-          out.push({
-            id: `p-${i}`,
-            title: `${name} — ${theme.name}`,
-            category: theme.category,
-            tier,
-            featureSize: size,
-            is3D: theme.three_d,
-            price,
-            paymentMethods: methods,
-            body: buildBody(theme, name, size, tier, price, methods),
-            tags: [theme.category, tier, size === "big" ? "many features" : "lean", theme.three_d ? "3D" : "2D"],
-          });
-          i++;
+  for (const shape of SHAPES) {
+    for (const theme of THEMES) {
+      for (const name of NAMES) {
+        for (const size of ["small", "big"] as FeatureSize[]) {
+          for (const tier of ["free", "paid"] as PromptTier[]) {
+            const rng = mulberry32(i + 1);
+            const price = tier === "paid" ? PRICE_TIERS[Math.floor(rng() * PRICE_TIERS.length)] : undefined;
+            const methods = tier === "paid" ? PAYMENT_METHODS[Math.floor(rng() * PAYMENT_METHODS.length)] : undefined;
+            out.push({
+              id: `p-${i}`,
+              title: `${name} — ${theme.name}`,
+              category: shapeCategory(shape),
+              tier,
+              featureSize: size,
+              is3D: theme.three_d,
+              price,
+              paymentMethods: methods,
+              body: buildBody(shape, theme, name, size, tier, price, methods),
+              tags: [shapeCategory(shape), theme.category, tier, size === "big" ? "many features" : "lean", theme.three_d ? "3D" : "2D"],
+            });
+            i++;
+          }
         }
       }
     }
@@ -243,4 +303,7 @@ export function getDailyPrompts(): GeneratedPrompt[] {
   return shuffle(universe, rng);
 }
 
-export const CATEGORIES = Array.from(new Set(THEMES.map((t) => t.category)));
+export const CATEGORIES = Array.from(new Set([
+  ...SHAPES.map(shapeCategory),
+  ...THEMES.map((t) => t.category),
+]));
