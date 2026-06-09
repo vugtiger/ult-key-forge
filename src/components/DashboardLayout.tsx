@@ -3,12 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 
-import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
-  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar,
-} from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye, Volume2, VolumeX, Key, Sparkles } from "lucide-react";
+import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye, Volume2, VolumeX, Key, Sparkles, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import CloudLogo from "@/components/CloudLogo";
@@ -80,90 +76,104 @@ const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
   else root.classList.remove('ult-lua-style-enabled');
 };
 
-const AppSidebar = ({ user }: { user: User | null }) => {
-  const navigate = useNavigate();
+const TopNav = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
   const location = useLocation();
-  const { state } = useSidebar();
   const { isAdmin } = useAdminStatus(user?.id);
-
-  const handleLogout = async () => {
-    resetTheme();
-    try { await supabase.auth.signOut(); } catch (error) { console.log('Logout error:', error); }
-    localStorage.removeItem('sb-iyfvpnjrghsownkpazec-auth-token');
-    navigate("/auth");
-  };
-
+  const [mobileOpen, setMobileOpen] = useState(false);
   const navItems = isAdmin ? [...navigationItems, ...adminItems] : navigationItems;
-  const collapsed = state === "collapsed";
 
   return (
-    <Sidebar className={collapsed ? "w-[60px]" : "w-[220px]"} collapsible="icon">
-      <SidebarContent className="bg-background/80 backdrop-blur-3xl border-r border-border/40 relative flex flex-col">
-        {/* Brand */}
-        <div className={`flex items-center gap-3 border-b border-border/30 ${collapsed ? "px-2 py-4 justify-center" : "px-5 py-5"}`}>
-          <CloudLogo size={collapsed ? 24 : 22} />
-          {!collapsed && (
-            <div>
-              <h1 className="text-xs font-black tracking-[0.25em] text-foreground">ULT CLOUD</h1>
-              <p className="text-[9px] text-muted-foreground/50 tracking-wider mt-0.5">PROTECTION</p>
-            </div>
-          )}
-        </div>
+    <header className="sticky top-0 z-40 border-b border-border/40 bg-background/75 backdrop-blur-2xl">
+      <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-4 px-4 lg:px-8">
+        <NavLink to="/dashboard" className="flex items-center gap-2.5 shrink-0">
+          <CloudLogo size={26} />
+          <div className="hidden sm:block leading-tight">
+            <div className="text-[11px] font-black tracking-[0.22em] text-foreground">ULT CLOUD</div>
+            <div className="text-[8px] tracking-[0.25em] text-muted-foreground/70">PROTECTION</div>
+          </div>
+        </NavLink>
 
-        {/* Nav */}
-        <SidebarGroup className="flex-1 mt-3 px-2">
-          <SidebarGroupLabel className={`text-[9px] tracking-[0.3em] text-muted-foreground/40 uppercase mb-2 ${collapsed ? "sr-only" : "px-3"}`}>
-            {isAdmin ? "Owner" : "Navigation"}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-0.5">
-              {navItems.map((item) => {
-                const isActive = location.pathname === item.url;
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <NavLink
-                        to={item.url}
-                        end
-                        className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-all duration-150 ${
-                          isActive
-                            ? "bg-gradient-to-b from-foreground/[0.13] to-foreground/[0.06] text-foreground shadow-[inset_0_1px_0_0_hsl(var(--foreground)/0.18),inset_0_-1px_0_0_hsl(0_0%_0%/0.4),0_2px_6px_-2px_hsl(0_0%_0%/0.6),0_1px_0_0_hsl(0_0%_0%/0.3)] -translate-y-px"
-                            : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] hover:shadow-[inset_0_1px_0_0_hsl(var(--foreground)/0.06)] active:translate-y-px"
-                        }`}
-                        activeClassName=""
-                      >
-                        {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-foreground shadow-[0_0_8px_hsl(var(--foreground)/0.5)]" />}
-                        <item.icon size={16} className={isActive ? "text-foreground drop-shadow-[0_1px_1px_hsl(0_0%_0%/0.5)]" : "text-muted-foreground/70 group-hover:text-foreground"} />
-                        {!collapsed && <span className={isActive ? "font-semibold" : "font-medium"}>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <nav className="hidden lg:flex items-center gap-1 ml-4 flex-1 overflow-x-auto">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.url;
+            return (
+              <NavLink
+                key={item.title}
+                to={item.url}
+                end
+                className={`group flex items-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] font-medium whitespace-nowrap transition-all ${
+                  isActive
+                    ? "bg-foreground text-background shadow-[var(--shadow-soft)]"
+                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]"
+                }`}
+              >
+                <item.icon size={14} />
+                <span>{item.title}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
 
-        {/* Logout */}
-        <div className="p-2 border-t border-border/30 mt-auto">
-          <Button
-            variant="ghost"
-            className={`w-full rounded-xl px-3 py-2.5 text-[13px] text-muted-foreground/70 hover:text-foreground hover:bg-destructive/[0.08] transition-all ${collapsed ? "justify-center" : "justify-start"}`}
-            onClick={handleLogout}
-          >
-            <LogOut size={16} className={collapsed ? "" : "mr-3"} />
-            {!collapsed && <span className="font-medium">Logout</span>}
-          </Button>
+        <div className="flex-1 lg:flex-none" />
+
+        <SoundToggle />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onLogout}
+          className="hidden md:inline-flex rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs gap-1.5"
+        >
+          <LogOut size={14} /> Logout
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden rounded-full h-9 w-9"
+          onClick={() => setMobileOpen((v) => !v)}
+          aria-label="Toggle menu"
+        >
+          {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+        </Button>
+      </div>
+
+      {/* Mobile menu */}
+      {mobileOpen && (
+        <div className="lg:hidden border-t border-border/40 bg-background/95 backdrop-blur-2xl">
+          <div className="max-w-[1400px] mx-auto px-4 py-3 grid grid-cols-2 gap-2">
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.url;
+              return (
+                <NavLink
+                  key={item.title}
+                  to={item.url}
+                  end
+                  onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-all ${
+                    isActive ? "bg-foreground text-background" : "text-foreground/80 hover:bg-foreground/[0.06]"
+                  }`}
+                >
+                  <item.icon size={15} />
+                  <span>{item.title}</span>
+                </NavLink>
+              );
+            })}
+            <button
+              onClick={() => { setMobileOpen(false); onLogout(); }}
+              className="col-span-2 mt-1 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm text-destructive bg-destructive/10 hover:bg-destructive/15"
+            >
+              <LogOut size={15} /> Logout
+            </button>
+          </div>
         </div>
-      </SidebarContent>
-    </Sidebar>
+      )}
+    </header>
   );
 };
 
 const SoundToggle = () => {
   const [soundOn, setSoundOn] = useState(isSnowSoundOn());
   return (
-    <Button variant="ghost" size="icon" onClick={() => setSoundOn(toggleSnowSound())} className="text-muted-foreground/50 hover:text-foreground h-8 w-8 rounded-lg" title={soundOn ? "Mute" : "Unmute"}>
+    <Button variant="ghost" size="icon" onClick={() => setSoundOn(toggleSnowSound())} className="text-muted-foreground/70 hover:text-foreground h-9 w-9 rounded-full" title={soundOn ? "Mute" : "Unmute"}>
       {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
     </Button>
   );
@@ -176,6 +186,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const initializedRef = useRef(false);
   const userIdRef = useRef<string | null>(null);
+
+  const handleLogout = async () => {
+    resetTheme();
+    try { await supabase.auth.signOut(); } catch (error) { console.log('Logout error:', error); }
+    localStorage.removeItem('sb-iyfvpnjrghsownkpazec-auth-token');
+    navigate("/auth");
+  };
 
   useEffect(() => {
     const loadUserTheme = async (userId: string) => {
@@ -253,23 +270,16 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   if (!user) return null;
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background overflow-x-hidden relative">
-        <CloudBackground />
-        <SnowEffect />
-        <AppSidebar user={user} />
-        <div className="flex-1 flex flex-col min-w-0 relative z-10">
-          <header className="h-14 border-b border-border/30 flex items-center px-6 sticky top-0 bg-background/50 backdrop-blur-3xl z-10">
-            <SidebarTrigger className="mr-4 h-8 w-8 rounded-lg hover:bg-foreground/[0.06]" />
-            <div className="flex-1" />
-            <SoundToggle />
-          </header>
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-6 lg:p-8">
-            {children}
-          </main>
+    <div className="min-h-screen w-full bg-background overflow-x-hidden relative flex flex-col">
+      <CloudBackground />
+      <SnowEffect />
+      <TopNav user={user} onLogout={handleLogout} />
+      <main className="flex-1 overflow-x-hidden overflow-y-auto relative z-10">
+        <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8">
+          {children}
         </div>
-      </div>
-    </SidebarProvider>
+      </main>
+    </div>
   );
 };
 
