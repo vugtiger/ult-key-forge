@@ -2,7 +2,7 @@
 
 ## Core
 - "Free forever" policy: strictly no premium tiers, affiliate systems, or payment methods.
-- Black & White Theme: monochrome palette, Inter+Space Grotesk fonts, glass-card styling, grain texture, 3D smoke bg, shield+cloud logo.
+- Wix-Style Mint & Peach Theme: light cream bg, mint green primary + peach orange accent, soft rounded glass cards (1.25rem), 3D floating geometric shapes (R3F spheres/cubes/toruses) background, gradient shield logo. No emojis.
 - Keep clean UI edges: Avoid outer transparent glow shells or wrapper elements around UI cards.
 - Enforce `overflow-x: hidden` on root and main layout containers to prevent scrolling bugs.
 - Zero Raw Content: No system path ever returns raw plaintext code.

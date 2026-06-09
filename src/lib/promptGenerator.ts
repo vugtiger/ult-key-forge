@@ -215,12 +215,13 @@ function buildBody(
 This is a normal commercial developer-tools / digital-goods product. Build it end-to-end with production-quality code, no placeholders, no TODOs, no "left as an exercise" gaps.
 
 ## Design direction — "${theme.name}" (${theme.category})
+- Overall layout & composition style: Wix-style — big confident hero, generous whitespace, oversized rounded cards (1.25rem+ radius), soft layered drop shadows, sticky floating navigation, full-bleed image/section blocks alternating with content, large pill-shaped CTAs, smooth scroll-triggered reveals between sections. The page should feel like a polished Wix Studio template, not a developer dashboard.
 - Palette: ${theme.palette}
 - Vibe: ${theme.vibe}${theme.three_d ? "\n- This is a 3D website. Use react-three-fiber / WebGL for the hero and key surfaces. Real depth, real lighting, real parallax — not fake CSS transforms." : ""}
 - Logo: ${theme.logo}. Render as an SVG, no text inside the mark.
-- Typography: pair a confident display font for headings with a clean grotesque for body. No system fonts.
+- Typography: pair a confident display font for headings (large, tight tracking) with a clean grotesque for body. No system fonts.
 - Cursor: custom cursor that matches the palette accent.
-- Motion: every interactive surface animates on hover and on enter — use Framer Motion or GSAP, never jank.
+- Motion: every interactive surface animates on hover and on enter — use Framer Motion or GSAP, never jank. Add subtle parallax on scroll like Wix templates do.
 - Zero emojis anywhere in the UI.
 
 ## Brand

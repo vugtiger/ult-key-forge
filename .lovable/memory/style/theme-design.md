@@ -1,13 +1,15 @@
 ---
-name: Black & White Theme
-description: Monochrome black/white/gray design with Inter+Space Grotesk fonts, glass-card styling, grain overlay, 3D smoke background
+name: Wix-Style Mint & Peach Theme
+description: Light cream background, mint green primary + peach orange accent, Wix-style soft rounded cards, 3D floating geometric shapes background (R3F spheres/cubes/toruses)
 type: design
 ---
-- Color palette: pure black (#080808) background, white foreground, gray midtones. No purple, no blue.
-- Fonts: Inter (body), Space Grotesk (headings). Orbitron and Rajdhani removed.
-- Glass cards: `glass-card` class — rgba(255,255,255,0.03) bg, blur(20px), 6% white border
-- Grain overlay: `grain-overlay` class on page wrappers for texture
-- 3D smoke: React Three Fiber animated white smoke particles on black bg
-- Logo: Shield+cloud combo PNG (src/assets/shield-cloud-logo.png)
-- Buttons: white bg on black (bg-foreground text-background) for primary actions
-- No custom cursor. No cloud-cursor.svg references needed in new pages.
+- Color palette: cream background (40 30% 98%), mint green primary (140 55% 65%), peach orange accent (24 95% 78%). Light theme, NOT dark.
+- Fonts: Inter (body), Space Grotesk (headings, tight -0.02em tracking).
+- Card style: Wix-style soft rounded — radius 1.25rem, white/70 bg, soft mint shadow, lift on hover.
+- Background: `CloudBackground` renders R3F `<Canvas>` with floating mint/peach 3D geometric shapes (spheres, cubes, toruses, icosahedrons) with physical/clearcoat material. No smoke, no particles.
+- Logo: `src/assets/wix-logo.png` — 3D gradient shield-cube mark, green→orange.
+- Body has fixed radial gradients (mint top-left, peach bottom-right) for soft Wix-template feel.
+- Gradients available: `--gradient-brand` (mint→peach 135deg), `--gradient-soft` (pale mint→pale peach).
+- Shadows: `--shadow-soft` (mint tint) and `--shadow-pop` (peach tint).
+- All pages inherit via semantic tokens (`bg-background`, `text-foreground`, `glass-card`, `depth-card`).
+- No custom cursor in this theme.
