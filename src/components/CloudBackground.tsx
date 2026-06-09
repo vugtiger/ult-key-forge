@@ -90,7 +90,7 @@ const Scene = () => {
 };
 
 const CloudBackground = () => (
-  <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden>
+  <div className="fixed inset-0 z-0 pointer-events-none opacity-40" aria-hidden>
     <Canvas
       camera={{ position: [0, 0, 9], fov: 55 }}
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
