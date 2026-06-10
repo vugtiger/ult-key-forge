@@ -58,7 +58,10 @@ const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
       case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break;
     }
   }
-  const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+  // Clamp lightness so text stays readable on the cream/light background.
+  const clampedL = Math.min(Math.round(l * 100), 22);
+  const clampedS = Math.min(Math.round(s * 100), 40);
+  const hsl = `${Math.round(h * 360)} ${clampedS}% ${clampedL}%`;
   root.style.setProperty('--foreground', hsl);
   root.style.setProperty('--card-foreground', hsl);
   root.style.setProperty('--popover-foreground', hsl);
@@ -196,6 +199,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   useEffect(() => {
     const loadUserTheme = async (userId: string) => {
+      resetTheme();
       try {
         const { data } = await supabase.from('user_themes')
           .select('primary_color, neon_enabled, ult_lua_style, layout_preset, tab_radius, tab_density, tab_shape')
