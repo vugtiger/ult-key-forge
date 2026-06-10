@@ -79,70 +79,71 @@ const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
   else root.classList.remove('ult-lua-style-enabled');
 };
 
-const TopNav = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
+const SideRail = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
   const location = useLocation();
   const { isAdmin } = useAdminStatus(user?.id);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const navItems = isAdmin ? [...navigationItems, ...adminItems] : navigationItems;
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/40 bg-background/75 backdrop-blur-2xl">
-      <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-4 px-4 lg:px-8">
-        <NavLink to="/dashboard" className="flex items-center gap-2.5 shrink-0">
+    <>
+      {/* Desktop floating left rail (expand on hover) */}
+      <aside className="group/rail hidden lg:flex fixed left-4 top-1/2 -translate-y-1/2 z-40 flex-col items-stretch gap-1 p-2 rounded-3xl border border-border bg-card/70 backdrop-blur-2xl shadow-[var(--shadow-soft)] transition-all duration-300 w-[60px] hover:w-[210px]">
+        <NavLink to="/dashboard" className="flex items-center gap-2 px-2 py-2 rounded-2xl bg-gradient-brand text-background shadow-[var(--shadow-pop)] mb-1 overflow-hidden">
           <CloudLogo size={26} />
-          <div className="hidden sm:block leading-tight">
-            <div className="text-[11px] font-black tracking-[0.22em] text-foreground">ULT CLOUD</div>
-            <div className="text-[8px] tracking-[0.25em] text-muted-foreground/70">PROTECTION</div>
-          </div>
+          <span className="text-[11px] font-black tracking-[0.18em] opacity-0 group-hover/rail:opacity-100 transition-opacity whitespace-nowrap">ULT CLOUD</span>
         </NavLink>
-
-        <nav className="hidden lg:flex items-center gap-1 ml-4 flex-1 overflow-x-auto">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.url;
-            return (
-              <NavLink
-                key={item.title}
-                to={item.url}
-                end
-                className={`group flex items-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] font-medium whitespace-nowrap transition-all ${
-                  isActive
-                    ? "bg-foreground text-background shadow-[var(--shadow-soft)]"
-                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]"
-                }`}
-              >
-                <item.icon size={14} />
-                <span>{item.title}</span>
-              </NavLink>
-            );
-          })}
-        </nav>
-
-        <div className="flex-1 lg:flex-none" />
-
-        <SoundToggle />
-        <Button
-          variant="ghost"
-          size="sm"
+        {navItems.map((item) => {
+          const isActive = location.pathname === item.url;
+          return (
+            <NavLink
+              key={item.title}
+              to={item.url}
+              end
+              title={item.title}
+              className={`flex items-center gap-3 rounded-2xl px-2.5 py-2 text-[12.5px] font-medium overflow-hidden transition-all ${
+                isActive
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.07]"
+              }`}
+            >
+              <item.icon size={16} className="shrink-0" />
+              <span className="opacity-0 group-hover/rail:opacity-100 transition-opacity whitespace-nowrap">{item.title}</span>
+            </NavLink>
+          );
+        })}
+        <div className="border-t border-border my-1" />
+        <button
           onClick={onLogout}
-          className="hidden md:inline-flex rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs gap-1.5"
+          className="flex items-center gap-3 rounded-2xl px-2.5 py-2 text-[12.5px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 overflow-hidden"
         >
-          <LogOut size={14} /> Logout
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="lg:hidden rounded-full h-9 w-9"
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
-          {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-        </Button>
+          <LogOut size={16} className="shrink-0" />
+          <span className="opacity-0 group-hover/rail:opacity-100 transition-opacity whitespace-nowrap">Logout</span>
+        </button>
+      </aside>
+
+      {/* Desktop floating utility (top-right) */}
+      <div className="hidden lg:flex fixed top-4 right-4 z-40 items-center gap-1 rounded-full border border-border bg-card/70 backdrop-blur-2xl px-1.5 py-1 shadow-[var(--shadow-soft)]">
+        <SoundToggle />
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile top bar */}
+      <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border/40 bg-background/80 backdrop-blur-2xl">
+        <NavLink to="/dashboard" className="flex items-center gap-2">
+          <CloudLogo size={24} />
+          <span className="text-[11px] font-black tracking-[0.2em]">ULT CLOUD</span>
+        </NavLink>
+        <div className="flex items-center gap-1">
+          <SoundToggle />
+          <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={() => setMobileOpen((v) => !v)} aria-label="Toggle menu">
+            {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+          </Button>
+        </div>
+      </header>
+
       {mobileOpen && (
-        <div className="lg:hidden border-t border-border/40 bg-background/95 backdrop-blur-2xl">
-          <div className="max-w-[1400px] mx-auto px-4 py-3 grid grid-cols-2 gap-2">
+        <div className="lg:hidden fixed inset-x-0 top-[52px] z-40 border-b border-border/40 bg-background/95 backdrop-blur-2xl">
+          <div className="px-3 py-3 grid grid-cols-2 gap-2 max-h-[70vh] overflow-y-auto">
             {navItems.map((item) => {
               const isActive = location.pathname === item.url;
               return (
@@ -151,8 +152,8 @@ const TopNav = ({ user, onLogout }: { user: User | null; onLogout: () => void })
                   to={item.url}
                   end
                   onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-all ${
-                    isActive ? "bg-foreground text-background" : "text-foreground/80 hover:bg-foreground/[0.06]"
+                  className={`flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm transition-all ${
+                    isActive ? "bg-foreground text-background" : "text-foreground/80 bg-foreground/[0.04] hover:bg-foreground/[0.08]"
                   }`}
                 >
                   <item.icon size={15} />
@@ -162,14 +163,14 @@ const TopNav = ({ user, onLogout }: { user: User | null; onLogout: () => void })
             })}
             <button
               onClick={() => { setMobileOpen(false); onLogout(); }}
-              className="col-span-2 mt-1 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm text-destructive bg-destructive/10 hover:bg-destructive/15"
+              className="col-span-2 mt-1 flex items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-sm text-destructive bg-destructive/10 hover:bg-destructive/15"
             >
               <LogOut size={15} /> Logout
             </button>
           </div>
         </div>
       )}
-    </header>
+    </>
   );
 };
 
