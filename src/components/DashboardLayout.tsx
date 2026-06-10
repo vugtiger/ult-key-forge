@@ -199,6 +199,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   useEffect(() => {
     const loadUserTheme = async (userId: string) => {
+      resetTheme();
       try {
         const { data } = await supabase.from('user_themes')
           .select('primary_color, neon_enabled, ult_lua_style, layout_preset, tab_radius, tab_density, tab_shape')
