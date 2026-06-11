@@ -110,18 +110,18 @@ const Index = () => {
               <SoundToggleBtn />
               <LastUpdatedBadge />
               <GoogleTranslate />
-              <Button onClick={() => navigate("/status")} variant="ghost" size="sm" className="rounded-full gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2.5 text-xs">
+              <Button onClick={() => navigate("/status")} variant="ghost" size="sm" className="rounded-full gap-1.5 bg-accent/15 text-foreground hover:bg-accent/25 h-8 px-2.5 text-xs font-semibold">
                 <Activity size={14} /><span className="hidden md:inline">Status</span>
               </Button>
               <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
-                <Button variant="ghost" size="sm" className="rounded-full gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2.5 text-xs">
+                <Button variant="ghost" size="sm" className="rounded-full gap-1.5 bg-primary/15 text-foreground hover:bg-primary/25 h-8 px-2.5 text-xs font-semibold">
                   <MessageSquare size={14} /><span className="hidden md:inline">Discord</span>
                 </Button>
               </a>
-              <Button onClick={() => navigate("/install")} variant="ghost" size="sm" className="rounded-full gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2.5 text-xs">
+              <Button onClick={() => navigate("/install")} variant="ghost" size="sm" className="rounded-full gap-1.5 bg-accent/15 text-foreground hover:bg-accent/25 h-8 px-2.5 text-xs font-semibold">
                 <Download size={14} /><span className="hidden md:inline">Install</span>
               </Button>
-              <Button onClick={() => navigate("/auth")} size="sm" className="rounded-full bg-gradient-brand text-background px-4 sm:px-5 h-8 text-xs font-semibold shadow-[var(--shadow-pop)] whitespace-nowrap">
+              <Button onClick={() => navigate("/auth")} size="sm" className="rounded-full bg-accent text-accent-foreground px-4 sm:px-5 h-8 text-xs font-bold shadow-[var(--shadow-pop)] whitespace-nowrap hover:bg-accent/90">
                 Sign In
               </Button>
             </div>
