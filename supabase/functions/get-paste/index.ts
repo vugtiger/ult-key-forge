@@ -2690,18 +2690,20 @@ blur.Size = 0
 blur.Parent = Lighting
 TweenService:Create(blur, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {Size = 20}):Play()
 
-local themeCol = Color3.fromRGB(${r}, ${g}, ${b})
-local dimTheme = Color3.fromRGB(math.floor(${r}*0.34), math.floor(${g}*0.34), math.floor(${b}*0.34))
-local bgColor = Color3.fromRGB(16, 14, 22)
-local panelBg = Color3.fromRGB(22, 19, 30)
-local borderCol = Color3.fromRGB(64, 49, 92)
-local mutedText = Color3.fromRGB(133, 126, 150)
-local fgColor = Color3.fromRGB(244, 240, 250)
-local cardBg = Color3.fromRGB(24, 21, 35)
-local softBg = Color3.fromRGB(19, 16, 27)
-local successCol = Color3.fromRGB(86, 255, 120)
-local dangerCol = Color3.fromRGB(255, 96, 96)
-local warningCol = Color3.fromRGB(255, 168, 92)
+-- Wix-style mint & peach theme (matches ult cloud landing page)
+local themeCol = Color3.fromRGB(125, 209, 154)   -- mint primary
+local dimTheme = Color3.fromRGB(86, 175, 120)
+local accentCol = Color3.fromRGB(252, 188, 144)  -- peach accent
+local bgColor = Color3.fromRGB(252, 250, 245)    -- cream background
+local panelBg = Color3.fromRGB(255, 255, 255)
+local borderCol = Color3.fromRGB(225, 235, 228)
+local mutedText = Color3.fromRGB(120, 130, 124)
+local fgColor = Color3.fromRGB(34, 48, 40)       -- deep ink
+local cardBg = Color3.fromRGB(255, 255, 255)
+local softBg = Color3.fromRGB(240, 248, 243)
+local successCol = Color3.fromRGB(86, 175, 120)
+local dangerCol = Color3.fromRGB(232, 120, 120)
+local warningCol = Color3.fromRGB(252, 188, 144)
 
 -- Helper: rounded frame
 local function makePanel(parent, size, pos, bg, zIdx, radius)
