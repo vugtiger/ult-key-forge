@@ -2690,20 +2690,18 @@ blur.Size = 0
 blur.Parent = Lighting
 TweenService:Create(blur, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {Size = 20}):Play()
 
--- Wix-style mint & peach theme (matches ult cloud landing page)
-local themeCol = Color3.fromRGB(125, 209, 154)   -- mint primary
-local dimTheme = Color3.fromRGB(86, 175, 120)
-local accentCol = Color3.fromRGB(252, 188, 144)  -- peach accent
-local bgColor = Color3.fromRGB(252, 250, 245)    -- cream background
-local panelBg = Color3.fromRGB(255, 255, 255)
-local borderCol = Color3.fromRGB(225, 235, 228)
-local mutedText = Color3.fromRGB(120, 130, 124)
-local fgColor = Color3.fromRGB(34, 48, 40)       -- deep ink
-local cardBg = Color3.fromRGB(255, 255, 255)
-local softBg = Color3.fromRGB(240, 248, 243)
-local successCol = Color3.fromRGB(86, 175, 120)
-local dangerCol = Color3.fromRGB(232, 120, 120)
-local warningCol = Color3.fromRGB(252, 188, 144)
+local themeCol = Color3.fromRGB(${r}, ${g}, ${b})
+local dimTheme = Color3.fromRGB(math.floor(${r}*0.34), math.floor(${g}*0.34), math.floor(${b}*0.34))
+local bgColor = Color3.fromRGB(16, 14, 22)
+local panelBg = Color3.fromRGB(22, 19, 30)
+local borderCol = Color3.fromRGB(64, 49, 92)
+local mutedText = Color3.fromRGB(133, 126, 150)
+local fgColor = Color3.fromRGB(244, 240, 250)
+local cardBg = Color3.fromRGB(24, 21, 35)
+local softBg = Color3.fromRGB(19, 16, 27)
+local successCol = Color3.fromRGB(86, 255, 120)
+local dangerCol = Color3.fromRGB(255, 96, 96)
+local warningCol = Color3.fromRGB(255, 168, 92)
 
 -- Helper: rounded frame
 local function makePanel(parent, size, pos, bg, zIdx, radius)
@@ -2789,9 +2787,9 @@ local function makeDot(parent, pos, col, action)
     return dot
 end
 
-local dot1 = makeDot(titleBar, UDim2.new(0, 18, 0.5, -5), Color3.fromRGB(232, 120, 120), nil)
-local dot2 = makeDot(titleBar, UDim2.new(0, 38, 0.5, -5), Color3.fromRGB(252, 188, 144), nil)
-local dot3 = makeDot(titleBar, UDim2.new(0, 58, 0.5, -5), Color3.fromRGB(125, 209, 154), nil)
+local dot1 = makeDot(titleBar, UDim2.new(0, 18, 0.5, -5), Color3.fromRGB(245, 245, 248), nil)
+local dot2 = makeDot(titleBar, UDim2.new(0, 38, 0.5, -5), Color3.fromRGB(86, 76, 112), nil)
+local dot3 = makeDot(titleBar, UDim2.new(0, 58, 0.5, -5), Color3.fromRGB(54, 46, 75), nil)
 
 addLabel(titleBar, UDim2.new(0, 200, 1, 0), UDim2.new(1, -214, 0, 0),
     "Ult Loader v6.1", mutedText, Enum.Font.GothamMedium, 9, Enum.TextXAlignment.Right, 5)
@@ -2822,7 +2820,7 @@ local statusBadgeText = addLabel(statusBadge, UDim2.new(1, 0, 1, 0), UDim2.new(0
     "Ready", fgColor, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Center, 6)
 
 -- Key input area
-local inputFrame = makePanel(leftPanel, UDim2.new(1, -24, 0, 50), UDim2.new(0, 12, 0, 72), Color3.fromRGB(240, 248, 243), 5, 18)
+local inputFrame = makePanel(leftPanel, UDim2.new(1, -24, 0, 50), UDim2.new(0, 12, 0, 72), Color3.fromRGB(79, 75, 90), 5, 18)
 addStroke(inputFrame, borderCol).Transparency = 0.4
 
 local inputPrefix = addLabel(inputFrame, UDim2.new(0, 120, 1, 0), UDim2.new(0, 10, 0, 0),
@@ -2834,7 +2832,7 @@ input.Position = UDim2.new(0, 132, 0, 0)
 input.BackgroundTransparency = 1
 input.Text = ""
 input.PlaceholderText = "XXXXX-XXXXX-XXXXX"
-input.PlaceholderColor3 = Color3.fromRGB(160, 170, 164)
+input.PlaceholderColor3 = Color3.fromRGB(60, 55, 70)
 input.TextColor3 = fgColor
 input.Font = Enum.Font.RobotoMono
 input.TextSize = 13
@@ -2850,7 +2848,7 @@ local progressPct = addLabel(leftPanel, UDim2.new(0, 40, 0, 12), UDim2.new(1, -5
     "0%", mutedText, Enum.Font.GothamBold, 8, Enum.TextXAlignment.Right, 5)
 
 -- Progress bar background
-local progressBg = makePanel(leftPanel, UDim2.new(1, -24, 0, 10), UDim2.new(0, 12, 0, 154), Color3.fromRGB(225, 235, 228), 5, 999)
+local progressBg = makePanel(leftPanel, UDim2.new(1, -24, 0, 10), UDim2.new(0, 12, 0, 154), Color3.fromRGB(39, 34, 52), 5, 999)
 local progressFill = Instance.new("Frame", progressBg)
 progressFill.Size = UDim2.new(0, 0, 1, 0)
 progressFill.BackgroundColor3 = themeCol
@@ -2861,7 +2859,7 @@ Instance.new("UICorner", progressFill).CornerRadius = UDim.new(0, 999)
 local progressGradient = Instance.new("UIGradient", progressFill)
 progressGradient.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, themeCol),
-    ColorSequenceKeypoint.new(0.65, Color3.fromRGB(252, 188, 144)),
+    ColorSequenceKeypoint.new(0.65, Color3.fromRGB(224, 212, 255)),
     ColorSequenceKeypoint.new(1, fgColor)
 })
 
@@ -2888,17 +2886,17 @@ addStroke(rightPanel, borderCol)
 addLabel(rightPanel, UDim2.new(0.6, 0, 0, 14), UDim2.new(0, 12, 0, 12),
     "CONSOLE FEEDBACK", mutedText, Enum.Font.GothamBold, 8, Enum.TextXAlignment.Left, 5)
 
-local routeBadge = makePanel(rightPanel, UDim2.new(0, 70, 0, 18), UDim2.new(1, -82, 0, 10), Color3.fromRGB(240, 248, 243), 5)
+local routeBadge = makePanel(rightPanel, UDim2.new(0, 70, 0, 18), UDim2.new(1, -82, 0, 10), Color3.fromRGB(16, 14, 22), 5)
 addStroke(routeBadge, themeCol).Transparency = 0.6
 addLabel(routeBadge, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0),
     "SECURE ROUTE", fgColor, Enum.Font.GothamBold, 7, Enum.TextXAlignment.Center, 6)
 
 -- Console log lines
 local function makeLogLine(parent, pos, text)
-    local line = makePanel(parent, UDim2.new(1, -24, 0, 36), pos, Color3.fromRGB(240, 248, 243), 5, 16)
+    local line = makePanel(parent, UDim2.new(1, -24, 0, 36), pos, Color3.fromRGB(18, 15, 27), 5, 16)
     addStroke(line, borderCol).Transparency = 0.15
     local lbl = addLabel(line, UDim2.new(1, -12, 1, 0), UDim2.new(0, 8, 0, 0),
-        text, Color3.fromRGB(120, 130, 124), Enum.Font.RobotoMono, 10, Enum.TextXAlignment.Left, 6)
+        text, Color3.fromRGB(150, 145, 165), Enum.Font.RobotoMono, 10, Enum.TextXAlignment.Left, 6)
     return line, lbl
 end
 
@@ -2908,7 +2906,7 @@ local log3, log3Text = makeLogLine(rightPanel, UDim2.new(0, 12, 0, 126), "> idle
 local log4, log4Text = makeLogLine(rightPanel, UDim2.new(0, 12, 0, 168), "> ...")
 
 -- Info box at bottom
-local infoBox = makePanel(rightPanel, UDim2.new(1, -24, 0, 56), UDim2.new(0, 12, 1, -68), Color3.fromRGB(240, 248, 243), 5, 16)
+local infoBox = makePanel(rightPanel, UDim2.new(1, -24, 0, 56), UDim2.new(0, 12, 1, -68), Color3.fromRGB(16, 14, 22), 5, 16)
 local infoStroke = addStroke(infoBox, themeCol)
 infoStroke.Transparency = 0.75
 infoStroke.LineJoinMode = Enum.LineJoinMode.Round
@@ -3004,7 +3002,7 @@ local function validateKey()
     validating = true
     input.TextEditable = false
     statusBadgeText.Text = "Loading"
-    log4Text.TextColor3 = Color3.fromRGB(120, 130, 124)
+    log4Text.TextColor3 = Color3.fromRGB(150, 145, 165)
 
     -- Update console
     log1Text.Text = "> key accepted"

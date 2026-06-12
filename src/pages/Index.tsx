@@ -97,106 +97,99 @@ const Index = () => {
       <SnowEffect />
 
       <div className="relative z-10 pb-12">
-        {/* Floating capsule nav */}
-        <nav className="sticky top-3 z-30 container mx-auto px-3 sm:px-4">
-          <div className="flex items-center justify-between gap-2 rounded-full border border-border bg-card/60 px-2 py-1.5 backdrop-blur-2xl shadow-[var(--shadow-soft)] sm:px-3">
-            <div className="flex items-center gap-2 shrink-0 pl-1">
-              <CloudLogo size={26} />
-              <h2 className="hidden text-[11px] font-black tracking-[0.22em] text-foreground sm:block">
+        {/* Navbar */}
+        <nav className="container mx-auto px-3 py-4 sm:px-4">
+          <div className="flex items-center justify-between gap-2 rounded-2xl border border-border bg-card/40 px-2.5 py-2 backdrop-blur-2xl sm:px-5 sm:py-3">
+            <div className="flex items-center gap-2 shrink-0">
+              <CloudLogo size={28} />
+              <h2 className="hidden text-sm font-bold tracking-wider text-foreground sm:block">
                 ULT CLOUD
               </h2>
             </div>
-            <div className="flex items-center gap-0.5 sm:gap-1 min-w-0">
+
+            <div className="flex items-center gap-0.5 sm:gap-1.5 min-w-0">
               <SoundToggleBtn />
               <LastUpdatedBadge />
               <GoogleTranslate />
-              <Button onClick={() => navigate("/status")} variant="ghost" size="sm" className="rounded-full gap-1.5 bg-accent/15 text-foreground hover:bg-accent/25 h-8 px-2.5 text-xs font-semibold">
-                <Activity size={14} /><span className="hidden md:inline">Status</span>
-              </Button>
               <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
-                <Button variant="ghost" size="sm" className="rounded-full gap-1.5 bg-primary/15 text-foreground hover:bg-primary/25 h-8 px-2.5 text-xs font-semibold">
-                  <MessageSquare size={14} /><span className="hidden md:inline">Discord</span>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
+                  <MessageSquare size={14} />
+                  <span className="hidden sm:inline">Discord</span>
                 </Button>
               </a>
-              <Button onClick={() => navigate("/install")} variant="ghost" size="sm" className="rounded-full gap-1.5 bg-accent/15 text-foreground hover:bg-accent/25 h-8 px-2.5 text-xs font-semibold">
-                <Download size={14} /><span className="hidden md:inline">Install</span>
+              <Button onClick={() => navigate("/status")} variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
+                <Activity size={14} />
+                <span className="hidden sm:inline">Status</span>
               </Button>
-              <Button onClick={() => navigate("/auth")} size="sm" className="rounded-full bg-accent text-accent-foreground px-4 sm:px-5 h-8 text-xs font-bold shadow-[var(--shadow-pop)] whitespace-nowrap hover:bg-accent/90">
+              <Button onClick={() => navigate("/install")} variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
+                <Download size={14} />
+                <span className="hidden sm:inline">Install</span>
+              </Button>
+              <Button onClick={() => navigate("/auth")} size="sm" className="rounded-xl bg-foreground text-background px-2.5 sm:px-5 h-8 text-xs font-semibold hover:bg-foreground/90 whitespace-nowrap">
                 Sign In
               </Button>
             </div>
           </div>
         </nav>
 
-        <main className="container mx-auto space-y-24 px-4 pt-10">
-          {/* Hero — flipped: preview LEFT, copy RIGHT */}
-          <section className="grid items-center gap-10 pt-6 lg:grid-cols-[0.95fr_1.05fr] lg:pt-10">
-            <div className="order-2 lg:order-1">
-              <KeySystemPreview />
-            </div>
+        <main className="container mx-auto space-y-24 px-4 pt-8">
+          {/* Hero */}
+          <section className="grid items-center gap-10 pt-8 lg:grid-cols-[1.1fr_0.9fr] lg:pt-12">
+            <div className="relative">
+              <StatusDot />
 
-            <div className="order-1 lg:order-2 relative">
-              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1.5 mb-6 backdrop-blur-xl">
-                <StatusDot />
-              </div>
-
-              <h1 className="text-4xl font-black leading-[0.95] tracking-[-0.04em] text-foreground md:text-6xl xl:text-[5.5rem] glow-text">
-                <span className="bg-gradient-brand bg-clip-text text-transparent">Lua protection</span>
+              <h1 className="mt-6 max-w-4xl text-4xl font-black leading-[0.92] tracking-[-0.04em] text-foreground md:text-6xl xl:text-7xl glow-text">
+                Lua script protection
                 <br />
-                built like a&nbsp;
-                <span className="italic font-serif text-muted-foreground">studio.</span>
+                <span className="text-muted-foreground">that does not get</span>
+                <br />
+                in your way.
               </h1>
 
-              <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground md:text-lg">
-                Key delivery, source protection, and a real loader for Roblox executors. Free, no paid tiers — ever.
+              <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">
+                Key delivery, source protection, and a real loader for Roblox executors. Free, no paid tiers.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <Button size="lg" onClick={() => navigate("/auth")} className="rounded-full bg-gradient-brand text-background px-8 py-6 text-sm font-semibold shadow-[var(--shadow-pop)] hover:opacity-95">
+                <Button size="lg" onClick={() => navigate("/auth")} className="rounded-xl bg-foreground text-background px-8 py-5 text-sm font-semibold hover:bg-foreground/90">
                   Open dashboard
                   <ArrowRight className="ml-2" size={16} />
                 </Button>
                 <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
-                  <Button variant="outline" size="lg" className="rounded-full border-border bg-card/40 px-8 py-6 text-sm hover:bg-card/60">
+                  <Button variant="outline" size="lg" className="rounded-xl border-border bg-card/30 px-8 py-5 text-sm hover:bg-card/50">
                     <MessageSquare className="mr-2" size={15} />
                     Join Discord
                   </Button>
                 </a>
               </div>
 
-              <div className="mt-10 grid grid-cols-3 gap-3 max-w-md">
-                {[
-                  { icon: Shield, label: "Free forever" },
-                  { icon: Zap, label: "Unlimited keys" },
-                  { icon: Terminal, label: "In-game console" },
-                ].map((s) => (
-                  <div key={s.label} className="rounded-2xl border border-border bg-card/40 backdrop-blur-xl p-3 text-center">
-                    <s.icon size={15} className="mx-auto text-foreground mb-1.5" />
-                    <p className="text-[10px] text-muted-foreground leading-tight">{s.label}</p>
-                  </div>
-                ))}
+              <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2"><Shield size={13} /> Free, no paid tiers</div>
+                <div className="flex items-center gap-2"><Zap size={13} /> Unlimited keys</div>
+                <div className="flex items-center gap-2"><Terminal size={13} /> Console output in-game</div>
               </div>
+            </div>
+
+            <div>
+              <KeySystemPreview />
             </div>
           </section>
 
-          {/* Pillars — asymmetric bento: first card wide */}
+          {/* Features */}
           <section>
-            <div className="max-w-2xl mb-10">
+            <div className="text-center mb-12">
               <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">How it works</p>
-              <h2 className="text-3xl md:text-4xl font-bold">Three pillars, <span className="italic font-serif text-muted-foreground">one loader.</span></h2>
+              <h2 className="text-3xl md:text-4xl font-bold">Three pillars of protection</h2>
             </div>
-            <div className="grid gap-4 md:grid-cols-3 md:grid-rows-[auto_auto]">
-              {featureColumns.map((col, i) => (
-                <Tilt3DCard
-                  key={col.title}
-                  className={`glass-card rounded-3xl ${i === 0 ? "md:col-span-2 md:row-span-1" : ""}`}
-                >
-                  <div className="p-7 transition-all duration-300 h-full">
-                    <div className={`w-12 h-12 rounded-2xl bg-gradient-soft border border-border flex items-center justify-center mb-5 ${i === 0 ? "md:w-16 md:h-16" : ""}`}>
-                      <col.icon className="text-foreground" size={i === 0 ? 22 : 20} />
+            <div className="grid gap-4 md:grid-cols-3">
+              {featureColumns.map((col) => (
+                <Tilt3DCard key={col.title} className="glass-card rounded-2xl">
+                  <div className="p-7 transition-all duration-300">
+                    <div className="w-12 h-12 rounded-xl bg-foreground/5 border border-border flex items-center justify-center mb-5">
+                      <col.icon className="text-foreground" size={20} />
                     </div>
-                    <h3 className={`font-bold mb-3 ${i === 0 ? "text-2xl md:text-3xl" : "text-xl"}`}>{col.title}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed max-w-md">{col.description}</p>
+                    <h3 className="text-xl font-bold mb-3">{col.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{col.description}</p>
                   </div>
                 </Tilt3DCard>
               ))}
@@ -211,9 +204,9 @@ const Index = () => {
             </div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {signalCards.map((card) => (
-                <Tilt3DCard key={card.label} className="glass-card rounded-3xl" intensity={10}>
+                <Tilt3DCard key={card.label} className="glass-card rounded-2xl" intensity={10}>
                   <div className="p-6">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-soft border border-border">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground/5 border border-border">
                       <card.icon className="text-foreground" size={16} />
                     </div>
                     <h3 className="mt-4 text-sm font-semibold">{card.label}</h3>
@@ -226,59 +219,45 @@ const Index = () => {
 
           <TabPreviews />
 
-          {/* AI & Discord — flipped */}
-          <section className="grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-start">
-            <AIAssistantDemo />
-            <div className="lg:pl-4">
+          {/* AI & Discord */}
+          <section className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
+            <div>
               <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">Extras</p>
-              <h2 className="text-2xl font-bold md:text-3xl">AI helpers <span className="italic font-serif text-muted-foreground">+</span> Discord flow.</h2>
+              <h2 className="text-2xl font-bold md:text-3xl">AI helpers and a Discord workflow.</h2>
               <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                Built-in script assistant, plus Discord bot commands for keys and panels.
+                There is an AI script assistant built in, plus Discord bot commands for keys and panels.
               </p>
-              <div className="mt-6 glass-card rounded-3xl p-5">
+              <div className="mt-6 glass-card rounded-2xl p-5">
                 <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-2">
-                  <div className="rounded-2xl bg-background/40 border border-border p-3">Custom key systems and protection modes.</div>
-                  <div className="rounded-2xl bg-background/40 border border-border p-3">Cloud storage, Discord bot, and AI helper.</div>
+                  <div className="rounded-xl bg-background/40 border border-border p-3">Custom key systems and protection modes.</div>
+                  <div className="rounded-xl bg-background/40 border border-border p-3">Cloud storage, Discord bot, and AI helper.</div>
                 </div>
               </div>
             </div>
+            <AIAssistantDemo />
           </section>
 
           <DiscordServerShowcase />
 
-          {/* CTA — left-aligned bento */}
+          {/* CTA */}
           <section className="mb-8">
-            <div className="relative overflow-hidden glass-card rounded-[2rem] p-10 md:p-14 grid md:grid-cols-[1.3fr_0.7fr] gap-8 items-center">
-              <div>
-                <CloudLogo size={40} />
-                <h2 className="mt-5 text-3xl font-bold md:text-4xl tracking-tight">
-                  Set up a script in <span className="italic font-serif text-muted-foreground">minutes.</span>
-                </h2>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-                  Sign in, paste your script, generate a key or pick a protection mode, copy the loader. Done.
-                </p>
-                <div className="mt-7 flex flex-wrap gap-3">
-                  <Button onClick={() => navigate("/auth")} className="rounded-full bg-gradient-brand text-background px-8 font-semibold shadow-[var(--shadow-pop)]" size="lg">
-                    Create account
+            <div className="relative overflow-hidden glass-card rounded-2xl p-10 text-center">
+              <div className="absolute inset-x-20 top-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
+              <CloudLogo size={48} className="mx-auto" />
+              <h2 className="mt-6 text-2xl font-bold md:text-3xl">Set up a script.</h2>
+              <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-muted-foreground">
+                Sign in, paste your script, generate a key or pick a protection mode, copy the loader. Done.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                <Button onClick={() => navigate("/auth")} className="rounded-xl bg-foreground text-background px-8 font-semibold hover:bg-foreground/90" size="lg">
+                  Create account
+                </Button>
+                <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" size="lg" className="rounded-xl border-border bg-card/30 hover:bg-card/50">
+                    <MessageSquare className="mr-2" size={15} />
+                    Join Discord
                   </Button>
-                  <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" size="lg" className="rounded-full border-border bg-card/30 hover:bg-card/50">
-                      <MessageSquare className="mr-2" size={15} />
-                      Join Discord
-                    </Button>
-                  </a>
-                </div>
-              </div>
-              <div className="hidden md:block relative">
-                <div className="absolute inset-0 bg-gradient-brand opacity-20 blur-3xl rounded-full" />
-                <div className="relative rounded-3xl border border-border bg-card/50 backdrop-blur-2xl p-6 space-y-3">
-                  {["Paste script", "Generate keys", "Copy loader", "Ship it"].map((s, i) => (
-                    <div key={s} className="flex items-center gap-3 text-sm">
-                      <div className="w-7 h-7 rounded-full bg-gradient-brand text-background grid place-items-center text-xs font-bold">{i + 1}</div>
-                      <span className="text-foreground/80">{s}</span>
-                    </div>
-                  ))}
-                </div>
+                </a>
               </div>
             </div>
           </section>
