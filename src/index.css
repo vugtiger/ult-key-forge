@@ -6,51 +6,51 @@
 
 @layer base {
   :root {
-    /* Luarmor-style: deep navy background, gold accent, subtle bordered cards */
-    --background: 222 40% 6%;
-    --foreground: 210 25% 92%;
+    /* Black & purple — glowing neon aesthetic */
+    --background: 260 25% 5%;
+    --foreground: 270 20% 96%;
 
-    --card: 222 35% 9%;
-    --card-foreground: 210 25% 92%;
+    --card: 262 30% 8%;
+    --card-foreground: 270 20% 96%;
 
-    --popover: 222 40% 8%;
-    --popover-foreground: 210 25% 92%;
+    --popover: 262 35% 7%;
+    --popover-foreground: 270 20% 96%;
 
-    /* Gold/amber primary — signature Luarmor CTA */
-    --primary: 45 95% 62%;
-    --primary-foreground: 222 45% 8%;
+    /* Vibrant purple primary */
+    --primary: 272 92% 66%;
+    --primary-foreground: 260 40% 6%;
 
-    --secondary: 222 25% 14%;
-    --secondary-foreground: 210 25% 92%;
+    --secondary: 264 25% 14%;
+    --secondary-foreground: 270 20% 96%;
 
-    --muted: 222 20% 14%;
-    --muted-foreground: 215 15% 62%;
+    --muted: 262 20% 13%;
+    --muted-foreground: 265 15% 68%;
 
-    --accent: 45 95% 62%;
-    --accent-foreground: 222 45% 8%;
+    --accent: 285 95% 68%;
+    --accent-foreground: 260 40% 6%;
 
     --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 222 25% 16%;
-    --input: 222 25% 14%;
-    --ring: 45 95% 62%;
+    --border: 268 25% 18%;
+    --input: 262 25% 13%;
+    --ring: 272 92% 66%;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;
 
-    --gradient-brand: linear-gradient(135deg, hsl(45 95% 62%) 0%, hsl(38 92% 55%) 100%);
-    --gradient-soft: linear-gradient(135deg, hsl(222 40% 10%) 0%, hsl(222 35% 12%) 100%);
-    --shadow-soft: 0 8px 30px -10px hsl(0 0% 0% / 0.5);
-    --shadow-pop: 0 20px 60px -20px hsl(45 95% 55% / 0.25);
+    --gradient-brand: linear-gradient(135deg, hsl(272 92% 66%) 0%, hsl(292 92% 68%) 100%);
+    --gradient-soft: linear-gradient(135deg, hsl(262 35% 10%) 0%, hsl(268 30% 12%) 100%);
+    --shadow-soft: 0 8px 30px -10px hsl(272 90% 30% / 0.55);
+    --shadow-pop: 0 20px 60px -20px hsl(272 92% 55% / 0.5);
 
-    --sidebar-background: 222 40% 7%;
-    --sidebar-foreground: 215 15% 70%;
-    --sidebar-primary: 45 95% 62%;
-    --sidebar-primary-foreground: 222 45% 8%;
-    --sidebar-accent: 222 30% 12%;
-    --sidebar-accent-foreground: 210 25% 92%;
-    --sidebar-border: 222 25% 14%;
-    --sidebar-ring: 45 95% 62%;
+    --sidebar-background: 262 35% 6%;
+    --sidebar-foreground: 265 15% 72%;
+    --sidebar-primary: 272 92% 66%;
+    --sidebar-primary-foreground: 260 40% 6%;
+    --sidebar-accent: 262 30% 11%;
+    --sidebar-accent-foreground: 270 20% 96%;
+    --sidebar-border: 268 25% 14%;
+    --sidebar-ring: 272 92% 66%;
   }
 }
 
@@ -63,9 +63,10 @@
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background-image:
-      radial-gradient(1200px 600px at 15% -10%, hsl(45 80% 35% / 0.10) 0%, transparent 60%),
-      radial-gradient(900px 500px at 90% 110%, hsl(222 60% 30% / 0.18) 0%, transparent 60%),
-      linear-gradient(180deg, hsl(222 45% 5%) 0%, hsl(222 40% 6%) 100%);
+      radial-gradient(1200px 700px at 12% -5%, hsl(272 90% 30% / 0.28) 0%, transparent 60%),
+      radial-gradient(1000px 600px at 92% 108%, hsl(290 85% 32% / 0.24) 0%, transparent 60%),
+      radial-gradient(700px 500px at 50% 50%, hsl(272 60% 12% / 0.35) 0%, transparent 70%),
+      linear-gradient(180deg, hsl(260 30% 4%) 0%, hsl(262 28% 6%) 100%);
     background-attachment: fixed;
   }
 
@@ -74,32 +75,32 @@
     letter-spacing: -0.02em;
   }
 
-  /* Luarmor-style card: dark, subtle border, soft interior */
   .glass-card {
-    background: hsl(222 35% 9% / 0.85);
-    backdrop-filter: blur(14px);
-    border: 1px solid hsl(222 25% 16%);
+    background: hsl(262 30% 8% / 0.75);
+    backdrop-filter: blur(18px);
+    border: 1px solid hsl(272 40% 22% / 0.5);
     border-radius: var(--radius);
-    box-shadow: 0 4px 20px -8px hsl(0 0% 0% / 0.6);
+    box-shadow: 0 4px 24px -8px hsl(272 90% 20% / 0.5), inset 0 1px 0 0 hsl(272 60% 60% / 0.06);
     transition: all 0.25s ease;
   }
 
   .glass-card:hover {
-    border-color: hsl(45 60% 40% / 0.5);
-    box-shadow: 0 8px 30px -10px hsl(45 95% 50% / 0.15);
+    border-color: hsl(272 80% 55% / 0.45);
+    box-shadow: 0 10px 40px -10px hsl(272 92% 45% / 0.35);
   }
 
   .depth-card {
-    background: hsl(222 35% 9%);
-    border: 1px solid hsl(222 25% 15%);
+    background: hsl(262 30% 8%);
+    border: 1px solid hsl(268 25% 16%);
     border-radius: var(--radius);
-    box-shadow: 0 2px 10px -2px hsl(0 0% 0% / 0.4);
+    box-shadow: 0 2px 12px -2px hsl(260 40% 2% / 0.6);
     transition: all 0.25s ease;
   }
 
   .depth-card:hover {
-    border-color: hsl(222 25% 22%);
+    border-color: hsl(272 70% 42% / 0.5);
     transform: translateY(-1px);
+    box-shadow: 0 8px 28px -8px hsl(272 92% 40% / 0.35);
   }
 
   .glow-text {
@@ -107,12 +108,13 @@
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+    filter: drop-shadow(0 0 18px hsl(272 92% 60% / 0.35));
   }
 
   .neon-text-enabled h1,
   .neon-text-enabled h2,
   .neon-text-enabled h3 {
-    text-shadow: 0 2px 20px hsl(45 95% 60% / 0.35);
+    text-shadow: 0 0 22px hsl(272 92% 66% / 0.55);
   }
 
   .ult-lua-style-enabled h1,
@@ -126,5 +128,10 @@
   @keyframes float-up {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-15px); }
+  }
+
+  @keyframes logo-pulse {
+    0%, 100% { filter: drop-shadow(0 0 12px hsl(272 92% 60% / 0.55)) drop-shadow(0 0 28px hsl(285 92% 60% / 0.35)); }
+    50% { filter: drop-shadow(0 0 20px hsl(272 92% 68% / 0.85)) drop-shadow(0 0 44px hsl(285 92% 68% / 0.55)); }
   }
 }
