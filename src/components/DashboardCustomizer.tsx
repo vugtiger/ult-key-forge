@@ -4,7 +4,8 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutGrid, Save, RotateCcw, Sparkles } from "lucide-react";
+import { LayoutGrid, Save, RotateCcw, Sparkles, PanelTop, PanelBottom, PanelLeft, PanelRight } from "lucide-react";
+import { getNavPosition, setNavPosition, NavPosition } from "@/components/DashboardLayout";
 
 export type LayoutPreset = "default" | "compact" | "spacious" | "cards" | "list";
 export type TabShape = "pill" | "square" | "underline";
