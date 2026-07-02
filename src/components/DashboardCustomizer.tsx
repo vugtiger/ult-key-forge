@@ -47,6 +47,7 @@ const DashboardCustomizer = () => {
   const [radius, setRadius] = useState(12);
   const [density, setDensity] = useState<TabDensity>("normal");
   const [shape, setShape] = useState<TabShape>("pill");
+  const [navPos, setNavPos] = useState<NavPosition>(getNavPosition());
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -90,6 +91,29 @@ const DashboardCustomizer = () => {
         <LayoutGrid className="w-4 h-4 text-primary" /> Dashboard Layout
         <span className="ml-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-foreground/10 text-foreground/70">New</span>
       </h2>
+
+      {/* Nav position */}
+      <div className="space-y-2">
+        <Label className="text-xs">Navigation Position</Label>
+        <div className="grid grid-cols-4 gap-2">
+          {([
+            { id: "top", name: "Top", Icon: PanelTop },
+            { id: "bottom", name: "Bottom", Icon: PanelBottom },
+            { id: "left", name: "Left", Icon: PanelLeft },
+            { id: "right", name: "Right", Icon: PanelRight },
+          ] as const).map(({ id, name, Icon }) => (
+            <button key={id}
+              onClick={() => { setNavPos(id); setNavPosition(id); }}
+              className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all ${
+                navPos === id ? "border-primary/60 bg-primary/15 text-foreground" : "border-border/30 bg-background/30 text-muted-foreground hover:bg-primary/10"
+              }`}>
+              <Icon size={16} />
+              <span className="text-[10px]">{name}</span>
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground">Bottom bar shows 4 tabs + a "More" menu for the rest.</p>
+      </div>
 
       {/* Presets */}
       <div className="space-y-2">
