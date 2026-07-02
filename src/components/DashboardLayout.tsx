@@ -104,9 +104,9 @@ const TopNav = ({ user, onLogout }: { user: User | null; onLogout: () => void })
                 key={item.title}
                 to={item.url}
                 end
-                className={`group flex items-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] font-medium whitespace-nowrap transition-all ${
+                className={`group flex items-center gap-1.5 rounded-md px-3 py-2 text-[12.5px] font-medium whitespace-nowrap transition-all ${
                   isActive
-                    ? "bg-foreground text-background shadow-[var(--shadow-soft)]"
+                    ? "bg-primary text-primary-foreground shadow-[0_4px_14px_-4px_hsl(45_95%_55%/0.45)]"
                     : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]"
                 }`}
               >
