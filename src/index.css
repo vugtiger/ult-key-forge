@@ -6,71 +6,66 @@
 
 @layer base {
   :root {
-    /* Wix-style soft light: cream background, mint green primary, peach orange accent */
-    --background: 40 30% 98%;
-    --foreground: 180 25% 10%;
+    /* Luarmor-style: deep navy background, gold accent, subtle bordered cards */
+    --background: 222 40% 6%;
+    --foreground: 210 25% 92%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 180 25% 10%;
+    --card: 222 35% 9%;
+    --card-foreground: 210 25% 92%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 180 25% 10%;
+    --popover: 222 40% 8%;
+    --popover-foreground: 210 25% 92%;
 
-    /* Mint green — darker for legibility */
-    --primary: 150 55% 38%;
-    --primary-foreground: 0 0% 100%;
+    /* Gold/amber primary — signature Luarmor CTA */
+    --primary: 45 95% 62%;
+    --primary-foreground: 222 45% 8%;
 
-    --secondary: 140 35% 94%;
-    --secondary-foreground: 180 25% 14%;
+    --secondary: 222 25% 14%;
+    --secondary-foreground: 210 25% 92%;
 
-    --muted: 30 25% 94%;
-    --muted-foreground: 180 14% 30%;
+    --muted: 222 20% 14%;
+    --muted-foreground: 215 15% 62%;
 
-    /* Peach orange */
-    --accent: 22 85% 55%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 45 95% 62%;
+    --accent-foreground: 222 45% 8%;
 
-    --destructive: 0 75% 50%;
+    --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 140 18% 84%;
-    --input: 140 15% 92%;
-    --ring: 150 55% 42%;
+    --border: 222 25% 16%;
+    --input: 222 25% 14%;
+    --ring: 45 95% 62%;
 
-    --radius: 1.25rem;
+    --radius: 0.625rem;
 
-    /* Wix-style gradients & shadows — darker so gradient text stays readable on cream */
-    --gradient-brand: linear-gradient(135deg, hsl(150 60% 32%) 0%, hsl(22 85% 48%) 100%);
-    --gradient-soft: linear-gradient(135deg, hsl(140 55% 95%) 0%, hsl(24 90% 95%) 100%);
-    --shadow-soft: 0 10px 40px -10px hsl(140 40% 50% / 0.18);
-    --shadow-pop: 0 20px 60px -15px hsl(24 80% 55% / 0.25);
+    --gradient-brand: linear-gradient(135deg, hsl(45 95% 62%) 0%, hsl(38 92% 55%) 100%);
+    --gradient-soft: linear-gradient(135deg, hsl(222 40% 10%) 0%, hsl(222 35% 12%) 100%);
+    --shadow-soft: 0 8px 30px -10px hsl(0 0% 0% / 0.5);
+    --shadow-pop: 0 20px 60px -20px hsl(45 95% 55% / 0.25);
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 180 15% 20%;
-    --sidebar-primary: 140 55% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 140 35% 95%;
-    --sidebar-accent-foreground: 180 20% 18%;
-    --sidebar-border: 140 20% 90%;
-    --sidebar-ring: 140 55% 60%;
+    --sidebar-background: 222 40% 7%;
+    --sidebar-foreground: 215 15% 70%;
+    --sidebar-primary: 45 95% 62%;
+    --sidebar-primary-foreground: 222 45% 8%;
+    --sidebar-accent: 222 30% 12%;
+    --sidebar-accent-foreground: 210 25% 92%;
+    --sidebar-border: 222 25% 14%;
+    --sidebar-ring: 45 95% 62%;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
 
-  html, body {
-    overflow-x: hidden;
-  }
+  html, body { overflow-x: hidden; }
 
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background-image:
-      radial-gradient(at 10% 0%, hsl(140 70% 90% / 0.6) 0%, transparent 50%),
-      radial-gradient(at 90% 100%, hsl(24 95% 88% / 0.5) 0%, transparent 50%);
+      radial-gradient(1200px 600px at 15% -10%, hsl(45 80% 35% / 0.10) 0%, transparent 60%),
+      radial-gradient(900px 500px at 90% 110%, hsl(222 60% 30% / 0.18) 0%, transparent 60%),
+      linear-gradient(180deg, hsl(222 45% 5%) 0%, hsl(222 40% 6%) 100%);
     background-attachment: fixed;
   }
 
@@ -79,50 +74,32 @@
     letter-spacing: -0.02em;
   }
 
-  @keyframes float-up {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-15px); }
-  }
-
-  @keyframes pulse-glow {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 0.6; }
-  }
-
-  @keyframes grain {
-    0%, 100% { transform: translate(0, 0); }
-    50% { transform: translate(-5%, 5%); }
-  }
-
-  /* Wix-style soft glass card */
+  /* Luarmor-style card: dark, subtle border, soft interior */
   .glass-card {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(20px);
-    border: 1px solid hsl(140 30% 88% / 0.6);
+    background: hsl(222 35% 9% / 0.85);
+    backdrop-filter: blur(14px);
+    border: 1px solid hsl(222 25% 16%);
     border-radius: var(--radius);
-    box-shadow: var(--shadow-soft);
-    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 20px -8px hsl(0 0% 0% / 0.6);
+    transition: all 0.25s ease;
   }
 
   .glass-card:hover {
-    background: rgba(255, 255, 255, 0.85);
-    border-color: hsl(140 50% 75% / 0.7);
-    box-shadow: var(--shadow-pop);
-    transform: translateY(-3px);
+    border-color: hsl(45 60% 40% / 0.5);
+    box-shadow: 0 8px 30px -10px hsl(45 95% 50% / 0.15);
   }
 
   .depth-card {
-    background: rgba(255, 255, 255, 0.78);
-    backdrop-filter: blur(18px);
-    border: 1px solid hsl(140 25% 88% / 0.7);
+    background: hsl(222 35% 9%);
+    border: 1px solid hsl(222 25% 15%);
     border-radius: var(--radius);
-    box-shadow: 0 4px 14px -2px hsl(140 30% 60% / 0.12);
-    transition: all 0.35s ease;
+    box-shadow: 0 2px 10px -2px hsl(0 0% 0% / 0.4);
+    transition: all 0.25s ease;
   }
 
   .depth-card:hover {
-    box-shadow: var(--shadow-pop);
-    transform: translateY(-2px);
+    border-color: hsl(222 25% 22%);
+    transform: translateY(-1px);
   }
 
   .glow-text {
@@ -132,22 +109,10 @@
     color: transparent;
   }
 
-  .grain-overlay::before {
-    content: '';
-    position: fixed;
-    inset: -50%;
-    width: 200%;
-    height: 200%;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 1;
-    opacity: 0.25;
-  }
-
   .neon-text-enabled h1,
   .neon-text-enabled h2,
   .neon-text-enabled h3 {
-    text-shadow: 0 2px 12px hsl(140 60% 70% / 0.35);
+    text-shadow: 0 2px 20px hsl(45 95% 60% / 0.35);
   }
 
   .ult-lua-style-enabled h1,
@@ -156,5 +121,10 @@
   .ult-lua-style-enabled p {
     font-weight: 700;
     font-style: italic;
+  }
+
+  @keyframes float-up {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
   }
 }

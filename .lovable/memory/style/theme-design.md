@@ -1,15 +1,12 @@
 ---
-name: Wix-Style Mint & Peach Theme
-description: Light cream background, mint green primary + peach orange accent, Wix-style soft rounded cards, 3D floating geometric shapes background (R3F spheres/cubes/toruses)
+name: Luarmor-Style Dark Gold Theme
+description: Deep navy background, gold/amber primary CTA, subtle bordered cards, faint chart-line + grid background, gold shield crest logo
 type: design
 ---
-- Color palette: cream background (40 30% 98%), mint green primary (140 55% 65%), peach orange accent (24 95% 78%). Light theme, NOT dark.
-- Fonts: Inter (body), Space Grotesk (headings, tight -0.02em tracking).
-- Card style: Wix-style soft rounded — radius 1.25rem, white/70 bg, soft mint shadow, lift on hover.
-- Background: `CloudBackground` renders R3F `<Canvas>` with floating mint/peach 3D geometric shapes (spheres, cubes, toruses, icosahedrons) with physical/clearcoat material. No smoke, no particles.
-- Logo: `src/assets/wix-logo.png` — 3D gradient shield-cube mark, green→orange.
-- Body has fixed radial gradients (mint top-left, peach bottom-right) for soft Wix-template feel.
-- Gradients available: `--gradient-brand` (mint→peach 135deg), `--gradient-soft` (pale mint→pale peach).
-- Shadows: `--shadow-soft` (mint tint) and `--shadow-pop` (peach tint).
-- All pages inherit via semantic tokens (`bg-background`, `text-foreground`, `glass-card`, `depth-card`).
-- No custom cursor in this theme.
+- Palette: deep navy bg (222 40% 6%), light foreground (210 25% 92%), gold primary (45 95% 62%).
+- Fonts: Inter body, Space Grotesk headings (-0.02em tracking).
+- Card: dark navy `hsl(222 35% 9%)`, 1px border `hsl(222 25% 16%)`, radius 0.625rem, soft black shadow. Hover shifts border toward gold.
+- Background: `CloudBackground` renders a subtle 56px grid + faint gold chart-line SVG at bottom + top-vignette. No 3D shapes, no smoke.
+- Logo: inline SVG gold gradient shield crest in `CloudLogo.tsx`.
+- Active nav tab: gold primary pill with dark text, rounded-md.
+- Theme override in DashboardLayout clamps custom `--foreground` to min lightness 85%, max saturation 30% so text stays readable on dark bg.

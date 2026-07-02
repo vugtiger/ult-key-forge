@@ -58,9 +58,9 @@ const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
       case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break;
     }
   }
-  // Clamp lightness so text stays readable on the cream/light background.
-  const clampedL = Math.min(Math.round(l * 100), 22);
-  const clampedS = Math.min(Math.round(s * 100), 40);
+  // Clamp lightness so text stays readable on the dark navy background.
+  const clampedL = Math.max(Math.round(l * 100), 85);
+  const clampedS = Math.min(Math.round(s * 100), 30);
   const hsl = `${Math.round(h * 360)} ${clampedS}% ${clampedL}%`;
   root.style.setProperty('--foreground', hsl);
   root.style.setProperty('--card-foreground', hsl);
@@ -104,9 +104,9 @@ const TopNav = ({ user, onLogout }: { user: User | null; onLogout: () => void })
                 key={item.title}
                 to={item.url}
                 end
-                className={`group flex items-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] font-medium whitespace-nowrap transition-all ${
+                className={`group flex items-center gap-1.5 rounded-md px-3 py-2 text-[12.5px] font-medium whitespace-nowrap transition-all ${
                   isActive
-                    ? "bg-foreground text-background shadow-[var(--shadow-soft)]"
+                    ? "bg-primary text-primary-foreground shadow-[0_4px_14px_-4px_hsl(45_95%_55%/0.45)]"
                     : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]"
                 }`}
               >
