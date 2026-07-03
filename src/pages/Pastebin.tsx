@@ -77,6 +77,11 @@ const Pastebin = () => {
     return `${baseUrl}/functions/v1/get-paste?slug=${slug}`;
   };
 
+  const getPreviewUrl = (slug: string) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    return `${origin}/l/${slug}`;
+  };
+
   const fetchPastes = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -1250,8 +1255,8 @@ const Pastebin = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => copyToClipboard(getRawUrl(paste.slug))}
-                            title="Copy Raw URL"
+                            onClick={() => copyToClipboard(getPreviewUrl(paste.slug))}
+                            title="Copy share link"
                           >
                             <Copy className="h-4 w-4" />
                           </Button>
@@ -1283,12 +1288,15 @@ const Pastebin = () => {
                         </div>
                       </div>
 
-                      <div className="mt-2">
-                        <Input
-                          readOnly
-                          value={getRawUrl(paste.slug)}
-                          className="text-xs bg-muted/30 text-muted-foreground"
-                        />
+                      <div className="mt-2 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] uppercase tracking-wider text-primary/80 font-semibold shrink-0">Share link</span>
+                          <Input readOnly value={getPreviewUrl(paste.slug)} className="text-xs bg-primary/5 border-primary/20 text-foreground h-8" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">Loader (raw)</span>
+                          <Input readOnly value={getRawUrl(paste.slug)} className="text-xs bg-muted/30 text-muted-foreground h-8" />
+                        </div>
                       </div>
 
                       {editingId === paste.id && (
