@@ -123,72 +123,129 @@ const HorizontalBar = ({
 }: { position: "top" | "bottom"; user: User | null; onLogout: () => void; items: typeof navigationItems }) => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const isBottom = position === "bottom";
-  // Bottom bar: show 4 primary + More overflow. Top bar: fit as many as possible.
   const primary = isBottom ? items.slice(0, 4) : items;
   const overflow = isBottom ? items.slice(4) : [];
 
-  return (
-    <header className={`${isBottom ? "fixed bottom-0 left-0 right-0 border-t" : "sticky top-0 border-b"} z-40 border-border/40 bg-background/80 backdrop-blur-2xl`}>
-      <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-3 px-4 lg:px-8">
-        {!isBottom && (
-          <NavLink to="/dashboard" className="flex items-center gap-2.5 shrink-0">
-            <CloudLogo size={28} />
-            <div className="hidden sm:block leading-tight">
-              <div className="text-[11px] font-black tracking-[0.22em] text-foreground">ULT CLOUD</div>
-              <div className="text-[8px] tracking-[0.25em] text-muted-foreground/70">PROTECTION</div>
-            </div>
-          </NavLink>
-        )}
+  if (isBottom) {
+    return (
+      <>
+        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-2xl pb-[env(safe-area-inset-bottom)]">
+          <div className="mx-auto max-w-[720px] grid grid-cols-5 gap-1 px-2 py-1.5">
+            {primary.map((item) => {
+              const active = location.pathname === item.url;
+              return (
+                <NavLink
+                  key={item.title}
+                  to={item.url}
+                  end
+                  className="flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 min-w-0 group"
+                >
+                  <div
+                    className={`flex items-center justify-center h-8 w-11 rounded-lg transition-all ${
+                      active
+                        ? "bg-primary/20 text-primary shadow-[0_0_18px_-4px_hsl(272_92%_60%/0.6)]"
+                        : "text-muted-foreground group-hover:text-foreground"
+                    }`}
+                  >
+                    <item.icon size={18} strokeWidth={active ? 2.4 : 2} />
+                  </div>
+                  <span
+                    className={`text-[9.5px] leading-none truncate max-w-full font-medium ${
+                      active ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    {item.title}
+                  </span>
+                </NavLink>
+              );
+            })}
+            <button
+              onClick={() => setMoreOpen(true)}
+              className="flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 min-w-0 group"
+            >
+              <div className="flex items-center justify-center h-8 w-11 rounded-lg text-muted-foreground group-hover:text-foreground">
+                <MoreHorizontal size={18} />
+              </div>
+              <span className="text-[9.5px] leading-none font-medium text-muted-foreground">More</span>
+            </button>
+          </div>
+        </nav>
 
-        {isBottom ? (
-          <nav className="flex flex-1 items-center justify-around gap-1">
-            {primary.map((item) => (
-              <NavItemLink key={item.title} item={item} active={location.pathname === item.url} compact />
-            ))}
-            {overflow.length > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-medium text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-all">
-                    <MoreHorizontal size={16} />
-                    <span>More</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" side="top" className="w-56 bg-popover/95 backdrop-blur-2xl border-primary/20">
-                  {overflow.map((item) => (
-                    <DropdownMenuItem key={item.title} asChild>
-                      <NavLink to={item.url} end className="flex items-center gap-2 cursor-pointer">
-                        <item.icon size={14} /><span>{item.title}</span>
-                      </NavLink>
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuItem onClick={onLogout} className="text-destructive cursor-pointer">
-                    <LogOut size={14} className="mr-2" />Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </nav>
-        ) : (
-          <>
-            <nav className="hidden lg:flex items-center gap-1 ml-4 flex-1 overflow-x-auto">
-              {items.map((item) => (
-                <NavItemLink key={item.title} item={item} active={location.pathname === item.url} />
-              ))}
-            </nav>
-            <div className="flex-1 lg:flex-none" />
-            <SoundToggle />
-            <Button variant="ghost" size="sm" onClick={onLogout} className="hidden md:inline-flex rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs gap-1.5">
-              <LogOut size={14} /> Logout
-            </Button>
-            <Button variant="ghost" size="icon" className="lg:hidden rounded-full h-9 w-9" onClick={() => setMobileOpen((v) => !v)} aria-label="Toggle menu">
-              {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-            </Button>
-          </>
+        {moreOpen && (
+          <div className="fixed inset-0 z-50 flex items-end animate-fade-in" onClick={() => setMoreOpen(false)}>
+            <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" />
+            <div
+              className="relative w-full bg-background/98 backdrop-blur-2xl border-t border-primary/20 rounded-t-3xl p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] max-h-[85vh] overflow-y-auto animate-slide-in-right"
+              style={{ animation: "fade-in 0.2s ease-out" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mx-auto w-10 h-1 rounded-full bg-muted mb-4" />
+              <div className="mb-4">
+                <div className="text-lg font-bold">More</div>
+                <div className="text-xs text-muted-foreground">All routes and account actions.</div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {overflow.map((item) => {
+                  const active = location.pathname === item.url;
+                  return (
+                    <NavLink
+                      key={item.title}
+                      to={item.url}
+                      end
+                      onClick={() => setMoreOpen(false)}
+                      className={`flex flex-col items-center justify-center gap-1.5 rounded-xl p-3 border transition-all ${
+                        active
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : "border-border/60 bg-card/60 text-foreground hover:border-primary/30 hover:bg-primary/5"
+                      }`}
+                    >
+                      <item.icon size={18} />
+                      <span className="text-[10.5px] font-medium text-center leading-tight">{item.title}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => { setMoreOpen(false); onLogout(); }}
+                className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm text-destructive bg-destructive/10 hover:bg-destructive/15 border border-destructive/20"
+              >
+                <LogOut size={15} /> Sign out
+              </button>
+            </div>
+          </div>
         )}
+      </>
+    );
+  }
+
+  return (
+    <header className="sticky top-0 border-b z-40 border-border/40 bg-background/80 backdrop-blur-2xl">
+      <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-3 px-4 lg:px-8">
+        <NavLink to="/dashboard" className="flex items-center gap-2.5 shrink-0">
+          <CloudLogo size={28} />
+          <div className="hidden sm:block leading-tight">
+            <div className="text-[11px] font-black tracking-[0.22em] text-foreground">ULT CLOUD</div>
+            <div className="text-[8px] tracking-[0.25em] text-muted-foreground/70">PROTECTION</div>
+          </div>
+        </NavLink>
+        <nav className="hidden lg:flex items-center gap-1 ml-4 flex-1 overflow-x-auto">
+          {items.map((item) => (
+            <NavItemLink key={item.title} item={item} active={location.pathname === item.url} />
+          ))}
+        </nav>
+        <div className="flex-1 lg:flex-none" />
+        <SoundToggle />
+        <Button variant="ghost" size="sm" onClick={onLogout} className="hidden md:inline-flex rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs gap-1.5">
+          <LogOut size={14} /> Logout
+        </Button>
+        <Button variant="ghost" size="icon" className="lg:hidden rounded-full h-9 w-9" onClick={() => setMobileOpen((v) => !v)} aria-label="Toggle menu">
+          {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+        </Button>
       </div>
 
-      {!isBottom && mobileOpen && (
+      {mobileOpen && (
         <div className="lg:hidden border-t border-border/40 bg-background/95 backdrop-blur-2xl">
           <div className="max-w-[1400px] mx-auto px-4 py-3 grid grid-cols-2 gap-2">
             {items.map((item) => (
@@ -215,39 +272,94 @@ const SideRail = ({
   position, onLogout, items,
 }: { position: "left" | "right"; onLogout: () => void; items: typeof navigationItems }) => {
   const location = useLocation();
+  const [open, setOpen] = useState(false);
   const isRight = position === "right";
   return (
-    <aside className={`hidden lg:flex fixed top-0 ${isRight ? "right-0 border-l" : "left-0 border-r"} bottom-0 z-40 w-60 flex-col border-border/40 bg-background/85 backdrop-blur-2xl`}>
-      <div className="p-4 border-b border-border/40">
-        <NavLink to="/dashboard" className="flex items-center gap-2.5">
-          <CloudLogo size={30} />
-          <div className="leading-tight">
-            <div className="text-[11px] font-black tracking-[0.22em] text-foreground">ULT CLOUD</div>
-            <div className="text-[8px] tracking-[0.25em] text-muted-foreground/70">PROTECTION</div>
+    <>
+      {/* Mobile trigger — floats on the chosen side */}
+      <button
+        onClick={() => setOpen(true)}
+        aria-label="Open navigation"
+        className={`lg:hidden fixed top-3 ${isRight ? "right-3" : "left-3"} z-50 h-10 w-10 rounded-full bg-background/90 backdrop-blur-xl border border-primary/30 text-foreground flex items-center justify-center shadow-lg`}
+      >
+        <Menu size={18} />
+      </button>
+
+      {/* Mobile drawer */}
+      {open && (
+        <div className="lg:hidden fixed inset-0 z-50" onClick={() => setOpen(false)}>
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" />
+          <div
+            className={`absolute top-0 bottom-0 ${isRight ? "right-0 border-l" : "left-0 border-r"} w-64 border-border/40 bg-background/98 backdrop-blur-2xl flex flex-col animate-slide-in-right`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-border/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <CloudLogo size={28} />
+                <div className="leading-tight">
+                  <div className="text-[11px] font-black tracking-[0.22em]">ULT CLOUD</div>
+                  <div className="text-[8px] tracking-[0.25em] text-muted-foreground/70">PROTECTION</div>
+                </div>
+              </div>
+              <button onClick={() => setOpen(false)} className="text-muted-foreground h-8 w-8 flex items-center justify-center rounded-full hover:bg-primary/10">
+                <X size={16} />
+              </button>
+            </div>
+            <nav className="flex-1 overflow-y-auto p-2 space-y-1">
+              {items.map((item) => {
+                const active = location.pathname === item.url;
+                return (
+                  <NavLink key={item.title} to={item.url} end onClick={() => setOpen(false)}
+                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all ${
+                      active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-primary/10"
+                    }`}>
+                    <item.icon size={15} />
+                    <span>{item.title}</span>
+                  </NavLink>
+                );
+              })}
+              <button onClick={() => { setOpen(false); onLogout(); }}
+                className="w-full mt-2 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] text-destructive hover:bg-destructive/10">
+                <LogOut size={15} /> Sign out
+              </button>
+            </nav>
           </div>
-        </NavLink>
-      </div>
-      <nav className="flex-1 overflow-y-auto p-2 space-y-1">
-        {items.map((item) => {
-          const active = location.pathname === item.url;
-          return (
-            <NavLink key={item.title} to={item.url} end
-              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
-                active ? "bg-primary text-primary-foreground shadow-[0_4px_14px_-4px_hsl(272_92%_55%/0.55)]" : "text-muted-foreground hover:text-foreground hover:bg-primary/10"
-              }`}>
-              <item.icon size={15} />
-              <span>{item.title}</span>
-            </NavLink>
-          );
-        })}
-      </nav>
-      <div className="p-2 border-t border-border/40 flex items-center justify-between">
-        <SoundToggle />
-        <Button variant="ghost" size="sm" onClick={onLogout} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs gap-1.5 rounded-full">
-          <LogOut size={14} /> Logout
-        </Button>
-      </div>
-    </aside>
+        </div>
+      )}
+
+      {/* Desktop side rail */}
+      <aside className={`hidden lg:flex fixed top-0 ${isRight ? "right-0 border-l" : "left-0 border-r"} bottom-0 z-40 w-60 flex-col border-border/40 bg-background/85 backdrop-blur-2xl`}>
+        <div className="p-4 border-b border-border/40">
+          <NavLink to="/dashboard" className="flex items-center gap-2.5">
+            <CloudLogo size={30} />
+            <div className="leading-tight">
+              <div className="text-[11px] font-black tracking-[0.22em] text-foreground">ULT CLOUD</div>
+              <div className="text-[8px] tracking-[0.25em] text-muted-foreground/70">PROTECTION</div>
+            </div>
+          </NavLink>
+        </div>
+        <nav className="flex-1 overflow-y-auto p-2 space-y-1">
+          {items.map((item) => {
+            const active = location.pathname === item.url;
+            return (
+              <NavLink key={item.title} to={item.url} end
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
+                  active ? "bg-primary text-primary-foreground shadow-[0_4px_14px_-4px_hsl(272_92%_55%/0.55)]" : "text-muted-foreground hover:text-foreground hover:bg-primary/10"
+                }`}>
+                <item.icon size={15} />
+                <span>{item.title}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
+        <div className="p-2 border-t border-border/40 flex items-center justify-between">
+          <SoundToggle />
+          <Button variant="ghost" size="sm" onClick={onLogout} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs gap-1.5 rounded-full">
+            <LogOut size={14} /> Logout
+          </Button>
+        </div>
+      </aside>
+    </>
   );
 };
 
