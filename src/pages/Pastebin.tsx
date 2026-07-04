@@ -17,6 +17,7 @@ import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, 
 import HWIDManager from "@/components/HWIDManager";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
 import CloudLogo from "@/components/CloudLogo";
+import { buildLoaderUrl } from "@/lib/loader-url";
 
 interface Paste {
   id: string;
@@ -72,10 +73,7 @@ const Pastebin = () => {
     return slug;
   };
 
-  const getRawUrl = (slug: string) => {
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-    return `${baseUrl}/functions/v1/get-paste?slug=${slug}`;
-  };
+  const getRawUrl = (slug: string) => buildLoaderUrl(slug);
 
   const getPreviewUrl = (slug: string) => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";

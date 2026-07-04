@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, ArrowLeft, ShieldCheck, ShieldAlert, Loader2, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import CloudLogo from "@/components/CloudLogo";
+import { buildLoaderUrl, buildLoadstring } from "@/lib/loader-url";
 
 interface Meta {
   slug: string;
@@ -23,8 +24,8 @@ const LoaderPreview = () => {
   const [state, setState] = useState<"loading" | "ready" | "notfound">("loading");
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const rawLoader = `${supabaseUrl}/functions/v1/get-paste?slug=${slug}`;
-  const loadstring = `loadstring(game:HttpGet("${rawLoader}"))()`;
+  const rawLoader = slug ? buildLoaderUrl(slug) : "";
+  const loadstring = buildLoadstring(slug || "");
 
   useEffect(() => {
     if (!slug) return;

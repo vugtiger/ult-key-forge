@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Key, Plus, Copy, Trash2, BarChart3, ShieldCheck, ShieldOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { buildLoaderUrl } from "@/lib/loader-url";
 
 interface PasteRow {
   id: string;
@@ -168,7 +169,7 @@ const ProtectionKeyManager = () => {
 
   const copyLoader = (k: PKey) => {
     if (!paste) return;
-    const url = `https://iyfvpnjrghsownkpazec.supabase.co/functions/v1/get-paste?slug=${paste.slug}`;
+    const url = buildLoaderUrl(paste.slug);
     const snippet = `_G.ScriptKey = "${k.key_value}"\nloadstring(game:HttpGet("${url}"))()`;
     navigator.clipboard.writeText(snippet);
     toast({ title: "Loader copied" });
