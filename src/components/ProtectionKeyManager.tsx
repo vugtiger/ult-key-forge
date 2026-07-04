@@ -168,7 +168,7 @@ const ProtectionKeyManager = () => {
 
   const copyLoader = (k: PKey) => {
     if (!paste) return;
-    const url = `https://iyfvpnjrghsownkpazec.supabase.co/functions/v1/get-paste?slug=${paste.slug}`;
+    const url = buildLoaderUrl(paste.slug);
     const snippet = `_G.ScriptKey = "${k.key_value}"\nloadstring(game:HttpGet("${url}"))()`;
     navigator.clipboard.writeText(snippet);
     toast({ title: "Loader copied" });

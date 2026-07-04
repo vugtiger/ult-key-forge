@@ -1,5 +1,5 @@
-// Purple-themed Roblox-style tilted square mark with stylized R.
-// Hand-drawn SVG — no AI art, no external logo, matches ULT purple theme.
+// Roblox-style tilted square mark, purple-themed to match the site.
+// The actual Roblox logo is a tilted square with an off-center square cutout.
 const CloudLogo = ({ className = "", size = 40 }: { className?: string; size?: number }) => (
   <svg
     width={size}
@@ -15,26 +15,20 @@ const CloudLogo = ({ className = "", size = 40 }: { className?: string; size?: n
         <stop offset="55%" stopColor="#8b3dff" />
         <stop offset="100%" stopColor="#4a1a99" />
       </linearGradient>
-      <linearGradient id="ultRLetter" x1="0" x2="0" y1="0" y2="1">
-        <stop offset="0%" stopColor="#ffffff" />
-        <stop offset="100%" stopColor="#e6d0ff" />
+      <linearGradient id="ultCut" x1="0" x2="1" y1="0" y2="1">
+        <stop offset="0%" stopColor="#f4e6ff" />
+        <stop offset="100%" stopColor="#d9b8ff" />
       </linearGradient>
       <radialGradient id="ultGlint" cx="28%" cy="22%" r="60%">
-        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.45" />
+        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.35" />
         <stop offset="70%" stopColor="#ffffff" stopOpacity="0" />
       </radialGradient>
     </defs>
-    {/* Tilted rounded square, Roblox-style */}
-    <g transform="rotate(14 20 20)">
-      <rect x="4" y="4" width="32" height="32" rx="6" fill="url(#ultBox)" />
-      <rect x="4" y="4" width="32" height="32" rx="6" fill="url(#ultGlint)" />
-      {/* Blocky R: vertical stem, top loop, kicked leg */}
-      <path
-        d="M14 12 h8 a5 5 0 0 1 0 10 h-4 l6 6 h-4 l-6 -6 v6 h-4 z"
-        fill="url(#ultRLetter)"
-      />
-      {/* Loop cutout */}
-      <rect x="18" y="15" width="4.5" height="4" rx="1.2" fill="url(#ultBox)" />
+    {/* Roblox-style: tilted rounded square with off-center square cutout */}
+    <g transform="rotate(18 20 20)">
+      <rect x="5" y="5" width="30" height="30" rx="3.5" fill="url(#ultBox)" />
+      <rect x="5" y="5" width="30" height="30" rx="3.5" fill="url(#ultGlint)" />
+      <rect x="16" y="16" width="12" height="12" rx="1.2" fill="url(#ultCut)" />
     </g>
   </svg>
 );

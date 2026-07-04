@@ -73,8 +73,11 @@ const Pastebin = () => {
   };
 
   const getRawUrl = (slug: string) => {
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-    return `${baseUrl}/functions/v1/get-paste?slug=${slug}`;
+    // Import lazily-inline to keep the diff small.
+    // Loader URL is always the app's own domain — never expose backend URL.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { buildLoaderUrl } = require("@/lib/loader-url");
+    return buildLoaderUrl(slug);
   };
 
   const getPreviewUrl = (slug: string) => {
