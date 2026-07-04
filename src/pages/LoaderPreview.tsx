@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, ArrowLeft, ShieldCheck, ShieldAlert, Loader2, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import CloudLogo from "@/components/CloudLogo";
+import { buildLoaderUrl, buildLoadstring } from "@/lib/loader-url";
 
 interface Meta {
   slug: string;
