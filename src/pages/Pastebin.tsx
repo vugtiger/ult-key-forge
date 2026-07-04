@@ -17,6 +17,7 @@ import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, 
 import HWIDManager from "@/components/HWIDManager";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
 import CloudLogo from "@/components/CloudLogo";
+import { buildLoaderUrl } from "@/lib/loader-url";
 
 interface Paste {
   id: string;
@@ -72,13 +73,7 @@ const Pastebin = () => {
     return slug;
   };
 
-  const getRawUrl = (slug: string) => {
-    // Import lazily-inline to keep the diff small.
-    // Loader URL is always the app's own domain — never expose backend URL.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { buildLoaderUrl } = require("@/lib/loader-url");
-    return buildLoaderUrl(slug);
-  };
+  const getRawUrl = (slug: string) => buildLoaderUrl(slug);
 
   const getPreviewUrl = (slug: string) => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
