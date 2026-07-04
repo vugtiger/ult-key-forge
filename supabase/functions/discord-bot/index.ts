@@ -3,6 +3,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const DISCORD_PUBLIC_KEY = Deno.env.get("DISCORD_PUBLIC_KEY")!;
 const DISCORD_BOT_TOKEN = Deno.env.get("DISCORD_BOT_TOKEN")!;
 
+// Public loader domain that end users execute. Never leaks the backend URL.
+const LOADER_BASE_URL = Deno.env.get("LOADER_BASE_URL") ?? "https://ultluaprotectsyourluacode.netlify.app";
+
 // Verify Discord request signature
 async function verifyDiscordRequest(request: Request, body: string): Promise<boolean> {
   const signature = request.headers.get("X-Signature-Ed25519");
