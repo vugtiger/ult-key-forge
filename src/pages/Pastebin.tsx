@@ -17,7 +17,7 @@ import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, 
 import HWIDManager from "@/components/HWIDManager";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
 import CloudLogo from "@/components/CloudLogo";
-import { buildLoaderUrl } from "@/lib/loader-url";
+import { buildLoaderUrl, buildLoadstring } from "@/lib/loader-url";
 
 interface Paste {
   id: string;
