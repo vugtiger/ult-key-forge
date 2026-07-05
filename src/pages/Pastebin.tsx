@@ -1292,8 +1292,8 @@ const Pastebin = () => {
                           <Input readOnly value={getPreviewUrl(paste.slug)} className="text-xs bg-primary/5 border-primary/20 text-foreground h-8" />
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">Loader (raw)</span>
-                          <Input readOnly value={getRawUrl(paste.slug)} className="text-xs bg-muted/30 text-muted-foreground h-8" />
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">Loader</span>
+                          <Input readOnly value={getRawUrl(paste.slug)} className="text-xs bg-muted/30 text-muted-foreground h-8 font-mono" />
                         </div>
                       </div>
 
