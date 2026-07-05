@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "ai-uploads read" ON storage.objects;
