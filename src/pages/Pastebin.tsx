@@ -73,7 +73,7 @@ const Pastebin = () => {
     return slug;
   };
 
-  const getRawUrl = (slug: string) => buildLoaderUrl(slug);
+  const getRawUrl = (slug: string) => buildLoadstring(slug);
 
   const getPreviewUrl = (slug: string) => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
