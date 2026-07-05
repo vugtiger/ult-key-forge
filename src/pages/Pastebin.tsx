@@ -499,9 +499,9 @@ const Pastebin = () => {
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1.5">
-                <Label className="text-xs">Raw URL</Label>
+                <Label className="text-xs">Loader (loadstring)</Label>
                 <div className="flex gap-1.5">
-                  <Input readOnly value={rawUrl} placeholder="Upload to generate raw URL..." className="bg-muted/20 text-muted-foreground text-xs h-9" />
+                  <Input readOnly value={rawUrl} placeholder="Upload to generate loader..." className="bg-muted/20 text-muted-foreground text-xs h-9 font-mono" />
                   {rawUrl && (
                     <Button variant="outline" size="icon" onClick={() => copyToClipboard(rawUrl)} className="h-9 w-9 border-primary/10">
                       <Copy className="h-3.5 w-3.5" />
@@ -510,9 +510,9 @@ const Pastebin = () => {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Paste URL</Label>
+                <Label className="text-xs">Loader (loadstring)</Label>
                 <div className="flex gap-1.5">
-                  <Input readOnly value={pasteUrl} placeholder="Upload to generate paste URL..." className="bg-muted/20 text-muted-foreground text-xs h-9" />
+                  <Input readOnly value={pasteUrl} placeholder="Upload to generate loader..." className="bg-muted/20 text-muted-foreground text-xs h-9 font-mono" />
                   {pasteUrl && (
                     <Button variant="outline" size="icon" onClick={() => copyToClipboard(pasteUrl)} className="h-9 w-9 border-primary/10">
                       <Copy className="h-3.5 w-3.5" />
