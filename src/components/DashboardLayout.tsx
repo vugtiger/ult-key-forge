@@ -128,26 +128,23 @@ const SidebarNav = ({
   const sections: NavItem["section"][] = ["main", "manage", "system"];
 
   return (
-    <div className="h-full flex flex-col bg-[hsl(262_35%_6%/0.9)] backdrop-blur-2xl">
+    <div className="h-full flex flex-col rounded-2xl border border-border/50 bg-[hsl(262_35%_7%/0.85)] backdrop-blur-2xl shadow-[0_10px_40px_-10px_hsl(272_92%_20%/0.6)] overflow-hidden">
       {/* Brand */}
-      <div className="px-5 pt-6 pb-5">
-        <NavLink to="/dashboard" onClick={onNavigate} className="flex items-center gap-3">
-          <CloudLogo size={30} />
-          <div className="leading-tight">
-            <div className="text-[15px] font-bold tracking-tight text-foreground">ULT Cloud</div>
-            <div className="text-[10px] tracking-[0.2em] text-primary/70 font-semibold">PROTECTION</div>
-          </div>
+      <div className="px-4 pt-5 pb-4">
+        <NavLink to="/dashboard" onClick={onNavigate} className="flex items-center gap-2.5">
+          <CloudLogo size={26} />
+          <div className="text-[16px] font-bold tracking-tight text-foreground">ULT Cloud</div>
         </NavLink>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 pb-3 space-y-5 [scrollbar-width:thin]">
+      <nav className="flex-1 overflow-y-auto px-2 pb-2 space-y-4 [scrollbar-width:thin]">
         {sections.map((section) => {
           const sectionItems = items.filter((i) => i.section === section);
           if (sectionItems.length === 0) return null;
           return (
             <div key={section}>
-              <div className="px-3 pb-2 text-[10px] font-bold tracking-[0.22em] text-muted-foreground/60">
+              <div className="px-3 pb-1.5 text-[10px] font-semibold tracking-[0.22em] text-muted-foreground/50">
                 {SECTION_LABELS[section]}
               </div>
               <div className="space-y-0.5">
@@ -161,8 +158,8 @@ const SidebarNav = ({
                       onClick={onNavigate}
                       className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-all duration-200 ${
                         active
-                          ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_hsl(272_92%_55%/0.35)]"
-                          : "text-muted-foreground hover:text-foreground hover:bg-primary/8"
+                          ? "bg-primary/15 text-primary"
+                          : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                       }`}
                     >
                       <item.icon size={16} className={active ? "text-primary" : "text-muted-foreground group-hover:text-primary"} />
@@ -177,7 +174,7 @@ const SidebarNav = ({
       </nav>
 
       {/* Footer: user + logout */}
-      <div className="px-3 pb-4 pt-3 border-t border-border/30 space-y-2">
+      <div className="px-2 pb-3 pt-2 border-t border-border/30 space-y-1">
         <button
           onClick={onLogout}
           className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium text-primary/90 hover:text-primary hover:bg-primary/10 transition-colors"
@@ -186,7 +183,7 @@ const SidebarNav = ({
           <span>Sign out</span>
         </button>
         {user?.email && (
-          <div className="mx-1 rounded-xl border border-border/40 bg-card/50 px-3 py-2.5 flex items-center justify-between gap-2">
+          <div className="mt-2 rounded-xl border border-border/40 bg-card/50 px-3 py-2.5 flex items-center justify-between gap-2">
             <span className="text-[12px] text-muted-foreground truncate">{user.email}</span>
             <SoundToggle />
           </div>
