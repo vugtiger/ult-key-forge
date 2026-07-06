@@ -147,7 +147,7 @@ const Auth = () => {
                   </button>
                 </div>
               </div>
-              <Button type="submit" className="w-full rounded-xl bg-foreground text-background hover:bg-foreground/90 font-semibold" disabled={loading}>
+              <Button type="submit" className="w-full rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold" disabled={loading}>
                 {loading ? "Processing..." : isLogin ? "Sign In" : "Create Account"}
               </Button>
             </form>
