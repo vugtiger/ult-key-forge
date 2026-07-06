@@ -416,8 +416,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   const useBottom = navPos === "bottom";
   const sideOnRight = navPos === "right";
-  const useSide = !useBottom; // top/left/right all fall back to left-sidebar shell on desktop
-  const sidePadding = useBottom ? "" : sideOnRight ? "lg:pr-[260px]" : "lg:pl-[260px]";
+  const useSide = !useBottom;
+  const sidePadding = useBottom
+    ? ""
+    : sideOnRight
+      ? "lg:pr-[248px] pr-0"
+      : "lg:pl-[248px] pl-0";
   const bottomPadding = useBottom ? "pb-24" : "";
 
   return (
@@ -425,18 +429,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <CloudBackground />
       <SnowEffect />
 
-      {/* Desktop sidebar */}
+      {/* Floating sidebar — always visible on lg+ */}
       {useSide && (
-        <aside className={`hidden lg:flex fixed top-0 bottom-0 z-40 w-[260px] flex-col border-border/40 ${sideOnRight ? "right-0 border-l" : "left-0 border-r"}`}>
+        <aside className={`hidden lg:flex fixed top-3 bottom-3 z-40 w-[232px] ${sideOnRight ? "right-3" : "left-3"}`}>
           <SidebarNav items={items} user={user} onLogout={handleLogout} />
         </aside>
       )}
 
-      {/* Mobile top bar (when using side layout) */}
+      {/* Mobile top bar */}
       {useSide && (
         <header className="lg:hidden sticky top-0 z-30 flex h-14 items-center justify-between px-4 border-b border-border/40 bg-[hsl(262_35%_6%/0.9)] backdrop-blur-2xl">
           <NavLink to="/dashboard" className="flex items-center gap-2.5">
-            <CloudLogo size={26} />
+            <CloudLogo size={24} />
             <div className="text-[13px] font-bold tracking-tight">ULT Cloud</div>
           </NavLink>
           <button
@@ -449,12 +453,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </header>
       )}
 
-      {/* Mobile drawer */}
+      {/* Mobile floating drawer */}
       {useSide && mobileNavOpen && (
         <div className="lg:hidden fixed inset-0 z-50" onClick={() => setMobileNavOpen(false)}>
           <div className="absolute inset-0 bg-background/70 backdrop-blur-sm animate-fade-in" />
           <div
-            className="absolute top-0 bottom-0 left-0 w-[280px] border-r border-border/40 animate-slide-in-right"
+            className="absolute top-3 bottom-3 left-3 w-[260px] animate-slide-in-right"
             onClick={(e) => e.stopPropagation()}
           >
             <SidebarNav items={items} user={user} onLogout={handleLogout} onNavigate={() => setMobileNavOpen(false)} />
