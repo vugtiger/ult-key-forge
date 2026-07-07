@@ -96,27 +96,24 @@ const Analytics = () => {
         </div>
 
         {/* Global activity globe */}
-        <Tilt3DCard className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-xl" intensity={4}>
-          <div className="p-6 flex flex-col lg:flex-row items-center gap-6">
-            <ActivityGlobe size={280} points={50} />
-            <div className="flex-1 text-center lg:text-left">
-              <h3 className="text-lg font-semibold mb-2">Global Activity</h3>
-              <p className="text-xs text-muted-foreground mb-4">
-                Live view of script execution activity across the world.
-              </p>
-              <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto lg:mx-0">
-                <div className="rounded-xl bg-foreground/[0.04] border border-border/40 p-3">
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Regions</p>
-                  <p className="text-xl font-bold mt-1">50+</p>
-                </div>
-                <div className="rounded-xl bg-foreground/[0.04] border border-border/40 p-3">
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Live</p>
-                  <p className="text-xl font-bold mt-1 text-primary">●</p>
-                </div>
+        <Tilt3DCard className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-xl" intensity={3} glare={false}>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">Global Activity</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Tap a dot to inspect where your scripts are executing.
+                </p>
+              </div>
+              <div className="hidden sm:flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="text-[10px] uppercase tracking-widest text-primary">Live</span>
               </div>
             </div>
+            <ActivityGlobe size={420} />
           </div>
         </Tilt3DCard>
+
 
         {/* Charts with 3D tilt */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
