@@ -125,7 +125,7 @@ const Index = () => {
                 <Download size={14} />
                 <span className="hidden sm:inline">Install</span>
               </Button>
-              <Button onClick={() => navigate("/auth")} size="sm" className="rounded-xl bg-foreground text-background px-2.5 sm:px-5 h-8 text-xs font-semibold hover:bg-foreground/90 whitespace-nowrap">
+              <Button onClick={() => navigate("/auth")} size="sm" className="rounded-xl bg-primary text-primary-foreground px-2.5 sm:px-5 h-8 text-xs font-semibold hover:bg-primary/90 whitespace-nowrap">
                 Sign In
               </Button>
             </div>
@@ -151,7 +151,7 @@ const Index = () => {
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <Button size="lg" onClick={() => navigate("/auth")} className="rounded-xl bg-foreground text-background px-8 py-5 text-sm font-semibold hover:bg-foreground/90">
+                <Button size="lg" onClick={() => navigate("/auth")} className="rounded-xl bg-primary text-primary-foreground px-8 py-5 text-sm font-semibold hover:bg-primary/90">
                   Open dashboard
                   <ArrowRight className="ml-2" size={16} />
                 </Button>
@@ -249,7 +249,7 @@ const Index = () => {
                 Sign in, paste your script, generate a key or pick a protection mode, copy the loader. Done.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                <Button onClick={() => navigate("/auth")} className="rounded-xl bg-foreground text-background px-8 font-semibold hover:bg-foreground/90" size="lg">
+                <Button onClick={() => navigate("/auth")} className="rounded-xl bg-primary text-primary-foreground px-8 font-semibold hover:bg-primary/90" size="lg">
                   Create account
                 </Button>
                 <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
