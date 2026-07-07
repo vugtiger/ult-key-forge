@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import Globe from "react-globe.gl";
-import * as THREE from "three";
+
 
 interface Region {
   id: string;
