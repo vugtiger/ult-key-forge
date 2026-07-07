@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 import { Activity, Users, FileCode, TrendingUp, BarChart3 } from "lucide-react";
 import Tilt3DCard from "@/components/Tilt3DCard";
+import ActivityGlobe from "@/components/ActivityGlobe";
 
 interface ExecutionData { date: string; count: number; }
 interface PasteStats { total_pastes: number; protected_pastes: number; total_executions: number; }
