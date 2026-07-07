@@ -436,13 +436,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </aside>
       )}
 
-      {/* Mobile top bar */}
-      {useSide && (
-        <header className="lg:hidden sticky top-0 z-30 flex h-14 items-center justify-between px-4 border-b border-border/40 bg-[hsl(262_35%_6%/0.9)] backdrop-blur-2xl">
-          <NavLink to="/dashboard" className="flex items-center gap-2.5">
-            <CloudLogo size={24} />
-            <div className="text-[13px] font-bold tracking-tight">ULT Cloud</div>
-          </NavLink>
+      {/* Mobile top bar - always shown for logo visibility */}
+      <header className="lg:hidden sticky top-0 z-30 flex h-14 items-center justify-between px-4 border-b border-border/40 bg-[hsl(262_35%_6%/0.9)] backdrop-blur-2xl">
+        <NavLink to="/dashboard" className="flex items-center gap-2.5">
+          <CloudLogo size={24} />
+          <div className="text-[13px] font-bold tracking-tight">ULT Cloud</div>
+        </NavLink>
+        {useSide && (
           <button
             onClick={() => setMobileNavOpen(true)}
             className="h-9 w-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10"
@@ -450,8 +450,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           >
             <Menu size={18} />
           </button>
-        </header>
-      )}
+        )}
+      </header>
 
       {/* Mobile floating drawer */}
       {useSide && mobileNavOpen && (
