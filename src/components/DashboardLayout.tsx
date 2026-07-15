@@ -58,10 +58,7 @@ const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
       case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break;
     }
   }
-  // Clamp lightness so text stays readable on the cream/light background.
-  const clampedL = Math.min(Math.round(l * 100), 22);
-  const clampedS = Math.min(Math.round(s * 100), 40);
-  const hsl = `${Math.round(h * 360)} ${clampedS}% ${clampedL}%`;
+  const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
   root.style.setProperty('--foreground', hsl);
   root.style.setProperty('--card-foreground', hsl);
   root.style.setProperty('--popover-foreground', hsl);
@@ -79,71 +76,70 @@ const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
   else root.classList.remove('ult-lua-style-enabled');
 };
 
-const SideRail = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
+const TopNav = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
   const location = useLocation();
   const { isAdmin } = useAdminStatus(user?.id);
-  const navItems = isAdmin ? [...navigationItems, ...adminItems] : navigationItems;
   const [mobileOpen, setMobileOpen] = useState(false);
+  const navItems = isAdmin ? [...navigationItems, ...adminItems] : navigationItems;
 
   return (
-    <>
-      {/* Desktop floating left rail (expand on hover) */}
-      <aside className="group/rail hidden lg:flex fixed left-4 top-1/2 -translate-y-1/2 z-40 flex-col items-stretch gap-1 p-2 rounded-3xl border border-border bg-card/70 backdrop-blur-2xl shadow-[var(--shadow-soft)] transition-all duration-300 w-[60px] hover:w-[210px]">
-        <NavLink to="/dashboard" className="flex items-center gap-2 px-2 py-2 rounded-2xl bg-gradient-brand text-background shadow-[var(--shadow-pop)] mb-1 overflow-hidden">
+    <header className="sticky top-0 z-40 border-b border-border/40 bg-background/75 backdrop-blur-2xl">
+      <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-4 px-4 lg:px-8">
+        <NavLink to="/dashboard" className="flex items-center gap-2.5 shrink-0">
           <CloudLogo size={26} />
-          <span className="text-[11px] font-black tracking-[0.18em] opacity-0 group-hover/rail:opacity-100 transition-opacity whitespace-nowrap">ULT CLOUD</span>
+          <div className="hidden sm:block leading-tight">
+            <div className="text-[11px] font-black tracking-[0.22em] text-foreground">ULT CLOUD</div>
+            <div className="text-[8px] tracking-[0.25em] text-muted-foreground/70">PROTECTION</div>
+          </div>
         </NavLink>
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.url;
-          return (
-            <NavLink
-              key={item.title}
-              to={item.url}
-              end
-              title={item.title}
-              className={`flex items-center gap-3 rounded-2xl px-2.5 py-2 text-[12.5px] font-medium overflow-hidden transition-all ${
-                isActive
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.07]"
-              }`}
-            >
-              <item.icon size={16} className="shrink-0" />
-              <span className="opacity-0 group-hover/rail:opacity-100 transition-opacity whitespace-nowrap">{item.title}</span>
-            </NavLink>
-          );
-        })}
-        <div className="border-t border-border my-1" />
-        <button
-          onClick={onLogout}
-          className="flex items-center gap-3 rounded-2xl px-2.5 py-2 text-[12.5px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 overflow-hidden"
-        >
-          <LogOut size={16} className="shrink-0" />
-          <span className="opacity-0 group-hover/rail:opacity-100 transition-opacity whitespace-nowrap">Logout</span>
-        </button>
-      </aside>
 
-      {/* Desktop floating utility (top-right) */}
-      <div className="hidden lg:flex fixed top-4 right-4 z-40 items-center gap-1 rounded-full border border-border bg-card/70 backdrop-blur-2xl px-1.5 py-1 shadow-[var(--shadow-soft)]">
+        <nav className="hidden lg:flex items-center gap-1 ml-4 flex-1 overflow-x-auto">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.url;
+            return (
+              <NavLink
+                key={item.title}
+                to={item.url}
+                end
+                className={`group flex items-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] font-medium whitespace-nowrap transition-all ${
+                  isActive
+                    ? "bg-foreground text-background shadow-[var(--shadow-soft)]"
+                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]"
+                }`}
+              >
+                <item.icon size={14} />
+                <span>{item.title}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
+
+        <div className="flex-1 lg:flex-none" />
+
         <SoundToggle />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onLogout}
+          className="hidden md:inline-flex rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs gap-1.5"
+        >
+          <LogOut size={14} /> Logout
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden rounded-full h-9 w-9"
+          onClick={() => setMobileOpen((v) => !v)}
+          aria-label="Toggle menu"
+        >
+          {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+        </Button>
       </div>
 
-      {/* Mobile top bar */}
-      <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border/40 bg-background/80 backdrop-blur-2xl">
-        <NavLink to="/dashboard" className="flex items-center gap-2">
-          <CloudLogo size={24} />
-          <span className="text-[11px] font-black tracking-[0.2em]">ULT CLOUD</span>
-        </NavLink>
-        <div className="flex items-center gap-1">
-          <SoundToggle />
-          <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={() => setMobileOpen((v) => !v)} aria-label="Toggle menu">
-            {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-          </Button>
-        </div>
-      </header>
-
+      {/* Mobile menu */}
       {mobileOpen && (
-        <div className="lg:hidden fixed inset-x-0 top-[52px] z-40 border-b border-border/40 bg-background/95 backdrop-blur-2xl">
-          <div className="px-3 py-3 grid grid-cols-2 gap-2 max-h-[70vh] overflow-y-auto">
+        <div className="lg:hidden border-t border-border/40 bg-background/95 backdrop-blur-2xl">
+          <div className="max-w-[1400px] mx-auto px-4 py-3 grid grid-cols-2 gap-2">
             {navItems.map((item) => {
               const isActive = location.pathname === item.url;
               return (
@@ -152,8 +148,8 @@ const SideRail = ({ user, onLogout }: { user: User | null; onLogout: () => void 
                   to={item.url}
                   end
                   onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm transition-all ${
-                    isActive ? "bg-foreground text-background" : "text-foreground/80 bg-foreground/[0.04] hover:bg-foreground/[0.08]"
+                  className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-all ${
+                    isActive ? "bg-foreground text-background" : "text-foreground/80 hover:bg-foreground/[0.06]"
                   }`}
                 >
                   <item.icon size={15} />
@@ -163,14 +159,14 @@ const SideRail = ({ user, onLogout }: { user: User | null; onLogout: () => void 
             })}
             <button
               onClick={() => { setMobileOpen(false); onLogout(); }}
-              className="col-span-2 mt-1 flex items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-sm text-destructive bg-destructive/10 hover:bg-destructive/15"
+              className="col-span-2 mt-1 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm text-destructive bg-destructive/10 hover:bg-destructive/15"
             >
               <LogOut size={15} /> Logout
             </button>
           </div>
         </div>
       )}
-    </>
+    </header>
   );
 };
 
@@ -200,7 +196,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   useEffect(() => {
     const loadUserTheme = async (userId: string) => {
-      resetTheme();
       try {
         const { data } = await supabase.from('user_themes')
           .select('primary_color, neon_enabled, ult_lua_style, layout_preset, tab_radius, tab_density, tab_shape')
@@ -278,9 +273,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     <div className="min-h-screen w-full bg-background overflow-x-hidden relative flex flex-col">
       <CloudBackground />
       <SnowEffect />
-      <SideRail user={user} onLogout={handleLogout} />
+      <TopNav user={user} onLogout={handleLogout} />
       <main className="flex-1 overflow-x-hidden overflow-y-auto relative z-10">
-        <div className="mx-auto max-w-[1300px] p-4 sm:p-6 lg:py-10 lg:pl-[100px] lg:pr-20">
+        <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8">
           {children}
         </div>
       </main>
