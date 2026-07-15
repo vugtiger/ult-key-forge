@@ -97,70 +97,100 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center grain-overlay">
+    <div className="min-h-screen bg-background relative overflow-hidden grain-overlay">
       <CloudBackground />
       <SnowEffect />
 
-      <div className="relative z-10 w-full max-w-md px-4">
-        <Button variant="ghost" onClick={() => navigate("/")} className="mb-6 gap-2 text-muted-foreground hover:text-foreground">
-          <ArrowLeft size={18} />
-          Back to Home
-        </Button>
+      <Button variant="ghost" onClick={() => navigate("/")} className="absolute top-4 left-4 z-20 gap-2 rounded-full text-muted-foreground hover:text-foreground backdrop-blur-xl bg-card/40 border border-border">
+        <ArrowLeft size={16} />
+        Home
+      </Button>
 
-        {banReason && (
-          <div className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-xl flex items-start gap-3">
-            <ShieldAlert className="text-destructive mt-0.5 shrink-0" size={20} />
-            <div>
-              <p className="text-sm font-semibold text-destructive">Account Banned</p>
-              <p className="text-xs text-muted-foreground mt-1">{banReason}</p>
+      <div className="relative z-10 min-h-screen grid lg:grid-cols-2">
+        {/* Brand panel (desktop only) */}
+        <div className="hidden lg:flex relative overflow-hidden items-center justify-center p-10">
+          <div className="absolute inset-6 rounded-[2.5rem] bg-gradient-soft border border-border shadow-[var(--shadow-soft)]" />
+          <div className="absolute inset-6 rounded-[2.5rem] bg-gradient-brand opacity-10" />
+          <div className="relative max-w-md text-center space-y-6">
+            <CloudLogo size={88} className="mx-auto" />
+            <h1 className="text-5xl font-black tracking-tight leading-[0.95]">
+              Welcome to <br />
+              <span className="bg-gradient-brand bg-clip-text text-transparent">ULT CLOUD</span>
+            </h1>
+            <p className="text-sm text-muted-foreground leading-6">
+              The free protection studio for Roblox Lua. Keys, loaders, panels — all in one place.
+            </p>
+            <div className="grid grid-cols-3 gap-2 pt-4">
+              {["Free forever", "No paid tiers", "Unlimited keys"].map((s) => (
+                <div key={s} className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl px-2 py-2.5 text-[10px] text-foreground/70 font-medium">
+                  {s}
+                </div>
+              ))}
             </div>
           </div>
-        )}
+        </div>
 
-        <Card className="relative overflow-hidden rounded-2xl border-border bg-card/60 p-8 backdrop-blur-2xl">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
-          <div className="relative">
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center mb-4">
-                <CloudLogo size={56} />
-              </div>
-              <h1 className="text-2xl font-bold tracking-wider">ULT CLOUD</h1>
-              <h2 className="text-lg text-muted-foreground mt-1">
-                {isLogin ? "Sign In" : "Create Account"}
-              </h2>
-            </div>
-            
-            <form onSubmit={handleAuth} className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm text-muted-foreground">Email</Label>
-                <Input id="email" type="email" placeholder="your@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-background/50 border-border focus:border-foreground/30 rounded-xl" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm text-muted-foreground">Password</Label>
-                <div className="relative">
-                  <Input id="password" type={showPassword ? "text" : "password"} placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-background/50 border-border focus:border-foreground/30 pr-10 rounded-xl" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+        {/* Form panel */}
+        <div className="flex items-center justify-center p-4 sm:p-8">
+          <div className="w-full max-w-md">
+            {banReason && (
+              <div className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-2xl flex items-start gap-3">
+                <ShieldAlert className="text-destructive mt-0.5 shrink-0" size={20} />
+                <div>
+                  <p className="text-sm font-semibold text-destructive">Account Banned</p>
+                  <p className="text-xs text-muted-foreground mt-1">{banReason}</p>
                 </div>
               </div>
-              <Button type="submit" className="w-full rounded-xl bg-foreground text-background hover:bg-foreground/90 font-semibold" disabled={loading}>
-                {loading ? "Processing..." : isLogin ? "Sign In" : "Create Account"}
-              </Button>
-            </form>
+            )}
 
-            <div className="mt-6 text-center space-y-3">
-              <button onClick={() => setIsLogin(!isLogin)} className="text-sm text-muted-foreground hover:text-foreground transition-colors block w-full">
-                {isLogin ? "Need an account? Sign up" : "Already have an account? Sign in"}
-              </button>
-              {isLogin && (
-                <button onClick={() => navigate("/password-reset")} className="text-sm text-muted-foreground hover:text-foreground transition-colors block w-full">
-                  Forgot your password?
+            <Card className="relative overflow-hidden rounded-[2rem] border-border bg-card/70 p-8 backdrop-blur-2xl shadow-[var(--shadow-soft)]">
+              <div className="lg:hidden text-center mb-6">
+                <CloudLogo size={48} className="mx-auto" />
+              </div>
+              <div className="mb-6">
+                <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">
+                  {isLogin ? "Account" : "Get started"}
+                </p>
+                <h2 className="text-3xl font-bold tracking-tight">
+                  {isLogin ? "Sign in" : "Create account"}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  {isLogin ? "Welcome back — pick up where you left off." : "It's free, forever. No card needed."}
+                </p>
+              </div>
+
+              <form onSubmit={handleAuth} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-xs text-muted-foreground">Email</Label>
+                  <Input id="email" type="email" placeholder="your@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-background/60 border-border focus:border-foreground/30 rounded-2xl h-11" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="password" className="text-xs text-muted-foreground">Password</Label>
+                  <div className="relative">
+                    <Input id="password" type={showPassword ? "text" : "password"} placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-background/60 border-border focus:border-foreground/30 pr-10 rounded-2xl h-11" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+                <Button type="submit" className="w-full h-11 rounded-2xl bg-gradient-brand text-background font-semibold shadow-[var(--shadow-pop)] hover:opacity-95" disabled={loading}>
+                  {loading ? "Processing..." : isLogin ? "Sign In" : "Create Account"}
+                </Button>
+              </form>
+
+              <div className="mt-6 pt-5 border-t border-border text-center space-y-2.5">
+                <button onClick={() => setIsLogin(!isLogin)} className="text-xs text-muted-foreground hover:text-foreground transition-colors block w-full">
+                  {isLogin ? "Need an account? Sign up" : "Already have an account? Sign in"}
                 </button>
-              )}
-            </div>
+                {isLogin && (
+                  <button onClick={() => navigate("/password-reset")} className="text-xs text-muted-foreground hover:text-foreground transition-colors block w-full">
+                    Forgot your password?
+                  </button>
+                )}
+              </div>
+            </Card>
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );
