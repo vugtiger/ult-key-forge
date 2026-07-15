@@ -17,7 +17,6 @@ import { Copy, Upload, Trash2, Edit2, Check, X, Shield, Lock, Unlock, UserPlus, 
 import HWIDManager from "@/components/HWIDManager";
 import WhitelistTimeManager from "@/components/WhitelistTimeManager";
 import CloudLogo from "@/components/CloudLogo";
-import { buildLoaderUrl, buildLoadstring } from "@/lib/loader-url";
 
 interface Paste {
   id: string;
@@ -73,11 +72,9 @@ const Pastebin = () => {
     return slug;
   };
 
-  const getRawUrl = (slug: string) => buildLoadstring(slug);
-
-  const getPreviewUrl = (slug: string) => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    return `${origin}/l/${slug}`;
+  const getRawUrl = (slug: string) => {
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    return `${baseUrl}/functions/v1/get-paste?slug=${slug}`;
   };
 
   const fetchPastes = async () => {
@@ -499,9 +496,9 @@ const Pastebin = () => {
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1.5">
-                <Label className="text-xs">Loader (loadstring)</Label>
+                <Label className="text-xs">Raw URL</Label>
                 <div className="flex gap-1.5">
-                  <Input readOnly value={rawUrl} placeholder="Upload to generate loader..." className="bg-muted/20 text-muted-foreground text-xs h-9 font-mono" />
+                  <Input readOnly value={rawUrl} placeholder="Upload to generate raw URL..." className="bg-muted/20 text-muted-foreground text-xs h-9" />
                   {rawUrl && (
                     <Button variant="outline" size="icon" onClick={() => copyToClipboard(rawUrl)} className="h-9 w-9 border-primary/10">
                       <Copy className="h-3.5 w-3.5" />
@@ -510,9 +507,9 @@ const Pastebin = () => {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Loader (loadstring)</Label>
+                <Label className="text-xs">Paste URL</Label>
                 <div className="flex gap-1.5">
-                  <Input readOnly value={pasteUrl} placeholder="Upload to generate loader..." className="bg-muted/20 text-muted-foreground text-xs h-9 font-mono" />
+                  <Input readOnly value={pasteUrl} placeholder="Upload to generate paste URL..." className="bg-muted/20 text-muted-foreground text-xs h-9" />
                   {pasteUrl && (
                     <Button variant="outline" size="icon" onClick={() => copyToClipboard(pasteUrl)} className="h-9 w-9 border-primary/10">
                       <Copy className="h-3.5 w-3.5" />
@@ -1253,8 +1250,8 @@ const Pastebin = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => copyToClipboard(getPreviewUrl(paste.slug))}
-                            title="Copy share link"
+                            onClick={() => copyToClipboard(getRawUrl(paste.slug))}
+                            title="Copy Raw URL"
                           >
                             <Copy className="h-4 w-4" />
                           </Button>
@@ -1286,15 +1283,12 @@ const Pastebin = () => {
                         </div>
                       </div>
 
-                      <div className="mt-2 space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] uppercase tracking-wider text-primary/80 font-semibold shrink-0">Share link</span>
-                          <Input readOnly value={getPreviewUrl(paste.slug)} className="text-xs bg-primary/5 border-primary/20 text-foreground h-8" />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">Loader</span>
-                          <Input readOnly value={getRawUrl(paste.slug)} className="text-xs bg-muted/30 text-muted-foreground h-8 font-mono" />
-                        </div>
+                      <div className="mt-2">
+                        <Input
+                          readOnly
+                          value={getRawUrl(paste.slug)}
+                          className="text-xs bg-muted/30 text-muted-foreground"
+                        />
                       </div>
 
                       {editingId === paste.id && (

@@ -68,10 +68,7 @@ const Auth = () => {
             return;
           }
         } catch {}
-        supabase.functions.invoke('track-ip', {
-          body: { user_id: data.user.id, action: 'login' },
-          headers: data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : undefined,
-        }).catch(() => {});
+        supabase.functions.invoke('track-ip', { body: { user_id: data.user.id, action: 'login' } }).catch(() => {});
         try { localStorage.setItem("ult_last_creds", btoa(JSON.stringify({ email, password }))); } catch {}
         navigate("/dashboard");
       } else {
@@ -147,7 +144,7 @@ const Auth = () => {
                   </button>
                 </div>
               </div>
-              <Button type="submit" className="w-full rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold" disabled={loading}>
+              <Button type="submit" className="w-full rounded-xl bg-foreground text-background hover:bg-foreground/90 font-semibold" disabled={loading}>
                 {loading ? "Processing..." : isLogin ? "Sign In" : "Create Account"}
               </Button>
             </form>

@@ -3,9 +3,6 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const DISCORD_PUBLIC_KEY = Deno.env.get("DISCORD_PUBLIC_KEY")!;
 const DISCORD_BOT_TOKEN = Deno.env.get("DISCORD_BOT_TOKEN")!;
 
-// Public loader domain that end users execute. Never leaks the backend URL.
-const LOADER_BASE_URL = Deno.env.get("LOADER_BASE_URL") ?? "https://ultluaprotectsyourluacode.netlify.app";
-
 // Verify Discord request signature
 async function verifyDiscordRequest(request: Request, body: string): Promise<boolean> {
   const signature = request.headers.get("X-Signature-Ed25519");
@@ -741,7 +738,7 @@ async function handleCommand(interaction: any) {
       }
 
       // Fixed URL format to match website
-      const rawUrl = `${LOADER_BASE_URL}/s/${paste.slug}`;
+      const rawUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/get-paste?slug=${paste.slug}`;
 
       await sendDM(discordUserId, `✅ **Paste Created!**\n\n**Title:** ${title}\n**Raw URL:** ${rawUrl}\n\nYou can manage it in the Pastebin tab on the website.`);
 
@@ -2376,7 +2373,7 @@ async function handleButton(interaction: any) {
         return { type: 4, data: { content: '❌ Script not found.', flags: 64 } };
       }
       
-      const rawUrl = `${LOADER_BASE_URL}/s/${paste.slug}`;
+      const rawUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/get-paste?slug=${paste.slug}`;
       const loadstring = `loadstring(game:HttpGet("${rawUrl}"))()`;
       
       // DM the user the script - ephemeral so only they can see

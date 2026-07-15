@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 import { Activity, Users, FileCode, TrendingUp, BarChart3 } from "lucide-react";
 import Tilt3DCard from "@/components/Tilt3DCard";
-import ActivityGlobe from "@/components/ActivityGlobe";
 
 interface ExecutionData { date: string; count: number; }
 interface PasteStats { total_pastes: number; protected_pastes: number; total_executions: number; }
@@ -94,26 +93,6 @@ const Analytics = () => {
             </Tilt3DCard>
           ))}
         </div>
-
-        {/* Global activity globe */}
-        <Tilt3DCard className="rounded-2xl border border-border/40 bg-card/30 backdrop-blur-xl" intensity={3} glare={false}>
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold">Global Activity</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Tap a dot to inspect where your scripts are executing.
-                </p>
-              </div>
-              <div className="hidden sm:flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                <span className="text-[10px] uppercase tracking-widest text-primary">Live</span>
-              </div>
-            </div>
-            <ActivityGlobe size={420} />
-          </div>
-        </Tilt3DCard>
-
 
         {/* Charts with 3D tilt */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -226,7 +226,7 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
   return (
     <div className="flex flex-col h-full bg-background">
       <div className="px-3 py-2.5 border-b border-border flex items-center gap-2 shrink-0">
-        <Sparkles className="h-4 w-4 text-primary" />
+        <Sparkles className="h-4 w-4 text-white" />
         <span className="text-sm font-medium">AI Assistant</span>
         <span className="ml-auto text-[10px] text-muted-foreground">Code auto-saves to Files</span>
       </div>

@@ -30,17 +30,15 @@ Deno.serve(async (req) => {
     console.log(`IP tracking for user ${user_id ?? 'anon'}, action: ${action}, IP: ${ip}`);
 
     // ===== AUTH VALIDATION for privileged actions =====
-    // 'register' is called right after signUp() before an email-confirmed session
-    // exists, so we validate it by confirming the user_id was just created
-    // (< 5 min old) via the service-role client instead of requiring a JWT.
-    const jwtActions = ['login', 'verify'];
-    if (jwtActions.includes(action) && user_id) {
+    const privilegedActions = ['register', 'login', 'verify'];
+    if (privilegedActions.includes(action) && user_id) {
       const authHeader = req.headers.get('Authorization');
       if (!authHeader) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
+      // Validate the JWT and ensure user_id matches the authenticated user
       const anonKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY')!;
       const authClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: authHeader } }
@@ -51,25 +49,10 @@ Deno.serve(async (req) => {
           status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
+      // Prevent user_id spoofing: override with authenticated user's ID
       if (user.id !== user_id) {
         console.warn(`[track-ip] user_id mismatch: body=${user_id} auth=${user.id}`);
         return new Response(JSON.stringify({ error: 'Forbidden' }), {
-          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-    }
-
-    if (action === 'register' && user_id) {
-      // Validate the user was just created (guards against arbitrary user_id injection)
-      const { data: authUser } = await supabase.auth.admin.getUserById(user_id);
-      if (!authUser?.user) {
-        return new Response(JSON.stringify({ error: 'Unknown user' }), {
-          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      const createdAt = new Date(authUser.user.created_at).getTime();
-      if (Date.now() - createdAt > 5 * 60 * 1000) {
-        return new Response(JSON.stringify({ error: 'Register window expired' }), {
           status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }

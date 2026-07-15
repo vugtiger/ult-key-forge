@@ -21,7 +21,6 @@ import ScriptSettings from "./pages/ScriptSettings";
 import Status from "./pages/Status";
 import ProtectionKeysAnalytics from "./pages/ProtectionKeysAnalytics";
 import Prompts from "./pages/Prompts";
-import LoaderPreview from "./pages/LoaderPreview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,11 +50,6 @@ const App = () => (
           <Route path="/protection-keys" element={<ProtectionKeysAnalytics />} />
           <Route path="/prompts" element={<Prompts />} />
           <Route path="/status" element={<Status />} />
-          <Route path="/l/:slug" element={<LoaderPreview />} />
-          {/* /s/:slug is proxied to backend by Netlify _redirects for executors.
-              This React route only renders as a fallback when someone browses
-              directly without the redirect layer (e.g. local preview). */}
-          <Route path="/s/:slug" element={<LoaderPreview />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

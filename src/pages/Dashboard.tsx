@@ -15,7 +15,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { buildLoaderUrl } from "@/lib/loader-url";
 
 // ASCII art
 const asciiChars: Record<string, string[]> = {
@@ -223,7 +222,7 @@ const Dashboard = () => {
       const durationConfig = KEY_DURATIONS.find(d => d.value === duration)!;
       const now = Date.now();
       const selectedPasteObj = pastes.find(p => p.id === selectedPaste);
-      const pasteUrl = buildLoaderUrl(selectedPasteObj?.slug || "");
+      const pasteUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-paste?slug=${selectedPasteObj?.slug}`;
 
       // Use decal ID if provided
       const logoUrl = decalId.trim() || null;
@@ -432,7 +431,7 @@ const Dashboard = () => {
   const copyManageLuaCode = () => {
     const paste = pastes.find(p => p.id === managePasteId);
     if (!paste || !managePanel) return;
-    const pasteUrl = buildLoaderUrl(paste.slug);
+    const pasteUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-paste?slug=${paste.slug}`;
     const keyList = manageKeys.map(k => `"${k.key_value}"`).join(', ');
     const asciiText = convertToAsciiArt(managePanel.name);
     const code = generateLuaCode(managePanel.name, asciiText, '255, 255, 255', keyList, pasteUrl);

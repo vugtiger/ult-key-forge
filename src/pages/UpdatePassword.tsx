@@ -212,7 +212,7 @@ const UpdatePassword = () => {
               />
             </div>
 
-            <Button onClick={handleUpdatePassword} disabled={loading} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl">
+            <Button onClick={handleUpdatePassword} disabled={loading} className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-xl">
               {loading ? "Updating..." : "Update Password"}
             </Button>
           </div>

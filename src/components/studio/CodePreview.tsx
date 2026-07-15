@@ -35,7 +35,7 @@ export const CodePreview = ({ language, code }: PreviewProps) => {
     <iframe
       ref={iframeRef}
       sandbox="allow-scripts"
-      className="w-full h-full border-0 bg-background"
+      className="w-full h-full border-0 bg-white"
       title="Code preview"
     />
   );

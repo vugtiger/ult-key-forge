@@ -1,12 +1,13 @@
 ---
-name: Luarmor-Style Dark Gold Theme
-description: Deep navy background, gold/amber primary CTA, subtle bordered cards, faint chart-line + grid background, gold shield crest logo
+name: Black & White Theme
+description: Monochrome black/white/gray design with Inter+Space Grotesk fonts, glass-card styling, grain overlay, 3D smoke background
 type: design
 ---
-- Palette: deep navy bg (222 40% 6%), light foreground (210 25% 92%), gold primary (45 95% 62%).
-- Fonts: Inter body, Space Grotesk headings (-0.02em tracking).
-- Card: dark navy `hsl(222 35% 9%)`, 1px border `hsl(222 25% 16%)`, radius 0.625rem, soft black shadow. Hover shifts border toward gold.
-- Background: `CloudBackground` renders a subtle 56px grid + faint gold chart-line SVG at bottom + top-vignette. No 3D shapes, no smoke.
-- Logo: inline SVG gold gradient shield crest in `CloudLogo.tsx`.
-- Active nav tab: gold primary pill with dark text, rounded-md.
-- Theme override in DashboardLayout clamps custom `--foreground` to min lightness 85%, max saturation 30% so text stays readable on dark bg.
+- Color palette: pure black (#080808) background, white foreground, gray midtones. No purple, no blue.
+- Fonts: Inter (body), Space Grotesk (headings). Orbitron and Rajdhani removed.
+- Glass cards: `glass-card` class — rgba(255,255,255,0.03) bg, blur(20px), 6% white border
+- Grain overlay: `grain-overlay` class on page wrappers for texture
+- 3D smoke: React Three Fiber animated white smoke particles on black bg
+- Logo: Shield+cloud combo PNG (src/assets/shield-cloud-logo.png)
+- Buttons: white bg on black (bg-foreground text-background) for primary actions
+- No custom cursor. No cloud-cursor.svg references needed in new pages.
