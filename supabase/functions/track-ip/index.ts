@@ -198,15 +198,29 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'register') {
-      // On registration, store the IP as primary
-      const { error } = await supabase.from('user_ips').insert({
-        user_id,
-        ip_address: ip,
-        is_primary: true
-      });
-      
-      if (error) throw error;
-      
+      // On registration, store the IP as primary — but never create a duplicate row.
+      const { data: existingReg } = await supabase
+        .from('user_ips')
+        .select('id')
+        .eq('user_id', user_id)
+        .eq('ip_address', ip)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingReg) {
+        await supabase.from('user_ips')
+          .update({ is_primary: true, last_used_at: new Date().toISOString() })
+          .eq('id', existingReg.id);
+      } else {
+        const { error } = await supabase.from('user_ips').insert({
+          user_id,
+          ip_address: ip,
+          is_primary: true
+        });
+        // Duplicate-key races are not an error for us — the row exists either way.
+        if (error && !`${error.message}`.toLowerCase().includes('duplicate')) throw error;
+      }
+
       return new Response(JSON.stringify({ success: true, message: 'IP registered' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
