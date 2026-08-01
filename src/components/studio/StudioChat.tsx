@@ -171,10 +171,11 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
           toast({ title: `Saved ${count} code file${count > 1 ? "s" : ""}`, description: "Open the Code tab to view." });
         }
       }
-    } catch (err) {
+    } catch (err: any) {
+      const msg = err?.message || "failed to reach AI";
       setMessages((prev) => {
         const copy = [...prev];
-        copy[copy.length - 1] = { role: "assistant", content: "Error: failed to reach AI. Try again." };
+        copy[copy.length - 1] = { role: "assistant", content: `Error: ${msg}` };
         return copy;
       });
     } finally {
