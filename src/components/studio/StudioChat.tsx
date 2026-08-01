@@ -125,7 +125,12 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
         signal: abortRef.current.signal,
       });
 
-      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try { const j = await res.json(); if (j?.error) msg = j.error; } catch { /* */ }
+        throw new Error(msg);
+      }
+      if (!res.body) throw new Error("No response body");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -166,10 +171,11 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
           toast({ title: `Saved ${count} code file${count > 1 ? "s" : ""}`, description: "Open the Code tab to view." });
         }
       }
-    } catch (err) {
+    } catch (err: any) {
+      const msg = err?.message || "failed to reach AI";
       setMessages((prev) => {
         const copy = [...prev];
-        copy[copy.length - 1] = { role: "assistant", content: "Error: failed to reach AI. Try again." };
+        copy[copy.length - 1] = { role: "assistant", content: `Error: ${msg}` };
         return copy;
       });
     } finally {
