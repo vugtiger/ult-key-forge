@@ -3015,7 +3015,7 @@ local function validateKey()
 
     task.spawn(function()
         local userId = tostring(plr.UserId)
-        local url = "${baseUrl}?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId .. "&_=" .. tostring(tick())
+        local url = "${baseUrl}?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId .. "${extraQuery || ''}" .. "&_=" .. tostring(tick())
 
         task.wait(0.08)
         if unloading then return end
