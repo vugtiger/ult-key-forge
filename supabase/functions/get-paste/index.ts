@@ -4486,6 +4486,22 @@ end`;
           console.warn('[get-paste] key+whitelist combo check failed (fail-open):', e);
         }
 
+        // ===== _G KEY + KEY SYSTEM COMBO =====
+        // If this paste ALSO has a key system panel, the _G.ScriptKey check is only
+        // layer one. Hand off to the key system GUI and carry the validated pkey with it
+        // so the key-system request can prove the _G key was checked first.
+        const comboPanel = await getPreferredKeyPanel();
+        if (comboPanel) {
+          const { data: comboPanelDetails } = await supabase
+            .from('control_panels').select('logo_url').eq('id', comboPanel.id).single();
+          const comboGui = generateKeySystemGui(
+            slugStr, baseUrl, comboPanel.name, '188, 134, 255',
+            comboPanelDetails?.logo_url || undefined,
+            `&pkey=${encodeURIComponent(pkey)}`,
+          );
+          return new Response(comboGui, { status: 200, headers: textHeaders });
+        }
+
         // Issue a regular execution token + return the standard encrypted loader
         const newToken = generateToken();
         const sessionSecret = generateToken().slice(0, 16);
