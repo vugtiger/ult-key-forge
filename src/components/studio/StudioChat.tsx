@@ -125,7 +125,12 @@ export const StudioChat = ({ onApplyUI, onCreateFile, uiInstances }: StudioChatP
         signal: abortRef.current.signal,
       });
 
-      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try { const j = await res.json(); if (j?.error) msg = j.error; } catch { /* */ }
+        throw new Error(msg);
+      }
+      if (!res.body) throw new Error("No response body");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
