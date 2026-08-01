@@ -271,12 +271,16 @@ Deno.serve(async (req) => {
         });
       }
       
-      // IP doesn't match - add it to the list but not as primary
-      await supabase.from('user_ips').insert({
+      // IP doesn't match - add it to the list but not as primary.
+      // Tolerate duplicate-key races so a single login can never create two rows.
+      const { error: insertErr } = await supabase.from('user_ips').insert({
         user_id,
         ip_address: ip,
         is_primary: false
       });
+      if (insertErr && !`${insertErr.message}`.toLowerCase().includes('duplicate')) {
+        console.warn('[track-ip] login ip insert failed:', insertErr.message);
+      }
       
       return new Response(JSON.stringify({ 
         success: true, 
