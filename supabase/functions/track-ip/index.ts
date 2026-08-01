@@ -19,11 +19,23 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { user_id, action, limit_action } = body;
     
-    // Get IP from request headers
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-               req.headers.get('cf-connecting-ip') || 
-               req.headers.get('x-real-ip') || 
-               'unknown';
+    // Get IP from request headers.
+    // Normalize so the SAME visitor never produces multiple "different" IP rows
+    // (proxy chains, IPv6-mapped IPv4, and host:port forms all collapse to one value).
+    const normalizeIp = (raw: string | null | undefined): string => {
+      let v = (raw || '').trim();
+      if (!v) return '';
+      // strip IPv6-mapped IPv4 prefix
+      v = v.replace(/^::ffff:/i, '');
+      // strip :port only for IPv4 (IPv6 contains multiple colons)
+      if ((v.match(/:/g) || []).length === 1) v = v.split(':')[0];
+      return v.toLowerCase();
+    };
+    // Always prefer the FIRST hop of x-forwarded-for; that is the real client.
+    const ip = normalizeIp(req.headers.get('x-forwarded-for')?.split(',')[0])
+               || normalizeIp(req.headers.get('cf-connecting-ip'))
+               || normalizeIp(req.headers.get('x-real-ip'))
+               || 'unknown';
 
     const supabase = supabaseModule;
 
