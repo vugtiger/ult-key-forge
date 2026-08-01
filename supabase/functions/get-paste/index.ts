@@ -2652,7 +2652,7 @@ end
 
 // ===== KEY SYSTEM GUI GENERATOR v5 =====
 // Matches the landing page preview: same purple theme, two-panel layout, console feedback, progress flow, and instant unload on success.
-function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, themeColor: string, decalId?: string): string {
+function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, themeColor: string, decalId?: string, extraQuery?: string): string {
   const normalizedTheme = (themeColor || '').trim();
   const resolvedTheme = !normalizedTheme || normalizedTheme === '255, 255, 255'
     ? '188, 134, 255'
