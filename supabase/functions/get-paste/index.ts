@@ -2652,7 +2652,7 @@ end
 
 // ===== KEY SYSTEM GUI GENERATOR v5 =====
 // Matches the landing page preview: same purple theme, two-panel layout, console feedback, progress flow, and instant unload on success.
-function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, themeColor: string, decalId?: string): string {
+function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, themeColor: string, decalId?: string, extraQuery?: string): string {
   const normalizedTheme = (themeColor || '').trim();
   const resolvedTheme = !normalizedTheme || normalizedTheme === '255, 255, 255'
     ? '188, 134, 255'
@@ -3015,7 +3015,7 @@ local function validateKey()
 
     task.spawn(function()
         local userId = tostring(plr.UserId)
-        local url = "${baseUrl}?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId .. "&_=" .. tostring(tick())
+        local url = "${baseUrl}?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId .. "${extraQuery || ''}" .. "&_=" .. tostring(tick())
 
         task.wait(0.08)
         if unloading then return end
@@ -4160,7 +4160,33 @@ Deno.serve(async (req) => {
     // When ?key=xxx&uid=xxx is provided, validate the key server-side
     if (keyParam && uid) {
       console.log(`[get-paste] KEY VALIDATION slug=${slug} key=${keyParam.substring(0, 8)}... uid=${uid} ip=${clientIp}`);
-      
+
+      // ===== _G KEY GATE (combo mode) =====
+      // When protection_mode is 'protection_key', a key-system key alone must NEVER be
+      // enough. The request must also carry a valid _G.ScriptKey (pkey) for this paste.
+      if (paste.protection_mode === 'protection_key') {
+        const comboPkey = url.searchParams.get('pkey') || '';
+        let comboPkeyOk = false;
+        if (comboPkey && comboPkey.length >= 4 && comboPkey.length <= 128) {
+          const { data: comboKeyRow } = await supabase
+            .from('protection_keys' as any)
+            .select('id,is_active,expires_at,bound_roblox_user_id')
+            .eq('paste_id', paste.id)
+            .eq('key_value', comboPkey)
+            .maybeSingle() as { data: any };
+          comboPkeyOk = !!comboKeyRow
+            && comboKeyRow.is_active === true
+            && (!comboKeyRow.expires_at || new Date(comboKeyRow.expires_at) > new Date())
+            && (!comboKeyRow.bound_roblox_user_id || comboKeyRow.bound_roblox_user_id === uid);
+        }
+        if (!comboPkeyOk) {
+          console.log(`[get-paste] KEY_INVALID: key system used without valid _G.ScriptKey uid=${uid}`);
+          return new Response('KEY_INVALID:Script key required. assign _G.ScriptKey before loading', {
+            status: 200, headers: textHeaders,
+          });
+        }
+      }
+
       const keyPanels = await getKeyPanelsForPaste();
       if (keyPanels.length === 0) {
         return new Response('KEY_INVALID:No key system on this paste', { status: 200, headers: textHeaders });
@@ -4484,6 +4510,22 @@ end`;
           }
         } catch (e) {
           console.warn('[get-paste] key+whitelist combo check failed (fail-open):', e);
+        }
+
+        // ===== _G KEY + KEY SYSTEM COMBO =====
+        // If this paste ALSO has a key system panel, the _G.ScriptKey check is only
+        // layer one. Hand off to the key system GUI and carry the validated pkey with it
+        // so the key-system request can prove the _G key was checked first.
+        const comboPanel = await getPreferredKeyPanel();
+        if (comboPanel) {
+          const { data: comboPanelDetails } = await supabase
+            .from('control_panels').select('logo_url').eq('id', comboPanel.id).single();
+          const comboGui = generateKeySystemGui(
+            slugStr, baseUrl, comboPanel.name, '188, 134, 255',
+            comboPanelDetails?.logo_url || undefined,
+            `&pkey=${encodeURIComponent(pkey)}`,
+          );
+          return new Response(comboGui, { status: 200, headers: textHeaders });
         }
 
         // Issue a regular execution token + return the standard encrypted loader

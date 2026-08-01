@@ -19,11 +19,23 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { user_id, action, limit_action } = body;
     
-    // Get IP from request headers
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-               req.headers.get('cf-connecting-ip') || 
-               req.headers.get('x-real-ip') || 
-               'unknown';
+    // Get IP from request headers.
+    // Normalize so the SAME visitor never produces multiple "different" IP rows
+    // (proxy chains, IPv6-mapped IPv4, and host:port forms all collapse to one value).
+    const normalizeIp = (raw: string | null | undefined): string => {
+      let v = (raw || '').trim();
+      if (!v) return '';
+      // strip IPv6-mapped IPv4 prefix
+      v = v.replace(/^::ffff:/i, '');
+      // strip :port only for IPv4 (IPv6 contains multiple colons)
+      if ((v.match(/:/g) || []).length === 1) v = v.split(':')[0];
+      return v.toLowerCase();
+    };
+    // Always prefer the FIRST hop of x-forwarded-for; that is the real client.
+    const ip = normalizeIp(req.headers.get('x-forwarded-for')?.split(',')[0])
+               || normalizeIp(req.headers.get('cf-connecting-ip'))
+               || normalizeIp(req.headers.get('x-real-ip'))
+               || 'unknown';
 
     const supabase = supabaseModule;
 
@@ -186,15 +198,29 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'register') {
-      // On registration, store the IP as primary
-      const { error } = await supabase.from('user_ips').insert({
-        user_id,
-        ip_address: ip,
-        is_primary: true
-      });
-      
-      if (error) throw error;
-      
+      // On registration, store the IP as primary — but never create a duplicate row.
+      const { data: existingReg } = await supabase
+        .from('user_ips')
+        .select('id')
+        .eq('user_id', user_id)
+        .eq('ip_address', ip)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingReg) {
+        await supabase.from('user_ips')
+          .update({ is_primary: true, last_used_at: new Date().toISOString() })
+          .eq('id', existingReg.id);
+      } else {
+        const { error } = await supabase.from('user_ips').insert({
+          user_id,
+          ip_address: ip,
+          is_primary: true
+        });
+        // Duplicate-key races are not an error for us — the row exists either way.
+        if (error && !`${error.message}`.toLowerCase().includes('duplicate')) throw error;
+      }
+
       return new Response(JSON.stringify({ success: true, message: 'IP registered' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -245,12 +271,16 @@ Deno.serve(async (req) => {
         });
       }
       
-      // IP doesn't match - add it to the list but not as primary
-      await supabase.from('user_ips').insert({
+      // IP doesn't match - add it to the list but not as primary.
+      // Tolerate duplicate-key races so a single login can never create two rows.
+      const { error: insertErr } = await supabase.from('user_ips').insert({
         user_id,
         ip_address: ip,
         is_primary: false
       });
+      if (insertErr && !`${insertErr.message}`.toLowerCase().includes('duplicate')) {
+        console.warn('[track-ip] login ip insert failed:', insertErr.message);
+      }
       
       return new Response(JSON.stringify({ 
         success: true, 
