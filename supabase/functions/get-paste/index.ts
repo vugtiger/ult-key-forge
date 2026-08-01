@@ -4160,7 +4160,33 @@ Deno.serve(async (req) => {
     // When ?key=xxx&uid=xxx is provided, validate the key server-side
     if (keyParam && uid) {
       console.log(`[get-paste] KEY VALIDATION slug=${slug} key=${keyParam.substring(0, 8)}... uid=${uid} ip=${clientIp}`);
-      
+
+      // ===== _G KEY GATE (combo mode) =====
+      // When protection_mode is 'protection_key', a key-system key alone must NEVER be
+      // enough. The request must also carry a valid _G.ScriptKey (pkey) for this paste.
+      if (paste.protection_mode === 'protection_key') {
+        const comboPkey = url.searchParams.get('pkey') || '';
+        let comboPkeyOk = false;
+        if (comboPkey && comboPkey.length >= 4 && comboPkey.length <= 128) {
+          const { data: comboKeyRow } = await supabase
+            .from('protection_keys' as any)
+            .select('id,is_active,expires_at,bound_roblox_user_id')
+            .eq('paste_id', paste.id)
+            .eq('key_value', comboPkey)
+            .maybeSingle() as { data: any };
+          comboPkeyOk = !!comboKeyRow
+            && comboKeyRow.is_active === true
+            && (!comboKeyRow.expires_at || new Date(comboKeyRow.expires_at) > new Date())
+            && (!comboKeyRow.bound_roblox_user_id || comboKeyRow.bound_roblox_user_id === uid);
+        }
+        if (!comboPkeyOk) {
+          console.log(`[get-paste] KEY_INVALID: key system used without valid _G.ScriptKey uid=${uid}`);
+          return new Response('KEY_INVALID:Script key required. assign _G.ScriptKey before loading', {
+            status: 200, headers: textHeaders,
+          });
+        }
+      }
+
       const keyPanels = await getKeyPanelsForPaste();
       if (keyPanels.length === 0) {
         return new Response('KEY_INVALID:No key system on this paste', { status: 200, headers: textHeaders });
