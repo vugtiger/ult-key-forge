@@ -1,6 +1,21 @@
-import { useRef, useMemo, Suspense } from "react";
+import { useRef, useMemo, Suspense, Component, type ReactNode } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+
+/** Keeps a lost WebGL context (or any three.js render error) from blanking the app. */
+class CanvasErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown) {
+    console.warn("CloudBackground disabled after render error:", error);
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
 
 type ShapeKind = "sphere" | "box" | "torus" | "icosahedron";
 
@@ -91,17 +106,30 @@ const Scene = () => {
 
 const CloudBackground = () => (
   <div className="fixed inset-0 z-0 pointer-events-none opacity-40" aria-hidden>
-    <Canvas
-      camera={{ position: [0, 0, 9], fov: 55 }}
-      gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
-      style={{ background: "transparent" }}
-      dpr={[1, 1.5]}
-    >
-      <Suspense fallback={null}>
-        <Scene />
-      </Suspense>
-    </Canvas>
+    <CanvasErrorBoundary>
+      <Canvas
+        camera={{ position: [0, 0, 9], fov: 55 }}
+        gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+        style={{ background: "transparent" }}
+        dpr={[1, 1.5]}
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener(
+            "webglcontextlost",
+            (e) => {
+              // Stop the default teardown that leaves the renderer in a broken state.
+              e.preventDefault();
+            },
+            false,
+          );
+        }}
+      >
+        <Suspense fallback={null}>
+          <Scene />
+        </Suspense>
+      </Canvas>
+    </CanvasErrorBoundary>
   </div>
 );
+
 
 export default CloudBackground;
