@@ -106,17 +106,30 @@ const Scene = () => {
 
 const CloudBackground = () => (
   <div className="fixed inset-0 z-0 pointer-events-none opacity-40" aria-hidden>
-    <Canvas
-      camera={{ position: [0, 0, 9], fov: 55 }}
-      gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
-      style={{ background: "transparent" }}
-      dpr={[1, 1.5]}
-    >
-      <Suspense fallback={null}>
-        <Scene />
-      </Suspense>
-    </Canvas>
+    <CanvasErrorBoundary>
+      <Canvas
+        camera={{ position: [0, 0, 9], fov: 55 }}
+        gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+        style={{ background: "transparent" }}
+        dpr={[1, 1.5]}
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener(
+            "webglcontextlost",
+            (e) => {
+              // Stop the default teardown that leaves the renderer in a broken state.
+              e.preventDefault();
+            },
+            false,
+          );
+        }}
+      >
+        <Suspense fallback={null}>
+          <Scene />
+        </Suspense>
+      </Canvas>
+    </CanvasErrorBoundary>
   </div>
 );
+
 
 export default CloudBackground;
