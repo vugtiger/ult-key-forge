@@ -4296,7 +4296,9 @@ loadstring(game:HttpGet(_url))()`;
       const pkey = url.searchParams.get('pkey') || '';
 
       // Phase 1: no pkey yet → return tiny key-grabber loader that reads _G.ScriptKey
-      if (!pkey && !tk && !kbt) {
+      // NOTE: a key-system bypass token (kbt) must NOT skip this gate. Panel key
+      // redemption and _G.ScriptKey are independent layers; both must be satisfied.
+      if (!pkey && !tk) {
         // Hardened key grabber: validates key shape, blocks empty/oversized payloads,
         // strips whitespace, and refuses to send if the executor is missing core funcs.
         const keyGrabber = `local ok, err = pcall(function()
