@@ -19,7 +19,7 @@ const DiscordServersTab = () => {
     try {
       const { data, error } = await supabase.functions.invoke('discord-bot-guilds');
       if (error) throw error;
-      setGuilds(data || []);
+      setGuilds(Array.isArray(data) ? data : (data?.guilds ?? []));
     } catch (e: any) {
       console.error('Failed to fetch guilds:', e);
     } finally {

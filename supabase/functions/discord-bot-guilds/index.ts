@@ -24,8 +24,18 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Discord API error:', errorText);
-      throw new Error(`Discord API error: ${response.status}`);
+      console.error('Discord API error:', response.status, errorText);
+      // Don't 500 the UI — return empty list with a reason
+      return new Response(
+        JSON.stringify({
+          guilds: [],
+          error:
+            response.status === 401
+              ? 'Discord rejected the bot token (401). Update DISCORD_BOT_TOKEN.'
+              : `Discord API error: ${response.status}`,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
     }
 
     const guilds = await response.json();
