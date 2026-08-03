@@ -4247,7 +4247,7 @@ Deno.serve(async (req) => {
         const existingLog = existingLogs?.[0] ?? null;
         const nowIso = new Date().toISOString();
         const updateData: Record<string, unknown> = {
-          last_seen_at: nowIso, is_active: true, user_agent: userAgent, ...discordData,
+          last_seen_at: nowIso, is_active: true, user_agent: userAgent, ip_address: clientIp, ...discordData,
         };
         if (robloxProfile) {
           updateData.roblox_username = robloxProfile.username;
