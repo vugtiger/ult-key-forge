@@ -4386,6 +4386,52 @@ loadstring(game:HttpGet(_url))()`;
     const initialDiscordRedirect = getDiscordRedirectResponse();
     if (initialDiscordRedirect) return initialDiscordRedirect;
 
+    // ===== v18: AUTHORIZED ENTRY POINT ENFORCEMENT (browsers only) =====
+    // The branded /s/<slug> link is the ONLY entry point a human is allowed to use.
+    // A browser that reaches the raw backend function URL found it by digging — that is
+    // an unauthorized access and earns a permanent, device-wide ban.
+    // Executors are never affected: they keep hitting this URL through the branded proxy.
+    if (isLikelyBrowser && !isRobloxRequest) {
+      const forwardedHost = (req.headers.get('x-forwarded-host') || url.host || '').toLowerCase();
+      const cameFromRawBackend = forwardedHost.includes('supabase.co');
+
+      if (cameFromRawBackend) {
+        let discordId: string | null = null;
+        try {
+          const { data: ds } = await supabase
+            .from('discord_oauth_sessions')
+            .select('discord_user_id')
+            .eq('ip_address', clientIp)
+            .gt('expires_at', new Date().toISOString())
+            .maybeSingle();
+          discordId = ds?.discord_user_id ?? null;
+        } catch { /* fail open on lookup only */ }
+
+        await logAccess(null, 'unauthorized_supabase').catch(() => {});
+        banIdentity({ ip: clientIp, discordId, robloxId: null, hwid: null }, 'unauthorized_backend_access', {
+          source: 'raw_backend_browser_visit', slug, host: forwardedHost,
+          user_agent: userAgent.substring(0, 200),
+        }).catch(() => {});
+
+        return new Response(generatePermanentBanPage(), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
+        });
+      }
+
+      // Reached through the branded domain — show the themed loader page.
+      if (isDirectSlugBrowserView(url)) {
+        if (paste.ip_tracking_enabled) {
+          await logAccess(null, 'browser').catch(() => {});
+        }
+        return new Response(generateBrandedLoaderPage(slugStr, forwardedHost), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
+        });
+      }
+    }
+
+
     if (shouldShowProtectedBrowserPlaceholder) {
       if (paste.ip_tracking_enabled) {
         console.log(`[get-paste] browser placeholder shown slug=${slug} ip=${clientIp}`);
