@@ -23,6 +23,7 @@ import ProtectionKeysAnalytics from "./pages/ProtectionKeysAnalytics";
 import Prompts from "./pages/Prompts";
 import NotFound from "./pages/NotFound";
 import LoaderRedirect from "./pages/LoaderRedirect";
+import Compare from "./pages/Compare";
 
 const queryClient = new QueryClient();
 
