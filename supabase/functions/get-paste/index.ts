@@ -3876,7 +3876,7 @@ Deno.serve(async (req) => {
       discord_user_id: null, details: { action: 'blocked_at_gate' }, severity: 'high',
       resolved: true, auto_banned: true,
     }).then(() => {}, (e: any) => console.error('Threat log failed:', e));
-    return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+    return new Response(generateKickPlain('Permanently banned from ULT LUA - this device, account and network are blocked'), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
   }
 
   // Periodic map cleanup
@@ -4005,7 +4005,7 @@ Deno.serve(async (req) => {
       logThreat('banned_device_access', earlyIp, uid || null, null, {
         slug, hwid: (hwid || '').substring(0, 32), action: 'hwid_banned', ip_auto_banned: true,
       }, 'high', true);
-      return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      return new Response(generateKickPlain('Permanently banned from ULT LUA - this device, account and network are blocked'), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
     // v17: banned Roblox account — ban the IP and device it came back on
@@ -4014,7 +4014,7 @@ Deno.serve(async (req) => {
         source: 'account_gate', slug, hwid: hwid ? hwid.substring(0, 64) : null,
       }).catch(() => {});
       logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned', ip_auto_banned: true }, 'high', true);
-      return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      return new Response(generateKickPlain('Permanently banned from ULT LUA - this device, account and network are blocked'), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
 
