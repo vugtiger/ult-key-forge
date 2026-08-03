@@ -141,6 +141,163 @@ function autoBanNewIp(ip: string, reason: string, robloxId: string | null, disco
   }, 'high', true);
 }
 
+// ===== v17: UNIFIED PERMANENT BAN ENGINE =====
+// One entry point for every auto-ban path. Bans EVERY identifier tied to the
+// offender (ip, roblox id, discord id, device/hwid) permanently, expands to
+// every linked identity we have ever seen, and stores full evidence.
+type BanIdentity = {
+  ip?: string | null;
+  robloxId?: string | null;
+  discordId?: string | null;
+  hwid?: string | null;
+};
+
+const bannedIdentifiersThisSession = new Set<string>();
+
+function isValidRobloxId(id: string | null | undefined): id is string {
+  return !!id && /^\d+$/.test(id) && parseInt(id) > 1000;
+}
+
+async function writeBan(
+  banType: 'ip' | 'roblox_id' | 'discord_id' | 'hwid',
+  value: string,
+  reason: string,
+  metadata: Record<string, unknown>,
+) {
+  const cacheKey = `${banType}:${value}`;
+  if (bannedIdentifiersThisSession.has(cacheKey)) return false;
+  bannedIdentifiersThisSession.add(cacheKey);
+
+  // Update in-memory cache instantly so the very next request is blocked
+  if (banType === 'ip') globalBanCache.ips.add(value);
+  else if (banType === 'roblox_id') globalBanCache.robloxIds.add(value);
+  else if (banType === 'discord_id') globalBanCache.discordIds.add(value);
+  else if (banType === 'hwid') globalBanCache.hwids.add(value);
+
+  try {
+    await supabase.from('global_bans').upsert({
+      ban_type: banType,
+      ban_value: value,
+      reason,
+      is_active: true,
+      metadata,
+    }, { onConflict: 'ban_type,ban_value' });
+    return true;
+  } catch (e) {
+    console.error(`[BAN-ENGINE] failed to persist ${cacheKey}:`, e);
+    return false;
+  }
+}
+
+/**
+ * Permanently ban an offender across every identifier we can link to them.
+ * ruleId  — stable machine-readable rule name (e.g. "exfil_webhook")
+ * evidence — raw signal payload preserved for review (never trimmed away)
+ */
+async function banIdentity(
+  identity: BanIdentity,
+  ruleId: string,
+  evidence: Record<string, unknown>,
+): Promise<{ banned: string[] }> {
+  const banned: string[] = [];
+  const seedIp = identity.ip && identity.ip !== 'unknown' ? identity.ip : null;
+  const seedRoblox = isValidRobloxId(identity.robloxId) ? identity.robloxId : null;
+  const seedDiscord = identity.discordId || null;
+  const seedHwid = identity.hwid && identity.hwid.length >= 4 ? identity.hwid : null;
+
+  const reason = `Permanent ban [${ruleId}]`;
+  const baseMeta = {
+    rule_id: ruleId,
+    permanent: true,
+    banned_at: new Date().toISOString(),
+    seed: { ip: seedIp, roblox_id: seedRoblox, discord_id: seedDiscord, hwid: seedHwid },
+    evidence,
+  };
+
+  const ips = new Set<string>();
+  const robloxIds = new Set<string>();
+  const discordIds = new Set<string>();
+  const hwids = new Set<string>();
+  if (seedIp && !isAdminIp(seedIp)) ips.add(seedIp);
+  if (seedRoblox) robloxIds.add(seedRoblox);
+  if (seedDiscord) discordIds.add(seedDiscord);
+  if (seedHwid) hwids.add(seedHwid);
+
+  // ---- Identity expansion: everything this offender has ever been seen as ----
+  try {
+    const orFilters: string[] = [];
+    if (seedRoblox) orFilters.push(`roblox_user_id.eq.${seedRoblox}`);
+    if (seedDiscord) orFilters.push(`discord_user_id.eq.${seedDiscord}`);
+    if (seedIp) orFilters.push(`ip_address.eq.${seedIp}`);
+    if (orFilters.length) {
+      const { data: linked } = await supabase
+        .from('paste_access_logs')
+        .select('ip_address, roblox_user_id, discord_user_id')
+        .or(orFilters.join(','))
+        .limit(500);
+      for (const row of linked || []) {
+        if (row.ip_address && !isAdminIp(row.ip_address)) ips.add(row.ip_address);
+        if (isValidRobloxId(row.roblox_user_id)) robloxIds.add(row.roblox_user_id);
+        if (row.discord_user_id) discordIds.add(row.discord_user_id);
+      }
+    }
+
+    // Device linkage — the machine and every account that ever used it
+    const hwidFilters: string[] = [];
+    if (seedHwid) hwidFilters.push(`hwid.eq.${seedHwid}`);
+    for (const rid of robloxIds) hwidFilters.push(`roblox_user_id.eq.${rid}`);
+    if (hwidFilters.length) {
+      const { data: locks } = await supabase
+        .from('paste_hwid_locks')
+        .select('hwid, roblox_user_id')
+        .or(hwidFilters.slice(0, 40).join(','))
+        .limit(500);
+      for (const row of locks || []) {
+        if (row.hwid && row.hwid.length >= 4) hwids.add(row.hwid);
+        if (isValidRobloxId(row.roblox_user_id)) robloxIds.add(row.roblox_user_id);
+      }
+    }
+  } catch (e) {
+    console.error('[BAN-ENGINE] identity expansion failed (banning seeds only):', e);
+  }
+
+  // ---- Apply the bans ----
+  for (const ip of ips) {
+    if (isAdminIp(ip)) continue;
+    if (await writeBan('ip', ip, reason, { ...baseMeta, linked_via: ip === seedIp ? 'seed' : 'identity_graph' })) {
+      autoBannedIpsThisSession.add(ip);
+      banned.push(`ip:${ip}`);
+    }
+  }
+  for (const rid of robloxIds) {
+    if (await writeBan('roblox_id', rid, reason, { ...baseMeta, linked_via: rid === seedRoblox ? 'seed' : 'identity_graph' })) {
+      banned.push(`roblox_id:${rid}`);
+    }
+  }
+  for (const did of discordIds) {
+    if (await writeBan('discord_id', did, reason, { ...baseMeta, linked_via: did === seedDiscord ? 'seed' : 'identity_graph' })) {
+      banned.push(`discord_id:${did}`);
+    }
+  }
+  for (const h of hwids) {
+    if (await writeBan('hwid', h, reason, { ...baseMeta, linked_via: h === seedHwid ? 'seed' : 'identity_graph' })) {
+      banned.push(`hwid:${h}`);
+    }
+  }
+
+  logThreat(`ban_engine_${ruleId}`, seedIp, seedRoblox, seedDiscord, {
+    rule_id: ruleId,
+    evidence,
+    identifiers_banned: banned,
+    counts: { ips: ips.size, roblox: robloxIds.size, discord: discordIds.size, hwids: hwids.size },
+  }, 'critical', true);
+
+  console.log(`[BAN-ENGINE] ${ruleId} -> ${banned.length} identifiers banned`);
+  return { banned };
+}
+
+
+
 // Enhanced rate limiting with IP tracking (persists within isolate lifetime)
 const rateLimits = new Map<string, { count: number; resetTime: number; blocked: boolean }>();
 const suspiciousIps = new Map<string, { strikes: number; lastStrike: number }>();
@@ -950,10 +1107,20 @@ local _reportBypass = function(reason, details)
     local p = game:GetService("Players").LocalPlayer
     if p then uid = tostring(p.UserId) end
   end)
+  local rhwid = ""
   pcall(function()
-    local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
+    if gethwid then rhwid = tostring(gethwid()) end
+  end)
+  if rhwid == "" then
+    pcall(function()
+      rhwid = tostring(game:GetService("RbxAnalyticsService"):GetClientId())
+    end)
+  end
+  pcall(function()
+    local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&hwid=" .. rhwid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
     game:HttpGet(reportUrl)
   end)
+
   -- REMOVED: ${v.dumpPoison} = true
   -- dumpPoison was corrupting code for ALL bypass reports including false positives
   -- (fetch_intent, deep_stack, cclosure_tamper etc fire on normal executors)
@@ -3674,94 +3841,43 @@ Deno.serve(async (req) => {
       
       if (reportAction === 'bypass') {
       const reportUid = url.searchParams.get('uid') || '';
+      const reportHwid = url.searchParams.get('hwid') || '';
+      const reportDiscord = url.searchParams.get('did') || '';
       const reportReason = url.searchParams.get('reason') || 'bypass_attempt';
       const reportDetails = url.searchParams.get('details') || '';
       const shouldAutoBan = shouldAutoBanBypassReason(reportReason, reportDetails);
-      
+
       console.log(`[get-paste] BYPASS REPORT: uid=${reportUid} ip=${earlyIp} reason=${reportReason} details=${reportDetails}`);
-      
-      // Instantly globally ban only for high-confidence bypass reports
-      if (shouldAutoBan && reportUid && /^\d+$/.test(reportUid) && parseInt(reportUid) > 1000) {
-        const banReason = `Auto-banned: bypass attempt detected (${reportReason}: ${reportDetails})`;
-        
-        // Ban Roblox ID
-        await supabase.from('global_bans').upsert({
-          ban_type: 'roblox_id', ban_value: reportUid,
-          reason: banReason, is_active: true,
-        }, { onConflict: 'ban_type,ban_value' }).then(() => {}, () => {});
-        globalBanCache.robloxIds.add(reportUid);
-        
-        // Ban IP
-        autoBanNewIp(earlyIp, `bypass_${reportReason}`, reportUid, null);
-        
-        // Find ALL IPs this Roblox user has ever used and ban those too
-        const { data: allLogs } = await supabase.from('paste_access_logs')
-          .select('ip_address')
-          .eq('roblox_user_id', reportUid);
-        if (allLogs) {
-          for (const log of allLogs) {
-            if (log.ip_address && log.ip_address !== earlyIp) {
-              autoBanNewIp(log.ip_address, `bypass_associated_ip`, reportUid, null);
-            }
-          }
-        }
-        
-        // Find any Discord IDs associated with this Roblox user and ban those
-        const { data: discordLogs } = await supabase.from('paste_access_logs')
-          .select('discord_user_id')
-          .eq('roblox_user_id', reportUid)
-          .not('discord_user_id', 'is', null);
-        if (discordLogs) {
-          for (const log of discordLogs) {
-            if (log.discord_user_id) {
-              await supabase.from('global_bans').upsert({
-                ban_type: 'discord_id', ban_value: log.discord_user_id,
-                reason: banReason, is_active: true,
-              }, { onConflict: 'ban_type,ban_value' }).then(() => {}, () => {});
-              globalBanCache.discordIds.add(log.discord_user_id);
-            }
-          }
-        }
-        
-        // Find other Roblox accounts that share any of this user's IPs (alt detection)
-        const userIps = allLogs?.map(l => l.ip_address).filter(Boolean) || [];
-        userIps.push(earlyIp);
-        const uniqueIps = [...new Set(userIps)];
-        if (uniqueIps.length > 0) {
-          const { data: altLogs } = await supabase.from('paste_access_logs')
-            .select('roblox_user_id')
-            .in('ip_address', uniqueIps.slice(0, 50))
-            .not('roblox_user_id', 'is', null);
-          if (altLogs) {
-            const altIds = [...new Set(altLogs.map(l => l.roblox_user_id).filter(id => id && id !== reportUid))];
-            for (const altId of altIds) {
-              if (altId && parseInt(altId) > 1000) {
-                await supabase.from('global_bans').upsert({
-                  ban_type: 'roblox_id', ban_value: altId,
-                  reason: `Auto-banned: alt of bypass attacker ${reportUid}`, is_active: true,
-                }, { onConflict: 'ban_type,ban_value' }).then(() => {}, () => {});
-                globalBanCache.robloxIds.add(altId);
-              }
-            }
-          }
-        }
-        
-        // Log as high severity threat
-        logThreat('bypass_attempt_auto_ban', earlyIp, reportUid, null, {
+
+      // v17: high-confidence exfiltration evidence -> unified permanent ban across
+      // every linked identifier (ip, roblox, discord, device), with evidence stored.
+      if (shouldAutoBan && (isValidRobloxId(reportUid) || reportHwid.length >= 4)) {
+        const { banned } = await banIdentity(
+          { ip: earlyIp, robloxId: reportUid || null, discordId: reportDiscord || null, hwid: reportHwid || null },
+          reportReason,
+          {
+            source: 'loader_bypass_report',
+            reason: reportReason,
+            details: reportDetails,
+            user_agent: reportUa.substring(0, 300),
+            reported_at: new Date().toISOString(),
+          },
+        );
+        logThreat('bypass_attempt_auto_ban', earlyIp, reportUid || null, reportDiscord || null, {
           reason: reportReason, details: reportDetails,
-          action: 'instant_global_ban', ips_banned: uniqueIps.length,
+          action: 'permanent_multi_identifier_ban', identifiers_banned: banned.length,
         }, 'critical', true);
-        
-        // Force refresh bans cache
         globalBanCache.lastRefresh = 0;
       } else {
-        logThreat('bypass_report_logged_only', earlyIp, reportUid || null, null, {
+        logThreat('bypass_report_logged_only', earlyIp, reportUid || null, reportDiscord || null, {
           reason: reportReason,
           details: reportDetails,
-          action: shouldAutoBan ? 'missing_uid_logged_only' : 'soft_signal_logged_only',
+          hwid: reportHwid ? reportHwid.substring(0, 32) : null,
+          action: shouldAutoBan ? 'missing_identifiers_logged_only' : 'soft_signal_logged_only',
           user_agent: reportUa.substring(0, 200),
         }, shouldAutoBan ? 'high' : 'medium', false);
       }
+
       
       // Return empty - don't print warnings in legitimate executor consoles
       return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
@@ -3806,32 +3922,27 @@ Deno.serve(async (req) => {
     // v11: HWID protection
     const hwid = url.searchParams.get('hwid');
 
-    // v16: DEVICE BAN — a blocked HWID is denied no matter which account or IP it uses
+    // v17: DEVICE BAN — a blocked HWID is denied no matter which account or IP it uses.
+    // Evasion attempt itself is evidence: permanently ban every linked identifier.
     if (isHwidBanned(hwid)) {
-      autoBanNewIp(earlyIp, 'banned_device_new_ip', uid || null, null);
-      if (uid) {
-        supabase.from('global_bans').upsert({
-          ban_type: 'roblox_id', ban_value: uid,
-          reason: `Auto-banned: alt account on blocked device (${(hwid || '').substring(0, 16)})`,
-          is_active: true,
-        }, { onConflict: 'ban_type,ban_value' }).then(() => {}, () => {});
-        globalBanCache.robloxIds.add(uid);
-      }
+      banIdentity({ ip: earlyIp, robloxId: uid, hwid }, 'banned_device_evasion', {
+        source: 'device_gate', slug, hwid: (hwid || '').substring(0, 64),
+      }).catch(() => {});
       logThreat('banned_device_access', earlyIp, uid || null, null, {
         slug, hwid: (hwid || '').substring(0, 32), action: 'hwid_banned', ip_auto_banned: true,
       }, 'high', true);
       return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
-
-
-    // Check if this Roblox user ID is globally banned — auto-ban the IP too
+    // v17: banned Roblox account — ban the IP and device it came back on
     if (uid && isRobloxIdBanned(uid)) {
-      // Auto-ban this new IP so even VPN hopping gets caught
-      autoBanNewIp(earlyIp, 'banned_roblox_user_new_ip', uid, null);
+      banIdentity({ ip: earlyIp, robloxId: uid, hwid }, 'banned_account_evasion', {
+        source: 'account_gate', slug, hwid: hwid ? hwid.substring(0, 64) : null,
+      }).catch(() => {});
       logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned', ip_auto_banned: true }, 'high', true);
       return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
+
 
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                      req.headers.get('cf-connecting-ip') || 
