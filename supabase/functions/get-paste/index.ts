@@ -3806,6 +3806,25 @@ Deno.serve(async (req) => {
     // v11: HWID protection
     const hwid = url.searchParams.get('hwid');
 
+    // v16: DEVICE BAN — a blocked HWID is denied no matter which account or IP it uses
+    if (isHwidBanned(hwid)) {
+      autoBanNewIp(earlyIp, 'banned_device_new_ip', uid || null, null);
+      if (uid) {
+        supabase.from('global_bans').upsert({
+          ban_type: 'roblox_id', ban_value: uid,
+          reason: `Auto-banned: alt account on blocked device (${(hwid || '').substring(0, 16)})`,
+          is_active: true,
+        }, { onConflict: 'ban_type,ban_value' }).then(() => {}, () => {});
+        globalBanCache.robloxIds.add(uid);
+      }
+      logThreat('banned_device_access', earlyIp, uid || null, null, {
+        slug, hwid: (hwid || '').substring(0, 32), action: 'hwid_banned', ip_auto_banned: true,
+      }, 'high', true);
+      return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+    }
+
+
+
     // Check if this Roblox user ID is globally banned — auto-ban the IP too
     if (uid && isRobloxIdBanned(uid)) {
       // Auto-ban this new IP so even VPN hopping gets caught
