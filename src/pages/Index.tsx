@@ -117,6 +117,10 @@ const Index = () => {
                   <span className="hidden sm:inline">Discord</span>
                 </Button>
               </a>
+              <Button onClick={() => navigate("/compare")} variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
+                <Globe size={14} />
+                <span className="hidden sm:inline">Compare</span>
+              </Button>
               <Button onClick={() => navigate("/status")} variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
                 <Activity size={14} />
                 <span className="hidden sm:inline">Status</span>
