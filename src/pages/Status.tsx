@@ -33,12 +33,13 @@ const Status = () => {
     // Website check
     results[0] = { ...results[0], status: "operational", latency: 0 };
 
-    // API check - use a lightweight public endpoint
+    // API check - never hit the loader endpoint from a browser (it is a
+    // protected entry point); ping a safe function instead.
     try {
       const start = Date.now();
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-paste?slug=_api_health`);
+      const { error } = await supabase.functions.invoke('discord-bot', { body: { action: 'ping' } });
       const latency = Date.now() - start;
-      results[1] = { ...results[1], status: resp.ok || resp.status === 200 ? "operational" : "degraded", latency };
+      results[1] = { ...results[1], status: error ? "degraded" : "operational", latency };
     } catch {
       results[1] = { ...results[1], status: "down" };
     }
@@ -63,12 +64,12 @@ const Status = () => {
       results[3] = { ...results[3], status: "degraded" };
     }
 
-    // Paste system check
+    // Paste system check - read-only database probe, no loader request
     try {
       const start = Date.now();
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-paste?slug=_health_check`);
+      const { error } = await supabase.from('pastes').select('id').limit(1);
       const latency = Date.now() - start;
-      results[4] = { ...results[4], status: resp.status === 404 || resp.ok ? "operational" : "degraded", latency };
+      results[4] = { ...results[4], status: error ? "degraded" : "operational", latency };
     } catch {
       results[4] = { ...results[4], status: "down" };
     }
