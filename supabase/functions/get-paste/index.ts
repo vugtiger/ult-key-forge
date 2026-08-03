@@ -4235,12 +4235,19 @@ Deno.serve(async (req) => {
         if (robloxUserId && enrichWithProfile) {
           robloxProfile = await fetchRobloxProfile(robloxUserId);
         }
-        let q = supabase.from('paste_access_logs').select('id').eq('paste_id', paste.id).eq('ip_address', clientIp).eq('access_type', accessType);
+        // Dedupe: when the visitor is Discord-identified, key the row on the Discord
+        // account instead of the IP. Discord's OAuth round trip can surface several
+        // edge IPs for one human, which previously produced 2-3 rows per visit.
+        let q = supabase.from('paste_access_logs').select('id').eq('paste_id', paste.id).eq('access_type', accessType);
+        q = discordData.discord_user_id
+          ? q.eq('discord_user_id', discordData.discord_user_id)
+          : q.eq('ip_address', clientIp);
         q = robloxUserId ? q.eq('roblox_user_id', robloxUserId) : q.is('roblox_user_id', null);
-        const { data: existingLog } = await q.maybeSingle();
+        const { data: existingLogs } = await q.order('last_seen_at', { ascending: false }).limit(1);
+        const existingLog = existingLogs?.[0] ?? null;
         const nowIso = new Date().toISOString();
         const updateData: Record<string, unknown> = {
-          last_seen_at: nowIso, is_active: true, user_agent: userAgent, ...discordData,
+          last_seen_at: nowIso, is_active: true, user_agent: userAgent, ip_address: clientIp, ...discordData,
         };
         if (robloxProfile) {
           updateData.roblox_username = robloxProfile.username;
@@ -4386,7 +4393,9 @@ Deno.serve(async (req) => {
       
       // For protected pastes, generate a bypass token and redirect
       // This keeps key system completely separate from the protection flow
-      if (paste.protection_enabled || paste.public_protection) {
+      // protection_key pastes must ALSO pass the _G.ScriptKey gate, so route them
+      // through the bypass-token redirect instead of serving the payload directly.
+      if (paste.protection_enabled || paste.public_protection || paste.protection_mode === 'protection_key') {
         const bypassToken = generateToken();
         await supabase.from('paste_execution_tokens').insert({
           paste_id: paste.id, roblox_user_id: uid, token: bypassToken,
