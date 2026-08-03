@@ -56,7 +56,7 @@ const ScriptSettings = () => {
               className="flex items-center gap-1.5 text-xs rounded-lg transition-all duration-200 data-[state=active]:bg-gradient-to-b data-[state=active]:from-primary/25 data-[state=active]:to-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-[inset_0_1px_0_0_hsl(var(--foreground)/0.18),0_2px_6px_-1px_hsl(0_0%_0%/0.5),0_1px_0_0_hsl(0_0%_0%/0.3)] data-[state=active]:-translate-y-px data-[state=inactive]:hover:bg-foreground/5"
             >
               <Eye className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Access Access Monitor Supabase</span>
+              <span className="hidden sm:inline">Access Monitor Supabase</span>
               <span className="sm:hidden">Mon</span>
             </TabsTrigger>
             <TabsTrigger
