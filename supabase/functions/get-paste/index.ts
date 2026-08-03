@@ -2900,19 +2900,25 @@ end
 `;
 }
 
-// ===== KEY SYSTEM GUI GENERATOR v5 =====
-// Matches the landing page preview: same purple theme, two-panel layout, console feedback, progress flow, and instant unload on success.
+// ===== KEY SYSTEM GUI GENERATOR v6 (Rectangle + Post-Key Verification) =====
+// Redesigned to a wide rectangle window with a dedicated post-key verification
+// screen that appears after the key is accepted. The verification screen shows
+// a checkmark, verified-credentials list, and a streaming payload bar before
+// the script is executed and the UI unloaded.
 function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, themeColor: string, decalId?: string): string {
   const normalizedTheme = (themeColor || '').trim();
+  // Mint primary by default (matches website theme 140 55% 65% -> ~#7ED4A1)
   const resolvedTheme = !normalizedTheme || normalizedTheme === '255, 255, 255'
-    ? '188, 134, 255'
+    ? '126, 212, 161'
     : normalizedTheme;
-  const colorParts = resolvedTheme.split(',').map(s => s.trim());
-  const r = colorParts[0] || '180';
-  const g = colorParts[1] || '120';
-  const b = colorParts[2] || '255';
+  const parts = resolvedTheme.split(',').map(s => s.trim());
+  const r = parts[0] || '126';
+  const g = parts[1] || '212';
+  const b = parts[2] || '161';
+  // Peach accent (matches website theme 24 95% 78% -> ~#FBB989)
+  const ar = '251', ag = '185', ab = '137';
 
-  return `-- ULT Key System v5 (Landing Match)
+  return `-- ULT Key System v6 (Rectangle + Post-Key Verification)
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -2931,6 +2937,7 @@ gui.Name = "ULTKeySystem"
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 999999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.IgnoreGuiInset = true
 gui.Parent = pgui
 
 -- Blur
@@ -2938,22 +2945,29 @@ local blur = Instance.new("BlurEffect")
 blur.Name = "ULTBlur"
 blur.Size = 0
 blur.Parent = Lighting
-TweenService:Create(blur, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {Size = 20}):Play()
+TweenService:Create(blur, TweenInfo.new(0.35, Enum.EasingStyle.Quad), {Size = 18}):Play()
 
-local themeCol = Color3.fromRGB(${r}, ${g}, ${b})
-local dimTheme = Color3.fromRGB(math.floor(${r}*0.34), math.floor(${g}*0.34), math.floor(${b}*0.34))
-local bgColor = Color3.fromRGB(16, 14, 22)
-local panelBg = Color3.fromRGB(22, 19, 30)
-local borderCol = Color3.fromRGB(64, 49, 92)
-local mutedText = Color3.fromRGB(133, 126, 150)
-local fgColor = Color3.fromRGB(244, 240, 250)
-local cardBg = Color3.fromRGB(24, 21, 35)
-local softBg = Color3.fromRGB(19, 16, 27)
-local successCol = Color3.fromRGB(86, 255, 120)
-local dangerCol = Color3.fromRGB(255, 96, 96)
-local warningCol = Color3.fromRGB(255, 168, 92)
+-- Dim overlay
+local dim = Instance.new("Frame", gui)
+dim.Size = UDim2.new(1, 0, 1, 0)
+dim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+dim.BackgroundTransparency = 1
+dim.BorderSizePixel = 0
+dim.ZIndex = 1
+TweenService:Create(dim, TweenInfo.new(0.3), {BackgroundTransparency = 0.45}):Play()
 
--- Helper: rounded frame
+local themeCol   = Color3.fromRGB(${r}, ${g}, ${b})
+local accentCol  = Color3.fromRGB(${ar}, ${ag}, ${ab})
+local bgColor    = Color3.fromRGB(18, 20, 26)
+local panelBg    = Color3.fromRGB(24, 27, 34)
+local softBg     = Color3.fromRGB(30, 33, 41)
+local borderCol  = Color3.fromRGB(55, 60, 72)
+local mutedText  = Color3.fromRGB(150, 156, 170)
+local fgColor    = Color3.fromRGB(240, 244, 252)
+local successCol = Color3.fromRGB(126, 212, 161)
+local dangerCol  = Color3.fromRGB(255, 106, 106)
+local warningCol = Color3.fromRGB(255, 176, 100)
+
 local function makePanel(parent, size, pos, bg, zIdx, radius)
     local f = Instance.new("Frame", parent)
     f.Size = size
@@ -2962,15 +2976,15 @@ local function makePanel(parent, size, pos, bg, zIdx, radius)
     f.BorderSizePixel = 0
     f.ZIndex = zIdx or 4
     local c = Instance.new("UICorner", f)
-    c.CornerRadius = UDim.new(0, radius or 18)
+    c.CornerRadius = UDim.new(0, radius or 14)
     return f
 end
 
-local function addStroke(frame, col, thick)
+local function addStroke(frame, col, thick, trans)
     local s = Instance.new("UIStroke", frame)
     s.Color = col or borderCol
     s.Thickness = thick or 1
-    s.Transparency = 0
+    s.Transparency = trans or 0
     return s
 end
 
@@ -2982,209 +2996,247 @@ local function addLabel(parent, size, pos, text, color, font, textSize, align, z
     l.Text = text
     l.TextColor3 = color
     l.Font = font or Enum.Font.Gotham
-    l.TextSize = textSize or 11
+    l.TextSize = textSize or 12
     l.TextXAlignment = align or Enum.TextXAlignment.Left
     l.ZIndex = zIdx or 5
     l.TextWrapped = true
     return l
 end
 
--- Main window (matched closer to landing preview)
-local win = Instance.new("Frame", gui)
-win.Name = "MainWindow"
-win.Size = UDim2.new(0, 720, 0, 408)
-win.Position = UDim2.new(0.5, -360, 0.5, -204)
-win.BackgroundColor3 = bgColor
-win.BorderSizePixel = 0
-win.BackgroundTransparency = 1
-win.ZIndex = 3
+-- ============ WIDE RECTANGLE WINDOW ============
+local win = makePanel(gui, UDim2.new(0, 760, 0, 340), UDim2.new(0.5, -380, 0.5, -170), bgColor, 3, 20)
 win.ClipsDescendants = true
+addStroke(win, borderCol, 1, 0.15)
+win.Size = UDim2.new(0, 760, 0, 340)
+-- Entrance animation
+win.BackgroundTransparency = 1
+local scaleHolder = Instance.new("UIScale", win); scaleHolder.Scale = 0.94
+TweenService:Create(win, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
+TweenService:Create(scaleHolder, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
 
-local winCorner = Instance.new("UICorner", win)
-winCorner.CornerRadius = UDim.new(0, 28)
-addStroke(win, borderCol, 1).Transparency = 0.22
+-- Top bar (dots + brand)
+local topBar = makePanel(win, UDim2.new(1, 0, 0, 44), UDim2.new(0, 0, 0, 0), bgColor, 4, 20)
+topBar.Active = true
 
--- Title bar
-local titleBar = Instance.new("Frame", win)
-titleBar.Size = UDim2.new(1, 0, 0, 44)
-titleBar.Position = UDim2.new(0, 0, 0, 0)
-titleBar.BackgroundColor3 = bgColor
-titleBar.BorderSizePixel = 0
-titleBar.ZIndex = 4
-titleBar.Active = true
-titleBar.ClipsDescendants = true
-local titleBarCorner = Instance.new("UICorner", titleBar)
-titleBarCorner.CornerRadius = UDim.new(0, 28)
-local titleBarFill = Instance.new("Frame", titleBar)
-titleBarFill.Size = UDim2.new(1, 0, 0, 18)
-titleBarFill.Position = UDim2.new(0, 0, 1, -18)
-titleBarFill.BackgroundColor3 = bgColor
-titleBarFill.BorderSizePixel = 0
-titleBarFill.ZIndex = 4
-
--- Dots
-local function makeDot(parent, pos, col, action)
-    local dot = Instance.new("TextButton", parent)
-    dot.Size = UDim2.new(0, 10, 0, 10)
-    dot.Position = pos
-    dot.BackgroundColor3 = col
-    dot.BorderSizePixel = 0
-    dot.Text = ""
-    dot.AutoButtonColor = false
-    dot.ZIndex = 6
-    Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
-    if action then dot.MouseButton1Click:Connect(action) end
-    return dot
+local function dot(parent, x, col)
+    local d = Instance.new("Frame", parent)
+    d.Size = UDim2.new(0, 10, 0, 10)
+    d.Position = UDim2.new(0, x, 0.5, -5)
+    d.BackgroundColor3 = col
+    d.BorderSizePixel = 0
+    d.ZIndex = 6
+    Instance.new("UICorner", d).CornerRadius = UDim.new(1, 0)
+    return d
 end
+dot(topBar, 18, Color3.fromRGB(255, 106, 106))
+dot(topBar, 36, Color3.fromRGB(255, 190, 90))
+dot(topBar, 54, successCol)
 
-local dot1 = makeDot(titleBar, UDim2.new(0, 18, 0.5, -5), Color3.fromRGB(245, 245, 248), nil)
-local dot2 = makeDot(titleBar, UDim2.new(0, 38, 0.5, -5), Color3.fromRGB(86, 76, 112), nil)
-local dot3 = makeDot(titleBar, UDim2.new(0, 58, 0.5, -5), Color3.fromRGB(54, 46, 75), nil)
+addLabel(topBar, UDim2.new(0, 220, 1, 0), UDim2.new(0, 78, 0, 0),
+    "ULT LOADER  //  ${panelName}", fgColor, Enum.Font.GothamBold, 12, Enum.TextXAlignment.Left, 6)
 
-addLabel(titleBar, UDim2.new(0, 200, 1, 0), UDim2.new(1, -214, 0, 0),
-    "Ult Loader v6.1", mutedText, Enum.Font.GothamMedium, 9, Enum.TextXAlignment.Right, 5)
+addLabel(topBar, UDim2.new(0, 200, 1, 0), UDim2.new(1, -214, 0, 0),
+    "v6.1  secure route", mutedText, Enum.Font.GothamMedium, 10, Enum.TextXAlignment.Right, 6)
 
--- Content area (two columns)
-local contentArea = Instance.new("Frame", win)
-contentArea.Size = UDim2.new(1, -24, 1, -56)
-contentArea.Position = UDim2.new(0, 12, 0, 44)
-contentArea.BackgroundTransparency = 1
-contentArea.ZIndex = 4
+-- Divider
+local div = Instance.new("Frame", win)
+div.Size = UDim2.new(1, -32, 0, 1)
+div.Position = UDim2.new(0, 16, 0, 44)
+div.BackgroundColor3 = borderCol
+div.BackgroundTransparency = 0.4
+div.BorderSizePixel = 0
+div.ZIndex = 4
 
--- ===== LEFT PANEL =====
-local leftPanel = makePanel(contentArea, UDim2.new(0.58, -6, 1, 0), UDim2.new(0, 0, 0, 0), panelBg, 4, 24)
-addStroke(leftPanel, borderCol)
+-- ============ SCREEN 1: KEY ENTRY ============
+local entry = Instance.new("Frame", win)
+entry.Size = UDim2.new(1, -32, 1, -60)
+entry.Position = UDim2.new(0, 16, 0, 52)
+entry.BackgroundTransparency = 1
+entry.ZIndex = 4
 
--- "INSTANT DELIVERY" label
-addLabel(leftPanel, UDim2.new(1, -20, 0, 14), UDim2.new(0, 12, 0, 12),
-    "INSTANT DELIVERY", themeCol, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Left, 5)
+-- Heading
+addLabel(entry, UDim2.new(1, 0, 0, 18), UDim2.new(0, 0, 0, 4),
+    "ENTER ACCESS KEY", accentCol, Enum.Font.GothamBold, 10, Enum.TextXAlignment.Left, 5)
+addLabel(entry, UDim2.new(1, 0, 0, 26), UDim2.new(0, 0, 0, 22),
+    "Paste your key below to unlock this script.", fgColor, Enum.Font.GothamBold, 18, Enum.TextXAlignment.Left, 5)
 
--- "ULT CLOUD" title
-addLabel(leftPanel, UDim2.new(0, 180, 0, 28), UDim2.new(0, 12, 0, 28),
-    "ULT CLOUD", fgColor, Enum.Font.GothamBlack, 20, Enum.TextXAlignment.Left, 5)
-
--- Status badge
-local statusBadge = makePanel(leftPanel, UDim2.new(0, 80, 0, 28), UDim2.new(1, -96, 0, 28), dimTheme, 5, 14)
-addStroke(statusBadge, themeCol).Transparency = 0.6
-local statusBadgeText = addLabel(statusBadge, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0),
-    "Ready", fgColor, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Center, 6)
-
--- Key input area
-local inputFrame = makePanel(leftPanel, UDim2.new(1, -24, 0, 50), UDim2.new(0, 12, 0, 72), Color3.fromRGB(79, 75, 90), 5, 18)
-addStroke(inputFrame, borderCol).Transparency = 0.4
-
-local inputPrefix = addLabel(inputFrame, UDim2.new(0, 120, 1, 0), UDim2.new(0, 10, 0, 0),
-    "Enter your key >", mutedText, Enum.Font.RobotoMono, 12, Enum.TextXAlignment.Left, 6)
+-- Key input rectangle
+local inputFrame = makePanel(entry, UDim2.new(1, 0, 0, 58), UDim2.new(0, 0, 0, 60), softBg, 5, 14)
+local inputStroke = addStroke(inputFrame, borderCol, 1, 0.2)
+addLabel(inputFrame, UDim2.new(0, 140, 1, 0), UDim2.new(0, 14, 0, 0),
+    "KEY >", mutedText, Enum.Font.RobotoMono, 13, Enum.TextXAlignment.Left, 6)
 
 local input = Instance.new("TextBox", inputFrame)
-input.Size = UDim2.new(1, -140, 1, 0)
-input.Position = UDim2.new(0, 132, 0, 0)
+input.Size = UDim2.new(1, -170, 1, 0)
+input.Position = UDim2.new(0, 60, 0, 0)
 input.BackgroundTransparency = 1
 input.Text = ""
 input.PlaceholderText = "XXXXX-XXXXX-XXXXX"
-input.PlaceholderColor3 = Color3.fromRGB(60, 55, 70)
+input.PlaceholderColor3 = Color3.fromRGB(80, 86, 100)
 input.TextColor3 = fgColor
 input.Font = Enum.Font.RobotoMono
-input.TextSize = 13
+input.TextSize = 15
 input.TextXAlignment = Enum.TextXAlignment.Left
 input.ClearTextOnFocus = false
 input.ZIndex = 6
 
--- Verification progress area
-local progressLabel = addLabel(leftPanel, UDim2.new(0.7, 0, 0, 12), UDim2.new(0, 12, 0, 136),
-    "Animated verification progress", mutedText, Enum.Font.GothamBold, 8, Enum.TextXAlignment.Left, 5)
+-- Submit button (rectangle, right side)
+local submit = Instance.new("TextButton", inputFrame)
+submit.Size = UDim2.new(0, 96, 0, 38)
+submit.Position = UDim2.new(1, -106, 0.5, -19)
+submit.BackgroundColor3 = themeCol
+submit.BorderSizePixel = 0
+submit.Text = "VERIFY"
+submit.Font = Enum.Font.GothamBold
+submit.TextSize = 12
+submit.TextColor3 = Color3.fromRGB(18, 20, 26)
+submit.AutoButtonColor = false
+submit.ZIndex = 7
+Instance.new("UICorner", submit).CornerRadius = UDim.new(0, 10)
 
-local progressPct = addLabel(leftPanel, UDim2.new(0, 40, 0, 12), UDim2.new(1, -52, 0, 136),
-    "0%", mutedText, Enum.Font.GothamBold, 8, Enum.TextXAlignment.Right, 5)
+-- Status row
+local statusRow = Instance.new("Frame", entry)
+statusRow.Size = UDim2.new(1, 0, 0, 20)
+statusRow.Position = UDim2.new(0, 0, 0, 128)
+statusRow.BackgroundTransparency = 1
+statusRow.ZIndex = 5
 
--- Progress bar background
-local progressBg = makePanel(leftPanel, UDim2.new(1, -24, 0, 10), UDim2.new(0, 12, 0, 154), Color3.fromRGB(39, 34, 52), 5, 999)
-local progressFill = Instance.new("Frame", progressBg)
-progressFill.Size = UDim2.new(0, 0, 1, 0)
-progressFill.BackgroundColor3 = themeCol
-progressFill.BorderSizePixel = 0
-progressFill.ZIndex = 6
-Instance.new("UICorner", progressFill).CornerRadius = UDim.new(0, 999)
+local statusDot = Instance.new("Frame", statusRow)
+statusDot.Size = UDim2.new(0, 8, 0, 8)
+statusDot.Position = UDim2.new(0, 0, 0.5, -4)
+statusDot.BackgroundColor3 = themeCol
+statusDot.BorderSizePixel = 0
+statusDot.ZIndex = 6
+Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
 
-local progressGradient = Instance.new("UIGradient", progressFill)
-progressGradient.Color = ColorSequence.new({
+local statusText = addLabel(statusRow, UDim2.new(1, -16, 1, 0), UDim2.new(0, 14, 0, 0),
+    "Awaiting key input", mutedText, Enum.Font.GothamMedium, 11, Enum.TextXAlignment.Left, 6)
+
+-- Info tiles at bottom
+local tiles = Instance.new("Frame", entry)
+tiles.Size = UDim2.new(1, 0, 0, 76)
+tiles.Position = UDim2.new(0, 0, 1, -76)
+tiles.BackgroundTransparency = 1
+tiles.ZIndex = 4
+
+local function tile(x, label, val, col)
+    local t = makePanel(tiles, UDim2.new(0, 224, 1, 0), UDim2.new(0, x, 0, 0), softBg, 5, 12)
+    addStroke(t, borderCol, 1, 0.35)
+    addLabel(t, UDim2.new(1, -20, 0, 12), UDim2.new(0, 12, 0, 12),
+        label, mutedText, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Left, 6)
+    addLabel(t, UDim2.new(1, -20, 0, 18), UDim2.new(0, 12, 0, 30),
+        val, col or fgColor, Enum.Font.GothamBold, 15, Enum.TextXAlignment.Left, 6)
+    return t
+end
+tile(0,   "RESPONSE",  "0.2s",       themeCol)
+tile(238, "PAYLOAD",   "Encrypted",  accentCol)
+tile(476, "ROUTE",     "Secure",     successCol)
+
+-- ============ SCREEN 2: POST-KEY VERIFICATION ============
+local verify = Instance.new("Frame", win)
+verify.Size = UDim2.new(1, -32, 1, -60)
+verify.Position = UDim2.new(0, 16, 0, 52)
+verify.BackgroundTransparency = 1
+verify.Visible = false
+verify.ZIndex = 4
+
+-- Centered rectangle inside the window
+local card = makePanel(verify, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), panelBg, 5, 16)
+addStroke(card, borderCol, 1, 0.25)
+
+-- Checkmark circle
+local check = makePanel(card, UDim2.new(0, 60, 0, 60), UDim2.new(0.5, -30, 0, 30), softBg, 6, 999)
+addStroke(check, themeCol, 2, 0)
+local checkMark = addLabel(check, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0),
+    "\u{2713}", themeCol, Enum.Font.GothamBold, 32, Enum.TextXAlignment.Center, 7)
+
+local vTitle = addLabel(card, UDim2.new(1, 0, 0, 24), UDim2.new(0, 0, 0, 100),
+    "ACCESS GRANTED", fgColor, Enum.Font.GothamBlack, 18, Enum.TextXAlignment.Center, 6)
+local vSub = addLabel(card, UDim2.new(1, 0, 0, 16), UDim2.new(0, 0, 0, 126),
+    "Streaming protected payload to your executor", mutedText, Enum.Font.GothamMedium, 11, Enum.TextXAlignment.Center, 6)
+
+-- Verified rows
+local rows = Instance.new("Frame", card)
+rows.Size = UDim2.new(0, 380, 0, 70)
+rows.Position = UDim2.new(0.5, -190, 0, 152)
+rows.BackgroundTransparency = 1
+rows.ZIndex = 6
+
+local function vRow(y, name)
+    local rc = makePanel(rows, UDim2.new(1, 0, 0, 20), UDim2.new(0, 0, 0, y), softBg, 6, 8)
+    addStroke(rc, borderCol, 1, 0.5)
+    addLabel(rc, UDim2.new(1, -30, 1, 0), UDim2.new(0, 10, 0, 0),
+        name, mutedText, Enum.Font.GothamMedium, 10, Enum.TextXAlignment.Left, 7)
+    local ok = addLabel(rc, UDim2.new(0, 20, 1, 0), UDim2.new(1, -22, 0, 0),
+        "\u{2713}", successCol, Enum.Font.GothamBold, 12, Enum.TextXAlignment.Right, 7)
+    ok.Visible = false
+    return ok
+end
+local rowKey   = vRow(0,  "key signature")
+local rowRoute = vRow(25, "secure route")
+local rowLoad  = vRow(50, "payload integrity")
+
+-- Bottom stream bar
+local streamLbl = addLabel(card, UDim2.new(1, -48, 0, 12), UDim2.new(0, 24, 1, -46),
+    "streaming...", mutedText, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Left, 6)
+local streamPct = addLabel(card, UDim2.new(0, 40, 0, 12), UDim2.new(1, -64, 1, -46),
+    "0%", mutedText, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Right, 6)
+local streamBg = makePanel(card, UDim2.new(1, -48, 0, 6), UDim2.new(0, 24, 1, -28), softBg, 6, 999)
+addStroke(streamBg, borderCol, 1, 0.5)
+local streamFill = Instance.new("Frame", streamBg)
+streamFill.Size = UDim2.new(0, 0, 1, 0)
+streamFill.BackgroundColor3 = themeCol
+streamFill.BorderSizePixel = 0
+streamFill.ZIndex = 7
+Instance.new("UICorner", streamFill).CornerRadius = UDim.new(1, 0)
+local streamGrad = Instance.new("UIGradient", streamFill)
+streamGrad.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, themeCol),
-    ColorSequenceKeypoint.new(0.65, Color3.fromRGB(224, 212, 255)),
-    ColorSequenceKeypoint.new(1, fgColor)
+    ColorSequenceKeypoint.new(1, accentCol),
 })
 
--- Stats cards
-local function makeStatCard(parent, pos, label, value)
-    local card = makePanel(parent, UDim2.new(0.32, -4, 0, 52), pos, cardBg, 5, 18)
-    addStroke(card, borderCol).Transparency = 0.25
-    addLabel(card, UDim2.new(1, -8, 0, 10), UDim2.new(0, 4, 0, 6),
-        label, mutedText, Enum.Font.GothamBold, 7, Enum.TextXAlignment.Center, 6)
-    addLabel(card, UDim2.new(1, -8, 0, 14), UDim2.new(0, 4, 0, 20),
-        value, fgColor, Enum.Font.GothamBold, 13, Enum.TextXAlignment.Center, 6)
-    return card
+-- ============ CLOSE / UTIL ============
+local unloading = false
+local validating = false
+
+local function unloadUi()
+    if unloading then return end
+    unloading = true
+    validating = false
+    pcall(function()
+        TweenService:Create(blur, TweenInfo.new(0.25), {Size = 0}):Play()
+    end)
+    task.wait(0.15)
+    pcall(function() blur:Destroy() end)
+    pcall(function() gui:Destroy() end)
 end
 
-makeStatCard(leftPanel, UDim2.new(0, 12, 0, 180), "RESPONSE", "0.2s")
-makeStatCard(leftPanel, UDim2.new(0.34, 8, 0, 180), "PAYLOAD", "Encrypted")
-makeStatCard(leftPanel, UDim2.new(0.67, 4, 0, 180), "CONSOLE", "Live")
-
--- ===== RIGHT PANEL =====
-local rightPanel = makePanel(contentArea, UDim2.new(0.42, -6, 1, 0), UDim2.new(0.58, 6, 0, 0), softBg, 4, 24)
-addStroke(rightPanel, borderCol)
-
--- Console header
-addLabel(rightPanel, UDim2.new(0.6, 0, 0, 14), UDim2.new(0, 12, 0, 12),
-    "CONSOLE FEEDBACK", mutedText, Enum.Font.GothamBold, 8, Enum.TextXAlignment.Left, 5)
-
-local routeBadge = makePanel(rightPanel, UDim2.new(0, 70, 0, 18), UDim2.new(1, -82, 0, 10), Color3.fromRGB(16, 14, 22), 5)
-addStroke(routeBadge, themeCol).Transparency = 0.6
-addLabel(routeBadge, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0),
-    "SECURE ROUTE", fgColor, Enum.Font.GothamBold, 7, Enum.TextXAlignment.Center, 6)
-
--- Console log lines
-local function makeLogLine(parent, pos, text)
-    local line = makePanel(parent, UDim2.new(1, -24, 0, 36), pos, Color3.fromRGB(18, 15, 27), 5, 16)
-    addStroke(line, borderCol).Transparency = 0.15
-    local lbl = addLabel(line, UDim2.new(1, -12, 1, 0), UDim2.new(0, 8, 0, 0),
-        text, Color3.fromRGB(150, 145, 165), Enum.Font.RobotoMono, 10, Enum.TextXAlignment.Left, 6)
-    return line, lbl
+local function setStreamProgress(pct)
+    if unloading then return end
+    streamPct.Text = tostring(pct) .. "%"
+    TweenService:Create(streamFill, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {Size = UDim2.new(pct/100, 0, 1, 0)}):Play()
 end
 
-local log1, log1Text = makeLogLine(rightPanel, UDim2.new(0, 12, 0, 42), "> awaiting executor handshake")
-local log2, log2Text = makeLogLine(rightPanel, UDim2.new(0, 12, 0, 84), "> waiting for key input")
-local log3, log3Text = makeLogLine(rightPanel, UDim2.new(0, 12, 0, 126), "> idle")
-local log4, log4Text = makeLogLine(rightPanel, UDim2.new(0, 12, 0, 168), "> ...")
+local function showVerifyScreen()
+    entry.Visible = false
+    verify.Visible = true
+    -- Reset rows
+    rowKey.Visible = false
+    rowRoute.Visible = false
+    rowLoad.Visible = false
+    setStreamProgress(0)
+end
 
--- Info box at bottom
-local infoBox = makePanel(rightPanel, UDim2.new(1, -24, 0, 56), UDim2.new(0, 12, 1, -68), Color3.fromRGB(16, 14, 22), 5, 16)
-local infoStroke = addStroke(infoBox, themeCol)
-infoStroke.Transparency = 0.75
-infoStroke.LineJoinMode = Enum.LineJoinMode.Round
-addLabel(infoBox, UDim2.new(1, -12, 1, -8), UDim2.new(0, 6, 0, 4),
-    "Protected code resolves fast. Console updates live. No dead wait time.", mutedText, Enum.Font.Gotham, 8, Enum.TextXAlignment.Left, 6)
-
--- ====== ANIMATIONS: fade in ======
-local fadeIn = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-TweenService:Create(win, fadeIn, {BackgroundTransparency = 0}):Play()
-
--- ====== DRAGGING ======
-local dragging = false
-local dragStart, startPos
-
-titleBar.InputBegan:Connect(function(i)
+-- Draggable
+local dragging, dragStart, startPos
+topBar.InputBegan:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = i.Position
-        startPos = win.Position
+        dragging = true; dragStart = i.Position; startPos = win.Position
+        i.Changed:Connect(function()
+            if i.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
     end
 end)
-
-titleBar.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
 UserInputService.InputChanged:Connect(function(i)
     if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
         local d = i.Position - dragStart
@@ -3192,182 +3244,89 @@ UserInputService.InputChanged:Connect(function(i)
     end
 end)
 
--- ====== CLOSE / DESTROY ======
--- ====== KEY VALIDATION ======
-local validating = false
-local unloading = false
-
-local function unloadUi()
-    if unloading then return end
-    unloading = true
-    validating = false
-    pcall(function() blur:Destroy() end)
-    pcall(function() gui:Destroy() end)
-end
-
-dot1.MouseButton1Click:Connect(unloadUi)
-dot2.MouseButton1Click:Connect(unloadUi)
-dot3.MouseButton1Click:Connect(unloadUi)
-
-local function smoothDestroy(msg, color, scriptCode)
-    if unloading then return end
-    input.TextEditable = false
-    if msg then
-        log4Text.Text = "> " .. msg
-        log4Text.TextColor3 = color or fgColor
-    end
-
-    unloadUi()
-
-    if scriptCode and #scriptCode > 0 then
-        task.spawn(function()
-            local ok, fn = pcall(function()
-                return loadstring(scriptCode)
-            end)
-            if ok and fn then
-                local ok2, err2 = pcall(fn)
-                if not ok2 then warn("[ULT] Exec error: " .. tostring(err2)) end
-            else
-                warn("[ULT] Compile error: " .. tostring(fn))
-            end
-        end)
-    end
-end
-
-local function setProgress(pct)
-    if unloading then return end
-    progressPct.Text = pct .. "%"
-    TweenService:Create(progressFill, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(pct/100, 0, 1, 0)}):Play()
+-- Validation flow
+local function setStatus(msg, col)
+    statusText.Text = msg
+    statusText.TextColor3 = col or mutedText
+    statusDot.BackgroundColor3 = col or themeCol
 end
 
 local function validateKey()
-    if validating then return end
+    if validating or unloading then return end
     local enteredKey = input.Text
     if #enteredKey < 3 then
-        log4Text.Text = "> key too short"
-        log4Text.TextColor3 = dangerCol
+        setStatus("Key is too short", dangerCol)
         return
     end
-
     validating = true
     input.TextEditable = false
-    statusBadgeText.Text = "Loading"
-    log4Text.TextColor3 = Color3.fromRGB(150, 145, 165)
-
-    -- Update console
-    log1Text.Text = "> key accepted"
-    log2Text.Text = "> verifying secure route"
-    log3Text.Text = "> fetching protected payload"
-    log4Text.Text = "> ..."
-
-    -- Animate progress
-    setProgress(12)
+    submit.AutoButtonColor = false
+    submit.BackgroundColor3 = borderCol
+    setStatus("Verifying with secure route...", themeCol)
 
     task.spawn(function()
         local userId = tostring(plr.UserId)
         local url = "${baseUrl}?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId .. "&_=" .. tostring(tick())
 
-        task.wait(0.08)
-        if unloading then return end
-        setProgress(28)
+        local success, response = pcall(function() return game:HttpGet(url) end)
 
-        task.wait(0.08)
-        if unloading then return end
-        setProgress(40)
-        log2Text.Text = "> secure route verified"
-        log3Text.Text = "> streaming payload to executor"
-
-        task.wait(0.08)
-        if unloading then return end
-        setProgress(56)
-
-        local success, response = pcall(function()
-            return game:HttpGet(url)
-        end)
-
-        if unloading then return end
-        setProgress(78)
-
-        local function resetBtn()
-            if unloading then return end
-            statusBadgeText.Text = "Ready"
+        local function fail(msg, col)
+            setStatus(msg, col or dangerCol)
             input.TextEditable = true
+            submit.AutoButtonColor = true
+            submit.BackgroundColor3 = themeCol
             validating = false
-            setProgress(0)
         end
 
-        if not success then
-            log4Text.Text = "> network error"
-            log4Text.TextColor3 = dangerCol
-            resetBtn()
-            return
-        end
-
-        if not response or #response == 0 then
-            log4Text.Text = "> empty response"
-            log4Text.TextColor3 = dangerCol
-            resetBtn()
-            return
-        end
+        if not success then return fail("Network error - check connection", dangerCol) end
+        if not response or #response == 0 then return fail("Empty response from server", dangerCol) end
 
         if response:sub(1, 17) == "KEY_VALID_SCRIPT:" then
             local scriptCode = response:sub(19)
-            setProgress(90)
-            task.wait(0.07)
-            if unloading then return end
-            setProgress(100)
-            statusBadgeText.Text = "Synced"
 
-            log1Text.Text = "> key accepted"
-            log2Text.Text = "> secure route verified"
-            log3Text.Text = "> payload synced instantly"
-            log4Text.Text = "> console: load complete"
-            log4Text.TextColor3 = successCol
+            -- Transition to verification rectangle
+            showVerifyScreen()
+            task.wait(0.15)
+            setStreamProgress(22); rowKey.Visible = true
+            task.wait(0.18)
+            setStreamProgress(52); rowRoute.Visible = true
+            task.wait(0.18)
+            setStreamProgress(84); rowLoad.Visible = true
+            task.wait(0.15)
+            setStreamProgress(100)
+            vSub.Text = "Payload delivered - executing now"
+            task.wait(0.35)
 
-            task.wait(0.12)
-            smoothDestroy(nil, nil, scriptCode)
+            unloadUi()
+
+            task.spawn(function()
+                local ok, fn = pcall(function() return loadstring(scriptCode) end)
+                if ok and fn then
+                    local ok2, err2 = pcall(fn)
+                    if not ok2 then warn("[ULT] Exec error: " .. tostring(err2)) end
+                else
+                    warn("[ULT] Compile error: " .. tostring(fn))
+                end
+            end)
         elseif response:find("KEY_ASSIGNED") then
-            log4Text.Text = "> key belongs to another user"
-            log4Text.TextColor3 = dangerCol
-            resetBtn()
+            fail("Key belongs to another user", dangerCol)
         elseif response:find("KEY_EXPIRED") then
-            log4Text.Text = "> key has expired"
-            log4Text.TextColor3 = warningCol
-            resetBtn()
+            fail("Key has expired", warningCol)
         elseif response:find("KEY_INVALID") then
-            log4Text.Text = "> invalid key"
-            log4Text.TextColor3 = dangerCol
-            resetBtn()
+            fail("Invalid key", dangerCol)
         else
-            log4Text.Text = "> access denied"
-            log4Text.TextColor3 = dangerCol
-            resetBtn()
+            fail("Access denied", dangerCol)
         end
     end)
 end
 
+submit.MouseButton1Click:Connect(validateKey)
+input.FocusLost:Connect(function(enter) if enter then validateKey() end end)
 input.Focused:Connect(function()
-    log1Text.Text = "> key input active"
+    if not validating then setStatus("Typing your key...", themeCol) end
 end)
-
-input.FocusLost:Connect(function(enter)
-    if enter then validateKey() end
-end)
-
--- No validate button needed — enter key submits. But add one anyway for click users.
-local submitBtn = Instance.new("TextButton", leftPanel)
-submitBtn.Size = UDim2.new(1, -24, 0, 0)
-submitBtn.Position = UDim2.new(0, 12, 0, 108)
-submitBtn.BackgroundTransparency = 1
-submitBtn.Text = ""
-submitBtn.ZIndex = 7
-submitBtn.MouseButton1Click:Connect(validateKey)
-
--- Also make the input frame clickable
 inputFrame.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then
-        input:CaptureFocus()
-    end
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then input:CaptureFocus() end
 end)
 `;
 }
