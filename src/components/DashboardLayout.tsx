@@ -284,12 +284,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     <div className="min-h-screen w-full bg-background overflow-x-hidden relative flex flex-col">
       <CloudBackground />
       <SnowEffect />
-      <TopNav user={user} onLogout={handleLogout} />
+      <TopBar onLogout={handleLogout} />
       <main className="flex-1 overflow-x-hidden overflow-y-auto relative z-10">
-        <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8">
+        <div className="mx-auto max-w-[1400px] p-4 pb-32 sm:p-6 sm:pb-32 lg:p-8 lg:pb-36">
           {children}
         </div>
       </main>
+      <BottomNav user={user} />
     </div>
   );
 };
