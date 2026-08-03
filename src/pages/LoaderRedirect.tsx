@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import CloudBackground from "@/components/CloudBackground";
 import { ArrowLeft, Copy, Check, ShieldCheck, Lock, Fingerprint, Radar } from "lucide-react";
+
 
 const LoaderRedirect = () => {
   const { slug } = useParams<{ slug: string }>();
