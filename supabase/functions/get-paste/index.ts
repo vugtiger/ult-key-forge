@@ -3912,32 +3912,27 @@ Deno.serve(async (req) => {
     // v11: HWID protection
     const hwid = url.searchParams.get('hwid');
 
-    // v16: DEVICE BAN — a blocked HWID is denied no matter which account or IP it uses
+    // v17: DEVICE BAN — a blocked HWID is denied no matter which account or IP it uses.
+    // Evasion attempt itself is evidence: permanently ban every linked identifier.
     if (isHwidBanned(hwid)) {
-      autoBanNewIp(earlyIp, 'banned_device_new_ip', uid || null, null);
-      if (uid) {
-        supabase.from('global_bans').upsert({
-          ban_type: 'roblox_id', ban_value: uid,
-          reason: `Auto-banned: alt account on blocked device (${(hwid || '').substring(0, 16)})`,
-          is_active: true,
-        }, { onConflict: 'ban_type,ban_value' }).then(() => {}, () => {});
-        globalBanCache.robloxIds.add(uid);
-      }
+      banIdentity({ ip: earlyIp, robloxId: uid, hwid }, 'banned_device_evasion', {
+        source: 'device_gate', slug, hwid: (hwid || '').substring(0, 64),
+      }).catch(() => {});
       logThreat('banned_device_access', earlyIp, uid || null, null, {
         slug, hwid: (hwid || '').substring(0, 32), action: 'hwid_banned', ip_auto_banned: true,
       }, 'high', true);
       return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
-
-
-    // Check if this Roblox user ID is globally banned — auto-ban the IP too
+    // v17: banned Roblox account — ban the IP and device it came back on
     if (uid && isRobloxIdBanned(uid)) {
-      // Auto-ban this new IP so even VPN hopping gets caught
-      autoBanNewIp(earlyIp, 'banned_roblox_user_new_ip', uid, null);
+      banIdentity({ ip: earlyIp, robloxId: uid, hwid }, 'banned_account_evasion', {
+        source: 'account_gate', slug, hwid: hwid ? hwid.substring(0, 64) : null,
+      }).catch(() => {});
       logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned', ip_auto_banned: true }, 'high', true);
       return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
+
 
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                      req.headers.get('cf-connecting-ip') || 
