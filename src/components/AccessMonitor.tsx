@@ -83,6 +83,7 @@ const AccessMonitor = () => {
       .from('paste_access_logs')
       .select('*')
       .eq('paste_id', pasteId)
+      .in('access_type', ['browser', 'unauthorized_supabase'])
       .order('last_seen_at', { ascending: false })
       .limit(100);
 
@@ -161,6 +162,10 @@ const AccessMonitor = () => {
       <CardContent className="space-y-4">
         {/* Paste Selector */}
         <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Browser visits only. Roblox executions are never tracked here. Anyone who reaches the
+            internal backend link is permanently banned automatically.
+          </p>
           <label className="text-sm font-medium">Select Paste to Monitor</label>
           <Select value={selectedPasteId} onValueChange={setSelectedPasteId}>
             <SelectTrigger className="bg-background/50">
