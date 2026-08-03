@@ -1107,10 +1107,20 @@ local _reportBypass = function(reason, details)
     local p = game:GetService("Players").LocalPlayer
     if p then uid = tostring(p.UserId) end
   end)
+  local rhwid = ""
   pcall(function()
-    local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
+    if gethwid then rhwid = tostring(gethwid()) end
+  end)
+  if rhwid == "" then
+    pcall(function()
+      rhwid = tostring(game:GetService("RbxAnalyticsService"):GetClientId())
+    end)
+  end
+  pcall(function()
+    local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&hwid=" .. rhwid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
     game:HttpGet(reportUrl)
   end)
+
   -- REMOVED: ${v.dumpPoison} = true
   -- dumpPoison was corrupting code for ALL bypass reports including false positives
   -- (fetch_intent, deep_stack, cclosure_tamper etc fire on normal executors)
