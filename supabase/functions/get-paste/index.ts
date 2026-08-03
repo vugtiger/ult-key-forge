@@ -473,6 +473,80 @@ function isDirectSlugBrowserView(url: URL): boolean {
 const QUIET_ACCESS_DENIED_LUA = '-- Access denied';
 const PROTECTED_BROWSER_PLACEHOLDER = '-- Protected by ULT LUA';
 
+// Mint & peach site theme, inlined so the backend page looks identical to the site.
+const PAGE_STYLE = `
+:root{--bg:#fbfaf6;--fg:#141f1d;--muted:#5d6b68;--card:rgba(255,255,255,.78);
+--border:rgba(20,31,29,.10);--primary:#2c9464;--accent:#ef7429;--danger:#c0392b}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--fg);
+font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+background-image:radial-gradient(circle at 12% 18%,rgba(44,148,100,.10),transparent 45%),
+radial-gradient(circle at 88% 8%,rgba(239,116,41,.10),transparent 45%);
+background-attachment:fixed;padding:40px 16px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.card{background:var(--card);backdrop-filter:blur(18px);border:1px solid var(--border);
+border-radius:20px;padding:24px;box-shadow:0 10px 30px rgba(20,31,29,.06)}
+h1{margin:6px 0 8px;font-size:28px}h2{margin:0 0 6px;font-size:18px}
+h3{margin:0 0 6px;font-size:14px}p{margin:0;color:var(--muted);font-size:14px;line-height:1.55}
+.pill{display:inline-block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+border:1px solid var(--border);border-radius:999px;padding:4px 10px;color:var(--muted)}
+pre{overflow-x:auto;background:rgba(20,31,29,.05);border:1px solid var(--border);
+border-radius:14px;padding:16px;margin:16px 0;font-size:13px;white-space:pre-wrap;word-break:break-all}
+button,a.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
+border:0;border-radius:12px;padding:12px 16px;font-size:14px;font-weight:600;cursor:pointer;
+background:var(--primary);color:#fff;text-decoration:none}
+a.ghost{background:transparent;color:var(--fg);border:1px solid var(--border)}
+.grid{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:640px){.grid{grid-template-columns:1fr 1fr}}
+.tile{border:1px solid var(--border);border-radius:14px;padding:14px;background:rgba(255,255,255,.5)}
+.tile h3{color:var(--primary)}
+.ban h1{color:var(--danger)}
+`;
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+  ));
+}
+
+function generateBrandedLoaderPage(slug: string, host: string): string {
+  const site = host ? `https://${host}` : '';
+  const loadstring = `loadstring(game:HttpGet("${site}/s/${slug}"))()`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Protected script loader | ULT LUA</title>
+<meta name="description" content="Official loadstring for this protected script.">
+<style>${PAGE_STYLE}</style></head><body><div class="wrap">
+<a class="btn ghost" href="/">&larr; Back to homepage</a>
+<div class="card"><span class="pill">Protected script</span>
+<h1>Loadstring</h1>
+<p>This is the official link for this script. Copy it and run it in your executor — nothing else is needed.</p>
+<pre id="ls">${escapeHtml(loadstring)}</pre>
+<button onclick="navigator.clipboard.writeText(document.getElementById('ls').innerText);this.innerText='Copied'">Copy loadstring</button>
+</div>
+<div class="card"><h2>Why bypassing this is a bad afternoon</h2>
+<p>A short version — the details stay ours.</p><div class="grid" style="margin-top:14px">
+<div class="tile"><h3>Nothing is served in plain text</h3><p>Every delivery is encrypted and single-use. What you fetch once is never valid again.</p></div>
+<div class="tile"><h3>The request is bound to you</h3><p>Session, device and network fingerprints are tied together before a single line is released.</p></div>
+<div class="tile"><h3>Tampering answers back</h3><p>Hooked functions, dumps and relays are recognised on the spot and the session is dropped.</p></div>
+<div class="tile"><h3>One strike is permanent</h3><p>Unauthorized entry points are watched. Touch one and every identifier you own is retired for good.</p></div>
+</div></div></div></body></html>`;
+}
+
+function generatePermanentBanPage(): string {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Permanently banned | ULT LUA</title>
+<style>${PAGE_STYLE}</style></head><body><div class="wrap ban">
+<div class="card"><span class="pill">Unauthorized entry point</span>
+<h1>You are permanently banned</h1>
+<p>You reached an internal endpoint that is not an authorized entry point. Your account, network and
+device identifiers have been retired permanently. New accounts, new networks and reset devices do not
+change this — every script protected by ULT LUA will refuse to run for you from now on.</p></div>
+</div></body></html>`;
+}
+
+
 function shouldAutoBanBypassReason(reason: string, details: string): boolean {
   const normalizedReason = (reason || '').toLowerCase().trim();
   const normalizedDetails = (details || '').toLowerCase().trim();
