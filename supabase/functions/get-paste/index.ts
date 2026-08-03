@@ -4428,6 +4428,22 @@ loadstring(game:HttpGet(_url))()`;
       }
     }
 
+    // ===== KEY SYSTEM GUI (highest priority) =====
+    // If this paste has a key-system panel and there is no execution context yet,
+    // always show the in-game key GUI — regardless of protection mode or
+    // protection_enabled. Previously this only ran for non-protected pastes, so
+    // protected / protection_key pastes never rendered the key UI.
+    if (!isLikelyBrowser && !tk && !kbt && !keyParam) {
+      const gatePanel = await getPreferredKeyPanel();
+      if (gatePanel) {
+        console.log(`[get-paste] Returning key system GUI (global gate) paste=${paste.id} panel=${gatePanel.name}`);
+        const { data: gatePanelDetails } = await supabase
+          .from('control_panels').select('logo_url').eq('id', gatePanel.id).single();
+        const gateGui = generateKeySystemGui(slugStr, baseUrl, gatePanel.name, '188, 134, 255', gatePanelDetails?.logo_url || undefined);
+        return new Response(gateGui, { status: 200, headers: textHeaders });
+      }
+    }
+
     // ===== PROTECTION KEY MODE =====
     // When pastes.protection_mode = 'protection_key', the user must set _G.ScriptKey before loadstring.
     // The loader reads _G.ScriptKey, sends it as ?pkey=, we validate + bind to first roblox uid (anti-spoof).
