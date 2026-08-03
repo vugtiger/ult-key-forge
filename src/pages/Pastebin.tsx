@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getLoaderUrl } from "@/lib/loader-url";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 import TabHelpSection from "@/components/onboarding/TabHelpSection";
@@ -72,10 +73,7 @@ const Pastebin = () => {
     return slug;
   };
 
-  const getRawUrl = (slug: string) => {
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-    return `${baseUrl}/functions/v1/get-paste?slug=${slug}`;
-  };
+  const getRawUrl = (slug: string) => getLoaderUrl(slug);
 
   const fetchPastes = async () => {
     const { data: { user } } = await supabase.auth.getUser();
