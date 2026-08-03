@@ -4386,7 +4386,9 @@ Deno.serve(async (req) => {
       
       // For protected pastes, generate a bypass token and redirect
       // This keeps key system completely separate from the protection flow
-      if (paste.protection_enabled || paste.public_protection) {
+      // protection_key pastes must ALSO pass the _G.ScriptKey gate, so route them
+      // through the bypass-token redirect instead of serving the payload directly.
+      if (paste.protection_enabled || paste.public_protection || paste.protection_mode === 'protection_key') {
         const bypassToken = generateToken();
         await supabase.from('paste_execution_tokens').insert({
           paste_id: paste.id, roblox_user_id: uid, token: bypassToken,
