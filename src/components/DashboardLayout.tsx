@@ -79,99 +79,106 @@ const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
   else root.classList.remove('ult-lua-style-enabled');
 };
 
-const TopNav = ({ user, onLogout }: { user: User | null; onLogout: () => void }) => {
+const TopBar = ({ onLogout }: { onLogout: () => void }) => (
+  <header className="sticky top-0 z-40 border-b border-border/40 bg-background/75 backdrop-blur-2xl">
+    <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-3 px-4 lg:px-8">
+      <NavLink to="/dashboard" className="flex items-center gap-2.5 shrink-0">
+        <CloudLogo size={24} />
+        <div className="leading-tight">
+          <div className="text-[11px] font-black tracking-[0.22em] text-foreground">ULT CLOUD</div>
+          <div className="text-[8px] tracking-[0.25em] text-muted-foreground/70">PROTECTION</div>
+        </div>
+      </NavLink>
+      <div className="flex-1" />
+      <SoundToggle />
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onLogout}
+        className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs gap-1.5"
+      >
+        <LogOut size={14} /> <span className="hidden sm:inline">Logout</span>
+      </Button>
+    </div>
+  </header>
+);
+
+const BottomNav = ({ user }: { user: User | null }) => {
   const location = useLocation();
   const { isAdmin } = useAdminStatus(user?.id);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const navItems = isAdmin ? [...navigationItems, ...adminItems] : navigationItems;
 
+  const primary = navItems.slice(0, 4);
+  const overflow = navItems.slice(4);
+  const overflowActive = overflow.some((item) => item.url === location.pathname);
+
+  const tabClass = (isActive: boolean) =>
+    `flex flex-col items-center justify-center gap-1 rounded-2xl px-3 py-2 text-[10.5px] font-medium transition-all ${
+      isActive
+        ? "bg-foreground text-background shadow-[var(--shadow-soft)]"
+        : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]"
+    }`;
+
   return (
-    <header className="sticky top-0 z-40 border-b border-border/40 bg-background/75 backdrop-blur-2xl">
-      <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-4 px-4 lg:px-8">
-        <NavLink to="/dashboard" className="flex items-center gap-2.5 shrink-0">
-          <CloudLogo size={26} />
-          <div className="hidden sm:block leading-tight">
-            <div className="text-[11px] font-black tracking-[0.22em] text-foreground">ULT CLOUD</div>
-            <div className="text-[8px] tracking-[0.25em] text-muted-foreground/70">PROTECTION</div>
-          </div>
-        </NavLink>
+    <>
+      {moreOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-foreground/10 backdrop-blur-sm"
+          onClick={() => setMoreOpen(false)}
+          aria-hidden
+        />
+      )}
 
-        <nav className="hidden lg:flex items-center gap-1 ml-4 flex-1 overflow-x-auto">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.url;
-            return (
-              <NavLink
-                key={item.title}
-                to={item.url}
-                end
-                className={`group flex items-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] font-medium whitespace-nowrap transition-all ${
-                  isActive
-                    ? "bg-foreground text-background shadow-[var(--shadow-soft)]"
-                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]"
-                }`}
-              >
-                <item.icon size={14} />
-                <span>{item.title}</span>
-              </NavLink>
-            );
-          })}
-        </nav>
-
-        <div className="flex-1 lg:flex-none" />
-
-        <SoundToggle />
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onLogout}
-          className="hidden md:inline-flex rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs gap-1.5"
-        >
-          <LogOut size={14} /> Logout
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="lg:hidden rounded-full h-9 w-9"
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
-          {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-        </Button>
-      </div>
-
-      {/* Mobile menu */}
-      {mobileOpen && (
-        <div className="lg:hidden border-t border-border/40 bg-background/95 backdrop-blur-2xl">
-          <div className="max-w-[1400px] mx-auto px-4 py-3 grid grid-cols-2 gap-2">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.url;
-              return (
+      <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto w-full max-w-[900px]">
+          {moreOpen && (
+            <div className="mb-2 grid grid-cols-3 gap-2 rounded-3xl border border-border/60 bg-background/95 p-3 backdrop-blur-2xl shadow-[var(--shadow-soft)] sm:grid-cols-4">
+              {overflow.map((item) => (
                 <NavLink
                   key={item.title}
                   to={item.url}
                   end
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-all ${
-                    isActive ? "bg-foreground text-background" : "text-foreground/80 hover:bg-foreground/[0.06]"
-                  }`}
+                  onClick={() => setMoreOpen(false)}
+                  className={tabClass(location.pathname === item.url)}
                 >
-                  <item.icon size={15} />
-                  <span>{item.title}</span>
+                  <item.icon size={17} />
+                  <span className="text-center leading-tight">{item.title}</span>
                 </NavLink>
-              );
-            })}
+              ))}
+            </div>
+          )}
+
+          <nav className="grid grid-cols-5 gap-1 rounded-3xl border border-border/60 bg-background/90 p-1.5 backdrop-blur-2xl shadow-[var(--shadow-soft)]">
+            {primary.map((item) => (
+              <NavLink
+                key={item.title}
+                to={item.url}
+                end
+                onClick={() => setMoreOpen(false)}
+                className={tabClass(location.pathname === item.url)}
+              >
+                <item.icon size={17} />
+                <span className="truncate max-w-full">{item.title}</span>
+              </NavLink>
+            ))}
             <button
-              onClick={() => { setMobileOpen(false); onLogout(); }}
-              className="col-span-2 mt-1 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm text-destructive bg-destructive/10 hover:bg-destructive/15"
+              type="button"
+              onClick={() => setMoreOpen((v) => !v)}
+              className={tabClass(overflowActive || moreOpen)}
+              aria-label="More tabs"
+              aria-expanded={moreOpen}
             >
-              <LogOut size={15} /> Logout
+              {moreOpen ? <X size={17} /> : <Menu size={17} />}
+              <span>More</span>
             </button>
-          </div>
+          </nav>
         </div>
-      )}
-    </header>
+      </div>
+    </>
   );
 };
+
 
 const SoundToggle = () => {
   const [soundOn, setSoundOn] = useState(isSnowSoundOn());
