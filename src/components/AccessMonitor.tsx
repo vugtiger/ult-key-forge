@@ -41,6 +41,8 @@ const AccessMonitor = () => {
             filter: `paste_id=eq.${selectedPasteId}`
           },
           (payload) => {
+            const row = payload.new as AccessLog;
+            if (row && !['browser', 'unauthorized_supabase'].includes(row.access_type)) return;
             if (payload.eventType === 'INSERT') {
               setAccessLogs((prev) => mergeAccessLog(prev, payload.new as AccessLog));
             } else if (payload.eventType === 'UPDATE') {
@@ -153,7 +155,7 @@ const AccessMonitor = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Eye className="h-5 w-5" />
-          Access Monitor
+          Monitor Supabase
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -247,12 +249,12 @@ const AccessMonitor = () => {
             {/* Legend */}
              <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t border-border/30">
                <div className="flex items-center gap-1.5">
-                 <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                 <span>Executor</span>
-               </div>
-               <div className="flex items-center gap-1.5">
                  <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
                  <span>Browser Visitor</span>
+               </div>
+               <div className="flex items-center gap-1.5">
+                 <div className="h-2 w-2 rounded-full bg-destructive" />
+                 <span>Unauthorized backend access — permanently banned</span>
                </div>
              </div>
           </div>
