@@ -223,14 +223,52 @@ const AccessMonitor = () => {
           </div>
         )}
 
+        {/* Summary */}
+        {selectedPasteId && (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {[
+              { label: "Visits", value: stats.total },
+              { label: "Last 24h", value: stats.last24h },
+              { label: "Unique IPs", value: stats.uniqueIps },
+              { label: "Discord Accts", value: stats.discordAccounts },
+              { label: "Unauthorized", value: stats.unauthorized },
+            ].map((s) => (
+              <div key={s.label} className="rounded-xl border border-border/30 bg-background/30 p-3">
+                <p className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground">{s.label}</p>
+                <p className="text-xl font-black tracking-tight mt-0.5">{s.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Access Logs */}
         {selectedPasteId && (
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="text-sm font-medium flex items-center gap-2">
                 <Radio className="h-4 w-4 text-primary animate-pulse" />
                 Live Access Feed
               </h4>
+              <div className="flex items-center gap-1 rounded-full border border-border/40 bg-background/40 p-1">
+                {(["all", "unauthorized", "verified"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`rounded-full px-3 py-1 text-[11px] capitalize transition-colors ${
+                      filter === f ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search IP, Discord, user agent"
+                className="h-8 w-full sm:w-64 text-xs bg-background/50"
+              />
+
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs">
                   {displayLogs.length} shown
