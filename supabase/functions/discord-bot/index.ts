@@ -1772,7 +1772,7 @@ async function handleCommand(interaction: any) {
       return {
         type: 4,
         data: { 
-          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` \`/login\` \`/logout\` \`/profile\` \`/factoryreset\`\n\n**Scripts:**\n\`/savescript\` \`/scripts\` \`/deletescript\`\n\n**Pastebin:**\n\`/paste\` \`/mypastes\` \`/deletepaste\` \`/scriptprotection\` \`/publicprotection\` \`/hidecode\` \`/whitelist\` \`/blacklist\` \`/removewhitelist\` \`/removeblacklist\` \`/setwhitelisttime\` \`/stats\`\n\n**Settings:**\n\`/iptracking\` \`/setgame\` \`/mygamelinkedpastes\` \`/consolefeedback\`\n\n**Security Toggles** 🆕**:**\n\`/antifetch\` \`/backgroundprotection\` \`/crashdetection\` \`/multiaccountdetection\` \`/obfuscation\`\n\n**Limits & Restrictions** 🆕**:**\n\`/executionlimit\` \`/geoblock\` \`/timebomb\`\n\n**HWID Locks** 🆕**:**\n\`/hwidlocks\` \`/clearhwidlock\`\n\n**Webhook Alerts** 🆕**:**\n\`/webhookalerts\`\n\n**Protection Keys** 🆕**:**\n\`/createprotectionkey\` \`/myprotectionkeys\` \`/revokeprotectionkey\`\n\n**Key Systems:**\n\`/keysystemsetup\` \`/keygen\` \`/mykeysystemkeys\` \`/keysystemwhitelist\` \`/deletekeysystem\`\n\n**Control Panels:**\n\`/panel\` \`/mypanels\` \`/genkeys\` \`/viewpanelkeys\` \`/consoleblacklist\` \`/unblacklist\` \`/forceexpire\`\n\n**Other:**\n\`/invite\` \`/logs\` \`/analytics\``, 
+          content: `🤖 **ULT LUA PROTECTS Bot Commands**\n\n**Account:**\n\`/register\` \`/login\` \`/logout\` \`/profile\` \`/factoryreset\`\n\n**Scripts:**\n\`/savescript\` \`/scripts\` \`/deletescript\`\n\n**Pastebin:**\n\`/paste\` \`/mypastes\` \`/deletepaste\` \`/scriptprotection\` \`/publicprotection\` \`/hidecode\` \`/whitelist\` \`/blacklist\` \`/removewhitelist\` \`/removeblacklist\` \`/setwhitelisttime\` \`/stats\`\n\n**Settings:**\n\`/iptracking\` \`/setgame\` \`/mygamelinkedpastes\` \`/consolefeedback\`\n\n**Security Toggles** 🆕**:**\n\`/antifetch\` \`/backgroundprotection\` \`/crashdetection\` \`/multiaccountdetection\` \`/obfuscation\`\n\n**Limits & Restrictions** 🆕**:**\n\`/executionlimit\` \`/geoblock\` \`/timebomb\`\n\n**HWID / Device Blocking** 🆕**:**\n\`/hwidlocks\` \`/clearhwidlock\` \`/blockdevice\` \`/unblockdevice\` \`/blockeddevices\`\n\n**Webhook Alerts** 🆕**:**\n\`/webhookalerts\`\n\n**Protection Keys** 🆕**:**\n\`/createprotectionkey\` \`/myprotectionkeys\` \`/revokeprotectionkey\`\n\n**Key Systems:**\n\`/keysystemsetup\` \`/keygen\` \`/mykeysystemkeys\` \`/keysystemwhitelist\` \`/deletekeysystem\`\n\n**Control Panels:**\n\`/panel\` \`/mypanels\` \`/genkeys\` \`/viewpanelkeys\` \`/consoleblacklist\` \`/unblacklist\` \`/forceexpire\`\n\n**Other:**\n\`/invite\` \`/logs\` \`/analytics\``, 
           flags: 0 
         }
       };
@@ -2124,6 +2124,59 @@ async function handleCommand(interaction: any) {
       if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
       return { type: 4, data: { content: `✅ HWID lock cleared for user **${robloxUserId}** on **${paste.title || 'Untitled'}**.`, flags: 64 } };
     }
+
+    case 'blockdevice': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const robloxUserId = data.options?.find((o: any) => o.name === 'userid')?.value;
+      const reason = data.options?.find((o: any) => o.name === 'reason')?.value;
+      if (!pasteName || !robloxUserId) return { type: 4, data: { content: '❌ Please provide paste name and Roblox user ID.', flags: 64 } };
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      const { data: lock } = await supabase.from('paste_hwid_locks').select('hwid').eq('paste_id', paste.id).eq('roblox_user_id', robloxUserId).maybeSingle();
+      if (!lock?.hwid) return { type: 4, data: { content: `❌ No device recorded for user **${robloxUserId}** on that paste yet.`, flags: 64 } };
+
+      const { error } = await supabase.from('global_bans').upsert({
+        ban_type: 'hwid', ban_value: lock.hwid,
+        reason: (reason || `Device blocked by owner`).slice(0, 300),
+        is_active: true, banned_by: user.userId,
+      }, { onConflict: 'ban_type,ban_value' });
+      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
+
+      // Ban every account that ever used this device
+      const { data: altLocks } = await supabase.from('paste_hwid_locks').select('roblox_user_id').eq('hwid', lock.hwid);
+      const alts = [...new Set((altLocks || []).map((l: any) => l.roblox_user_id))];
+      for (const alt of alts) {
+        await supabase.from('global_bans').upsert({
+          ban_type: 'roblox_id', ban_value: alt,
+          reason: `Alt account on blocked device (${String(lock.hwid).slice(0, 16)})`,
+          is_active: true, banned_by: user.userId,
+        }, { onConflict: 'ban_type,ban_value' });
+      }
+      return { type: 4, data: { content: `🚫 Device \`${String(lock.hwid).slice(0, 16)}...\` blocked. ${alts.length} linked account(s) banned. Alts on this machine can no longer execute.`, flags: 64 } };
+    }
+
+    case 'unblockdevice': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      const hwid = data.options?.find((o: any) => o.name === 'hwid')?.value;
+      if (!hwid) return { type: 4, data: { content: '❌ Please provide the HWID.', flags: 64 } };
+      const { error } = await supabase.from('global_bans').update({ is_active: false }).eq('ban_type', 'hwid').eq('ban_value', hwid).eq('banned_by', user.userId);
+      if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
+      return { type: 4, data: { content: `✅ Device \`${String(hwid).slice(0, 16)}...\` unblocked.`, flags: 64 } };
+    }
+
+    case 'blockeddevices': {
+      const user = await getUser();
+      if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
+      const { data: bans } = await supabase.from('global_bans').select('ban_value, reason, banned_at').eq('ban_type', 'hwid').eq('is_active', true).eq('banned_by', user.userId).order('banned_at', { ascending: false }).limit(25);
+      if (!bans || bans.length === 0) return { type: 4, data: { content: '📭 You have not blocked any devices.', flags: 64 } };
+      const lines = bans.map((b: any) => `• \`${String(b.ban_value).slice(0, 16)}...\` — ${b.reason || 'no reason'}`).join('\n');
+      return { type: 4, data: { content: `🚫 **Blocked devices** (${bans.length}):\n${lines}`, flags: 64 } };
+    }
+
+
 
     case 'webhookalerts': {
       const user = await getUser();

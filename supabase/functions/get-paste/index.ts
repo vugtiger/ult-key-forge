@@ -16,8 +16,8 @@ const corsHeaders = {
 // Hardcoded ban lists removed — all bans are managed via the global_bans DB table
 
 // In-memory cache of DB global bans (refreshed every 60s)
-let globalBanCache: { ips: Set<string>; subnets: string[]; robloxIds: Set<string>; discordIds: Set<string>; lastRefresh: number } = {
-  ips: new Set(), subnets: [], robloxIds: new Set(), discordIds: new Set(), lastRefresh: 0
+let globalBanCache: { ips: Set<string>; subnets: string[]; robloxIds: Set<string>; discordIds: Set<string>; hwids: Set<string>; lastRefresh: number } = {
+  ips: new Set(), subnets: [], robloxIds: new Set(), discordIds: new Set(), hwids: new Set(), lastRefresh: 0
 };
 
 async function refreshGlobalBans() {
@@ -28,13 +28,15 @@ async function refreshGlobalBans() {
     const subnets: string[] = [];
     const robloxIds = new Set<string>();
     const discordIds = new Set<string>();
+    const hwids = new Set<string>();
     for (const ban of data || []) {
       if (ban.ban_type === 'ip') ips.add(ban.ban_value);
       else if (ban.ban_type === 'subnet') subnets.push(ban.ban_value);
       else if (ban.ban_type === 'roblox_id') robloxIds.add(ban.ban_value);
       else if (ban.ban_type === 'discord_id') discordIds.add(ban.ban_value);
+      else if (ban.ban_type === 'hwid') hwids.add(ban.ban_value);
     }
-    globalBanCache = { ips, subnets, robloxIds, discordIds, lastRefresh: Date.now() };
+    globalBanCache = { ips, subnets, robloxIds, discordIds, hwids, lastRefresh: Date.now() };
     // Also refresh admin IPs so they're never banned
     await refreshAdminIps();
   } catch (e) {
@@ -60,6 +62,13 @@ function isRobloxIdBanned(robloxUserId: string): boolean {
 function isDiscordIdBanned(discordUserId: string): boolean {
   return globalBanCache.discordIds.has(discordUserId);
 }
+
+// v16: device-level (HWID) ban — blocks the machine, not just the account
+function isHwidBanned(hwid: string | null): boolean {
+  if (!hwid || hwid.length < 4) return false;
+  return globalBanCache.hwids.has(hwid);
+}
+
 
 // Log threat to DB (fire-and-forget)
 function logThreat(type: string, ip: string | null, robloxId: string | null, discordId: string | null, details: any, severity: string, autoResolve = false) {
@@ -3796,6 +3805,25 @@ Deno.serve(async (req) => {
     const ghostReport = url.searchParams.get('ghost');
     // v11: HWID protection
     const hwid = url.searchParams.get('hwid');
+
+    // v16: DEVICE BAN — a blocked HWID is denied no matter which account or IP it uses
+    if (isHwidBanned(hwid)) {
+      autoBanNewIp(earlyIp, 'banned_device_new_ip', uid || null, null);
+      if (uid) {
+        supabase.from('global_bans').upsert({
+          ban_type: 'roblox_id', ban_value: uid,
+          reason: `Auto-banned: alt account on blocked device (${(hwid || '').substring(0, 16)})`,
+          is_active: true,
+        }, { onConflict: 'ban_type,ban_value' }).then(() => {}, () => {});
+        globalBanCache.robloxIds.add(uid);
+      }
+      logThreat('banned_device_access', earlyIp, uid || null, null, {
+        slug, hwid: (hwid || '').substring(0, 32), action: 'hwid_banned', ip_auto_banned: true,
+      }, 'high', true);
+      return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+    }
+
+
 
     // Check if this Roblox user ID is globally banned — auto-ban the IP too
     if (uid && isRobloxIdBanned(uid)) {
