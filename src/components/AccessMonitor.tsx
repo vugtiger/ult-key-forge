@@ -19,6 +19,8 @@ const AccessMonitor = () => {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [filter, setFilter] = useState<"all" | "unauthorized" | "verified">("all");
+  const [search, setSearch] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
