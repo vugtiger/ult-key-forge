@@ -141,6 +141,163 @@ function autoBanNewIp(ip: string, reason: string, robloxId: string | null, disco
   }, 'high', true);
 }
 
+// ===== v17: UNIFIED PERMANENT BAN ENGINE =====
+// One entry point for every auto-ban path. Bans EVERY identifier tied to the
+// offender (ip, roblox id, discord id, device/hwid) permanently, expands to
+// every linked identity we have ever seen, and stores full evidence.
+type BanIdentity = {
+  ip?: string | null;
+  robloxId?: string | null;
+  discordId?: string | null;
+  hwid?: string | null;
+};
+
+const bannedIdentifiersThisSession = new Set<string>();
+
+function isValidRobloxId(id: string | null | undefined): id is string {
+  return !!id && /^\d+$/.test(id) && parseInt(id) > 1000;
+}
+
+async function writeBan(
+  banType: 'ip' | 'roblox_id' | 'discord_id' | 'hwid',
+  value: string,
+  reason: string,
+  metadata: Record<string, unknown>,
+) {
+  const cacheKey = `${banType}:${value}`;
+  if (bannedIdentifiersThisSession.has(cacheKey)) return false;
+  bannedIdentifiersThisSession.add(cacheKey);
+
+  // Update in-memory cache instantly so the very next request is blocked
+  if (banType === 'ip') globalBanCache.ips.add(value);
+  else if (banType === 'roblox_id') globalBanCache.robloxIds.add(value);
+  else if (banType === 'discord_id') globalBanCache.discordIds.add(value);
+  else if (banType === 'hwid') globalBanCache.hwids.add(value);
+
+  try {
+    await supabase.from('global_bans').upsert({
+      ban_type: banType,
+      ban_value: value,
+      reason,
+      is_active: true,
+      metadata,
+    }, { onConflict: 'ban_type,ban_value' });
+    return true;
+  } catch (e) {
+    console.error(`[BAN-ENGINE] failed to persist ${cacheKey}:`, e);
+    return false;
+  }
+}
+
+/**
+ * Permanently ban an offender across every identifier we can link to them.
+ * ruleId  — stable machine-readable rule name (e.g. "exfil_webhook")
+ * evidence — raw signal payload preserved for review (never trimmed away)
+ */
+async function banIdentity(
+  identity: BanIdentity,
+  ruleId: string,
+  evidence: Record<string, unknown>,
+): Promise<{ banned: string[] }> {
+  const banned: string[] = [];
+  const seedIp = identity.ip && identity.ip !== 'unknown' ? identity.ip : null;
+  const seedRoblox = isValidRobloxId(identity.robloxId) ? identity.robloxId : null;
+  const seedDiscord = identity.discordId || null;
+  const seedHwid = identity.hwid && identity.hwid.length >= 4 ? identity.hwid : null;
+
+  const reason = `Permanent ban [${ruleId}]`;
+  const baseMeta = {
+    rule_id: ruleId,
+    permanent: true,
+    banned_at: new Date().toISOString(),
+    seed: { ip: seedIp, roblox_id: seedRoblox, discord_id: seedDiscord, hwid: seedHwid },
+    evidence,
+  };
+
+  const ips = new Set<string>();
+  const robloxIds = new Set<string>();
+  const discordIds = new Set<string>();
+  const hwids = new Set<string>();
+  if (seedIp && !isAdminIp(seedIp)) ips.add(seedIp);
+  if (seedRoblox) robloxIds.add(seedRoblox);
+  if (seedDiscord) discordIds.add(seedDiscord);
+  if (seedHwid) hwids.add(seedHwid);
+
+  // ---- Identity expansion: everything this offender has ever been seen as ----
+  try {
+    const orFilters: string[] = [];
+    if (seedRoblox) orFilters.push(`roblox_user_id.eq.${seedRoblox}`);
+    if (seedDiscord) orFilters.push(`discord_user_id.eq.${seedDiscord}`);
+    if (seedIp) orFilters.push(`ip_address.eq.${seedIp}`);
+    if (orFilters.length) {
+      const { data: linked } = await supabase
+        .from('paste_access_logs')
+        .select('ip_address, roblox_user_id, discord_user_id')
+        .or(orFilters.join(','))
+        .limit(500);
+      for (const row of linked || []) {
+        if (row.ip_address && !isAdminIp(row.ip_address)) ips.add(row.ip_address);
+        if (isValidRobloxId(row.roblox_user_id)) robloxIds.add(row.roblox_user_id);
+        if (row.discord_user_id) discordIds.add(row.discord_user_id);
+      }
+    }
+
+    // Device linkage — the machine and every account that ever used it
+    const hwidFilters: string[] = [];
+    if (seedHwid) hwidFilters.push(`hwid.eq.${seedHwid}`);
+    for (const rid of robloxIds) hwidFilters.push(`roblox_user_id.eq.${rid}`);
+    if (hwidFilters.length) {
+      const { data: locks } = await supabase
+        .from('paste_hwid_locks')
+        .select('hwid, roblox_user_id')
+        .or(hwidFilters.slice(0, 40).join(','))
+        .limit(500);
+      for (const row of locks || []) {
+        if (row.hwid && row.hwid.length >= 4) hwids.add(row.hwid);
+        if (isValidRobloxId(row.roblox_user_id)) robloxIds.add(row.roblox_user_id);
+      }
+    }
+  } catch (e) {
+    console.error('[BAN-ENGINE] identity expansion failed (banning seeds only):', e);
+  }
+
+  // ---- Apply the bans ----
+  for (const ip of ips) {
+    if (isAdminIp(ip)) continue;
+    if (await writeBan('ip', ip, reason, { ...baseMeta, linked_via: ip === seedIp ? 'seed' : 'identity_graph' })) {
+      autoBannedIpsThisSession.add(ip);
+      banned.push(`ip:${ip}`);
+    }
+  }
+  for (const rid of robloxIds) {
+    if (await writeBan('roblox_id', rid, reason, { ...baseMeta, linked_via: rid === seedRoblox ? 'seed' : 'identity_graph' })) {
+      banned.push(`roblox_id:${rid}`);
+    }
+  }
+  for (const did of discordIds) {
+    if (await writeBan('discord_id', did, reason, { ...baseMeta, linked_via: did === seedDiscord ? 'seed' : 'identity_graph' })) {
+      banned.push(`discord_id:${did}`);
+    }
+  }
+  for (const h of hwids) {
+    if (await writeBan('hwid', h, reason, { ...baseMeta, linked_via: h === seedHwid ? 'seed' : 'identity_graph' })) {
+      banned.push(`hwid:${h}`);
+    }
+  }
+
+  logThreat(`ban_engine_${ruleId}`, seedIp, seedRoblox, seedDiscord, {
+    rule_id: ruleId,
+    evidence,
+    identifiers_banned: banned,
+    counts: { ips: ips.size, roblox: robloxIds.size, discord: discordIds.size, hwids: hwids.size },
+  }, 'critical', true);
+
+  console.log(`[BAN-ENGINE] ${ruleId} -> ${banned.length} identifiers banned`);
+  return { banned };
+}
+
+
+
 // Enhanced rate limiting with IP tracking (persists within isolate lifetime)
 const rateLimits = new Map<string, { count: number; resetTime: number; blocked: boolean }>();
 const suspiciousIps = new Map<string, { strikes: number; lastStrike: number }>();
