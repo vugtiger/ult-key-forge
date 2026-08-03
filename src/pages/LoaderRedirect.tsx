@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import CloudBackground from "@/components/CloudBackground";
 import { ArrowLeft, Copy, Check, ShieldCheck, Lock, Fingerprint, Radar } from "lucide-react";
+
 
 const LoaderRedirect = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -40,8 +42,10 @@ const LoaderRedirect = () => {
   ];
 
   return (
-    <main className="min-h-screen w-full overflow-x-hidden px-4 py-10 md:py-16">
-      <div className="mx-auto w-full max-w-3xl space-y-6">
+    <main className="relative min-h-screen w-full overflow-x-hidden px-4 py-10 md:py-16">
+      <CloudBackground />
+      <div className="relative z-10 mx-auto w-full max-w-3xl space-y-6">
+
         <Button variant="ghost" onClick={() => navigate(loggedIn ? "/dashboard" : "/")} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Back to {loggedIn ? "dashboard" : "homepage"}
