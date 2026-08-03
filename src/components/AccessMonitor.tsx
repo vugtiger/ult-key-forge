@@ -105,7 +105,29 @@ const AccessMonitor = () => {
     [pastes, selectedPasteId],
   );
 
-  const displayLogs = useMemo(() => groupForDisplay(accessLogs), [accessLogs]);
+  const allDisplayLogs = useMemo(() => groupForDisplay(accessLogs), [accessLogs]);
+
+  const stats = useMemo(() => {
+    const dayAgo = Date.now() - 86_400_000;
+    return {
+      total: allDisplayLogs.length,
+      unauthorized: allDisplayLogs.filter((l) => l.access_type === "unauthorized_supabase").length,
+      uniqueIps: new Set(allDisplayLogs.map((l) => l.ip_address)).size,
+      discordAccounts: new Set(allDisplayLogs.map((l) => l.discord_user_id).filter(Boolean)).size,
+      last24h: allDisplayLogs.filter((l) => new Date(l.last_seen_at).getTime() >= dayAgo).length,
+    };
+  }, [allDisplayLogs]);
+
+  const displayLogs = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return allDisplayLogs.filter((l) => {
+      if (filter === "unauthorized" && l.access_type !== "unauthorized_supabase") return false;
+      if (filter === "verified" && !l.discord_user_id) return false;
+      if (!q) return true;
+      return [l.ip_address, l.discord_username, l.discord_user_id, l.user_agent]
+        .some((v) => (v || "").toLowerCase().includes(q));
+    });
+  }, [allDisplayLogs, filter, search]);
 
   const toggleIpTracking = async (enabled: boolean) => {
     if (!selectedPasteId) return;
