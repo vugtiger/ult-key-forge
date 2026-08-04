@@ -3010,9 +3010,20 @@ addStroke(win, borderCol, 1, 0.15)
 win.Size = UDim2.new(0, 760, 0, 340)
 -- Entrance animation
 win.BackgroundTransparency = 1
-local scaleHolder = Instance.new("UIScale", win); scaleHolder.Scale = 0.94
+local camera = workspace.CurrentCamera
+local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
+local fitScale = math.min(1, math.max(0.52, (viewport.X - 28) / 760), math.max(0.52, (viewport.Y - 120) / 340))
+local scaleHolder = Instance.new("UIScale", win); scaleHolder.Scale = fitScale * 0.94
 TweenService:Create(win, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
-TweenService:Create(scaleHolder, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+TweenService:Create(scaleHolder, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = fitScale}):Play()
+
+if camera then
+    camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+        local nextViewport = camera.ViewportSize
+        fitScale = math.min(1, math.max(0.52, (nextViewport.X - 28) / 760), math.max(0.52, (nextViewport.Y - 120) / 340))
+        scaleHolder.Scale = fitScale
+    end)
+end
 
 -- Top bar (dots + brand)
 local topBar = makePanel(win, UDim2.new(1, 0, 0, 44), UDim2.new(0, 0, 0, 0), bgColor, 4, 20)
