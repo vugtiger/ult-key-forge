@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getLoaderUrl } from "@/lib/loader-url";
+import { getLoadstring, getLoaderUrl } from "@/lib/loader-url";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 import TabHelpSection from "@/components/onboarding/TabHelpSection";
@@ -74,6 +74,7 @@ const Pastebin = () => {
   };
 
   const getRawUrl = (slug: string) => getLoaderUrl(slug);
+  const getExecutableLoader = (slug: string) => getLoadstring(slug);
 
   const fetchPastes = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -176,7 +177,7 @@ const Pastebin = () => {
       if (error) throw error;
 
       const rawLink = getRawUrl(slug);
-      setRawUrl(rawLink);
+      setRawUrl(getExecutableLoader(slug));
       setPasteUrl(rawLink);
       
       toast({ title: "Success!", description: "Paste created successfully" });
@@ -1248,7 +1249,7 @@ const Pastebin = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => copyToClipboard(getRawUrl(paste.slug))}
+                            onClick={() => copyToClipboard(getExecutableLoader(paste.slug))}
                             title="Copy Raw URL"
                           >
                             <Copy className="h-4 w-4" />
@@ -1284,7 +1285,7 @@ const Pastebin = () => {
                       <div className="mt-2">
                         <Input
                           readOnly
-                          value={getRawUrl(paste.slug)}
+                          value={getExecutableLoader(paste.slug)}
                           className="text-xs bg-muted/30 text-muted-foreground"
                         />
                       </div>
