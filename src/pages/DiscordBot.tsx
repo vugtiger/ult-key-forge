@@ -113,7 +113,7 @@ const DiscordBot = () => {
           </div>
           <div className="flex items-center justify-center gap-2 flex-wrap">
             <Button size="sm" className="gap-1.5 rounded-lg h-9 text-xs" onClick={() => window.open(inviteUrl, '_blank')}>
-              <Bot className="w-4 h-4" /> Invite Bot to Server <ExternalLink className="w-3 h-3" />
+              <MessageSquare className="w-4 h-4" /> Join Discord Server <ExternalLink className="w-3 h-3" />
             </Button>
             <Button size="sm" variant="outline" className="gap-1.5 rounded-lg h-9 text-xs border-primary/20" onClick={registerCommands} disabled={registering}>
               <RotateCw className={`w-4 h-4 ${registering ? "animate-spin" : ""}`} /> {registering ? "Registering..." : "Register Commands"}
@@ -153,7 +153,7 @@ const DiscordBot = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { step: "1", title: "Invite the Bot", desc: "Click the invite button above to add the bot to your Discord server" },
+              { step: "1", title: "Join the Server", desc: "Open the official ULT LUA Discord server from the button above" },
               { step: "2", title: "Link Your Account", desc: "Use /register or /login to connect your Discord to your ULT LUA account" },
               { step: "3", title: "Start Using Commands", desc: "Create key systems, manage pastes, and set up control panels" },
             ].map(item => (
@@ -219,7 +219,7 @@ const DiscordBot = () => {
         {/* Bottom CTA */}
         <div className="text-center py-4">
           <Button size="sm" className="gap-1.5 rounded-lg h-9 text-xs" onClick={() => window.open(inviteUrl, '_blank')}>
-            <Bot className="w-4 h-4" /> Add Bot to Your Server <ExternalLink className="w-3 h-3" />
+            <MessageSquare className="w-4 h-4" /> Join Discord Server <ExternalLink className="w-3 h-3" />
           </Button>
         </div>
       </div>
