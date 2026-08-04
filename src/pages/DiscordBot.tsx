@@ -7,7 +7,7 @@ import TabHelpSection from "@/components/onboarding/TabHelpSection";
 import { discordBotHelp } from "@/components/onboarding/helpContent";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Globe, Sparkles, EyeOff, RotateCw } from "lucide-react";
+import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Globe, Sparkles, EyeOff, RotateCw, MessageSquare } from "lucide-react";
 
 const DiscordBot = () => {
   const { toast } = useToast();
