@@ -463,9 +463,10 @@ const commands = [
   },
   {
     name: "unblockdevice",
-    description: "Unblock a previously blocked device (HWID)",
+    description: "Unblock a recorded device by paste and Roblox user ID",
     options: [
-      { name: "hwid", description: "Full HWID to unblock", type: 3, required: true }
+      { name: "paste", description: "Paste name/title the device was seen on", type: 3, required: true },
+      { name: "userid", description: "Roblox user ID whose device should be unblocked", type: 3, required: true }
     ]
   },
   {

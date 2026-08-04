@@ -1078,7 +1078,7 @@ async function handleCommand(interaction: any) {
     }
 
     case 'invite': {
-      return { type: 4, data: { content: `🤖 **Invite ULT LUA Bot to your server!**\n\nhttps://discord.com/oauth2/authorize?client_id=1407376197771595816&permissions=8&integration_type=0&scope=bot`, flags: 0 } };
+      return { type: 4, data: { content: `**Join the ULT LUA Discord server**\n\nhttps://discord.gg/vgVgRy9NAy`, flags: 0 } };
     }
 
     /* analytics command removed */
@@ -2134,7 +2134,8 @@ async function handleCommand(interaction: any) {
       if (!pasteName || !robloxUserId) return { type: 4, data: { content: '❌ Please provide paste name and Roblox user ID.', flags: 64 } };
       const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
       if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
-      const { data: lock } = await supabase.from('paste_hwid_locks').select('hwid').eq('paste_id', paste.id).eq('roblox_user_id', robloxUserId).maybeSingle();
+      const { data: locks } = await supabase.from('paste_hwid_locks').select('hwid').eq('paste_id', paste.id).eq('roblox_user_id', robloxUserId).order('updated_at', { ascending: false }).limit(1);
+      const lock = locks?.[0];
       if (!lock?.hwid) return { type: 4, data: { content: `❌ No device recorded for user **${robloxUserId}** on that paste yet.`, flags: 64 } };
 
       const { error } = await supabase.from('global_bans').upsert({
@@ -2160,10 +2161,17 @@ async function handleCommand(interaction: any) {
     case 'unblockdevice': {
       const user = await getUser();
       if (!user) return { type: 4, data: { content: '❌ Please `/register` or `/login` first.', flags: 64 } };
-      const hwid = data.options?.find((o: any) => o.name === 'hwid')?.value;
-      if (!hwid) return { type: 4, data: { content: '❌ Please provide the HWID.', flags: 64 } };
-      const { error } = await supabase.from('global_bans').update({ is_active: false }).eq('ban_type', 'hwid').eq('ban_value', hwid).eq('banned_by', user.userId);
+      const pasteName = data.options?.find((o: any) => o.name === 'paste')?.value;
+      const robloxUserId = data.options?.find((o: any) => o.name === 'userid')?.value;
+      if (!pasteName || !robloxUserId) return { type: 4, data: { content: '❌ Please provide paste name and Roblox user ID.', flags: 64 } };
+      const { data: paste } = await supabase.from('pastes').select('id, title').eq('user_id', user.userId).ilike('title', pasteName).maybeSingle();
+      if (!paste) return { type: 4, data: { content: `❌ Paste "${pasteName}" not found.`, flags: 64 } };
+      const { data: locks } = await supabase.from('paste_hwid_locks').select('hwid').eq('paste_id', paste.id).eq('roblox_user_id', robloxUserId).order('updated_at', { ascending: false }).limit(1);
+      const hwid = locks?.[0]?.hwid;
+      if (!hwid) return { type: 4, data: { content: `❌ No recorded device for user **${robloxUserId}** on that paste.`, flags: 64 } };
+      const { data: changed, error } = await supabase.from('global_bans').update({ is_active: false }).eq('ban_type', 'hwid').eq('ban_value', hwid).eq('banned_by', user.userId).select('ban_value');
       if (error) return { type: 4, data: { content: `❌ Failed: ${error.message}`, flags: 64 } };
+      if (!changed || changed.length === 0) return { type: 4, data: { content: `❌ That device is not blocked by your account.`, flags: 64 } };
       return { type: 4, data: { content: `✅ Device \`${String(hwid).slice(0, 16)}...\` unblocked.`, flags: 64 } };
     }
 

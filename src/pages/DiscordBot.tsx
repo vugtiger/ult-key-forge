@@ -12,7 +12,7 @@ import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, C
 const DiscordBot = () => {
   const { toast } = useToast();
   const [registering, setRegistering] = useState(false);
-  const inviteUrl = "https://discord.com/oauth2/authorize?client_id=1407376197771595816&permissions=8&integration_type=0&scope=bot";
+  const inviteUrl = "https://discord.gg/vgVgRy9NAy";
 
   const registerCommands = async () => {
     setRegistering(true);
@@ -38,6 +38,7 @@ const DiscordBot = () => {
     { icon: <RefreshCw className="w-4 h-4" />, title: "Force Expire", description: "Manually expire user access and remove them from whitelists" },
     { icon: <Globe className="w-4 h-4" />, title: "Public Protection", description: "Free-for-all execution without whitelist, blacklist still works" },
     { icon: <EyeOff className="w-4 h-4" />, title: "Hide Code", description: "Hide code from raw URL - shows blank but loadstring works", isNew: true },
+    { icon: <Shield className="w-4 h-4" />, title: "HWID Device Control", description: "Review locks and block or unblock recorded devices from Discord", isNew: true },
     { icon: <Zap className="w-4 h-4" />, title: "AI Assistant", description: "Chat with an AI assistant for Roblox scripting help" },
   ];
 
@@ -71,6 +72,11 @@ const DiscordBot = () => {
     { name: "/mykeysystemkeys", description: "View key stats for a paste", category: "Key Systems", isNew: true },
     { name: "/keysystemwhitelist", description: "Assign user ID to a key", category: "Key Systems", isNew: true },
     { name: "/deletekeysystem", description: "Delete key system from paste", category: "Key Systems", isNew: true },
+    { name: "/hwidlocks", description: "List recorded devices for a paste", category: "HWID", isNew: true },
+    { name: "/clearhwidlock", description: "Reset a user's device lock", category: "HWID", isNew: true },
+    { name: "/blockdevice", description: "Block a recorded device and linked accounts", category: "HWID", isNew: true },
+    { name: "/unblockdevice", description: "Unblock by paste and Roblox user ID", category: "HWID", isNew: true },
+    { name: "/blockeddevices", description: "List devices you have blocked", category: "HWID", isNew: true },
     { name: "/panel", description: "Create control panel", category: "Control Panels" },
     { name: "/mypanels", description: "View your panels", category: "Control Panels" },
     { name: "/consoleblacklist", description: "Blacklist from panel", category: "Control Panels" },
