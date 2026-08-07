@@ -43,14 +43,11 @@ export const getBrandedLoaderUrl = (slug: string) => {
 export const getLoaderUrl = (slug: string) =>
   getRawLoaderUrl(slug);
 
-/** Ready-to-paste loadstring snippet. */
+/** Ready-to-paste, executor-compatible one-line loadstring. */
 export const getLoadstring = (slug: string, key?: string | null) => {
-  // Lovable and other SPA hosts always serve index.html at /s/<slug>, including
-  // to executor user agents. Executable loaders therefore use the stable
-  // function transport while _ULT_PAGE remains the shareable browser page.
   const transportUrl = getRawLoaderUrl(slug);
-  const encodedTransport = Array.from(new TextEncoder().encode(transportUrl)).join(",");
-  const line = `local _ULT_PAGE="${getBrandedLoaderUrl(slug)}"\nlocal _ULT_URL=string.char(${encodedTransport})\nlocal _ULT_OK,_ULT_BODY=pcall(function() return game:HttpGet(_ULT_URL, true) end)\nif not _ULT_OK then error("ULT loader request failed: "..tostring(_ULT_BODY)) end\nif type(_ULT_BODY)~="string" or _ULT_BODY=="" then error("ULT loader returned an empty response") end\nif string.sub(_ULT_BODY,1,1)=="<" then error("ULT loader received a web page instead of Lua") end\nlocal _ULT_RUN,_ULT_ERR=loadstring(_ULT_BODY)\nif type(_ULT_RUN)~="function" then error("ULT loader compile failed: "..tostring(_ULT_ERR)) end\n_ULT_RUN()`;
-  return key ? `_G.ScriptKey = "${key}"\n${line}` : line;
+  const escapedKey = key?.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const line = `loadstring(game:HttpGet("${transportUrl}", true))()`;
+  return escapedKey ? `_G.ScriptKey="${escapedKey}";${line}` : line;
 };
 
