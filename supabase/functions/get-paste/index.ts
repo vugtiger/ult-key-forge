@@ -3164,7 +3164,7 @@ local checkMark = addLabel(check, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0),
 local vTitle = addLabel(card, UDim2.new(1, 0, 0, 24), UDim2.new(0, 0, 0, 100),
     "ACCESS GRANTED", fgColor, Enum.Font.GothamBlack, 18, Enum.TextXAlignment.Center, 6)
 local vSub = addLabel(card, UDim2.new(1, 0, 0, 16), UDim2.new(0, 0, 0, 126),
-    "Streaming protected payload to your executor", mutedText, Enum.Font.GothamMedium, 11, Enum.TextXAlignment.Center, 6)
+    "Running final security checks", mutedText, Enum.Font.GothamMedium, 11, Enum.TextXAlignment.Center, 6)
 
 -- Verified rows
 local rows = Instance.new("Frame", card)
@@ -3183,13 +3183,13 @@ local function vRow(y, name)
     ok.Visible = false
     return ok
 end
-local rowKey   = vRow(0,  "key signature")
-local rowRoute = vRow(25, "secure route")
-local rowLoad  = vRow(50, "payload integrity")
+local rowKey   = vRow(0,  "Key signature verified")
+local rowRoute = vRow(25, "Secure route authenticated")
+local rowLoad  = vRow(50, "Payload integrity confirmed")
 
 -- Bottom stream bar
 local streamLbl = addLabel(card, UDim2.new(1, -48, 0, 12), UDim2.new(0, 24, 1, -46),
-    "streaming...", mutedText, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Left, 6)
+    "Preparing protected payload", mutedText, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Left, 6)
 local streamPct = addLabel(card, UDim2.new(0, 40, 0, 12), UDim2.new(1, -64, 1, -46),
     "0%", mutedText, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Right, 6)
 local streamBg = makePanel(card, UDim2.new(1, -48, 0, 6), UDim2.new(0, 24, 1, -28), softBg, 6, 999)
@@ -3298,15 +3298,17 @@ local function validateKey()
             -- Transition to verification rectangle
             showVerifyScreen()
             task.wait(0.15)
-            setStreamProgress(22); rowKey.Visible = true
+            setStreamProgress(22); rowKey.Visible = true; streamLbl.Text = "Verifying access signature"
             task.wait(0.18)
-            setStreamProgress(52); rowRoute.Visible = true
+            setStreamProgress(52); rowRoute.Visible = true; streamLbl.Text = "Authenticating secure route"
             task.wait(0.18)
-            setStreamProgress(84); rowLoad.Visible = true
+            setStreamProgress(84); rowLoad.Visible = true; streamLbl.Text = "Confirming payload integrity"
             task.wait(0.15)
             setStreamProgress(100)
-            vSub.Text = "Payload delivered - executing now"
-            task.wait(0.35)
+            streamLbl.Text = "Checks complete"
+            vTitle.Text = "ALL CHECKS PASSED"
+            vSub.Text = "Launching protected script"
+            task.wait(0.5)
 
             unloadUi()
 

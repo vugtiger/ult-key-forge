@@ -79,7 +79,7 @@ const AccountInfo = () => {
               </p>
             </div>
             <Button variant="outline" size="sm" className="gap-2" asChild>
-              <a href="https://discord.gg/vgVgRy9NAy" target="_blank" rel="noopener noreferrer">
+              <a href="https://discord.gg/J8PfcmRrmx" target="_blank" rel="noopener noreferrer">
                 Open server <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </Button>
@@ -94,11 +94,11 @@ const AccountInfo = () => {
             <div className="flex items-start gap-3">
               <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <div>
-                <p className="text-sm font-semibold">Built around protected delivery</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">ULT CLOUD was built to keep Lua source out of public paste links while giving owners one place to manage keys, devices, access rules, and execution history.</p>
+                <p className="text-sm font-semibold">Why ULT CLOUD exists</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">ULT CLOUD began as an owner-built answer to scattered paste links, fragile key systems, and missing execution visibility. It keeps Lua delivery, access controls, device locks, and history together without charging creators.</p>
               </div>
             </div>
-            <p className="text-xs leading-5 text-muted-foreground">The project remains free forever. The owner account controls platform administration; each script owner controls only their own pastes, keys, device locks, and access records.</p>
+            <p className="text-xs leading-5 text-muted-foreground">The platform remains free forever. Administration is isolated to the owner account, while every creator keeps authority over only their own scripts, keys, device rules, and access records.</p>
             {profile?.created_at && <p className="text-[11px] text-muted-foreground">Member since {new Date(profile.created_at).toLocaleDateString()}</p>}
           </div>
         </div>
