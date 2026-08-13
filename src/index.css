@@ -158,14 +158,3 @@
     font-style: italic;
   }
 }
-
-/* Custom ULT shield cursor */
-html, body, * {
-  cursor: url("/ult-cursor.svg") 4 2, auto;
-}
-a, button, [role="button"], select, summary, label[for], input[type="checkbox"], input[type="radio"] {
-  cursor: url("/ult-cursor.svg") 4 2, pointer;
-}
-input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="search"], textarea {
-  cursor: url("/ult-cursor.svg") 4 2, text;
-}
