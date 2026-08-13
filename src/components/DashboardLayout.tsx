@@ -44,7 +44,15 @@ const resetTheme = () => {
 
 const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
   const root = document.documentElement;
-  const [r, g, b] = color.split(',').map(c => parseInt(c.trim()));
+  let parts = color.split(',').map((c) => parseInt(c.trim(), 10));
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) {
+    // Support "#rrggbb" values (and bail out safely on anything unparseable)
+    const hex = /^#?([0-9a-f]{6})$/i.exec(color.trim());
+    if (!hex) { resetTheme(); return; }
+    const int = parseInt(hex[1], 16);
+    parts = [(int >> 16) & 255, (int >> 8) & 255, int & 255];
+  }
+  const [r, g, b] = parts;
   const rNorm = r / 255, gNorm = g / 255, bNorm = b / 255;
   const max = Math.max(rNorm, gNorm, bNorm), min = Math.min(rNorm, gNorm, bNorm);
   let h = 0, s = 0;
