@@ -210,9 +210,7 @@ function buildBody(
   );
   const features = shuffle(pool, rng).slice(0, featureCount);
 
-  return `${shapeBlurb(shape, name)}
-
-This is a normal commercial developer-tools / digital-goods product. Build it end-to-end with production-quality code, no placeholders, no TODOs, no "left as an exercise" gaps.
+  return `Design and build the website "${name}" in the "${theme.name}" style. This is a pure website design brief — focus everything on look, feel, layout and motion. Production-quality code, no placeholders, no TODOs.
 
 ## Design direction — "${theme.name}" (${theme.category})
 - Overall layout & composition style: Wix-style — big confident hero, generous whitespace, oversized rounded cards (1.25rem+ radius), soft layered drop shadows, sticky floating navigation, full-bleed image/section blocks alternating with content, large pill-shaped CTAs, smooth scroll-triggered reveals between sections. The page should feel like a polished Wix Studio template, not a developer dashboard.
