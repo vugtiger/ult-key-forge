@@ -18,12 +18,12 @@ const navigationItems = [
   { title: "Pastebin", url: "/pastebin", icon: FileCode },
   { title: "Settings", url: "/script-settings", icon: Eye },
   { title: "AI", url: "/ai-assistant", icon: Bot },
-  { title: "Prompt Vault", url: "/prompts", icon: Sparkles },
+  { title: "Website Designs", url: "/prompts", icon: Sparkles },
   { title: "Discord", url: "/discord-bot", icon: MessageSquare },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Protection Keys", url: "/protection-keys", icon: Key },
   { title: "Changelog", url: "/changelog", icon: History },
-  { title: "Preferences", url: "/settings", icon: Settings },
+  { title: "Settings / Keys", url: "/settings", icon: Settings },
 ];
 
 const adminItems = [
@@ -98,7 +98,6 @@ const TopBar = ({ onLogout }: { onLogout: () => void }) => (
         </div>
       </NavLink>
       <div className="flex-1" />
-      <SoundToggle />
       <Button
         variant="ghost"
         size="sm"
@@ -187,15 +186,6 @@ const BottomNav = ({ user }: { user: User | null }) => {
   );
 };
 
-
-const SoundToggle = () => {
-  const [soundOn, setSoundOn] = useState(isSnowSoundOn());
-  return (
-    <Button variant="ghost" size="icon" onClick={() => setSoundOn(toggleSnowSound())} className="text-muted-foreground/70 hover:text-foreground h-9 w-9 rounded-full" title={soundOn ? "Mute" : "Unmute"}>
-      {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
-    </Button>
-  );
-};
 
 interface DashboardLayoutProps { children: ReactNode; }
 
