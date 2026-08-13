@@ -16,7 +16,6 @@ const PAGE_SIZE = 24;
 const Prompts = () => {
   const { toast } = useToast();
   const all = useMemo(() => getDailyPrompts(), []);
-  const [tier, setTier] = useState<"all" | PromptTier>("all");
   const [size, setSize] = useState<"all" | FeatureSize>("all");
   const [dim, setDim] = useState<"all" | "3D" | "2D">("all");
   const [category, setCategory] = useState<string>("all");
@@ -27,7 +26,6 @@ const Prompts = () => {
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
     return all.filter((p) => {
-      if (tier !== "all" && p.tier !== tier) return false;
       if (size !== "all" && p.featureSize !== size) return false;
       if (dim !== "all" && (dim === "3D") !== p.is3D) return false;
       if (category !== "all" && p.category !== category) return false;
