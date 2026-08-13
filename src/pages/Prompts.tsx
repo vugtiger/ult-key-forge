@@ -32,7 +32,7 @@ const Prompts = () => {
       if (qq && !p.title.toLowerCase().includes(qq) && !p.category.toLowerCase().includes(qq)) return false;
       return true;
     });
-  }, [all, tier, size, dim, category, q]);
+  }, [all, size, dim, category, q]);
 
   const visible = filtered.slice(0, page * PAGE_SIZE);
 
@@ -53,11 +53,11 @@ const Prompts = () => {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            <h1 className="text-2xl md:text-3xl font-bold">Prompt Vault</h1>
-            <Badge variant="secondary" className="ml-1">{all.length.toLocaleString()} prompts</Badge>
+            <h1 className="text-2xl md:text-3xl font-bold">Website Designs</h1>
+            <Badge variant="secondary" className="ml-1">{all.length.toLocaleString()} designs</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            Long-form prompts for building protection platforms like this one — every prompt is a different theme, logo, name, and feature set.
+            Ready-to-use website design briefs — every one is a different theme, palette, logo, typography and layout direction.
             New rotation drops every 24h (next at {tomorrow.toUTCString().slice(17, 22)} UTC).
           </p>
         </div>
