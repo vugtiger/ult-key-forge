@@ -79,7 +79,7 @@ const AccountInfo = () => {
               </p>
             </div>
             <Button variant="outline" size="sm" className="gap-2" asChild>
-              <a href="https://discord.gg/vgVgRy9NAy" target="_blank" rel="noopener noreferrer">
+              <a href="https://discord.gg/J8PfcmRrmx" target="_blank" rel="noopener noreferrer">
                 Open server <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </Button>

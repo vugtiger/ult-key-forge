@@ -1078,7 +1078,7 @@ async function handleCommand(interaction: any) {
     }
 
     case 'invite': {
-      return { type: 4, data: { content: `**Join the ULT LUA Discord server**\n\nhttps://discord.gg/vgVgRy9NAy`, flags: 0 } };
+      return { type: 4, data: { content: `**Join the ULT LUA Discord server**\n\nhttps://discord.gg/J8PfcmRrmx`, flags: 0 } };
     }
 
     /* analytics command removed */
