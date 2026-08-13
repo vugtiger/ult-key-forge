@@ -121,13 +121,6 @@ const Prompts = () => {
             >
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold text-sm leading-tight">{p.title}</h3>
-                {p.tier === "paid" ? (
-                  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30">
-                    <Crown className="h-3 w-3 mr-1" />Paid
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">Free</Badge>
-                )}
               </div>
               <div className="flex flex-wrap gap-1">
                 <Badge variant="outline" className="text-[10px]">{p.category}</Badge>
@@ -139,9 +132,6 @@ const Prompts = () => {
               <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
                 {p.body.split("\n").find((l) => l.trim().length > 50)?.slice(0, 220)}…
               </p>
-              {p.tier === "paid" && p.price && (
-                <div className="text-[11px] text-amber-400/80">{p.price}</div>
-              )}
               <div className="flex gap-2 mt-auto pt-1">
                 <Button size="sm" variant="outline" className="flex-1" onClick={(e) => { e.stopPropagation(); copy(p); }}>
                   <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy
@@ -177,11 +167,6 @@ const Prompts = () => {
                   <Badge variant="outline">{open.category}</Badge>
                   <Badge variant="outline">{open.featureSize === "big" ? "Many features" : "Lean"}</Badge>
                   {open.is3D && <Badge variant="outline"><Box className="h-3 w-3 mr-1" />3D</Badge>}
-                  {open.tier === "paid" ? (
-                    <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30"><Crown className="h-3 w-3 mr-1" />Paid</Badge>
-                  ) : (
-                    <Badge variant="secondary">Free</Badge>
-                  )}
                 </div>
                 <pre className="flex-1 overflow-y-auto whitespace-pre-wrap text-[12.5px] leading-relaxed bg-muted/40 border border-border/50 rounded-lg p-4 font-mono">
                   {open.body}
