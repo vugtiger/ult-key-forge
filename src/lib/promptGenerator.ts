@@ -223,32 +223,18 @@ function buildBody(
 - Zero emojis anywhere in the UI.
 
 ## Brand
-- Product name: ${name}
-- Tagline: write something punchier than "ship your work, get paid".
+- Site name: ${name}
+- Tagline: write a short, punchy line that fits the "${theme.name}" mood.
 - Domain feel: ${name.toLowerCase().replace(/\s+/g, "")}.app or .cloud
 
-## Required platform features (${size === "big" ? "FULL stack — do not cut corners" : "lean MVP — ship fast"})
+## Sections to design (${size === "big" ? "rich, multi-section site" : "lean, focused site"})
 ${features.map((f, i) => `${i + 1}. ${f}.`).join("\n")}
 
 ## Pages / surfaces
-- Marketing landing with hero, feature grid, social proof, pricing (if paid), FAQ, footer.
-- Auth (email + Google OAuth, plus Discord as a secondary option). Do not auto-confirm email signups; require verification.
-- Buyer dashboard: Library / Downloads, License Keys, Receipts, Settings.
-- Seller dashboard: Products, Sales, Customers, Coupons, Analytics, Settings.
-- Admin panel (role-gated via a SECURITY DEFINER has_role() function — roles in their own table, NEVER on profiles).
-- Public product / storefront pages, plus a /install PWA page.
+- Landing page: hero, feature grid, social proof, FAQ, footer.
+- One inner content page and one detail page, styled in the same language.
+- Consistent design system: semantic color tokens, spacing scale, radius scale, shadow scale — no hardcoded colors in components.
 
-## Backend
-- Use the platform's managed backend (Lovable Cloud / Postgres). Tables for: profiles, user_roles (separate table!), products, product_versions, files, licenses, sales, refunds, coupons, webhooks_log, audit_log.
-- Every public-schema table gets explicit GRANTs + RLS policies in the same migration. No table ships without both.
-- Edge functions (Deno.serve) for: issue-license, validate-license, download-file (returns a signed time-limited URL), stripe-webhook, paddle-webhook, ai-assist.
-- Standard signed-URL pattern for downloads: the API returns a short-lived signed URL, the client fetches the file directly.
-
-## Reliability rules
-- Fail-open on non-critical checks: if analytics or a soft validation hiccups, still serve the paying customer's download. Never block a legitimate buyer because the database had a transient error.
-- Admin users are exempt from automated suspension triggers.
-- Suspending a user's social login does NOT auto-revoke their purchased licenses. Account status and license status are separate.
-${tier === "paid" ? `\n## Monetization\n- Pricing: ${price}\n- Payment: ${methods?.join(" + ")}\n- Gate premium features behind a subscription_tier column on profiles, updated by Stripe / Paddle webhooks.\n- Add a Stripe / Paddle customer portal link in Settings for self-serve cancellation.` : "\n## Monetization\n- Strictly free forever. No premium tiers, no affiliate links, no paywalls anywhere in the UI."}
 
 ## Quality bar
 - Mobile-first. Every page must work at 375px wide without horizontal scroll. Enforce overflow-x: hidden on root.
