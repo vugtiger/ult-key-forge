@@ -4,12 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 
 import { NavLink } from "@/components/NavLink";
-import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye, Volume2, VolumeX, Key, Sparkles, Menu, X } from "lucide-react";
+import { Zap, Save, Bot, Settings, LogOut, FileCode, Shield, MessageSquare, BarChart3, History, Eye, Key, Sparkles, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
-import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEffect";
+import SnowEffect from "@/components/SnowEffect";
 import { applyDashboardLayout, LayoutPreset, TabDensity, TabShape } from "@/components/DashboardCustomizer";
 
 const navigationItems = [
@@ -18,12 +18,12 @@ const navigationItems = [
   { title: "Pastebin", url: "/pastebin", icon: FileCode },
   { title: "Settings", url: "/script-settings", icon: Eye },
   { title: "AI", url: "/ai-assistant", icon: Bot },
-  { title: "Prompt Vault", url: "/prompts", icon: Sparkles },
+  { title: "Website Designs", url: "/prompts", icon: Sparkles },
   { title: "Discord", url: "/discord-bot", icon: MessageSquare },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Protection Keys", url: "/protection-keys", icon: Key },
   { title: "Changelog", url: "/changelog", icon: History },
-  { title: "Preferences", url: "/settings", icon: Settings },
+  { title: "Settings / Keys", url: "/settings", icon: Settings },
 ];
 
 const adminItems = [
@@ -44,7 +44,15 @@ const resetTheme = () => {
 
 const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
   const root = document.documentElement;
-  const [r, g, b] = color.split(',').map(c => parseInt(c.trim()));
+  let parts = color.split(',').map((c) => parseInt(c.trim(), 10));
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) {
+    // Support "#rrggbb" values (and bail out safely on anything unparseable)
+    const hex = /^#?([0-9a-f]{6})$/i.exec(color.trim());
+    if (!hex) { resetTheme(); return; }
+    const int = parseInt(hex[1], 16);
+    parts = [(int >> 16) & 255, (int >> 8) & 255, int & 255];
+  }
+  const [r, g, b] = parts;
   const rNorm = r / 255, gNorm = g / 255, bNorm = b / 255;
   const max = Math.max(rNorm, gNorm, bNorm), min = Math.min(rNorm, gNorm, bNorm);
   let h = 0, s = 0;
@@ -90,7 +98,6 @@ const TopBar = ({ onLogout }: { onLogout: () => void }) => (
         </div>
       </NavLink>
       <div className="flex-1" />
-      <SoundToggle />
       <Button
         variant="ghost"
         size="sm"
@@ -179,15 +186,6 @@ const BottomNav = ({ user }: { user: User | null }) => {
   );
 };
 
-
-const SoundToggle = () => {
-  const [soundOn, setSoundOn] = useState(isSnowSoundOn());
-  return (
-    <Button variant="ghost" size="icon" onClick={() => setSoundOn(toggleSnowSound())} className="text-muted-foreground/70 hover:text-foreground h-9 w-9 rounded-full" title={soundOn ? "Mute" : "Unmute"}>
-      {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
-    </Button>
-  );
-};
 
 interface DashboardLayoutProps { children: ReactNode; }
 

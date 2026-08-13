@@ -345,9 +345,15 @@ const AdminDashboard = () => {
               <span className="text-[10px] text-muted-foreground/50 hidden sm:inline">v2.0</span>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground gap-2 text-xs">
-            <LogOut className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Sign Out</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/dashboard")}
+            className="gap-2 rounded-full border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 text-xs"
+          >
+            <ChevronRight className="h-3.5 w-3.5 rotate-180" />
+            <span className="hidden sm:inline">Back to dashboard</span>
+            <span className="sm:hidden">Dashboard</span>
           </Button>
         </div>
       </header>
