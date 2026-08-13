@@ -1,5 +1,14 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+// Branded loader URL. PUBLIC_SITE_URL should be the domain the website is
+// hosted on (it proxies /s/<slug> to this function). Falls back to the
+// backend URL when it is not configured.
+const buildLoaderUrl = (slug: string) => {
+  const site = (Deno.env.get("PUBLIC_SITE_URL") || "").replace(/\/$/, "");
+  if (site) return `${site}/s/${slug}`;
+  return `${Deno.env.get("SUPABASE_URL")}/functions/v1/get-paste?slug=${slug}`;
+};
+
 const DISCORD_PUBLIC_KEY = Deno.env.get("DISCORD_PUBLIC_KEY")!;
 const DISCORD_BOT_TOKEN = Deno.env.get("DISCORD_BOT_TOKEN")!;
 
@@ -738,7 +747,7 @@ async function handleCommand(interaction: any) {
       }
 
       // Fixed URL format to match website
-      const rawUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/get-paste?slug=${paste.slug}`;
+      const rawUrl = buildLoaderUrl(paste.slug);
 
       await sendDM(discordUserId, `✅ **Paste Created!**\n\n**Title:** ${title}\n**Raw URL:** ${rawUrl}\n\nYou can manage it in the Pastebin tab on the website.`);
 
@@ -2434,7 +2443,7 @@ async function handleButton(interaction: any) {
         return { type: 4, data: { content: '❌ Script not found.', flags: 64 } };
       }
       
-      const rawUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/get-paste?slug=${paste.slug}`;
+      const rawUrl = buildLoaderUrl(paste.slug);
       const loadstring = `loadstring(game:HttpGet("${rawUrl}"))()`;
       
       // DM the user the script - ephemeral so only they can see
