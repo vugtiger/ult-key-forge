@@ -76,33 +76,25 @@ const Prompts = () => {
             />
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Tabs value={tier} onValueChange={(v) => { setTier(v as any); setPage(1); }}>
-              <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="free"><Zap className="h-3.5 w-3.5 mr-1" />Free</TabsTrigger>
-                <TabsTrigger value="paid"><Crown className="h-3.5 w-3.5 mr-1" />Paid</TabsTrigger>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Tabs value={size} onValueChange={(v) => { setSize(v as any); setPage(1); }} className="min-w-0 max-w-full">
+              <TabsList className="flex w-full max-w-full overflow-x-auto">
+                <TabsTrigger value="all" className="flex-1 whitespace-nowrap text-xs">Any</TabsTrigger>
+                <TabsTrigger value="small" className="flex-1 whitespace-nowrap text-xs">Small</TabsTrigger>
+                <TabsTrigger value="big" className="flex-1 whitespace-nowrap text-xs"><Layers className="h-3.5 w-3.5 mr-1" />Big</TabsTrigger>
               </TabsList>
             </Tabs>
 
-            <Tabs value={size} onValueChange={(v) => { setSize(v as any); setPage(1); }}>
-              <TabsList>
-                <TabsTrigger value="all">Any size</TabsTrigger>
-                <TabsTrigger value="small">Small features</TabsTrigger>
-                <TabsTrigger value="big"><Layers className="h-3.5 w-3.5 mr-1" />Big features</TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            <Tabs value={dim} onValueChange={(v) => { setDim(v as any); setPage(1); }}>
-              <TabsList>
-                <TabsTrigger value="all">2D + 3D</TabsTrigger>
-                <TabsTrigger value="3D"><Box className="h-3.5 w-3.5 mr-1" />3D</TabsTrigger>
-                <TabsTrigger value="2D">2D</TabsTrigger>
+            <Tabs value={dim} onValueChange={(v) => { setDim(v as any); setPage(1); }} className="min-w-0 max-w-full">
+              <TabsList className="flex w-full max-w-full overflow-x-auto">
+                <TabsTrigger value="all" className="flex-1 whitespace-nowrap text-xs">2D + 3D</TabsTrigger>
+                <TabsTrigger value="3D" className="flex-1 whitespace-nowrap text-xs"><Box className="h-3.5 w-3.5 mr-1" />3D</TabsTrigger>
+                <TabsTrigger value="2D" className="flex-1 whitespace-nowrap text-xs">2D</TabsTrigger>
               </TabsList>
             </Tabs>
 
             <Select value={category} onValueChange={(v) => { setCategory(v); setPage(1); }}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
