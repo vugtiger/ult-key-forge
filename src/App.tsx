@@ -22,6 +22,8 @@ import Status from "./pages/Status";
 import ProtectionKeysAnalytics from "./pages/ProtectionKeysAnalytics";
 import Prompts from "./pages/Prompts";
 import NotFound from "./pages/NotFound";
+import LoaderRedirect from "./pages/LoaderRedirect";
+import Compare from "./pages/Compare";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +52,8 @@ const App = () => (
           <Route path="/protection-keys" element={<ProtectionKeysAnalytics />} />
           <Route path="/prompts" element={<Prompts />} />
           <Route path="/status" element={<Status />} />
+          <Route path="/s/:slug" element={<LoaderRedirect />} />
+          <Route path="/compare" element={<Compare />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

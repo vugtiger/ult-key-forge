@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/s/:slug",
+      "destination": "https://iyfvpnjrghsownkpazec.supabase.co/functions/v1/get-paste?slug=:slug"
+    }
+  ]
+}

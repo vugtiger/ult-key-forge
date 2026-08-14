@@ -14,6 +14,7 @@ type Props = {
 
 export default function AccessLogRow({ log, onDelete, deleting }: Props) {
   const fromBrowser = isBrowserRequest(log.access_type);
+  const unauthorized = log.access_type === 'unauthorized_supabase';
 
   // Browser visits = red glow, Executor = white/primary glow (no offline status)
   const dotClass = fromBrowser ? "bg-destructive" : "bg-primary";
@@ -47,6 +48,11 @@ export default function AccessLogRow({ log, onDelete, deleting }: Props) {
               ) : (
                 <Badge variant="default" className="text-[10px] px-1.5 py-0 shrink-0 bg-primary">
                   EXECUTOR
+                </Badge>
+              )}
+              {unauthorized && (
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 shrink-0">
+                  PERMANENTLY BANNED — UNAUTHORIZED LINK
                 </Badge>
               )}
             </div>
