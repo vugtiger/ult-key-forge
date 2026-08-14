@@ -158,8 +158,3 @@
     font-style: italic;
   }
 }
-
-
-/* Custom ULT shield crosshair cursor */
-html, body, * { cursor: url('/ult-cursor.svg') 6 4, auto; }
-a, button, [role="button"], input, select, textarea, label { cursor: url('/ult-cursor.svg') 6 4, pointer; }

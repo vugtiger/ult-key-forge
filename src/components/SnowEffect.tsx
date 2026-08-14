@@ -27,7 +27,6 @@ const initAudio = () => {
   audioMuted = saved === "true";
 
   try {
-    return; // music removed
     audioEl = new Audio(MUSIC_SRC);
     audioEl.loop = true;
     audioEl.volume = audioMuted ? 0 : 0.35;

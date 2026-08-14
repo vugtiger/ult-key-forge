@@ -1,1 +1,0 @@
-DELETE FROM public.global_bans WHERE reason IN ('Auto-banned: browser_access_report_endpoint_bypass', 'Auto-banned: discord_bot_access', 'Auto-banned: bot_detected_discord_bot');

@@ -1,7 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const PUBLIC_SITE_URL = (Deno.env.get("PUBLIC_SITE_URL") || "https://ult-key-forge.vercel.app").replace(/\/$/, "");
-
 const DISCORD_PUBLIC_KEY = Deno.env.get("DISCORD_PUBLIC_KEY")!;
 const DISCORD_BOT_TOKEN = Deno.env.get("DISCORD_BOT_TOKEN")!;
 
@@ -740,7 +738,7 @@ async function handleCommand(interaction: any) {
       }
 
       // Fixed URL format to match website
-      const rawUrl = `${PUBLIC_SITE_URL}/s/${paste.slug}`;
+      const rawUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/get-paste?slug=${paste.slug}`;
 
       await sendDM(discordUserId, `✅ **Paste Created!**\n\n**Title:** ${title}\n**Raw URL:** ${rawUrl}\n\nYou can manage it in the Pastebin tab on the website.`);
 
@@ -1080,7 +1078,7 @@ async function handleCommand(interaction: any) {
     }
 
     case 'invite': {
-      return { type: 4, data: { content: `**Join the ULT LUA Discord server**\n\nhttps://discord.gg/J8PfcmRrmx`, flags: 0 } };
+      return { type: 4, data: { content: `**Join the ULT LUA Discord server**\n\nhttps://discord.gg/vgVgRy9NAy`, flags: 0 } };
     }
 
     /* analytics command removed */
@@ -2436,7 +2434,7 @@ async function handleButton(interaction: any) {
         return { type: 4, data: { content: '❌ Script not found.', flags: 64 } };
       }
       
-      const rawUrl = `${PUBLIC_SITE_URL}/s/${paste.slug}`;
+      const rawUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/get-paste?slug=${paste.slug}`;
       const loadstring = `loadstring(game:HttpGet("${rawUrl}"))()`;
       
       // DM the user the script - ephemeral so only they can see

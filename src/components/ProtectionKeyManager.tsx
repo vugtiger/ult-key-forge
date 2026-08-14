@@ -53,12 +53,9 @@ const ProtectionKeyManager = () => {
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
       const { data } = await supabase
         .from("pastes")
         .select("id,title,slug,protection_mode")
-        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (data) {
         setPastes(data as any);
@@ -66,7 +63,6 @@ const ProtectionKeyManager = () => {
       }
     })();
   }, []);
-
 
   useEffect(() => {
     if (!selectedId) return;

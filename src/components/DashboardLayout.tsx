@@ -23,7 +23,7 @@ const navigationItems = [
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Protection Keys", url: "/protection-keys", icon: Key },
   { title: "Changelog", url: "/changelog", icon: History },
-  { title: "Settings / Keys", url: "/settings", icon: Settings },
+  { title: "Preferences", url: "/settings", icon: Settings },
 ];
 
 const adminItems = [
@@ -90,6 +90,7 @@ const TopBar = ({ onLogout }: { onLogout: () => void }) => (
         </div>
       </NavLink>
       <div className="flex-1" />
+      <SoundToggle />
       <Button
         variant="ghost"
         size="sm"

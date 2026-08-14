@@ -55,11 +55,11 @@ const Prompts = () => {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            <h1 className="text-2xl md:text-3xl font-bold">Website Designs</h1>
-            <Badge variant="secondary" className="ml-1">{all.length.toLocaleString()} designs</Badge>
+            <h1 className="text-2xl md:text-3xl font-bold">Prompt Vault</h1>
+            <Badge variant="secondary" className="ml-1">{all.length.toLocaleString()} prompts</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            Ready-made website design briefs — every design has its own theme, logo, name, and feature set.
+            Long-form prompts for building protection platforms like this one — every prompt is a different theme, logo, name, and feature set.
             New rotation drops every 24h (next at {tomorrow.toUTCString().slice(17, 22)} UTC).
           </p>
         </div>
@@ -76,17 +76,25 @@ const Prompts = () => {
             />
           </div>
 
-          <div className="flex flex-wrap gap-2 max-w-full overflow-x-hidden">
-            <Tabs value={size} onValueChange={(v) => { setSize(v as any); setPage(1); }} className="w-full sm:w-auto">
-              <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex">
-                <TabsTrigger value="all" className="text-[11px] sm:text-xs px-2">Any</TabsTrigger>
-                <TabsTrigger value="small" className="text-[11px] sm:text-xs px-2">Small</TabsTrigger>
-                <TabsTrigger value="big" className="text-[11px] sm:text-xs px-2"><Layers className="h-3.5 w-3.5 mr-1" />Big</TabsTrigger>
+          <div className="flex flex-wrap gap-2">
+            <Tabs value={tier} onValueChange={(v) => { setTier(v as any); setPage(1); }}>
+              <TabsList>
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="free"><Zap className="h-3.5 w-3.5 mr-1" />Free</TabsTrigger>
+                <TabsTrigger value="paid"><Crown className="h-3.5 w-3.5 mr-1" />Paid</TabsTrigger>
               </TabsList>
             </Tabs>
 
-            <Tabs value={dim} onValueChange={(v) => { setDim(v as any); setPage(1); }} className="w-full sm:w-auto">
-              <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex">
+            <Tabs value={size} onValueChange={(v) => { setSize(v as any); setPage(1); }}>
+              <TabsList>
+                <TabsTrigger value="all">Any size</TabsTrigger>
+                <TabsTrigger value="small">Small features</TabsTrigger>
+                <TabsTrigger value="big"><Layers className="h-3.5 w-3.5 mr-1" />Big features</TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            <Tabs value={dim} onValueChange={(v) => { setDim(v as any); setPage(1); }}>
+              <TabsList>
                 <TabsTrigger value="all">2D + 3D</TabsTrigger>
                 <TabsTrigger value="3D"><Box className="h-3.5 w-3.5 mr-1" />3D</TabsTrigger>
                 <TabsTrigger value="2D">2D</TabsTrigger>
@@ -94,7 +102,7 @@ const Prompts = () => {
             </Tabs>
 
             <Select value={category} onValueChange={(v) => { setCategory(v); setPage(1); }}>
-              <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -107,7 +115,7 @@ const Prompts = () => {
           </div>
 
           <div className="text-xs text-muted-foreground">
-            Showing <span className="text-foreground font-medium">{visible.length}</span> of {filtered.length.toLocaleString()} matching designs
+            Showing <span className="text-foreground font-medium">{visible.length}</span> of {filtered.length.toLocaleString()} matching prompts
           </div>
         </Card>
 
@@ -121,6 +129,13 @@ const Prompts = () => {
             >
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold text-sm leading-tight">{p.title}</h3>
+                {p.tier === "paid" ? (
+                  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30">
+                    <Crown className="h-3 w-3 mr-1" />Paid
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">Free</Badge>
+                )}
               </div>
               <div className="flex flex-wrap gap-1">
                 <Badge variant="outline" className="text-[10px]">{p.category}</Badge>
