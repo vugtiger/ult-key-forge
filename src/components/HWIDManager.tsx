@@ -1,20 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Fingerprint, Trash2, RefreshCw, Ban, ShieldCheck } from "lucide-react";
+import { Fingerprint, Trash2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface HWIDDevice {
+interface HWIDLock {
   id: string;
   paste_id: string;
   roblox_user_id: string;
   hwid: string;
   created_at: string;
   updated_at: string;
-  is_blocked?: boolean;
-  ban_reason?: string | null;
 }
 
 interface HWIDManagerProps {
@@ -22,30 +19,21 @@ interface HWIDManagerProps {
 }
 
 const HWIDManager = ({ pasteId }: HWIDManagerProps) => {
-  const [locks, setLocks] = useState<HWIDDevice[]>([]);
+  const [locks, setLocks] = useState<HWIDLock[]>([]);
   const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchLocks = useCallback(async () => {
     if (!pasteId) return;
     setLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke('hwid-bans', {
-        body: { action: 'list' },
-        headers: session ? { Authorization: `Bearer ${session.access_token}` } : undefined,
-      });
-      if (error) throw error;
-      setLocks(((data?.devices || []) as HWIDDevice[]).filter((d) => d.paste_id === pasteId));
-    } catch {
-      // Fallback to direct read if the function is unavailable
-      const { data } = await supabase
-        .from('paste_hwid_locks')
-        .select('*')
-        .eq('paste_id', pasteId)
-        .order('created_at', { ascending: false });
-      setLocks((data || []) as HWIDDevice[]);
+    const { data, error } = await supabase
+      .from('paste_hwid_locks')
+      .select('*')
+      .eq('paste_id', pasteId)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setLocks(data as HWIDLock[]);
     }
     setLoading(false);
   }, [pasteId]);
@@ -73,47 +61,18 @@ const HWIDManager = ({ pasteId }: HWIDManagerProps) => {
     }
   };
 
-  const toggleBlock = async (device: HWIDDevice) => {
-    setBusy(device.id);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke('hwid-bans', {
-        body: {
-          action: device.is_blocked ? 'unblock' : 'block',
-          hwid: device.hwid,
-          reason: `Device blocked from script settings`,
-        },
-        headers: session ? { Authorization: `Bearer ${session.access_token}` } : undefined,
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      toast({
-        title: device.is_blocked ? "Device unblocked" : "Device blocked",
-        description: device.is_blocked
-          ? "This machine can execute your scripts again."
-          : `Machine blocked everywhere${data?.alts_banned ? ` — ${data.alts_banned} linked account(s) banned` : ''}. Alts on this device cannot execute.`,
-      });
-      fetchLocks();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } finally {
-      setBusy(null);
-    }
-  };
-
   return (
     <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <Fingerprint className="h-5 w-5" />
-          HWID Locks & Device Blocking
+          HWID Locks
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
-          Each user's hardware fingerprint is locked on first execution. Reset a lock to allow re-binding,
-          or block the device to ban the whole machine — every alt account on that hardware is banned too.
+          When HWID protection is enabled, each user's hardware fingerprint is locked on first execution.
+          Only that specific device can run the script. Reset a lock to allow re-binding.
         </p>
 
         <div className="flex justify-end">
@@ -134,14 +93,11 @@ const HWIDManager = ({ pasteId }: HWIDManagerProps) => {
             {locks.map((lock) => (
               <div
                 key={lock.id}
-                className="p-3 rounded-lg border border-border/30 bg-background/30 flex items-center justify-between gap-2 flex-wrap"
+                className="p-3 rounded-lg border border-border/30 bg-background/30 flex items-center justify-between"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-sm">{lock.roblox_user_id}</span>
-                    {lock.is_blocked && (
-                      <Badge variant="destructive" className="text-[9px] px-1 py-0">Device blocked</Badge>
-                    )}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]">
@@ -152,32 +108,15 @@ const HWIDManager = ({ pasteId }: HWIDManagerProps) => {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy === lock.id}
-                    onClick={() => toggleBlock(lock)}
-                    className={lock.is_blocked
-                      ? "border-primary/50 hover:bg-primary/10"
-                      : "text-destructive border-destructive/50 hover:bg-destructive/10"}
-                  >
-                    {lock.is_blocked ? (
-                      <><ShieldCheck className="h-3 w-3 mr-1" />Unblock</>
-                    ) : (
-                      <><Ban className="h-3 w-3 mr-1" />Block device</>
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => resetHWID(lock.id, lock.roblox_user_id)}
-                    className="text-destructive border-destructive/50 hover:bg-destructive/10"
-                  >
-                    <Trash2 className="h-3 w-3 mr-1" />
-                    Reset
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => resetHWID(lock.id, lock.roblox_user_id)}
+                  className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Reset
+                </Button>
               </div>
             ))}
           </div>

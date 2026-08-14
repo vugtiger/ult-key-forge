@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { getLoaderUrl } from "@/lib/loader-url";
 import {
   Zap, ChevronRight, ChevronLeft, Check, Copy, Download, Key, Clock, Hash, Users,
   Link2, Settings, Trash2, Plus, Save, BarChart2, AlertTriangle, RefreshCw, Timer
@@ -223,7 +222,7 @@ const Dashboard = () => {
       const durationConfig = KEY_DURATIONS.find(d => d.value === duration)!;
       const now = Date.now();
       const selectedPasteObj = pastes.find(p => p.id === selectedPaste);
-      const pasteUrl = getLoaderUrl(selectedPasteObj?.slug || '');
+      const pasteUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-paste?slug=${selectedPasteObj?.slug}`;
 
       // Use decal ID if provided
       const logoUrl = decalId.trim() || null;
@@ -432,7 +431,7 @@ const Dashboard = () => {
   const copyManageLuaCode = () => {
     const paste = pastes.find(p => p.id === managePasteId);
     if (!paste || !managePanel) return;
-    const pasteUrl = getLoaderUrl(paste.slug);
+    const pasteUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-paste?slug=${paste.slug}`;
     const keyList = manageKeys.map(k => `"${k.key_value}"`).join(', ');
     const asciiText = convertToAsciiArt(managePanel.name);
     const code = generateLuaCode(managePanel.name, asciiText, '255, 255, 255', keyList, pasteUrl);

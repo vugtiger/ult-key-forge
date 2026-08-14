@@ -1,5 +1,6 @@
-// Host-agnostic app URLs: whatever domain the site is currently served from
-// is the domain used for auth redirects and links.
+const CANONICAL_APP_URL = "https://ultluaprotectsyourluacode.netlify.app";
+
+const PREVIEW_HOST_PATTERNS = ["localhost", "127.0.0.1", ".lovable.app", ".lovableproject.com", ".lovable.dev"];
 
 const normalizeUrl = (value: string) => value.replace(/\/$/, "");
 
@@ -17,11 +18,20 @@ export const isRecoveryLinkPayload = (hash = window.location.hash) => {
 };
 
 export const getAppBaseUrl = () => {
-  if (typeof window === "undefined") return "";
-  return normalizeUrl(window.location.origin);
+  if (typeof window === "undefined") {
+    return CANONICAL_APP_URL;
+  }
+
+  const currentOrigin = normalizeUrl(window.location.origin);
+  const currentHost = window.location.hostname;
+  const isPreviewHost = PREVIEW_HOST_PATTERNS.some(
+    (pattern) => currentHost === pattern || currentHost.endsWith(pattern),
+  );
+
+  return isPreviewHost ? CANONICAL_APP_URL : currentOrigin;
 };
 
 export const buildAppUrl = (path = "/") => {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return `${getAppBaseUrl()}${normalizedPath}`;
+  return `${normalizeUrl(getAppBaseUrl())}${normalizedPath}`;
 };

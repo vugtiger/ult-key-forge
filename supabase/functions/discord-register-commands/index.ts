@@ -452,28 +452,6 @@ const commands = [
       { name: "userid", description: "Roblox user ID to clear", type: 3, required: true }
     ]
   },
-  {
-    name: "blockdevice",
-    description: "Permanently block a device (HWID) from all your scripts",
-    options: [
-      { name: "paste", description: "Paste name/title the device was seen on", type: 3, required: true },
-      { name: "userid", description: "Roblox user ID whose device should be blocked", type: 3, required: true },
-      { name: "reason", description: "Reason for the device block", type: 3, required: false }
-    ]
-  },
-  {
-    name: "unblockdevice",
-    description: "Unblock a recorded device by paste and Roblox user ID",
-    options: [
-      { name: "paste", description: "Paste name/title the device was seen on", type: 3, required: true },
-      { name: "userid", description: "Roblox user ID whose device should be unblocked", type: 3, required: true }
-    ]
-  },
-  {
-    name: "blockeddevices",
-    description: "List devices (HWIDs) you have blocked"
-  },
-
 
   // ===== New: Webhook Alerts =====
   {

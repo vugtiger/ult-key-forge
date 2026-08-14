@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Shield, Eye, Radio, Trash2 } from "lucide-react";
@@ -20,8 +19,6 @@ const AccessMonitor = () => {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
-  const [filter, setFilter] = useState<"all" | "unauthorized" | "verified">("all");
-  const [search, setSearch] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,8 +41,6 @@ const AccessMonitor = () => {
             filter: `paste_id=eq.${selectedPasteId}`
           },
           (payload) => {
-            const row = payload.new as AccessLog;
-            if (row && !['browser', 'unauthorized_supabase'].includes(row.access_type)) return;
             if (payload.eventType === 'INSERT') {
               setAccessLogs((prev) => mergeAccessLog(prev, payload.new as AccessLog));
             } else if (payload.eventType === 'UPDATE') {
@@ -86,7 +81,6 @@ const AccessMonitor = () => {
       .from('paste_access_logs')
       .select('*')
       .eq('paste_id', pasteId)
-      .in('access_type', ['browser', 'unauthorized_supabase'])
       .order('last_seen_at', { ascending: false })
       .limit(100);
 
@@ -108,29 +102,7 @@ const AccessMonitor = () => {
     [pastes, selectedPasteId],
   );
 
-  const allDisplayLogs = useMemo(() => groupForDisplay(accessLogs), [accessLogs]);
-
-  const stats = useMemo(() => {
-    const dayAgo = Date.now() - 86_400_000;
-    return {
-      total: allDisplayLogs.length,
-      unauthorized: allDisplayLogs.filter((l) => l.access_type === "unauthorized_supabase").length,
-      uniqueIps: new Set(allDisplayLogs.map((l) => l.ip_address)).size,
-      discordAccounts: new Set(allDisplayLogs.map((l) => l.discord_user_id).filter(Boolean)).size,
-      last24h: allDisplayLogs.filter((l) => new Date(l.last_seen_at).getTime() >= dayAgo).length,
-    };
-  }, [allDisplayLogs]);
-
-  const displayLogs = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return allDisplayLogs.filter((l) => {
-      if (filter === "unauthorized" && l.access_type !== "unauthorized_supabase") return false;
-      if (filter === "verified" && !l.discord_user_id) return false;
-      if (!q) return true;
-      return [l.ip_address, l.discord_username, l.discord_user_id, l.user_agent]
-        .some((v) => (v || "").toLowerCase().includes(q));
-    });
-  }, [allDisplayLogs, filter, search]);
+  const displayLogs = useMemo(() => groupForDisplay(accessLogs), [accessLogs]);
 
   const toggleIpTracking = async (enabled: boolean) => {
     if (!selectedPasteId) return;
@@ -181,16 +153,12 @@ const AccessMonitor = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Eye className="h-5 w-5" />
-          Access Monitor Supabase
+          Access Monitor
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Paste Selector */}
         <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">
-            Browser visits only. Roblox executions are never tracked here. Anyone who reaches the
-            internal backend link is permanently banned automatically.
-          </p>
           <label className="text-sm font-medium">Select Paste to Monitor</label>
           <Select value={selectedPasteId} onValueChange={setSelectedPasteId}>
             <SelectTrigger className="bg-background/50">
@@ -224,52 +192,14 @@ const AccessMonitor = () => {
           </div>
         )}
 
-        {/* Summary */}
-        {selectedPasteId && (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            {[
-              { label: "Visits", value: stats.total },
-              { label: "Last 24h", value: stats.last24h },
-              { label: "Unique IPs", value: stats.uniqueIps },
-              { label: "Discord Accts", value: stats.discordAccounts },
-              { label: "Unauthorized", value: stats.unauthorized },
-            ].map((s) => (
-              <div key={s.label} className="rounded-xl border border-border/30 bg-background/30 p-3">
-                <p className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground">{s.label}</p>
-                <p className="text-xl font-black tracking-tight mt-0.5">{s.value}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Access Logs */}
         {selectedPasteId && (
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium flex items-center gap-2">
                 <Radio className="h-4 w-4 text-primary animate-pulse" />
                 Live Access Feed
               </h4>
-              <div className="flex items-center gap-1 rounded-full border border-border/40 bg-background/40 p-1">
-                {(["all", "unauthorized", "verified"] as const).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={`rounded-full px-3 py-1 text-[11px] capitalize transition-colors ${
-                      filter === f ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search IP, Discord, user agent"
-                className="h-8 w-full sm:w-64 text-xs bg-background/50"
-              />
-
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs">
                   {displayLogs.length} shown
@@ -317,12 +247,12 @@ const AccessMonitor = () => {
             {/* Legend */}
              <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t border-border/30">
                <div className="flex items-center gap-1.5">
-                 <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
-                 <span>Browser Visitor</span>
+                 <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                 <span>Executor</span>
                </div>
                <div className="flex items-center gap-1.5">
-                 <div className="h-2 w-2 rounded-full bg-destructive" />
-                 <span>Unauthorized backend access — permanently banned</span>
+                 <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                 <span>Browser Visitor</span>
                </div>
              </div>
           </div>

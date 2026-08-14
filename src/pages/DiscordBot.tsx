@@ -7,12 +7,12 @@ import TabHelpSection from "@/components/onboarding/TabHelpSection";
 import { discordBotHelp } from "@/components/onboarding/helpContent";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Globe, Sparkles, EyeOff, RotateCw, MessageSquare } from "lucide-react";
+import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, Clock, Ban, RefreshCw, Globe, Sparkles, EyeOff, RotateCw } from "lucide-react";
 
 const DiscordBot = () => {
   const { toast } = useToast();
   const [registering, setRegistering] = useState(false);
-  const inviteUrl = "https://discord.gg/vgVgRy9NAy";
+  const inviteUrl = "https://discord.com/oauth2/authorize?client_id=1407376197771595816&permissions=8&integration_type=0&scope=bot";
 
   const registerCommands = async () => {
     setRegistering(true);
@@ -38,7 +38,6 @@ const DiscordBot = () => {
     { icon: <RefreshCw className="w-4 h-4" />, title: "Force Expire", description: "Manually expire user access and remove them from whitelists" },
     { icon: <Globe className="w-4 h-4" />, title: "Public Protection", description: "Free-for-all execution without whitelist, blacklist still works" },
     { icon: <EyeOff className="w-4 h-4" />, title: "Hide Code", description: "Hide code from raw URL - shows blank but loadstring works", isNew: true },
-    { icon: <Shield className="w-4 h-4" />, title: "HWID Device Control", description: "Review locks and block or unblock recorded devices from Discord", isNew: true },
     { icon: <Zap className="w-4 h-4" />, title: "AI Assistant", description: "Chat with an AI assistant for Roblox scripting help" },
   ];
 
@@ -72,11 +71,6 @@ const DiscordBot = () => {
     { name: "/mykeysystemkeys", description: "View key stats for a paste", category: "Key Systems", isNew: true },
     { name: "/keysystemwhitelist", description: "Assign user ID to a key", category: "Key Systems", isNew: true },
     { name: "/deletekeysystem", description: "Delete key system from paste", category: "Key Systems", isNew: true },
-    { name: "/hwidlocks", description: "List recorded devices for a paste", category: "HWID", isNew: true },
-    { name: "/clearhwidlock", description: "Reset a user's device lock", category: "HWID", isNew: true },
-    { name: "/blockdevice", description: "Block a recorded device and linked accounts", category: "HWID", isNew: true },
-    { name: "/unblockdevice", description: "Unblock by paste and Roblox user ID", category: "HWID", isNew: true },
-    { name: "/blockeddevices", description: "List devices you have blocked", category: "HWID", isNew: true },
     { name: "/panel", description: "Create control panel", category: "Control Panels" },
     { name: "/mypanels", description: "View your panels", category: "Control Panels" },
     { name: "/consoleblacklist", description: "Blacklist from panel", category: "Control Panels" },
@@ -113,7 +107,7 @@ const DiscordBot = () => {
           </div>
           <div className="flex items-center justify-center gap-2 flex-wrap">
             <Button size="sm" className="gap-1.5 rounded-lg h-9 text-xs" onClick={() => window.open(inviteUrl, '_blank')}>
-              <MessageSquare className="w-4 h-4" /> Join Discord Server <ExternalLink className="w-3 h-3" />
+              <Bot className="w-4 h-4" /> Invite Bot to Server <ExternalLink className="w-3 h-3" />
             </Button>
             <Button size="sm" variant="outline" className="gap-1.5 rounded-lg h-9 text-xs border-primary/20" onClick={registerCommands} disabled={registering}>
               <RotateCw className={`w-4 h-4 ${registering ? "animate-spin" : ""}`} /> {registering ? "Registering..." : "Register Commands"}
@@ -153,7 +147,7 @@ const DiscordBot = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { step: "1", title: "Join the Server", desc: "Open the official ULT LUA Discord server from the button above" },
+              { step: "1", title: "Invite the Bot", desc: "Click the invite button above to add the bot to your Discord server" },
               { step: "2", title: "Link Your Account", desc: "Use /register or /login to connect your Discord to your ULT LUA account" },
               { step: "3", title: "Start Using Commands", desc: "Create key systems, manage pastes, and set up control panels" },
             ].map(item => (
@@ -219,7 +213,7 @@ const DiscordBot = () => {
         {/* Bottom CTA */}
         <div className="text-center py-4">
           <Button size="sm" className="gap-1.5 rounded-lg h-9 text-xs" onClick={() => window.open(inviteUrl, '_blank')}>
-            <MessageSquare className="w-4 h-4" /> Join Discord Server <ExternalLink className="w-3 h-3" />
+            <Bot className="w-4 h-4" /> Add Bot to Your Server <ExternalLink className="w-3 h-3" />
           </Button>
         </div>
       </div>
