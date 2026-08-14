@@ -12,7 +12,7 @@ import { Bot, Check, Shield, Key, FileText, Users, Zap, ExternalLink, Command, C
 const DiscordBot = () => {
   const { toast } = useToast();
   const [registering, setRegistering] = useState(false);
-  const inviteUrl = "https://discord.gg/vgVgRy9NAy";
+  const inviteUrl = "https://discord.gg/J8PfcmRrmx";
 
   const registerCommands = async () => {
     setRegistering(true);
