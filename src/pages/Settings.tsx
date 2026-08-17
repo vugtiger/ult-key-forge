@@ -55,7 +55,9 @@ const Settings = () => {
         case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break;
       }
     }
-    const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+    // Clamp lightness so text stays readable on the light background.
+    const safeL = Math.min(Math.round(l * 100), 42);
+    const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${safeL}%`;
     root.style.setProperty('--foreground', hsl);
     root.style.setProperty('--card-foreground', hsl);
     root.style.setProperty('--popover-foreground', hsl);

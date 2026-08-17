@@ -16,14 +16,14 @@ const navigationItems = [
   { title: "Key System", url: "/dashboard", icon: Zap },
   { title: "Scripts", url: "/scripts", icon: Save },
   { title: "Pastebin", url: "/pastebin", icon: FileCode },
-  { title: "Settings", url: "/script-settings", icon: Eye },
+  { title: "Settings / Keys", url: "/script-settings", icon: Eye },
   { title: "AI", url: "/ai-assistant", icon: Bot },
   { title: "Prompt Vault", url: "/prompts", icon: Sparkles },
   { title: "Discord", url: "/discord-bot", icon: MessageSquare },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Protection Keys", url: "/protection-keys", icon: Key },
   { title: "Changelog", url: "/changelog", icon: History },
-  { title: "Settings / Keys", url: "/settings", icon: Settings },
+  { title: "Preferences", url: "/settings", icon: Settings },
 ];
 
 const adminItems = [
