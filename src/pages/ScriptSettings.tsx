@@ -41,7 +41,7 @@ const ScriptSettings = () => {
             <Settings className="text-primary" size={18} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Script Settings</h1>
+            <h1 className="text-2xl font-bold">Settings / Keys</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Manage access monitoring, bans, game bindings, and protection keys</p>
           </div>
         </div>

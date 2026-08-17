@@ -43,6 +43,13 @@ const Settings = () => {
 
   const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
     const root = document.documentElement;
+    const isDefaultWhite = color.replace(/\s/g, '') === '255,255,255';
+    if (isDefaultWhite) {
+      root.style.removeProperty('--foreground');
+      root.style.removeProperty('--card-foreground');
+      root.style.removeProperty('--popover-foreground');
+      root.style.removeProperty('--sidebar-foreground');
+    }
     const [r, g, b] = color.split(',').map(c => parseInt(c.trim()));
     const rNorm = r / 255, gNorm = g / 255, bNorm = b / 255;
     const max = Math.max(rNorm, gNorm, bNorm), min = Math.min(rNorm, gNorm, bNorm);
@@ -55,11 +62,15 @@ const Settings = () => {
         case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break;
       }
     }
-    const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
-    root.style.setProperty('--foreground', hsl);
-    root.style.setProperty('--card-foreground', hsl);
-    root.style.setProperty('--popover-foreground', hsl);
-    root.style.setProperty('--sidebar-foreground', hsl);
+    // Clamp lightness so text stays readable on the light background.
+    const safeL = Math.min(Math.round(l * 100), 42);
+    const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${safeL}%`;
+    if (!isDefaultWhite) {
+      root.style.setProperty('--foreground', hsl);
+      root.style.setProperty('--card-foreground', hsl);
+      root.style.setProperty('--popover-foreground', hsl);
+      root.style.setProperty('--sidebar-foreground', hsl);
+    }
     if (neon) {
       root.style.setProperty('--neon-color', `rgb(${color})`);
       root.style.setProperty('--neon-color-glow', `rgba(${color}, 0.6)`);
@@ -131,7 +142,7 @@ const Settings = () => {
             <SettingsIcon className="text-primary" size={18} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Settings</h1>
+            <h1 className="text-2xl font-bold">Preferences</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Manage your account and preferences</p>
           </div>
         </div>
