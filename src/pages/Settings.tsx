@@ -43,6 +43,13 @@ const Settings = () => {
 
   const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
     const root = document.documentElement;
+    const isDefaultWhite = color.replace(/\s/g, '') === '255,255,255';
+    if (isDefaultWhite) {
+      root.style.removeProperty('--foreground');
+      root.style.removeProperty('--card-foreground');
+      root.style.removeProperty('--popover-foreground');
+      root.style.removeProperty('--sidebar-foreground');
+    }
     const [r, g, b] = color.split(',').map(c => parseInt(c.trim()));
     const rNorm = r / 255, gNorm = g / 255, bNorm = b / 255;
     const max = Math.max(rNorm, gNorm, bNorm), min = Math.min(rNorm, gNorm, bNorm);
