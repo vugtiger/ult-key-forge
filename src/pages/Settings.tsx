@@ -142,7 +142,7 @@ const Settings = () => {
             <SettingsIcon className="text-primary" size={18} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Settings</h1>
+            <h1 className="text-2xl font-bold">Preferences</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Manage your account and preferences</p>
           </div>
         </div>
