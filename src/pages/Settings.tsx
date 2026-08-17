@@ -65,10 +65,12 @@ const Settings = () => {
     // Clamp lightness so text stays readable on the light background.
     const safeL = Math.min(Math.round(l * 100), 42);
     const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${safeL}%`;
-    root.style.setProperty('--foreground', hsl);
-    root.style.setProperty('--card-foreground', hsl);
-    root.style.setProperty('--popover-foreground', hsl);
-    root.style.setProperty('--sidebar-foreground', hsl);
+    if (!isDefaultWhite) {
+      root.style.setProperty('--foreground', hsl);
+      root.style.setProperty('--card-foreground', hsl);
+      root.style.setProperty('--popover-foreground', hsl);
+      root.style.setProperty('--sidebar-foreground', hsl);
+    }
     if (neon) {
       root.style.setProperty('--neon-color', `rgb(${color})`);
       root.style.setProperty('--neon-color-glow', `rgba(${color}, 0.6)`);
