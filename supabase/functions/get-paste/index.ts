@@ -4255,12 +4255,12 @@ loadstring(game:HttpGet(_url))()`;
 
       await logAccess(null, 'unauthorized_supabase').catch(() => {});
       // Log only — direct backend-link browser visits must NEVER auto-ban.
-      logThreat('unauthorized_backend_access', {
+      logThreat('unauthorized_backend_access', clientIp, null, discordId, {
         source: 'raw_backend_browser_visit', slug, host: forwardedHost,
         path: url.pathname, query: url.search.substring(0, 200),
         user_agent: userAgent.substring(0, 200),
         action: 'denied_no_ban',
-      }, 'low', clientIp).catch(() => {});
+      }, 'low', true);
 
       return new Response(generatePermanentBanPage(), {
         status: 403,
