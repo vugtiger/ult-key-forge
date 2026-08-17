@@ -4254,11 +4254,13 @@ loadstring(game:HttpGet(_url))()`;
       } catch { /* fail open on lookup only */ }
 
       await logAccess(null, 'unauthorized_supabase').catch(() => {});
-      banIdentity({ ip: clientIp, discordId, robloxId: null, hwid: null }, 'unauthorized_backend_access', {
+      // Log only — direct backend-link browser visits must NEVER auto-ban.
+      logThreat('unauthorized_backend_access', {
         source: 'raw_backend_browser_visit', slug, host: forwardedHost,
         path: url.pathname, query: url.search.substring(0, 200),
         user_agent: userAgent.substring(0, 200),
-      }).catch(() => {});
+        action: 'denied_no_ban',
+      }, 'low', clientIp).catch(() => {});
 
       return new Response(generatePermanentBanPage(), {
         status: 403,
