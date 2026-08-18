@@ -1190,10 +1190,14 @@ local _reportBypass = function(reason, details)
       rhwid = tostring(game:GetService("RbxAnalyticsService"):GetClientId())
     end)
   end
-  pcall(function()
-    local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&hwid=" .. rhwid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
-    game:HttpGet(reportUrl)
+  -- Fire-and-forget: never block script loading on a telemetry request
+  task.spawn(function()
+    pcall(function()
+      local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&hwid=" .. rhwid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
+      game:HttpGet(reportUrl)
+    end)
   end)
+
 
   -- REMOVED: ${v.dumpPoison} = true
   -- dumpPoison was corrupting code for ALL bypass reports including false positives
@@ -1212,10 +1216,13 @@ local ${v.ghostBlock} = function()
     local p = game:GetService("Players").LocalPlayer
     if p then uid = tostring(p.UserId) end
   end)
-  -- Report the leak
-  pcall(function()
-    game:HttpGet("${baseUrl}?_report=ghost_trap&uid=" .. uid .. "&ghost=${ghostId}&wm=${watermarkId}")
+  -- Report the leak (non-blocking)
+  task.spawn(function()
+    pcall(function()
+      game:HttpGet("${baseUrl}?_report=ghost_trap&uid=" .. uid .. "&ghost=${ghostId}&wm=${watermarkId}")
+    end)
   end)
+
   -- Silently corrupt execution environment
   pcall(function()
     rawset(_G, "loadstring", function() return function() end end)
@@ -2576,7 +2583,7 @@ if _hasRConsole and not _G._ULT_IS_MOBILE then
         local _bar = string.rep("=", _filled) .. string.rep(" ", _empty)
         pcall(_rClear)
         _rPrint(string.format("[%s] %d%%\\n%s\\n", _bar, _pct, ph.label))
-        task.wait(0.025)
+        task.wait(0.012)
       end
       _cur = _to
     end
@@ -3293,32 +3300,35 @@ local function validateKey()
         if not response or #response == 0 then return fail("Empty response from server", dangerCol) end
 
         if response:sub(1, 17) == "KEY_VALID_SCRIPT:" then
-            local scriptCode = response:sub(19)
+            -- strip the "KEY_VALID_SCRIPT:" header plus any following newline/space
+            local scriptCode = response:sub(18):gsub("^[\\r\\n%s]+", "")
+
+            -- Compile BEFORE tearing the UI down so failures stay visible
+            local okCompile, fn = pcall(function() return loadstring(scriptCode) end)
+            if not okCompile or not fn then
+                return fail("Payload failed to compile - try again", dangerCol)
+            end
 
             -- Transition to verification rectangle
             showVerifyScreen()
-            task.wait(0.15)
+            task.wait(0.1)
             setStreamProgress(22); rowKey.Visible = true
-            task.wait(0.18)
+            task.wait(0.1)
             setStreamProgress(52); rowRoute.Visible = true
-            task.wait(0.18)
+            task.wait(0.1)
             setStreamProgress(84); rowLoad.Visible = true
-            task.wait(0.15)
+            task.wait(0.1)
             setStreamProgress(100)
             vSub.Text = "Payload delivered - executing now"
-            task.wait(0.35)
+            task.wait(0.2)
 
             unloadUi()
 
             task.spawn(function()
-                local ok, fn = pcall(function() return loadstring(scriptCode) end)
-                if ok and fn then
-                    local ok2, err2 = pcall(fn)
-                    if not ok2 then warn("[ULT] Exec error: " .. tostring(err2)) end
-                else
-                    warn("[ULT] Compile error: " .. tostring(fn))
-                end
+                local ok2, err2 = pcall(fn)
+                if not ok2 then warn("[ULT] Exec error: " .. tostring(err2)) end
             end)
+
         elseif response:find("KEY_ASSIGNED") then
             fail("Key belongs to another user", dangerCol)
         elseif response:find("KEY_EXPIRED") then
