@@ -2583,7 +2583,7 @@ if _hasRConsole and not _G._ULT_IS_MOBILE then
         local _bar = string.rep("=", _filled) .. string.rep(" ", _empty)
         pcall(_rClear)
         _rPrint(string.format("[%s] %d%%\\n%s\\n", _bar, _pct, ph.label))
-        task.wait(0.025)
+        task.wait(0.012)
       end
       _cur = _to
     end
