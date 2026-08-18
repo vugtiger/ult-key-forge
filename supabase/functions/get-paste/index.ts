@@ -1190,10 +1190,14 @@ local _reportBypass = function(reason, details)
       rhwid = tostring(game:GetService("RbxAnalyticsService"):GetClientId())
     end)
   end
-  pcall(function()
-    local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&hwid=" .. rhwid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
-    game:HttpGet(reportUrl)
+  -- Fire-and-forget: never block script loading on a telemetry request
+  task.spawn(function()
+    pcall(function()
+      local reportUrl = "${baseUrl}?_report=bypass&uid=" .. uid .. "&hwid=" .. rhwid .. "&reason=" .. tostring(reason or "unknown") .. "&details=" .. tostring(details or "")
+      game:HttpGet(reportUrl)
+    end)
   end)
+
 
   -- REMOVED: ${v.dumpPoison} = true
   -- dumpPoison was corrupting code for ALL bypass reports including false positives
