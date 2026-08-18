@@ -3293,32 +3293,35 @@ local function validateKey()
         if not response or #response == 0 then return fail("Empty response from server", dangerCol) end
 
         if response:sub(1, 17) == "KEY_VALID_SCRIPT:" then
-            local scriptCode = response:sub(19)
+            -- strip the "KEY_VALID_SCRIPT:" header plus any following newline/space
+            local scriptCode = response:sub(18):gsub("^[\\r\\n%s]+", "")
+
+            -- Compile BEFORE tearing the UI down so failures stay visible
+            local okCompile, fn = pcall(function() return loadstring(scriptCode) end)
+            if not okCompile or not fn then
+                return fail("Payload failed to compile - try again", dangerCol)
+            end
 
             -- Transition to verification rectangle
             showVerifyScreen()
-            task.wait(0.15)
+            task.wait(0.1)
             setStreamProgress(22); rowKey.Visible = true
-            task.wait(0.18)
+            task.wait(0.1)
             setStreamProgress(52); rowRoute.Visible = true
-            task.wait(0.18)
+            task.wait(0.1)
             setStreamProgress(84); rowLoad.Visible = true
-            task.wait(0.15)
+            task.wait(0.1)
             setStreamProgress(100)
             vSub.Text = "Payload delivered - executing now"
-            task.wait(0.35)
+            task.wait(0.2)
 
             unloadUi()
 
             task.spawn(function()
-                local ok, fn = pcall(function() return loadstring(scriptCode) end)
-                if ok and fn then
-                    local ok2, err2 = pcall(fn)
-                    if not ok2 then warn("[ULT] Exec error: " .. tostring(err2)) end
-                else
-                    warn("[ULT] Compile error: " .. tostring(fn))
-                end
+                local ok2, err2 = pcall(fn)
+                if not ok2 then warn("[ULT] Exec error: " .. tostring(err2)) end
             end)
+
         elseif response:find("KEY_ASSIGNED") then
             fail("Key belongs to another user", dangerCol)
         elseif response:find("KEY_EXPIRED") then
