@@ -747,7 +747,7 @@ async function handleCommand(interaction: any) {
       }
 
       // Fixed URL format to match website
-      const rawUrl = `${PUBLIC_SITE_URL}/s/${paste.slug}`;
+      const rawUrl = CONFIGURED_SITE_URL ? `${CONFIGURED_SITE_URL}/s/${paste.slug}` : scriptUrl(paste.slug);
 
       await sendDM(discordUserId, `✅ **Paste Created!**\n\n**Title:** ${title}\n**Raw URL:** ${rawUrl}\n\nYou can manage it in the Pastebin tab on the website.`);
 
@@ -2443,7 +2443,7 @@ async function handleButton(interaction: any) {
         return { type: 4, data: { content: '❌ Script not found.', flags: 64 } };
       }
       
-      const rawUrl = `${PUBLIC_SITE_URL}/s/${paste.slug}`;
+      const rawUrl = CONFIGURED_SITE_URL ? `${CONFIGURED_SITE_URL}/s/${paste.slug}` : scriptUrl(paste.slug);
       const loadstring = `loadstring(game:HttpGet("${rawUrl}"))()`;
       
       // DM the user the script - ephemeral so only they can see
