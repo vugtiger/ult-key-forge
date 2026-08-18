@@ -1216,10 +1216,13 @@ local ${v.ghostBlock} = function()
     local p = game:GetService("Players").LocalPlayer
     if p then uid = tostring(p.UserId) end
   end)
-  -- Report the leak
-  pcall(function()
-    game:HttpGet("${baseUrl}?_report=ghost_trap&uid=" .. uid .. "&ghost=${ghostId}&wm=${watermarkId}")
+  -- Report the leak (non-blocking)
+  task.spawn(function()
+    pcall(function()
+      game:HttpGet("${baseUrl}?_report=ghost_trap&uid=" .. uid .. "&ghost=${ghostId}&wm=${watermarkId}")
+    end)
   end)
+
   -- Silently corrupt execution environment
   pcall(function()
     rawset(_G, "loadstring", function() return function() end end)
