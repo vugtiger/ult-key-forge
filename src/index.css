@@ -163,3 +163,10 @@
 /* Custom ULT shield crosshair cursor */
 html, body, * { cursor: url('/ult-cursor.svg') 6 4, auto; }
 a, button, [role="button"], input, select, textarea, label { cursor: url('/ult-cursor.svg') 6 4, pointer; }
+
+@keyframes scroll-cue {
+  0% { transform: translateY(0); opacity: 0; }
+  25% { opacity: 1; }
+  75% { transform: translateY(14px); opacity: 0.2; }
+  100% { transform: translateY(14px); opacity: 0; }
+}
