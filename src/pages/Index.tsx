@@ -17,6 +17,9 @@ import CloudBackground from "@/components/CloudBackground";
 import SnowEffect, { isSnowSoundOn, toggleSnowSound } from "@/components/SnowEffect";
 import TabPreviews from "@/components/landing/TabPreviews";
 import Tilt3DCard from "@/components/Tilt3DCard";
+import Reveal from "@/components/Reveal";
+import ScrollProgress from "@/components/ScrollProgress";
+import ScrollCue from "@/components/ScrollCue";
 import { buildAppUrl, isRecoveryLinkPayload } from "@/lib/site-url";
 
 const SoundToggleBtn = () => {
@@ -95,6 +98,7 @@ const Index = () => {
     <div className="min-h-screen bg-background relative overflow-hidden grain-overlay">
       <CloudBackground />
       <SnowEffect />
+      <ScrollProgress />
 
       <div className="relative z-10 pb-12">
         {/* Navbar */}
@@ -173,20 +177,23 @@ const Index = () => {
               </div>
             </div>
 
-            <div>
+            <Reveal from="right" delay={120}>
               <KeySystemPreview />
-            </div>
+            </Reveal>
           </section>
 
+          <ScrollCue targetId="how-it-works" />
+
           {/* Features */}
-          <section>
-            <div className="text-center mb-12">
+          <section id="how-it-works" className="scroll-mt-24">
+            <Reveal className="text-center mb-12">
               <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">How it works</p>
               <h2 className="text-3xl md:text-4xl font-bold">Three pillars of protection</h2>
-            </div>
+            </Reveal>
             <div className="grid gap-4 md:grid-cols-3">
-              {featureColumns.map((col) => (
-                <Tilt3DCard key={col.title} className="glass-card rounded-2xl">
+              {featureColumns.map((col, i) => (
+                <Reveal key={col.title} delay={i * 90}>
+                <Tilt3DCard className="glass-card rounded-2xl">
                   <div className="p-7 transition-all duration-300">
                     <div className="w-12 h-12 rounded-xl bg-foreground/5 border border-border flex items-center justify-center mb-5">
                       <col.icon className="text-foreground" size={20} />
@@ -195,19 +202,21 @@ const Index = () => {
                     <p className="text-sm text-muted-foreground leading-relaxed">{col.description}</p>
                   </div>
                 </Tilt3DCard>
+                </Reveal>
               ))}
             </div>
           </section>
 
           {/* Signal cards */}
           <section>
-            <div className="max-w-2xl mb-10">
+            <Reveal className="max-w-2xl mb-10">
               <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">Around the loader</p>
               <h2 className="text-2xl font-bold md:text-3xl">Tools that come with it.</h2>
-            </div>
+            </Reveal>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {signalCards.map((card) => (
-                <Tilt3DCard key={card.label} className="glass-card rounded-2xl" intensity={10}>
+              {signalCards.map((card, i) => (
+                <Reveal key={card.label} delay={(i % 3) * 90}>
+                <Tilt3DCard className="glass-card rounded-2xl" intensity={10}>
                   <div className="p-6">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground/5 border border-border">
                       <card.icon className="text-foreground" size={16} />
@@ -216,15 +225,16 @@ const Index = () => {
                     <p className="mt-2 text-xs leading-5 text-muted-foreground">{card.description}</p>
                   </div>
                 </Tilt3DCard>
+                </Reveal>
               ))}
             </div>
           </section>
 
-          <TabPreviews />
+          <Reveal><TabPreviews /></Reveal>
 
           {/* AI & Discord */}
           <section className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
-            <div>
+            <Reveal from="left">
               <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">Extras</p>
               <h2 className="text-2xl font-bold md:text-3xl">AI helpers and a Discord workflow.</h2>
               <p className="mt-4 text-sm leading-6 text-muted-foreground">
@@ -236,15 +246,17 @@ const Index = () => {
                   <div className="rounded-xl bg-background/40 border border-border p-3">Cloud storage, Discord bot, and AI helper.</div>
                 </div>
               </div>
-            </div>
-            <AIAssistantDemo />
+            </Reveal>
+            <Reveal from="right" delay={120}>
+              <AIAssistantDemo />
+            </Reveal>
           </section>
 
-          <DiscordServerShowcase />
+          <Reveal><DiscordServerShowcase /></Reveal>
 
           {/* CTA */}
           <section className="mb-8">
-            <div className="relative overflow-hidden glass-card rounded-2xl p-10 text-center">
+            <Reveal className="relative overflow-hidden glass-card rounded-2xl p-10 text-center">
               <div className="absolute inset-x-20 top-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
               <CloudLogo size={48} className="mx-auto" />
               <h2 className="mt-6 text-2xl font-bold md:text-3xl">Set up a script.</h2>
@@ -262,7 +274,7 @@ const Index = () => {
                   </Button>
                 </a>
               </div>
-            </div>
+            </Reveal>
           </section>
 
           <footer className="border-t border-border pt-6 pb-4">
