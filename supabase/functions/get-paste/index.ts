@@ -3010,67 +3010,112 @@ local function addLabel(parent, size, pos, text, color, font, textSize, align, z
     return l
 end
 
--- ============ V5 TWO-PANEL WINDOW (720 x 408) ============
-local win = makePanel(gui, UDim2.new(0, 720, 0, 408), UDim2.new(0.5, -360, 0.5, -204), bgColor, 3, 28)
+-- ============ WIDE RECTANGLE WINDOW ============
+local win = makePanel(gui, UDim2.new(0, 760, 0, 340), UDim2.new(0.5, -380, 0.5, -170), bgColor, 3, 20)
 win.ClipsDescendants = true
 addStroke(win, borderCol, 1, 0.15)
+win.Size = UDim2.new(0, 760, 0, 340)
+-- Entrance animation
 win.BackgroundTransparency = 1
 local camera = workspace.CurrentCamera
 local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
-local function computeFit(vp)
-    return math.min(1, math.max(0.45, (vp.X - 28) / 720), math.max(0.45, (vp.Y - 100) / 408))
-end
-local fitScale = computeFit(viewport)
+local fitScale = math.min(1, math.max(0.52, (viewport.X - 28) / 760), math.max(0.52, (viewport.Y - 120) / 340))
 local scaleHolder = Instance.new("UIScale", win); scaleHolder.Scale = fitScale * 0.94
 TweenService:Create(win, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
 TweenService:Create(scaleHolder, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = fitScale}):Play()
 
 if camera then
     camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-        scaleHolder.Scale = computeFit(camera.ViewportSize)
+        local nextViewport = camera.ViewportSize
+        fitScale = math.min(1, math.max(0.52, (nextViewport.X - 28) / 760), math.max(0.52, (nextViewport.Y - 120) / 340))
+        scaleHolder.Scale = fitScale
     end)
 end
 
--- Drag handle strip across the top
-local topBar = makePanel(win, UDim2.new(1, 0, 0, 40), UDim2.new(0, 0, 0, 0), bgColor, 4, 28)
+-- Top bar (dots + brand)
+local topBar = makePanel(win, UDim2.new(1, 0, 0, 44), UDim2.new(0, 0, 0, 0), bgColor, 4, 20)
 topBar.Active = true
-topBar.BackgroundTransparency = 1
 
--- ---------- LEFT PANEL : brand + status ----------
-local left = makePanel(win, UDim2.new(0, 268, 1, -40), UDim2.new(0, 20, 0, 20), panelBg, 4, 22)
-addStroke(left, borderCol, 1, 0.3)
-
-local logo = makePanel(left, UDim2.new(0, 64, 0, 64), UDim2.new(0, 24, 0, 28), softBg, 5, 20)
-addStroke(logo, themeCol, 2, 0.1)
-${decalId ? `local logoImg = Instance.new("ImageLabel", logo)
-logoImg.Size = UDim2.new(1, -14, 1, -14)
-logoImg.Position = UDim2.new(0, 7, 0, 7)
-logoImg.BackgroundTransparency = 1
-logoImg.Image = "${decalId}"
-logoImg.ZIndex = 6` : `addLabel(logo, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0),
-    "U", themeCol, Enum.Font.GothamBlack, 30, Enum.TextXAlignment.Center, 6)`}
-
-addLabel(left, UDim2.new(1, -48, 0, 22), UDim2.new(0, 24, 0, 110),
-    "${panelName}", fgColor, Enum.Font.GothamBlack, 19, Enum.TextXAlignment.Left, 5)
-addLabel(left, UDim2.new(1, -48, 0, 34), UDim2.new(0, 24, 0, 136),
-    "Protected by ULT LUA secure route", mutedText, Enum.Font.GothamMedium, 11, Enum.TextXAlignment.Left, 5)
-
-local function infoRow(y, label, val, col)
-    local rc = makePanel(left, UDim2.new(1, -48, 0, 34), UDim2.new(0, 24, 0, y), softBg, 5, 10)
-    addStroke(rc, borderCol, 1, 0.45)
-    addLabel(rc, UDim2.new(0.6, 0, 1, 0), UDim2.new(0, 12, 0, 0),
-        label, mutedText, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Left, 6)
-    addLabel(rc, UDim2.new(0.4, -14, 1, 0), UDim2.new(0.6, 0, 0, 0),
-        val, col or fgColor, Enum.Font.GothamBold, 11, Enum.TextXAlignment.Right, 6)
+local function dot(parent, x, col)
+    local d = Instance.new("Frame", parent)
+    d.Size = UDim2.new(0, 10, 0, 10)
+    d.Position = UDim2.new(0, x, 0.5, -5)
+    d.BackgroundColor3 = col
+    d.BorderSizePixel = 0
+    d.ZIndex = 6
+    Instance.new("UICorner", d).CornerRadius = UDim.new(1, 0)
+    return d
 end
-infoRow(190, "RESPONSE", "0.2s", themeCol)
-infoRow(232, "PAYLOAD", "Encrypted", accentCol)
-infoRow(274, "ROUTE", "Secure", successCol)
+dot(topBar, 18, Color3.fromRGB(255, 106, 106))
+dot(topBar, 36, Color3.fromRGB(255, 190, 90))
+dot(topBar, 54, successCol)
 
--- Status row (bottom of left panel)
-local statusRow = Instance.new("Frame", left)
-statusRow.Size = UDim2.new(1, -48, 0, 20)
-statusRow.Position = UDim2.new(0, 24, 1, -40)
+addLabel(topBar, UDim2.new(0, 220, 1, 0), UDim2.new(0, 78, 0, 0),
+    "ULT LOADER  //  ${panelName}", fgColor, Enum.Font.GothamBold, 12, Enum.TextXAlignment.Left, 6)
+
+addLabel(topBar, UDim2.new(0, 200, 1, 0), UDim2.new(1, -214, 0, 0),
+    "v6.1  secure route", mutedText, Enum.Font.GothamMedium, 10, Enum.TextXAlignment.Right, 6)
+
+-- Divider
+local div = Instance.new("Frame", win)
+div.Size = UDim2.new(1, -32, 0, 1)
+div.Position = UDim2.new(0, 16, 0, 44)
+div.BackgroundColor3 = borderCol
+div.BackgroundTransparency = 0.4
+div.BorderSizePixel = 0
+div.ZIndex = 4
+
+-- ============ SCREEN 1: KEY ENTRY ============
+local entry = Instance.new("Frame", win)
+entry.Size = UDim2.new(1, -32, 1, -60)
+entry.Position = UDim2.new(0, 16, 0, 52)
+entry.BackgroundTransparency = 1
+entry.ZIndex = 4
+
+-- Heading
+addLabel(entry, UDim2.new(1, 0, 0, 18), UDim2.new(0, 0, 0, 4),
+    "ENTER ACCESS KEY", accentCol, Enum.Font.GothamBold, 10, Enum.TextXAlignment.Left, 5)
+addLabel(entry, UDim2.new(1, 0, 0, 26), UDim2.new(0, 0, 0, 22),
+    "Paste your key below to unlock this script.", fgColor, Enum.Font.GothamBold, 18, Enum.TextXAlignment.Left, 5)
+
+-- Key input rectangle
+local inputFrame = makePanel(entry, UDim2.new(1, 0, 0, 58), UDim2.new(0, 0, 0, 60), softBg, 5, 14)
+local inputStroke = addStroke(inputFrame, borderCol, 1, 0.2)
+addLabel(inputFrame, UDim2.new(0, 140, 1, 0), UDim2.new(0, 14, 0, 0),
+    "KEY >", mutedText, Enum.Font.RobotoMono, 13, Enum.TextXAlignment.Left, 6)
+
+local input = Instance.new("TextBox", inputFrame)
+input.Size = UDim2.new(1, -170, 1, 0)
+input.Position = UDim2.new(0, 60, 0, 0)
+input.BackgroundTransparency = 1
+input.Text = ""
+input.PlaceholderText = "XXXXX-XXXXX-XXXXX"
+input.PlaceholderColor3 = Color3.fromRGB(80, 86, 100)
+input.TextColor3 = fgColor
+input.Font = Enum.Font.RobotoMono
+input.TextSize = 15
+input.TextXAlignment = Enum.TextXAlignment.Left
+input.ClearTextOnFocus = false
+input.ZIndex = 6
+
+-- Submit button (rectangle, right side)
+local submit = Instance.new("TextButton", inputFrame)
+submit.Size = UDim2.new(0, 96, 0, 38)
+submit.Position = UDim2.new(1, -106, 0.5, -19)
+submit.BackgroundColor3 = themeCol
+submit.BorderSizePixel = 0
+submit.Text = "VERIFY"
+submit.Font = Enum.Font.GothamBold
+submit.TextSize = 12
+submit.TextColor3 = Color3.fromRGB(18, 20, 26)
+submit.AutoButtonColor = false
+submit.ZIndex = 7
+Instance.new("UICorner", submit).CornerRadius = UDim.new(0, 10)
+
+-- Status row
+local statusRow = Instance.new("Frame", entry)
+statusRow.Size = UDim2.new(1, 0, 0, 20)
+statusRow.Position = UDim2.new(0, 0, 0, 128)
 statusRow.BackgroundTransparency = 1
 statusRow.ZIndex = 5
 
@@ -3085,81 +3130,58 @@ Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
 local statusText = addLabel(statusRow, UDim2.new(1, -16, 1, 0), UDim2.new(0, 14, 0, 0),
     "Awaiting key input", mutedText, Enum.Font.GothamMedium, 11, Enum.TextXAlignment.Left, 6)
 
--- ---------- RIGHT PANEL : key entry ----------
-local entry = makePanel(win, UDim2.new(1, -328, 1, -40), UDim2.new(0, 308, 0, 20), panelBg, 4, 22)
-addStroke(entry, borderCol, 1, 0.3)
+-- Info tiles at bottom
+local tiles = Instance.new("Frame", entry)
+tiles.Size = UDim2.new(1, 0, 0, 76)
+tiles.Position = UDim2.new(0, 0, 1, -76)
+tiles.BackgroundTransparency = 1
+tiles.ZIndex = 4
 
-addLabel(entry, UDim2.new(1, -48, 0, 16), UDim2.new(0, 24, 0, 30),
-    "ENTER ACCESS KEY", accentCol, Enum.Font.GothamBold, 10, Enum.TextXAlignment.Left, 5)
-addLabel(entry, UDim2.new(1, -48, 0, 26), UDim2.new(0, 24, 0, 50),
-    "Unlock this script", fgColor, Enum.Font.GothamBlack, 20, Enum.TextXAlignment.Left, 5)
-addLabel(entry, UDim2.new(1, -48, 0, 32), UDim2.new(0, 24, 0, 80),
-    "Paste the key you received, then press verify.", mutedText, Enum.Font.GothamMedium, 11, Enum.TextXAlignment.Left, 5)
-
-local inputFrame = makePanel(entry, UDim2.new(1, -48, 0, 54), UDim2.new(0, 24, 0, 128), softBg, 5, 14)
-local inputStroke = addStroke(inputFrame, borderCol, 1, 0.2)
-addLabel(inputFrame, UDim2.new(0, 44, 1, 0), UDim2.new(0, 14, 0, 0),
-    "KEY >", mutedText, Enum.Font.RobotoMono, 13, Enum.TextXAlignment.Left, 6)
-
-local input = Instance.new("TextBox", inputFrame)
-input.Size = UDim2.new(1, -76, 1, 0)
-input.Position = UDim2.new(0, 62, 0, 0)
-input.BackgroundTransparency = 1
-input.Text = ""
-input.PlaceholderText = "XXXXX-XXXXX-XXXXX"
-input.PlaceholderColor3 = Color3.fromRGB(80, 86, 100)
-input.TextColor3 = fgColor
-input.Font = Enum.Font.RobotoMono
-input.TextSize = 15
-input.TextXAlignment = Enum.TextXAlignment.Left
-input.ClearTextOnFocus = false
-input.ZIndex = 6
-
-local submit = Instance.new("TextButton", entry)
-submit.Size = UDim2.new(1, -48, 0, 46)
-submit.Position = UDim2.new(0, 24, 0, 196)
-submit.BackgroundColor3 = themeCol
-submit.BorderSizePixel = 0
-submit.Text = "VERIFY KEY"
-submit.Font = Enum.Font.GothamBold
-submit.TextSize = 13
-submit.TextColor3 = Color3.fromRGB(18, 20, 26)
-submit.AutoButtonColor = false
-submit.ZIndex = 7
-Instance.new("UICorner", submit).CornerRadius = UDim.new(0, 12)
-
-addLabel(entry, UDim2.new(1, -48, 0, 28), UDim2.new(0, 24, 1, -56),
-    "Keys bind to the first account that redeems them.", mutedText, Enum.Font.Gotham, 10, Enum.TextXAlignment.Left, 5)
+local function tile(x, label, val, col)
+    local t = makePanel(tiles, UDim2.new(0, 224, 1, 0), UDim2.new(0, x, 0, 0), softBg, 5, 12)
+    addStroke(t, borderCol, 1, 0.35)
+    addLabel(t, UDim2.new(1, -20, 0, 12), UDim2.new(0, 12, 0, 12),
+        label, mutedText, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Left, 6)
+    addLabel(t, UDim2.new(1, -20, 0, 18), UDim2.new(0, 12, 0, 30),
+        val, col or fgColor, Enum.Font.GothamBold, 15, Enum.TextXAlignment.Left, 6)
+    return t
+end
+tile(0,   "RESPONSE",  "0.2s",       themeCol)
+tile(238, "PAYLOAD",   "Encrypted",  accentCol)
+tile(476, "ROUTE",     "Secure",     successCol)
 
 -- ============ SCREEN 2: POST-KEY VERIFICATION ============
 local verify = Instance.new("Frame", win)
-verify.Size = UDim2.new(1, -328, 1, -40)
-verify.Position = UDim2.new(0, 308, 0, 20)
+verify.Size = UDim2.new(1, -32, 1, -60)
+verify.Position = UDim2.new(0, 16, 0, 52)
 verify.BackgroundTransparency = 1
 verify.Visible = false
 verify.ZIndex = 4
 
-local card = makePanel(verify, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), panelBg, 5, 22)
+-- Centered rectangle inside the window
+local card = makePanel(verify, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0), panelBg, 5, 16)
 addStroke(card, borderCol, 1, 0.25)
 
-local check = makePanel(card, UDim2.new(0, 58, 0, 58), UDim2.new(0.5, -29, 0, 28), softBg, 6, 999)
+-- Checkmark circle
+local check = makePanel(card, UDim2.new(0, 60, 0, 60), UDim2.new(0.5, -30, 0, 30), softBg, 6, 999)
 addStroke(check, themeCol, 2, 0)
 local checkMark = addLabel(check, UDim2.new(1, 0, 1, 0), UDim2.new(0, 0, 0, 0),
-    "\u{2713}", themeCol, Enum.Font.GothamBold, 30, Enum.TextXAlignment.Center, 7)
+    "\u{2713}", themeCol, Enum.Font.GothamBold, 32, Enum.TextXAlignment.Center, 7)
 
-local vTitle = addLabel(card, UDim2.new(1, 0, 0, 24), UDim2.new(0, 0, 0, 96),
+local vTitle = addLabel(card, UDim2.new(1, 0, 0, 24), UDim2.new(0, 0, 0, 100),
     "ACCESS GRANTED", fgColor, Enum.Font.GothamBlack, 18, Enum.TextXAlignment.Center, 6)
-local vSub = addLabel(card, UDim2.new(1, -32, 0, 16), UDim2.new(0, 16, 0, 122),
-    "Streaming protected payload", mutedText, Enum.Font.GothamMedium, 11, Enum.TextXAlignment.Center, 6)
+local vSub = addLabel(card, UDim2.new(1, 0, 0, 16), UDim2.new(0, 0, 0, 126),
+    "Streaming protected payload to your executor", mutedText, Enum.Font.GothamMedium, 11, Enum.TextXAlignment.Center, 6)
 
+-- Verified rows
 local rows = Instance.new("Frame", card)
-rows.Size = UDim2.new(1, -48, 0, 78)
-rows.Position = UDim2.new(0, 24, 0, 152)
+rows.Size = UDim2.new(0, 380, 0, 70)
+rows.Position = UDim2.new(0.5, -190, 0, 152)
 rows.BackgroundTransparency = 1
 rows.ZIndex = 6
 
 local function vRow(y, name)
-    local rc = makePanel(rows, UDim2.new(1, 0, 0, 22), UDim2.new(0, 0, 0, y), softBg, 6, 8)
+    local rc = makePanel(rows, UDim2.new(1, 0, 0, 20), UDim2.new(0, 0, 0, y), softBg, 6, 8)
     addStroke(rc, borderCol, 1, 0.5)
     addLabel(rc, UDim2.new(1, -30, 1, 0), UDim2.new(0, 10, 0, 0),
         name, mutedText, Enum.Font.GothamMedium, 10, Enum.TextXAlignment.Left, 7)
@@ -3169,14 +3191,15 @@ local function vRow(y, name)
     return ok
 end
 local rowKey   = vRow(0,  "key signature")
-local rowRoute = vRow(28, "secure route")
-local rowLoad  = vRow(56, "payload integrity")
+local rowRoute = vRow(25, "secure route")
+local rowLoad  = vRow(50, "payload integrity")
 
-local streamLbl = addLabel(card, UDim2.new(1, -48, 0, 12), UDim2.new(0, 24, 1, -48),
+-- Bottom stream bar
+local streamLbl = addLabel(card, UDim2.new(1, -48, 0, 12), UDim2.new(0, 24, 1, -46),
     "streaming...", mutedText, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Left, 6)
-local streamPct = addLabel(card, UDim2.new(0, 40, 0, 12), UDim2.new(1, -64, 1, -48),
+local streamPct = addLabel(card, UDim2.new(0, 40, 0, 12), UDim2.new(1, -64, 1, -46),
     "0%", mutedText, Enum.Font.GothamBold, 9, Enum.TextXAlignment.Right, 6)
-local streamBg = makePanel(card, UDim2.new(1, -48, 0, 6), UDim2.new(0, 24, 1, -30), softBg, 6, 999)
+local streamBg = makePanel(card, UDim2.new(1, -48, 0, 6), UDim2.new(0, 24, 1, -28), softBg, 6, 999)
 addStroke(streamBg, borderCol, 1, 0.5)
 local streamFill = Instance.new("Frame", streamBg)
 streamFill.Size = UDim2.new(0, 0, 1, 0)
@@ -3189,7 +3212,6 @@ streamGrad.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, themeCol),
     ColorSequenceKeypoint.new(1, accentCol),
 })
-
 
 -- ============ CLOSE / UTIL ============
 local unloading = false
