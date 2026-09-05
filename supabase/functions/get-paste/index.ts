@@ -3321,7 +3321,7 @@ local function validateKey()
         end
         
         if response:sub(1, 17) == "KEY_VALID_SCRIPT:" then
-            local scriptCode = response:sub(18):gsub("^[\r\n%s]+", "")
+            local scriptCode = response:sub(18):gsub("^[\\r\\n%s]+", "")
             local okCompile, compiledFn = pcall(function()
                 return loadstring(scriptCode)
             end)
