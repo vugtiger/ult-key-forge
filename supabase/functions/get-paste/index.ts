@@ -3372,7 +3372,6 @@ end)
 }
 
 function generateKickPlain(reason: string): string {
-function generateKickPlain(reason: string): string {
   return `game:GetService("Players").LocalPlayer:Kick("${reason}")`;
 }
 
