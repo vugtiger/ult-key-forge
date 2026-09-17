@@ -90,7 +90,7 @@ const Auth = () => {
         try { localStorage.setItem("ult_last_creds", btoa(JSON.stringify({ email, password }))); } catch {}
       }
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: readableAuthError(error), variant: "destructive" });
     } finally {
       setLoading(false);
     }
