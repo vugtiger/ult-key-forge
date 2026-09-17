@@ -3,8 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // Every user-facing script uses the hosted website. Its /s/<slug> route proxies
 // privately to the delivery function, so the backend address is never exposed.
 const DEFAULT_SITE_URL = "https://ultluaprotectsyourluacode.netlify.app";
-const CONFIGURED_SITE_URL = (Deno.env.get("PUBLIC_SITE_URL") || DEFAULT_SITE_URL).replace(/\/$/, "");
-const PUBLIC_SITE_URL = CONFIGURED_SITE_URL;
+const PUBLIC_SITE_URL = DEFAULT_SITE_URL;
 const scriptUrl = (slug: string) => `${PUBLIC_SITE_URL}/s/${encodeURIComponent(slug)}`;
 
 
