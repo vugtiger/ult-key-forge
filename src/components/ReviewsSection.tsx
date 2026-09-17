@@ -141,7 +141,7 @@ const ReviewsSection = () => {
       .order('created_at', { ascending: false })
       .limit(20);
 
-    if (!error && data) {
+    if (!error && Array.isArray(data)) {
       const enriched = data.map((r: any) => ({
         ...r,
         avatarSeed: r.username,
