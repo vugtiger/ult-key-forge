@@ -12,6 +12,30 @@ import CloudBackground from "@/components/CloudBackground";
 import SnowEffect from "@/components/SnowEffect";
 import { buildAppUrl } from "@/lib/site-url";
 
+const readableAuthError = (error: any): string => {
+  const raw =
+    (typeof error === "string" && error) ||
+    error?.message ||
+    error?.error_description ||
+    error?.error?.message ||
+    error?.msg ||
+    "";
+  const text = String(raw).trim();
+  if (!text || text === "{}" || text === "[object Object]") {
+    return "We couldn't reach the sign-in service. Check your connection and try again in a moment.";
+  }
+  if (/failed to fetch|network|load failed/i.test(text)) {
+    return "Connection problem — we couldn't reach the sign-in service. Please try again.";
+  }
+  if (/invalid login credentials/i.test(text)) {
+    return "That email and password don't match. Double-check them and try again.";
+  }
+  if (/email not confirmed/i.test(text)) {
+    return "Please confirm your email address first, then sign in.";
+  }
+  return text;
+};
+
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const getSavedCreds = () => {
