@@ -4223,23 +4223,26 @@ loadstring(game:HttpGet(_url))()`;
     // receive the branded copy page; direct backend browser visits are denied
     // and logged without creating a ban. Executors are unaffected.
     if (isLikelyBrowser && !isRobloxRequest) {
-      const forwardedHost = (req.headers.get('x-forwarded-host') || url.host || '').toLowerCase().split(',')[0].trim();
+      const forwardedHost = (req.headers.get('x-forwarded-host') || '').toLowerCase().split(',')[0].trim();
       const directBackendHost = url.hostname.toLowerCase();
       const arrivedThroughWebsite = Boolean(
-        forwardedHost === PUBLIC_LOADER_HOST &&
+        forwardedHost &&
         forwardedHost !== directBackendHost &&
+        !forwardedHost.endsWith('.supabase.co') &&
+        !forwardedHost.endsWith('.supabase.in') &&
         url.searchParams.has('slug')
       );
 
-      // Netlify proxies /s/<slug> here for both browsers and executors. Human
-      // visits through that branded route get the copy-loader page; only a raw
-      // backend-function browser visit is denied and logged.
+      // Any host that proxies /s/<slug> here serves both browsers and executors.
+      // Human visits through that branded route get the copy-loader page; only a
+      // raw backend-function browser visit is denied and logged.
       if (arrivedThroughWebsite) {
-        return new Response(generateBrandedLoaderPage(slugStr), {
+        return new Response(generateBrandedLoaderPage(slugStr, forwardedHost), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
         });
       }
+
 
       let discordId: string | null = null;
       try {
