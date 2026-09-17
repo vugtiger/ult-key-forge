@@ -12,33 +12,40 @@ const NON_PUBLIC_HOST_PATTERNS = [
   /^localhost$/i,
   /^127\.0\.0\.1$/,
   /^0\.0\.0\.0$/,
-  /^id-preview--/i,
+  /\.lovable\.app$/i,
   /\.lovableproject\.com$/i,
   /\.sandbox\.lovable\.dev$/i,
 ];
 
 const normalize = (value: string) => value.replace(/\/+$/, "");
 
-/** Configured fallback, used only when the current host can't serve loaders. */
-export const PUBLIC_LOADER_ORIGIN = normalize(
-  (import.meta.env?.VITE_PUBLIC_LOADER_ORIGIN as string | undefined) ||
-    "https://ultluacodeprotectsyourcode.lovable.app",
+/** Direct backend address — always works, used when no proxy host is available. */
+const BACKEND_FUNCTION_ORIGIN = normalize(
+  (import.meta.env?.VITE_SUPABASE_URL as string | undefined) || "",
 );
 
+/** Optional override for the public site address that serves /s/<slug>. */
+export const PUBLIC_LOADER_ORIGIN = normalize(
+  (import.meta.env?.VITE_PUBLIC_LOADER_ORIGIN as string | undefined) || "",
+);
+
+const canProxy = (hostname: string) =>
+  !NON_PUBLIC_HOST_PATTERNS.some((p) => p.test(hostname));
 
 /**
  * The origin loaders should point at: whatever domain the site is currently
- * served from (Netlify, Vercel, a custom domain, anything), falling back to the
- * configured public origin on local/preview hosts.
+ * served from (Netlify, Vercel, a custom domain, anything). Hosts that cannot
+ * forward /s/<slug> (local dev, in-editor preview, Lovable hosting) use the
+ * configured public site address, or the backend address as a last resort so
+ * the copied loadstring always works.
  */
 export const getLoaderOrigin = () => {
-  if (typeof window === "undefined") return PUBLIC_LOADER_ORIGIN;
-  const { hostname, origin } = window.location;
-  if (NON_PUBLIC_HOST_PATTERNS.some((p) => p.test(hostname))) {
-    return PUBLIC_LOADER_ORIGIN;
+  if (typeof window !== "undefined" && canProxy(window.location.hostname)) {
+    return normalize(window.location.origin);
   }
-  return normalize(origin);
+  return PUBLIC_LOADER_ORIGIN || null;
 };
+
 
 /**
  * Branded URL based on whatever domain the site is currently served from
