@@ -12,7 +12,7 @@ const NON_PUBLIC_HOST_PATTERNS = [
   /^localhost$/i,
   /^127\.0\.0\.1$/,
   /^0\.0\.0\.0$/,
-  /\.lovable\.app$/i,
+  /^id-preview--/i,
   /\.lovableproject\.com$/i,
   /\.sandbox\.lovable\.dev$/i,
 ];
@@ -22,8 +22,9 @@ const normalize = (value: string) => value.replace(/\/+$/, "");
 /** Configured fallback, used only when the current host can't serve loaders. */
 export const PUBLIC_LOADER_ORIGIN = normalize(
   (import.meta.env?.VITE_PUBLIC_LOADER_ORIGIN as string | undefined) ||
-    "https://ultluaprotectsyourluacode.netlify.app",
+    "https://ultluacodeprotectsyourcode.lovable.app",
 );
+
 
 /**
  * The origin loaders should point at: whatever domain the site is currently
