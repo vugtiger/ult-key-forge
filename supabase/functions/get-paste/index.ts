@@ -2909,468 +2909,409 @@ end
 
 // ===== ORIGINAL COMPACT KEY SYSTEM GUI =====
 function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, themeColor: string, decalId?: string): string {
-  const words = panelName.trim().split(/\s+/);
-  const firstWord = words[0] || panelName;
-  const restWords = words.slice(1).join(' ');
-  
-  const colorParts = (themeColor || '255, 255, 255').split(',').map(s => s.trim());
-  const r = colorParts[0] || '255';
-  const g = colorParts[1] || '255';
-  const b = colorParts[2] || '255';
-
+  const colorParts = (themeColor || '104, 190, 151').split(',').map((value) => value.trim());
+  const r = colorParts[0] || '104';
+  const g = colorParts[1] || '190';
+  const b = colorParts[2] || '151';
+  const safePanelName = panelName.replace(/["\\\r\n]/g, ' ').trim() || 'ULT CLOUD';
   const logoSection = decalId ? `
--- Logo from Roblox decal
-local logoImg = Instance.new("ImageLabel", titleBar)
-logoImg.Size = UDim2.new(0, 24, 0, 24)
-logoImg.Position = UDim2.new(0, 10, 0.5, -12)
-logoImg.BackgroundTransparency = 1
-logoImg.Image = "rbxassetid://${decalId}"
-logoImg.ScaleType = Enum.ScaleType.Fit
-logoImg.ImageTransparency = 1
-TweenService:Create(logoImg, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {ImageTransparency = 0}):Play()
+local logo = Instance.new("ImageLabel", header)
+logo.Size = UDim2.fromOffset(24, 24)
+logo.Position = UDim2.new(0, 92, 0.5, -12)
+logo.BackgroundTransparency = 1
+logo.Image = "rbxassetid://${decalId}"
+logo.ScaleType = Enum.ScaleType.Fit
+logo.ZIndex = 8
 ` : '';
 
-  const titleOffset = decalId ? 42 : 12;
-
-  return `-- ULT Key System v3
+  return `-- ULT Loader v6.1
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 
-local plr = Players.LocalPlayer
-if not plr then plr = Players.PlayerAdded:Wait() end
-local pgui = plr:WaitForChild("PlayerGui")
+local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local playerGui = player:WaitForChild("PlayerGui")
+local oldGui = playerGui:FindFirstChild("ULTKeySystem")
+if oldGui then oldGui:Destroy() end
+local oldBlur = Lighting:FindFirstChild("ULTLoaderBlur")
+if oldBlur then oldBlur:Destroy() end
 
--- Remove any existing key system GUI
-local old = pgui:FindFirstChild("ULTKeySystem")
-if old then old:Destroy() end
+local ACCENT = Color3.fromRGB(${r}, ${g}, ${b})
+local INK = Color3.fromRGB(20, 32, 30)
+local MUTED = Color3.fromRGB(82, 105, 100)
+local SURFACE = Color3.fromRGB(250, 253, 251)
+local SOFT = Color3.fromRGB(231, 244, 237)
+local BORDER = Color3.fromRGB(211, 228, 219)
+local ERROR = Color3.fromRGB(205, 75, 75)
+local WARNING = Color3.fromRGB(211, 137, 53)
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "ULTKeySystem"
 gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
 gui.DisplayOrder = 999999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.Parent = pgui
+gui.Parent = playerGui
 
--- Blur
 local blur = Instance.new("BlurEffect")
-blur.Name = "ULTBlur"
+blur.Name = "ULTLoaderBlur"
 blur.Size = 0
 blur.Parent = Lighting
-TweenService:Create(blur, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {Size = 20}):Play()
+TweenService:Create(blur, TweenInfo.new(0.3), {Size = 14}):Play()
 
+local shade = Instance.new("Frame", gui)
+shade.Size = UDim2.fromScale(1, 1)
+shade.BackgroundColor3 = Color3.fromRGB(15, 24, 22)
+shade.BackgroundTransparency = 0.5
+shade.BorderSizePixel = 0
+shade.ZIndex = 1
 
+local window = Instance.new("Frame", gui)
+window.Name = "MainWindow"
+window.AnchorPoint = Vector2.new(0.5, 0.5)
+window.Position = UDim2.fromScale(0.5, 0.5)
+window.Size = UDim2.fromOffset(560, 650)
+window.BackgroundColor3 = SURFACE
+window.BorderSizePixel = 0
+window.ClipsDescendants = true
+window.ZIndex = 3
+Instance.new("UICorner", window).CornerRadius = UDim.new(0, 18)
+local windowStroke = Instance.new("UIStroke", window)
+windowStroke.Color = BORDER
+windowStroke.Thickness = 1
 
-
-
--- Main window
-local win = Instance.new("Frame", gui)
-win.Name = "MainWindow"
-win.Size = UDim2.new(0, 380, 0, 240)
-win.Position = UDim2.new(0.5, -190, 0.5, -120)
-win.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
-win.BorderSizePixel = 0
-win.BackgroundTransparency = 1
-win.ZIndex = 3
-
-
-local winCorner = Instance.new("UICorner", win)
-winCorner.CornerRadius = UDim.new(0, 8)
-
--- Title bar
-local titleBar = Instance.new("Frame", win)
-titleBar.Name = "TitleBar"
-titleBar.Size = UDim2.new(1, 0, 0, 32)
-titleBar.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
-titleBar.BorderSizePixel = 0
-titleBar.ZIndex = 4
-
-local tbCorner = Instance.new("UICorner", titleBar)
-tbCorner.CornerRadius = UDim.new(0, 8)
-
-local tbFill = Instance.new("Frame", titleBar)
-tbFill.Size = UDim2.new(1, 0, 0, 10)
-tbFill.Position = UDim2.new(0, 0, 1, -10)
-tbFill.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
-tbFill.BorderSizePixel = 0
-tbFill.ZIndex = 4
-
--- Subtle separator line
-local sep = Instance.new("Frame", win)
-sep.Size = UDim2.new(1, -16, 0, 1)
-sep.Position = UDim2.new(0, 8, 0, 32)
-sep.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-sep.BorderSizePixel = 0
-sep.ZIndex = 4
-
-${logoSection}
-
--- Title: first word = neon, rest = white bold
-local titleNeon = Instance.new("TextLabel", titleBar)
-titleNeon.Size = UDim2.new(0, 200, 1, 0)
-titleNeon.Position = UDim2.new(0, ${titleOffset}, 0, 0)
-titleNeon.BackgroundTransparency = 1
-titleNeon.Text = "${firstWord}"
-titleNeon.TextColor3 = Color3.fromRGB(${r}, ${g}, ${b})
-titleNeon.Font = Enum.Font.GothamBold
-titleNeon.TextSize = 13
-titleNeon.TextXAlignment = Enum.TextXAlignment.Left
-titleNeon.TextTransparency = 1
-titleNeon.ZIndex = 5
-
-${restWords ? `
-local titleRest = Instance.new("TextLabel", titleBar)
-titleRest.Size = UDim2.new(0, 200, 1, 0)
-titleRest.BackgroundTransparency = 1
-titleRest.Text = " ${restWords}"
-titleRest.TextColor3 = Color3.fromRGB(200, 200, 200)
-titleRest.Font = Enum.Font.GothamBold
-titleRest.TextSize = 13
-titleRest.TextXAlignment = Enum.TextXAlignment.Left
-titleRest.TextTransparency = 1
-titleRest.ZIndex = 5
-
-task.defer(function()
-    local ts = game:GetService("TextService")
-    local nW = ts:GetTextSize("${firstWord}", 13, Enum.Font.GothamBold, Vector2.new(400, 32)).X
-    titleRest.Position = UDim2.new(0, ${titleOffset} + nW, 0, 0)
-end)
-` : ''}
-
--- Window control dots (macOS style)
-local function makeDot(parent, pos, col, action)
-    local dot = Instance.new("TextButton", parent)
-    dot.Size = UDim2.new(0, 12, 0, 12)
-    dot.Position = pos
-    dot.BackgroundColor3 = col
-    dot.BorderSizePixel = 0
-    dot.Text = ""
-    dot.AutoButtonColor = false
-    dot.ZIndex = 6
-    local dc = Instance.new("UICorner", dot)
-    dc.CornerRadius = UDim.new(1, 0)
-    dot.MouseButton1Click:Connect(action)
-    dot.MouseEnter:Connect(function()
-        TweenService:Create(dot, TweenInfo.new(0.15), {Size = UDim2.new(0, 14, 0, 14)}):Play()
-    end)
-    dot.MouseLeave:Connect(function()
-        TweenService:Create(dot, TweenInfo.new(0.15), {Size = UDim2.new(0, 12, 0, 12)}):Play()
-    end)
-    return dot
+local scale = Instance.new("UIScale", window)
+local function updateScale()
+    local camera = workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
+    scale.Scale = math.clamp(math.min((viewport.X - 24) / 560, (viewport.Y - 24) / 650), 0.48, 1)
+end
+updateScale()
+if workspace.CurrentCamera then
+    workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
 end
 
-local minimized = false
+local header = Instance.new("Frame", window)
+header.Size = UDim2.new(1, 0, 0, 68)
+header.BackgroundColor3 = SURFACE
+header.BorderSizePixel = 0
+header.ZIndex = 5
+local headerLine = Instance.new("Frame", header)
+headerLine.AnchorPoint = Vector2.new(0, 1)
+headerLine.Position = UDim2.fromScale(0, 1)
+headerLine.Size = UDim2.new(1, 0, 0, 1)
+headerLine.BackgroundColor3 = BORDER
+headerLine.BorderSizePixel = 0
+headerLine.ZIndex = 6
 
--- Content panel
-local contentPanel = Instance.new("Frame", win)
-contentPanel.Name = "Content"
-contentPanel.Size = UDim2.new(1, -20, 0, 160)
-contentPanel.Position = UDim2.new(0, 10, 0, 42)
-contentPanel.BackgroundColor3 = Color3.fromRGB(26, 26, 26)
-contentPanel.BorderSizePixel = 0
-contentPanel.ZIndex = 4
+local function dot(x, color)
+    local item = Instance.new("Frame", header)
+    item.Size = UDim2.fromOffset(12, 12)
+    item.Position = UDim2.new(0, x, 0.5, -6)
+    item.BackgroundColor3 = color
+    item.BorderSizePixel = 0
+    item.ZIndex = 7
+    Instance.new("UICorner", item).CornerRadius = UDim.new(1, 0)
+end
+dot(26, ACCENT)
+dot(48, Color3.fromRGB(207, 213, 211))
+dot(70, Color3.fromRGB(225, 229, 227))
+${logoSection}
+local headerTitle = Instance.new("TextLabel", header)
+headerTitle.AnchorPoint = Vector2.new(1, 0.5)
+headerTitle.Position = UDim2.new(1, -24, 0.5, 0)
+headerTitle.Size = UDim2.new(0, 270, 0, 28)
+headerTitle.BackgroundTransparency = 1
+headerTitle.Text = "U L T   L O A D E R   V 6 . 1"
+headerTitle.TextColor3 = MUTED
+headerTitle.Font = Enum.Font.GothamMedium
+headerTitle.TextSize = 13
+headerTitle.TextXAlignment = Enum.TextXAlignment.Right
+headerTitle.ZIndex = 7
 
-local cpCorner = Instance.new("UICorner", contentPanel)
-cpCorner.CornerRadius = UDim.new(0, 6)
+local body = Instance.new("Frame", window)
+body.Position = UDim2.fromOffset(30, 94)
+body.Size = UDim2.new(1, -60, 1, -120)
+body.BackgroundColor3 = Color3.fromRGB(253, 254, 253)
+body.BorderSizePixel = 0
+body.ZIndex = 4
+Instance.new("UICorner", body).CornerRadius = UDim.new(0, 26)
+local bodyStroke = Instance.new("UIStroke", body)
+bodyStroke.Color = BORDER
+bodyStroke.Thickness = 1
 
-local cpStroke = Instance.new("UIStroke", contentPanel)
-cpStroke.Thickness = 1
-cpStroke.Color = Color3.fromRGB(38, 38, 38)
-cpStroke.Transparency = 1
+local eyebrow = Instance.new("TextLabel", body)
+eyebrow.Position = UDim2.fromOffset(28, 25)
+eyebrow.Size = UDim2.fromOffset(220, 42)
+eyebrow.BackgroundTransparency = 1
+eyebrow.Text = "I N S T A N T\nD E L I V E R Y"
+eyebrow.TextColor3 = Color3.fromRGB(43, 157, 107)
+eyebrow.Font = Enum.Font.GothamMedium
+eyebrow.TextSize = 13
+eyebrow.TextXAlignment = Enum.TextXAlignment.Left
+eyebrow.TextYAlignment = Enum.TextYAlignment.Top
+eyebrow.ZIndex = 6
 
--- Key label
-local keyLabel = Instance.new("TextLabel", contentPanel)
-keyLabel.Size = UDim2.new(1, -20, 0, 20)
-keyLabel.Position = UDim2.new(0, 10, 0, 12)
-keyLabel.BackgroundTransparency = 1
-keyLabel.Text = "Enter your key"
-keyLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
-keyLabel.Font = Enum.Font.Gotham
-keyLabel.TextSize = 11
-keyLabel.TextXAlignment = Enum.TextXAlignment.Left
-keyLabel.TextTransparency = 1
-keyLabel.ZIndex = 5
+local brand = Instance.new("TextLabel", body)
+brand.Position = UDim2.fromOffset(28, 75)
+brand.Size = UDim2.fromOffset(250, 65)
+brand.BackgroundTransparency = 1
+brand.Text = "ULT\nCLOUD"
+brand.TextColor3 = INK
+brand.Font = Enum.Font.GothamBold
+brand.TextSize = 26
+brand.TextXAlignment = Enum.TextXAlignment.Left
+brand.TextYAlignment = Enum.TextYAlignment.Top
+brand.ZIndex = 6
 
--- Input frame
-local inputFrame = Instance.new("Frame", contentPanel)
-inputFrame.Size = UDim2.new(1, -20, 0, 34)
-inputFrame.Position = UDim2.new(0, 10, 0, 36)
-inputFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 14)
-inputFrame.BorderSizePixel = 0
-inputFrame.ZIndex = 5
+local badge = Instance.new("TextLabel", body)
+badge.Position = UDim2.new(1, -158, 0, 78)
+badge.Size = UDim2.fromOffset(128, 36)
+badge.BackgroundColor3 = SOFT
+badge.Text = "R E A D Y"
+badge.TextColor3 = Color3.fromRGB(43, 157, 107)
+badge.Font = Enum.Font.GothamBold
+badge.TextSize = 11
+badge.ZIndex = 6
+Instance.new("UICorner", badge).CornerRadius = UDim.new(1, 0)
+local badgeStroke = Instance.new("UIStroke", badge)
+badgeStroke.Color = Color3.fromRGB(170, 218, 194)
 
-local ifCorner = Instance.new("UICorner", inputFrame)
-ifCorner.CornerRadius = UDim.new(0, 5)
+local inputCard = Instance.new("Frame", body)
+inputCard.Position = UDim2.fromOffset(28, 151)
+inputCard.Size = UDim2.new(1, -56, 0, 86)
+inputCard.BackgroundColor3 = SOFT
+inputCard.BorderSizePixel = 0
+inputCard.ZIndex = 5
+Instance.new("UICorner", inputCard).CornerRadius = UDim.new(0, 18)
+local inputStroke = Instance.new("UIStroke", inputCard)
+inputStroke.Color = Color3.fromRGB(177, 219, 198)
 
-local ifStroke = Instance.new("UIStroke", inputFrame)
-ifStroke.Thickness = 1
-ifStroke.Color = Color3.fromRGB(50, 50, 50)
+local prompt = Instance.new("TextLabel", inputCard)
+prompt.Position = UDim2.fromOffset(18, 12)
+prompt.Size = UDim2.new(1, -36, 0, 20)
+prompt.BackgroundTransparency = 1
+prompt.Text = "Enter your key >"
+prompt.TextColor3 = MUTED
+prompt.Font = Enum.Font.Code
+prompt.TextSize = 17
+prompt.TextXAlignment = Enum.TextXAlignment.Left
+prompt.ZIndex = 7
 
-local input = Instance.new("TextBox", inputFrame)
-input.Size = UDim2.new(1, -14, 1, 0)
-input.Position = UDim2.new(0, 7, 0, 0)
+local input = Instance.new("TextBox", inputCard)
+input.Position = UDim2.fromOffset(18, 37)
+input.Size = UDim2.new(1, -36, 0, 34)
 input.BackgroundTransparency = 1
 input.Text = ""
 input.PlaceholderText = "XXXXX-XXXXX-XXXXX"
-input.PlaceholderColor3 = Color3.fromRGB(60, 60, 60)
-input.TextColor3 = Color3.fromRGB(210, 210, 210)
-input.Font = Enum.Font.GothamMedium
-input.TextSize = 13
+input.PlaceholderColor3 = Color3.fromRGB(132, 153, 147)
+input.TextColor3 = INK
+input.Font = Enum.Font.Code
+input.TextSize = 19
 input.TextXAlignment = Enum.TextXAlignment.Left
 input.ClearTextOnFocus = false
-input.TextTransparency = 1
-input.ZIndex = 6
+input.ZIndex = 7
 
--- Submit button
-local submitBtn = Instance.new("TextButton", contentPanel)
-submitBtn.Size = UDim2.new(1, -20, 0, 32)
-submitBtn.Position = UDim2.new(0, 10, 0, 80)
-submitBtn.BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})
-submitBtn.BorderSizePixel = 0
-submitBtn.Text = "Validate"
-submitBtn.TextColor3 = Color3.fromRGB(10, 10, 10)
-submitBtn.Font = Enum.Font.GothamBold
-submitBtn.TextSize = 12
-submitBtn.AutoButtonColor = false
-submitBtn.TextTransparency = 1
-submitBtn.ZIndex = 5
+local progressTitle = Instance.new("TextLabel", body)
+progressTitle.Position = UDim2.fromOffset(28, 257)
+progressTitle.Size = UDim2.new(1, -130, 0, 34)
+progressTitle.BackgroundTransparency = 1
+progressTitle.Text = "A N I M A T E D   V E R I F I C A T I O N\nP R O G R E S S"
+progressTitle.TextColor3 = MUTED
+progressTitle.Font = Enum.Font.GothamMedium
+progressTitle.TextSize = 10
+progressTitle.TextXAlignment = Enum.TextXAlignment.Left
+progressTitle.ZIndex = 6
 
-local sbCorner = Instance.new("UICorner", submitBtn)
-sbCorner.CornerRadius = UDim.new(0, 5)
+local progressPercent = Instance.new("TextLabel", body)
+progressPercent.Position = UDim2.new(1, -92, 0, 264)
+progressPercent.Size = UDim2.fromOffset(64, 20)
+progressPercent.BackgroundTransparency = 1
+progressPercent.Text = "0%"
+progressPercent.TextColor3 = MUTED
+progressPercent.Font = Enum.Font.GothamMedium
+progressPercent.TextSize = 12
+progressPercent.TextXAlignment = Enum.TextXAlignment.Right
+progressPercent.ZIndex = 6
 
--- Hover effect for submit
-submitBtn.MouseEnter:Connect(function()
-    TweenService:Create(submitBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.15}):Play()
-end)
-submitBtn.MouseLeave:Connect(function()
-    TweenService:Create(submitBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0}):Play()
-end)
+local progressTrack = Instance.new("Frame", body)
+progressTrack.Position = UDim2.fromOffset(28, 300)
+progressTrack.Size = UDim2.new(1, -56, 0, 10)
+progressTrack.BackgroundColor3 = Color3.fromRGB(224, 234, 229)
+progressTrack.BorderSizePixel = 0
+progressTrack.ZIndex = 5
+Instance.new("UICorner", progressTrack).CornerRadius = UDim.new(1, 0)
+local progressFill = Instance.new("Frame", progressTrack)
+progressFill.Size = UDim2.fromScale(0, 1)
+progressFill.BackgroundColor3 = ACCENT
+progressFill.BorderSizePixel = 0
+progressFill.ZIndex = 6
+Instance.new("UICorner", progressFill).CornerRadius = UDim.new(1, 0)
+local gradient = Instance.new("UIGradient", progressFill)
+gradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(104, 190, 151)), ColorSequenceKeypoint.new(1, INK)})
 
--- Status
-local statusLabel = Instance.new("TextLabel", contentPanel)
-statusLabel.Size = UDim2.new(1, -20, 0, 16)
-statusLabel.Position = UDim2.new(0, 10, 0, 118)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = ""
-statusLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextSize = 10
-statusLabel.TextTransparency = 1
-statusLabel.ZIndex = 5
+local function statCard(y, title, value)
+    local card = Instance.new("Frame", body)
+    card.Position = UDim2.fromOffset(28, y)
+    card.Size = UDim2.new(1, -56, 0, 58)
+    card.BackgroundColor3 = SURFACE
+    card.BorderSizePixel = 0
+    card.ZIndex = 5
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 14)
+    local stroke = Instance.new("UIStroke", card)
+    stroke.Color = BORDER
+    local label = Instance.new("TextLabel", card)
+    label.Position = UDim2.fromOffset(18, 8)
+    label.Size = UDim2.new(0.5, -18, 0, 16)
+    label.BackgroundTransparency = 1
+    label.Text = title
+    label.TextColor3 = MUTED
+    label.Font = Enum.Font.GothamMedium
+    label.TextSize = 9
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 6
+    local result = Instance.new("TextLabel", card)
+    result.Position = UDim2.fromOffset(18, 27)
+    result.Size = UDim2.new(1, -36, 0, 22)
+    result.BackgroundTransparency = 1
+    result.Text = value
+    result.TextColor3 = INK
+    result.Font = Enum.Font.GothamBold
+    result.TextSize = 14
+    result.TextXAlignment = Enum.TextXAlignment.Left
+    result.ZIndex = 6
+    return result
+end
+local responseValue = statCard(330, "R E S P O N S E", "Waiting")
+local payloadValue = statCard(400, "P A Y L O A D", "Encrypted")
+local consoleValue = statCard(470, "C O N S O L E", "Ready")
 
--- Powered by label
-local poweredBy = Instance.new("TextLabel", contentPanel)
-poweredBy.Size = UDim2.new(1, -20, 0, 14)
-poweredBy.Position = UDim2.new(0, 10, 0, 140)
-poweredBy.BackgroundTransparency = 1
-poweredBy.Text = "powered by ULT"
-poweredBy.TextColor3 = Color3.fromRGB(50, 50, 50)
-poweredBy.Font = Enum.Font.Gotham
-poweredBy.TextSize = 9
-poweredBy.TextXAlignment = Enum.TextXAlignment.Right
-poweredBy.TextTransparency = 1
-poweredBy.ZIndex = 5
+local submit = Instance.new("TextButton", body)
+submit.Position = UDim2.new(1, -146, 0, 255)
+submit.Size = UDim2.fromOffset(118, 38)
+submit.BackgroundColor3 = ACCENT
+submit.Text = "VALIDATE"
+submit.TextColor3 = INK
+submit.Font = Enum.Font.GothamBold
+submit.TextSize = 11
+submit.AutoButtonColor = false
+submit.ZIndex = 8
+Instance.new("UICorner", submit).CornerRadius = UDim.new(1, 0)
 
--- ====== ANIMATIONS ======
-local fadeIn = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-TweenService:Create(win, fadeIn, {BackgroundTransparency = 0}):Play()
-TweenService:Create(cpStroke, fadeIn, {Transparency = 0}):Play()
-TweenService:Create(titleNeon, fadeIn, {TextTransparency = 0}):Play()
-TweenService:Create(keyLabel, fadeIn, {TextTransparency = 0}):Play()
-TweenService:Create(input, fadeIn, {TextTransparency = 0}):Play()
-TweenService:Create(submitBtn, fadeIn, {TextTransparency = 0}):Play()
-TweenService:Create(statusLabel, fadeIn, {TextTransparency = 0}):Play()
-TweenService:Create(poweredBy, fadeIn, {TextTransparency = 0}):Play()
-${restWords ? 'TweenService:Create(titleRest, fadeIn, {TextTransparency = 0}):Play()' : ''}
+local panelLabel = Instance.new("TextLabel", body)
+panelLabel.Position = UDim2.fromOffset(28, 531)
+panelLabel.Size = UDim2.new(1, -56, 0, 16)
+panelLabel.BackgroundTransparency = 1
+panelLabel.Text = "${safePanelName}  •  POWERED BY ULT"
+panelLabel.TextColor3 = Color3.fromRGB(132, 153, 147)
+panelLabel.Font = Enum.Font.GothamMedium
+panelLabel.TextSize = 9
+panelLabel.TextXAlignment = Enum.TextXAlignment.Right
+panelLabel.ZIndex = 6
 
--- Create dots after content is set up
-local closeDot = makeDot(titleBar, UDim2.new(1, -42, 0.5, -6), Color3.fromRGB(255, 95, 87), function() end)
-local minDot = makeDot(titleBar, UDim2.new(1, -58, 0.5, -6), Color3.fromRGB(255, 189, 46), function()
-    minimized = not minimized
-    local tgt = minimized and UDim2.new(0, 380, 0, 32) or UDim2.new(0, 380, 0, 240)
-    TweenService:Create(win, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Size = tgt}):Play()
-    contentPanel.Visible = not minimized
-    sep.Visible = not minimized
-end)
-
--- ====== DRAGGING ======
 local dragging = false
-local dragStart, startPos
-
-titleBar.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+local dragStart, startPosition
+header.InputBegan:Connect(function(event)
+    if event.UserInputType == Enum.UserInputType.MouseButton1 or event.UserInputType == Enum.UserInputType.Touch then
         dragging = true
-        dragStart = i.Position
-        startPos = win.Position
+        dragStart = event.Position
+        startPosition = window.Position
+    end
+end)
+header.InputEnded:Connect(function(event)
+    if event.UserInputType == Enum.UserInputType.MouseButton1 or event.UserInputType == Enum.UserInputType.Touch then dragging = false end
+end)
+UserInputService.InputChanged:Connect(function(event)
+    if dragging and (event.UserInputType == Enum.UserInputType.MouseMovement or event.UserInputType == Enum.UserInputType.Touch) then
+        local delta = event.Position - dragStart
+        window.Position = UDim2.new(startPosition.X.Scale, startPosition.X.Offset + delta.X, startPosition.Y.Scale, startPosition.Y.Offset + delta.Y)
     end
 end)
 
-titleBar.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(i)
-    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-        local d = i.Position - dragStart
-        win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
-    end
-end)
-
--- ====== CLOSE / DESTROY ======
-local function smoothDestroy(msg, color, scriptCode)
-    input.TextEditable = false
-    if msg then
-        statusLabel.Text = msg
-        statusLabel.TextColor3 = color or Color3.fromRGB(200, 200, 200)
-    end
-    
-    local fadeOut = TweenInfo.new(0.5, Enum.EasingStyle.Quad)
-    TweenService:Create(win, fadeOut, {BackgroundTransparency = 1}):Play()
-    TweenService:Create(titleBar, fadeOut, {BackgroundTransparency = 1}):Play()
-    TweenService:Create(tbFill, fadeOut, {BackgroundTransparency = 1}):Play()
-    TweenService:Create(contentPanel, fadeOut, {BackgroundTransparency = 1}):Play()
-    TweenService:Create(cpStroke, fadeOut, {Transparency = 1}):Play()
-    TweenService:Create(sep, fadeOut, {BackgroundTransparency = 1}):Play()
-    TweenService:Create(titleNeon, fadeOut, {TextTransparency = 1}):Play()
-    TweenService:Create(keyLabel, fadeOut, {TextTransparency = 1}):Play()
-    TweenService:Create(input, fadeOut, {TextTransparency = 1}):Play()
-    TweenService:Create(submitBtn, fadeOut, {BackgroundTransparency = 1, TextTransparency = 1}):Play()
-    TweenService:Create(statusLabel, fadeOut, {TextTransparency = 1}):Play()
-    TweenService:Create(poweredBy, fadeOut, {TextTransparency = 1}):Play()
-    TweenService:Create(inputFrame, fadeOut, {BackgroundTransparency = 1}):Play()
-    TweenService:Create(ifStroke, fadeOut, {Transparency = 1}):Play()
-    TweenService:Create(closeDot, fadeOut, {BackgroundTransparency = 1}):Play()
-    TweenService:Create(minDot, fadeOut, {BackgroundTransparency = 1}):Play()
-
-
-    ${restWords ? 'TweenService:Create(titleRest, fadeOut, {TextTransparency = 1}):Play()' : ''}
-    ${decalId ? 'TweenService:Create(logoImg, fadeOut, {ImageTransparency = 1}):Play()' : ''}
-    TweenService:Create(blur, TweenInfo.new(0.5), {Size = 0}):Play()
-    
-    task.wait(0.6)
-    
-    if scriptCode and #scriptCode > 0 then
-        local ok, fn = pcall(function()
-            return loadstring(scriptCode)
-        end)
-        if ok and fn then
-            local ok2, err2 = pcall(fn)
-            if not ok2 then warn("[ULT] Exec error: " .. tostring(err2)) end
-        else
-            warn("[ULT] Compile error: " .. tostring(fn))
-        end
-    end
-    
-    blur:Destroy()
-    gui:Destroy()
+local function setState(label, percent, consoleText, color)
+    badge.Text = label
+    badge.TextColor3 = color or Color3.fromRGB(43, 157, 107)
+    progressPercent.Text = tostring(percent) .. "%"
+    consoleValue.Text = consoleText
+    TweenService:Create(progressFill, TweenInfo.new(0.28, Enum.EasingStyle.Quad), {Size = UDim2.fromScale(percent / 100, 1)}):Play()
 end
 
-closeDot.MouseButton1Click:Connect(function()
-    smoothDestroy("Closed", Color3.fromRGB(120, 120, 120), nil)
-end)
+local function closeAndRun(compiled)
+    setState("S Y N C E D", 100, "Load complete", Color3.fromRGB(43, 157, 107))
+    responseValue.Text = "0.2s"
+    submit.Text = "LOADED"
+    task.wait(0.35)
+    TweenService:Create(window, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(shade, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(blur, TweenInfo.new(0.3), {Size = 0}):Play()
+    task.wait(0.32)
+    gui:Destroy()
+    blur:Destroy()
+    local ok, runError = pcall(compiled)
+    if not ok then warn("[ULT] Exec error: " .. tostring(runError)) end
+end
 
--- ====== KEY VALIDATION ======
 local validating = false
+local function reset(message, color)
+    setState("E R R O R", 0, message, color)
+    responseValue.Text = message
+    submit.Text = "TRY AGAIN"
+    input.TextEditable = true
+    validating = false
+end
 
 local function validateKey()
     if validating then return end
-    local enteredKey = input.Text
-    if #enteredKey < 3 then
-        statusLabel.Text = "Key too short"
-        statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-        return
-    end
-    
+    local enteredKey = input.Text:gsub("^%s+", ""):gsub("%s+$", "")
+    if #enteredKey < 3 then reset("Key too short", ERROR) return end
     validating = true
     input.TextEditable = false
-    submitBtn.Text = "Validating..."
-    TweenService:Create(submitBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
-    statusLabel.Text = ""
-    
+    submit.Text = "VERIFYING"
+    responseValue.Text = "Checking key"
+    setState("L O A D I N G", 28, "Verifying secure route", ACCENT)
+
     task.spawn(function()
-        local userId = tostring(plr.UserId)
-        local url = "${baseUrl}?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. userId .. "&_=" .. tostring(tick())
-        
-        local success, response = pcall(function()
-            return game:HttpGet(url)
-        end)
-        
-        local function resetBtn()
-            submitBtn.Text = "Validate"
-            TweenService:Create(submitBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(${r}, ${g}, ${b})}):Play()
-            input.TextEditable = true
-            validating = false
-        end
-        
-        if not success then
-            statusLabel.Text = "Network error"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-            resetBtn()
-            return
-        end
-        
-        if not response or #response == 0 then
-            statusLabel.Text = "Empty response"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-            resetBtn()
-            return
-        end
-        
+        local url = "${baseUrl}?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. tostring(player.UserId) .. "&_=" .. tostring(tick())
+        local success, response = pcall(function() return game:HttpGet(url) end)
+        if not success then reset("Network error", ERROR) return end
+        if not response or #response == 0 then reset("Empty response", ERROR) return end
+        setState("L O A D I N G", 64, "Fetching protected payload", ACCENT)
+
         if response:sub(1, 17) == "KEY_VALID_SCRIPT:" then
             local scriptCode = response:sub(18):gsub("^[\\r\\n%s]+", "")
-            local okCompile, compiledFn = pcall(function()
-                return loadstring(scriptCode)
-            end)
-            if not okCompile or not compiledFn then
-                statusLabel.Text = "Payload failed to compile - try again"
-                statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-                resetBtn()
-                return
-            end
-            statusLabel.Text = "Key accepted!"
-            statusLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
-            submitBtn.Text = "✓"
-            task.wait(0.3)
-            smoothDestroy(nil, nil, scriptCode)
-        elseif response:find("KEY_ASSIGNED") then
-            statusLabel.Text = "Key belongs to another user"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-            resetBtn()
-        elseif response:find("KEY_EXPIRED") then
-            statusLabel.Text = "Key has expired"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 150, 50)
-            resetBtn()
-        elseif response:find("KEY_INVALID") then
-            statusLabel.Text = "Invalid key"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-            resetBtn()
+            local compileOk, compiled = pcall(function() return loadstring(scriptCode) end)
+            if not compileOk or not compiled then reset("Payload failed to compile", ERROR) return end
+            payloadValue.Text = "Verified + encrypted"
+            closeAndRun(compiled)
+        elseif response:find("KEY_ASSIGNED", 1, true) then
+            reset("Key belongs to another user", ERROR)
+        elseif response:find("KEY_EXPIRED", 1, true) then
+            reset("Key has expired", WARNING)
+        elseif response:find("KEY_INVALID", 1, true) then
+            reset("Invalid key", ERROR)
         else
-            statusLabel.Text = "Access denied"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-            resetBtn()
+            reset("Access denied", ERROR)
         end
     end)
 end
 
-submitBtn.MouseButton1Click:Connect(validateKey)
-input.FocusLost:Connect(function(enter)
-    if enter then validateKey() end
+submit.MouseButton1Click:Connect(validateKey)
+input.FocusLost:Connect(function(enterPressed)
+    if enterPressed then validateKey() end
 end)
-
--- Focus input on click
-input.Focused:Connect(function()
-    TweenService:Create(ifStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(${r}, ${g}, ${b})}):Play()
+submit.MouseEnter:Connect(function()
+    TweenService:Create(submit, TweenInfo.new(0.15), {BackgroundTransparency = 0.12}):Play()
 end)
-input.FocusLost:Connect(function()
-    TweenService:Create(ifStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(50, 50, 50)}):Play()
+submit.MouseLeave:Connect(function()
+    TweenService:Create(submit, TweenInfo.new(0.15), {BackgroundTransparency = 0}):Play()
 end)
-`; 
+window.Size = UDim2.fromOffset(520, 610)
+window.BackgroundTransparency = 1
+TweenService:Create(window, TweenInfo.new(0.35, Enum.EasingStyle.Quad), {Size = UDim2.fromOffset(560, 650), BackgroundTransparency = 0}):Play()
+`;
 }
-
 function generateKickPlain(reason: string): string {
   return `game:GetService("Players").LocalPlayer:Kick("${reason}")`;
 }
@@ -4269,7 +4210,24 @@ loadstring(game:HttpGet(_url))()`;
     // and earns a permanent, device-wide ban.
     // Executors are unaffected: they are never flagged as browsers.
     if (isLikelyBrowser && !isRobloxRequest) {
-      const forwardedHost = (req.headers.get('x-forwarded-host') || url.host || '').toLowerCase();
+      const forwardedHost = (req.headers.get('x-forwarded-host') || url.host || '').toLowerCase().split(',')[0].trim();
+      const directBackendHost = url.hostname.toLowerCase();
+      const arrivedThroughWebsite = Boolean(
+        forwardedHost &&
+        forwardedHost !== directBackendHost &&
+        !forwardedHost.endsWith('.supabase.co') &&
+        !forwardedHost.endsWith('.functions.supabase.co')
+      );
+
+      // Netlify proxies /s/<slug> here for both browsers and executors. Human
+      // visits through that branded route get the copy-loader page; only a raw
+      // backend-function browser visit is denied and logged.
+      if (arrivedThroughWebsite) {
+        return new Response(generateBrandedLoaderPage(slugStr, forwardedHost), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
+        });
+      }
 
       let discordId: string | null = null;
       try {
