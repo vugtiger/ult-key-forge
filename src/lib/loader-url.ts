@@ -6,9 +6,38 @@
 // that forwards /s/<slug> to the get-paste function without changing headers
 // or the client IP.
 
-// This is the public loader address. The host proxies /s/<slug> to the private
-// delivery function, so copied scripts never expose the backend function URL.
-export const PUBLIC_LOADER_ORIGIN = "https://ultluaprotectsyourluacode.netlify.app";
+// Hosts that cannot serve the /s/<slug> proxy rule (local dev + in-editor
+// preview). On those we fall back to the configured public site address.
+const NON_PUBLIC_HOST_PATTERNS = [
+  /^localhost$/i,
+  /^127\.0\.0\.1$/,
+  /^0\.0\.0\.0$/,
+  /\.lovable\.app$/i,
+  /\.lovableproject\.com$/i,
+  /\.sandbox\.lovable\.dev$/i,
+];
+
+const normalize = (value: string) => value.replace(/\/+$/, "");
+
+/** Configured fallback, used only when the current host can't serve loaders. */
+export const PUBLIC_LOADER_ORIGIN = normalize(
+  (import.meta.env?.VITE_PUBLIC_LOADER_ORIGIN as string | undefined) ||
+    "https://ultluaprotectsyourluacode.netlify.app",
+);
+
+/**
+ * The origin loaders should point at: whatever domain the site is currently
+ * served from (Netlify, Vercel, a custom domain, anything), falling back to the
+ * configured public origin on local/preview hosts.
+ */
+export const getLoaderOrigin = () => {
+  if (typeof window === "undefined") return PUBLIC_LOADER_ORIGIN;
+  const { hostname, origin } = window.location;
+  if (NON_PUBLIC_HOST_PATTERNS.some((p) => p.test(hostname))) {
+    return PUBLIC_LOADER_ORIGIN;
+  }
+  return normalize(origin);
+};
 
 /**
  * Branded URL based on whatever domain the site is currently served from
@@ -16,8 +45,9 @@ export const PUBLIC_LOADER_ORIGIN = "https://ultluaprotectsyourluacode.netlify.a
  * get-paste function.
  */
 export const getBrandedLoaderUrl = (slug: string) => {
-  return `${PUBLIC_LOADER_ORIGIN}/s/${encodeURIComponent(slug)}`;
+  return `${getLoaderOrigin()}/s/${encodeURIComponent(slug)}`;
 };
+
 
 /**
  * URL used inside loadstring. Prefers the branded domain (`/s/<slug>`) which
