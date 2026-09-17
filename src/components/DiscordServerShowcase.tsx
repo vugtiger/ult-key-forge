@@ -21,7 +21,8 @@ const DiscordServerShowcase = () => {
       const res = await fetch(`${baseUrl}/functions/v1/discord-bot-guilds`);
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
-      setGuilds(data);
+      const list = Array.isArray(data) ? data : Array.isArray(data?.guilds) ? data.guilds : [];
+      setGuilds(list);
     } catch (err) {
       console.error('Failed to fetch guilds:', err);
     } finally {
