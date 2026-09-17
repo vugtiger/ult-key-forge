@@ -12,6 +12,30 @@ import CloudBackground from "@/components/CloudBackground";
 import SnowEffect from "@/components/SnowEffect";
 import { buildAppUrl } from "@/lib/site-url";
 
+const readableAuthError = (error: any): string => {
+  const raw =
+    (typeof error === "string" && error) ||
+    error?.message ||
+    error?.error_description ||
+    error?.error?.message ||
+    error?.msg ||
+    "";
+  const text = String(raw).trim();
+  if (!text || text === "{}" || text === "[object Object]") {
+    return "We couldn't reach the sign-in service. Check your connection and try again in a moment.";
+  }
+  if (/failed to fetch|network|load failed/i.test(text)) {
+    return "Connection problem — we couldn't reach the sign-in service. Please try again.";
+  }
+  if (/invalid login credentials/i.test(text)) {
+    return "That email and password don't match. Double-check them and try again.";
+  }
+  if (/email not confirmed/i.test(text)) {
+    return "Please confirm your email address first, then sign in.";
+  }
+  return text;
+};
+
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const getSavedCreds = () => {
@@ -60,7 +84,9 @@ const Auth = () => {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         try {
-          const { data: banCheck } = await supabase.functions.invoke('track-ip', { body: { user_id: data.user.id, action: 'check_ban' } });
+          const banPromise = supabase.functions.invoke('track-ip', { body: { user_id: data.user.id, action: 'check_ban' } });
+          const banTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
+          const { data: banCheck } = await Promise.race([banPromise, banTimeout]) as any;
           if (banCheck?.banned) {
             await supabase.auth.signOut();
             toast({ title: "Account Banned", description: banCheck.reason || "Your account has been banned.", variant: "destructive" });
@@ -90,7 +116,7 @@ const Auth = () => {
         try { localStorage.setItem("ult_last_creds", btoa(JSON.stringify({ email, password }))); } catch {}
       }
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: readableAuthError(error), variant: "destructive" });
     } finally {
       setLoading(false);
     }
