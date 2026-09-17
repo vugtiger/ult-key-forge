@@ -509,8 +509,10 @@ function escapeHtml(value: string): string {
   ));
 }
 
-function generateBrandedLoaderPage(slug: string, host: string): string {
-  const site = host ? `https://${host}` : '';
+const PUBLIC_LOADER_HOST = 'ultluaprotectsyourluacode.netlify.app';
+
+function generateBrandedLoaderPage(slug: string): string {
+  const site = `https://${PUBLIC_LOADER_HOST}`;
   const loadstring = `loadstring(game:HttpGet("${site}/s/${slug}"))()`;
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -2907,7 +2909,7 @@ end
 `;
 }
 
-// ===== ORIGINAL COMPACT KEY SYSTEM GUI =====
+// ===== ULT LOADER V6.1 KEY SYSTEM GUI =====
 function generateKeySystemGui(slug: string, baseUrl: string, panelName: string, themeColor: string, decalId?: string): string {
   const colorParts = (themeColor || '104, 190, 151').split(',').map((value) => value.trim());
   const r = colorParts[0] || '104';
@@ -4199,31 +4201,24 @@ loadstring(game:HttpGet(_url))()`;
       return new Response(`KEY_VALID_SCRIPT:\n${npLoader}`, { status: 200, headers: textHeaders });
     }
 
-    const initialDiscordRedirect = getDiscordRedirectResponse();
-    if (initialDiscordRedirect) return initialDiscordRedirect;
-
     // ===== v19: AUTHORIZED ENTRY POINT ENFORCEMENT (browsers only) =====
-    // The ONLY authorized places a human may reach are the website pages and the
-    // branded /s/<slug> loader page (served by the SPA, never by this function).
-    // Any browser that reaches this backend function URL — no matter the host,
-    // no matter the query — found it by digging. That is an unauthorized access
-    // and earns a permanent, device-wide ban.
-    // Executors are unaffected: they are never flagged as browsers.
+    // The hosted website proxies /s/<slug> here. Browsers using that exact host
+    // receive the branded copy page; direct backend browser visits are denied
+    // and logged without creating a ban. Executors are unaffected.
     if (isLikelyBrowser && !isRobloxRequest) {
       const forwardedHost = (req.headers.get('x-forwarded-host') || url.host || '').toLowerCase().split(',')[0].trim();
       const directBackendHost = url.hostname.toLowerCase();
       const arrivedThroughWebsite = Boolean(
-        forwardedHost &&
+        forwardedHost === PUBLIC_LOADER_HOST &&
         forwardedHost !== directBackendHost &&
-        !forwardedHost.endsWith('.supabase.co') &&
-        !forwardedHost.endsWith('.functions.supabase.co')
+        url.searchParams.has('slug')
       );
 
       // Netlify proxies /s/<slug> here for both browsers and executors. Human
       // visits through that branded route get the copy-loader page; only a raw
       // backend-function browser visit is denied and logged.
       if (arrivedThroughWebsite) {
-        return new Response(generateBrandedLoaderPage(slugStr, forwardedHost), {
+        return new Response(generateBrandedLoaderPage(slugStr), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
         });
@@ -4254,6 +4249,9 @@ loadstring(game:HttpGet(_url))()`;
         headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
       });
     }
+
+    const initialDiscordRedirect = getDiscordRedirectResponse();
+    if (initialDiscordRedirect) return initialDiscordRedirect;
 
 
 
@@ -4310,7 +4308,7 @@ loadstring(game:HttpGet(_url))()`;
         console.log(`[get-paste] Returning key system GUI (global gate) paste=${paste.id} panel=${gatePanel.name}`);
         const { data: gatePanelDetails } = await supabase
           .from('control_panels').select('logo_url').eq('id', gatePanel.id).single();
-        const gateGui = generateKeySystemGui(slugStr, baseUrl, gatePanel.name, '188, 134, 255', gatePanelDetails?.logo_url || undefined);
+        const gateGui = generateKeySystemGui(slugStr, baseUrl, gatePanel.name, '104, 190, 151', gatePanelDetails?.logo_url || undefined);
         return new Response(gateGui, { status: 200, headers: textHeaders });
       }
     }
@@ -4558,7 +4556,7 @@ end)`;
       if (keyPanel && !tk && !kbt && !isLikelyBrowser && !keyParam) {
         console.log(`[get-paste] Returning key system GUI for paste: ${paste.id} panel: ${keyPanel.name}`);
         const { data: panelDetails } = await supabase.from('control_panels').select('logo_url').eq('id', keyPanel.id).single();
-        const gui = generateKeySystemGui(slugStr, baseUrl, keyPanel.name, '188, 134, 255', panelDetails?.logo_url || undefined);
+        const gui = generateKeySystemGui(slugStr, baseUrl, keyPanel.name, '104, 190, 151', panelDetails?.logo_url || undefined);
         return new Response(gui, { status: 200, headers: textHeaders });
       }
       
@@ -4723,7 +4721,7 @@ end)`;
       if (keyPanel) {
         console.log(`[get-paste] Returning key system GUI for protected paste: ${paste.id} panel: ${keyPanel.name}`);
         const { data: panelDetails } = await supabase.from('control_panels').select('logo_url').eq('id', keyPanel.id).single();
-        const gui = generateKeySystemGui(slugStr, baseUrl, keyPanel.name, '188, 134, 255', panelDetails?.logo_url || undefined);
+        const gui = generateKeySystemGui(slugStr, baseUrl, keyPanel.name, '104, 190, 151', panelDetails?.logo_url || undefined);
         return new Response(gui, { status: 200, headers: textHeaders });
       }
 
