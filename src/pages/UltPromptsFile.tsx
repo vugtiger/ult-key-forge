@@ -136,7 +136,7 @@ const UltPromptsFile = () => {
                 {p.is3D && <Badge variant="outline" className="text-[10px]"><Box className="h-2.5 w-2.5 mr-0.5" />3D</Badge>}
               </div>
               <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
-                {p.body.split("\n")[2]}
+                {p.body.split("\n")[3]}
               </p>
               <div className="flex gap-2 mt-auto pt-1">
                 <Button size="sm" variant="outline" className="flex-1" onClick={(e) => { e.stopPropagation(); copy(p); }}>
