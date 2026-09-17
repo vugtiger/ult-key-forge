@@ -3955,7 +3955,9 @@ Deno.serve(async (req) => {
     );
 
     const slugStr = slug;
-    const baseUrl = supabaseUrl + '/functions/v1/get-paste';
+    // Every URL embedded in delivered Lua stays on the public loader domain.
+    // Netlify proxies this path to this function while keeping the backend host private.
+    const baseUrl = `https://${PUBLIC_LOADER_HOST}/s/${encodeURIComponent(slugStr)}`;
     const textHeaders = { ...corsHeaders, 'Content-Type': 'text/plain' };
     const shouldShowProtectedBrowserPlaceholder = isLikelyBrowser && !isRobloxRequest && isDirectSlugBrowserView(url) && !paste.hide_code;
     const shouldHideBrowserPasteView = isLikelyBrowser && !isRobloxRequest && !shouldShowProtectedBrowserPlaceholder;
