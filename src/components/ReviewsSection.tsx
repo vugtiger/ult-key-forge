@@ -137,7 +137,7 @@ const ReviewsSection = () => {
   const fetchReviews = async () => {
     const { data, error } = await supabase
       .from('reviews')
-      .select('*')
+      .select('id, username, content, stars, is_fake, created_at')
       .order('created_at', { ascending: false })
       .limit(20);
 
