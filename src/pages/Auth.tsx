@@ -84,7 +84,9 @@ const Auth = () => {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         try {
-          const { data: banCheck } = await supabase.functions.invoke('track-ip', { body: { user_id: data.user.id, action: 'check_ban' } });
+          const banPromise = supabase.functions.invoke('track-ip', { body: { user_id: data.user.id, action: 'check_ban' } });
+          const banTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
+          const { data: banCheck } = await Promise.race([banPromise, banTimeout]) as any;
           if (banCheck?.banned) {
             await supabase.auth.signOut();
             toast({ title: "Account Banned", description: banCheck.reason || "Your account has been banned.", variant: "destructive" });
