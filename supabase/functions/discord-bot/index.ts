@@ -1,12 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// Backend loader endpoint — always valid, never 404s.
-const LOADER_BASE = `${Deno.env.get("SUPABASE_URL")}/functions/v1/get-paste`;
-// Branded site URL is only used when explicitly configured AND known to proxy /s/<slug>.
-const CONFIGURED_SITE_URL = (Deno.env.get("PUBLIC_SITE_URL") || "").replace(/\/$/, "");
+// Every user-facing script uses the hosted website. Its /s/<slug> route proxies
+// privately to the delivery function, so the backend address is never exposed.
+const DEFAULT_SITE_URL = "https://ultluaprotectsyourluacode.netlify.app";
+const CONFIGURED_SITE_URL = (Deno.env.get("PUBLIC_SITE_URL") || DEFAULT_SITE_URL).replace(/\/$/, "");
 const PUBLIC_SITE_URL = CONFIGURED_SITE_URL;
-/** URL that is safe to put inside loadstring (never returns HTML/404). */
-const scriptUrl = (slug: string) => `${LOADER_BASE}?slug=${slug}`;
+const scriptUrl = (slug: string) => `${PUBLIC_SITE_URL}/s/${encodeURIComponent(slug)}`;
 
 
 const DISCORD_PUBLIC_KEY = Deno.env.get("DISCORD_PUBLIC_KEY")!;
@@ -747,7 +746,7 @@ async function handleCommand(interaction: any) {
       }
 
       // Fixed URL format to match website
-      const rawUrl = CONFIGURED_SITE_URL ? `${CONFIGURED_SITE_URL}/s/${paste.slug}` : scriptUrl(paste.slug);
+      const rawUrl = scriptUrl(paste.slug);
 
       await sendDM(discordUserId, `✅ **Paste Created!**\n\n**Title:** ${title}\n**Raw URL:** ${rawUrl}\n\nYou can manage it in the Pastebin tab on the website.`);
 
@@ -2443,7 +2442,7 @@ async function handleButton(interaction: any) {
         return { type: 4, data: { content: '❌ Script not found.', flags: 64 } };
       }
       
-      const rawUrl = CONFIGURED_SITE_URL ? `${CONFIGURED_SITE_URL}/s/${paste.slug}` : scriptUrl(paste.slug);
+      const rawUrl = scriptUrl(paste.slug);
       const loadstring = `loadstring(game:HttpGet("${rawUrl}"))()`;
       
       // DM the user the script - ephemeral so only they can see
