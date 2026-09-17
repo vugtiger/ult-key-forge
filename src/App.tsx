@@ -21,6 +21,7 @@ import ScriptSettings from "./pages/ScriptSettings";
 import Status from "./pages/Status";
 import ProtectionKeysAnalytics from "./pages/ProtectionKeysAnalytics";
 import Prompts from "./pages/Prompts";
+import UltPromptsFile from "./pages/UltPromptsFile";
 import NotFound from "./pages/NotFound";
 import LoaderRedirect from "./pages/LoaderRedirect";
 import Compare from "./pages/Compare";
@@ -51,6 +52,7 @@ const App = () => (
           <Route path="/script-settings" element={<ScriptSettings />} />
           <Route path="/protection-keys" element={<ProtectionKeysAnalytics />} />
           <Route path="/prompts" element={<Prompts />} />
+          <Route path="/ult-prompts" element={<UltPromptsFile />} />
           <Route path="/status" element={<Status />} />
           <Route path="/s/:slug" element={<LoaderRedirect />} />
           <Route path="/compare" element={<Compare />} />
