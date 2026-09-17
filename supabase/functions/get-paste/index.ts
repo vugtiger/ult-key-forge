@@ -511,7 +511,7 @@ function escapeHtml(value: string): string {
 
 // Fallback public host, used only when the request did not arrive through a
 // hosting proxy (any host works: Netlify, Vercel, a custom domain, ...).
-const FALLBACK_LOADER_HOST = 'ultluaprotectsyourluacode.netlify.app';
+const FALLBACK_LOADER_HOST = Deno.env.get('PUBLIC_SITE_HOST') || 'ultluacodeprotectsyourcode.lovable.app';
 
 /** Host the visitor actually used, when it is not the raw backend host. */
 function resolvePublicHost(req: Request, url: URL): string {
