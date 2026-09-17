@@ -509,10 +509,23 @@ function escapeHtml(value: string): string {
   ));
 }
 
-const PUBLIC_LOADER_HOST = 'ultluaprotectsyourluacode.netlify.app';
+// Fallback public host, used only when the request did not arrive through a
+// hosting proxy (any host works: Netlify, Vercel, a custom domain, ...).
+const FALLBACK_LOADER_HOST = 'ultluaprotectsyourluacode.netlify.app';
 
-function generateBrandedLoaderPage(slug: string): string {
-  const site = `https://${PUBLIC_LOADER_HOST}`;
+/** Host the visitor actually used, when it is not the raw backend host. */
+function resolvePublicHost(req: Request, url: URL): string {
+  const forwarded = (req.headers.get('x-forwarded-host') || '').toLowerCase().split(',')[0].trim();
+  const candidate = forwarded || '';
+  if (!candidate) return FALLBACK_LOADER_HOST;
+  if (candidate === url.hostname.toLowerCase()) return FALLBACK_LOADER_HOST;
+  if (candidate.endsWith('.supabase.co') || candidate.endsWith('.supabase.in')) return FALLBACK_LOADER_HOST;
+  return candidate;
+}
+
+function generateBrandedLoaderPage(slug: string, host: string = FALLBACK_LOADER_HOST): string {
+  const site = `https://${host}`;
+
   const loadstring = `loadstring(game:HttpGet("${site}/s/${slug}"))()`;
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
