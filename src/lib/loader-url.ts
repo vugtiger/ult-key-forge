@@ -48,12 +48,14 @@ export const getLoaderOrigin = () => {
 
 
 /**
- * Branded URL based on whatever domain the site is currently served from
- * (any host or custom domain). The host proxies /s/<slug> to the
- * get-paste function.
+ * Loader URL for a slug. Uses the site's own `/s/<slug>` address when the
+ * current host can forward it; otherwise falls back to the backend function
+ * address so the copied loadstring always works.
  */
 export const getBrandedLoaderUrl = (slug: string) => {
-  return `${getLoaderOrigin()}/s/${encodeURIComponent(slug)}`;
+  const origin = getLoaderOrigin();
+  if (origin) return `${origin}/s/${encodeURIComponent(slug)}`;
+  return `${BACKEND_FUNCTION_ORIGIN}/functions/v1/get-paste?slug=${encodeURIComponent(slug)}`;
 };
 
 
