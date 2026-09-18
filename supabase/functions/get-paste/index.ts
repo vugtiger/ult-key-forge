@@ -509,8 +509,8 @@ function escapeHtml(value: string): string {
   ));
 }
 
-// Fallback public host, used only when the request did not arrive through a
-// hosting proxy (any host works: Netlify, Vercel, a custom domain, ...).
+// Fallback public host for legacy direct requests. Any deployed website can
+// override this setting; proxied requests always keep the visitor's real host.
 const FALLBACK_LOADER_HOST = Deno.env.get('PUBLIC_SITE_HOST') || 'ultluacodeprotectsyourcode.lovable.app';
 
 /** Host the visitor actually used, when it is not the raw backend host. */
@@ -3968,8 +3968,8 @@ Deno.serve(async (req) => {
     );
 
     const slugStr = slug;
-    // Every URL embedded in delivered Lua stays on the public website domain —
-    // whichever host proxied this request (Netlify, Vercel, custom domain, ...).
+    // Every URL embedded in delivered Lua stays on the public website domain
+    // that proxied this request, regardless of hosting provider.
     const publicHost = resolvePublicHost(req, url);
     const baseUrl = `https://${publicHost}/s/${encodeURIComponent(slugStr)}`;
 
@@ -4198,7 +4198,7 @@ Deno.serve(async (req) => {
         // Return a simple script that re-fetches the paste with the bypass token
         // The paste URL will then skip the key system and serve the normal protection loader
         const redirectScript = `-- Key validated, loading protected script...
-local _url = "${baseUrl}?slug=${slugStr}&uid=${uid}&kbt=${bypassToken}&_=" .. tostring(tick())
+local _url = "${baseUrl}?uid=${uid}&kbt=${bypassToken}&_=" .. tostring(tick())
 loadstring(game:HttpGet(_url))()`;
         console.log(`[get-paste] KEY_VALID: returning bypass redirect for protected paste ${paste.id}`);
         return new Response(`KEY_VALID_SCRIPT:\n${redirectScript}`, { status: 200, headers: textHeaders });
@@ -4372,7 +4372,7 @@ loadstring(game:HttpGet(_url))()`;
   -- Strip the global so it cannot be re-read by other scripts after load.
   pcall(function() rawset(_G, "ScriptKey", nil) end)
   local s, r = pcall(function()
-    return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(p.UserId) .. "&pkey=" .. key .. "&_=" .. tostring(tick()))
+    return game:HttpGet("${baseUrl}?uid=" .. tostring(p.UserId) .. "&pkey=" .. key .. "&_=" .. tostring(tick()))
   end)
   if not s or type(r) ~= "string" or r == "" then return end
   local f, lerr = loadstring(r)
@@ -4557,7 +4557,7 @@ end`;
 local _ok, _err = pcall(function()
   local _p = game:GetService("Players").LocalPlayer
   if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
-  local _s, _r = pcall(function() return game:HttpGet("${baseUrl}?slug=${slugStr}&uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())) end)
+  local _s, _r = pcall(function() return game:HttpGet("${baseUrl}?uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())) end)
   if not _s or not _r or _r == "" then return end
   local _f, _e = loadstring(_r)
   if not _f then return end

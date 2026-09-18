@@ -1,8 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// Every user-facing script uses the hosted website. Its /s/<slug> route proxies
-// privately to the delivery function, so the backend address is never exposed.
-// Set PUBLIC_SITE_URL to whatever domain the site is hosted on (any host).
+// Discord cannot observe the website origin, so deployments set PUBLIC_SITE_URL
+// to the current public website. It may belong to any hosting provider.
 const DEFAULT_SITE_URL = "https://ultluacodeprotectsyourcode.lovable.app";
 const PUBLIC_SITE_URL = (Deno.env.get("PUBLIC_SITE_URL") || DEFAULT_SITE_URL).replace(/\/+$/, "");
 const scriptUrl = (slug: string) => `${PUBLIC_SITE_URL}/s/${encodeURIComponent(slug)}`;
