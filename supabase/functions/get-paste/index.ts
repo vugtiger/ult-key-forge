@@ -2498,7 +2498,7 @@ local tk = ${v.reconstruct}()
 ${v.memWipe}(${v.tokenParts})
 
 -- v10: Build request URL with DNA, quantum pair, and watermark
-local url = "${baseUrl}?slug=${slug}&uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&hwid=" .. (fp.hwid or "") .. "&entropy=" .. (fp.entropy or "0") .. "&snonce=" .. fp.nonce .. "&dna=" .. fp.dna .. "&qt=" .. fp.qt .. "&wm=" .. fp.wm .. "&sd=" .. fp.sd .. "&mem=" .. fp.mem .. "&_=" .. tostring(tick())
+local url = "${baseUrl}?uid=" .. fp.u .. "&ts=" .. fp.t .. "&tk=" .. tk .. "&ss=" .. ${v.session} .. "&gid=" .. fp.g .. "&pid=" .. fp.p .. "&r=" .. fp.r .. "&ex=" .. (fp.ex or "") .. "&hwid=" .. (fp.hwid or "") .. "&entropy=" .. (fp.entropy or "0") .. "&snonce=" .. fp.nonce .. "&dna=" .. fp.dna .. "&qt=" .. fp.qt .. "&wm=" .. fp.wm .. "&sd=" .. fp.sd .. "&mem=" .. fp.mem .. "&_=" .. tostring(tick())
 
 -- XOR Decode
 local ${v.hexBytes} = function(hex)
@@ -3288,7 +3288,7 @@ local function validateKey()
     setState("L O A D I N G", 28, "Verifying secure route", ACCENT)
 
     task.spawn(function()
-        local url = "${baseUrl}?slug=${slug}&key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. tostring(player.UserId) .. "&_=" .. tostring(tick())
+        local url = "${baseUrl}?key=" .. HttpService:UrlEncode(enteredKey) .. "&uid=" .. tostring(player.UserId) .. "&_=" .. tostring(tick())
         local success, response = pcall(function() return game:HttpGet(url) end)
         if not success then reset("Network error", ERROR) return end
         if not response or #response == 0 then reset("Empty response", ERROR) return end
