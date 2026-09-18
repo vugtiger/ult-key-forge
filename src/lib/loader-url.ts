@@ -1,14 +1,6 @@
-// Branded loader URLs.
-//
-// The backend function URL keeps working forever (never change it — old
-// scripts in the wild depend on it). This helper prefers whatever domain the
-// site is currently served from, using a host redirect rule (public/_redirects)
-// that forwards /s/<slug> to the get-paste function without changing headers
-// or the client IP.
-
-// Hosts that cannot serve the /s/<slug> proxy rule (local dev + in-editor
-// preview). On those we fall back to the configured public site address.
-const NON_PUBLIC_HOST_PATTERNS = [
+// Hosts used for local development or the editor preview do not run deployment
+// rewrites. They use the delivery function directly so copied scripts still run.
+const NON_DEPLOYED_HOST_PATTERNS = [
   /^localhost$/i,
   /^127\.0\.0\.1$/,
   /^0\.0\.0\.0$/,
@@ -24,23 +16,21 @@ const BACKEND_FUNCTION_ORIGIN = normalize(
   (import.meta.env?.VITE_SUPABASE_URL as string | undefined) || "",
 );
 
-/** Optional override for the public site address that serves /s/<slug>. */
+/** Optional deployed website override. It can belong to any hosting provider. */
 export const PUBLIC_LOADER_ORIGIN = normalize(
   (import.meta.env?.VITE_PUBLIC_LOADER_ORIGIN as string | undefined) || "",
 );
 
-const canProxy = (hostname: string) =>
-  !NON_PUBLIC_HOST_PATTERNS.some((p) => p.test(hostname));
+const isDeployedWebsite = (hostname: string) =>
+  !NON_DEPLOYED_HOST_PATTERNS.some((pattern) => pattern.test(hostname));
 
 /**
- * The origin loaders should point at: whatever domain the site is currently
- * served from (Netlify, Vercel, a custom domain, anything). Hosts that cannot
- * forward /s/<slug> (local dev, in-editor preview, Lovable hosting) use the
- * configured public site address, or the backend address as a last resort so
- * the copied loadstring always works.
+ * The public loader origin is the website currently serving the app. Preview
+ * environments intentionally return null because they cannot apply deployment
+ * forwarding rules.
  */
 export const getLoaderOrigin = () => {
-  if (typeof window !== "undefined" && canProxy(window.location.hostname)) {
+  if (typeof window !== "undefined" && isDeployedWebsite(window.location.hostname)) {
     return normalize(window.location.origin);
   }
   return PUBLIC_LOADER_ORIGIN || null;
@@ -48,9 +38,8 @@ export const getLoaderOrigin = () => {
 
 
 /**
- * Loader URL for a slug. Uses the site's own `/s/<slug>` address when the
- * current host can forward it; otherwise falls back to the backend function
- * address so the copied loadstring always works.
+ * Deployed websites use their own `/s/<slug>` route. Editor previews use the
+ * stable delivery endpoint rather than borrowing an unrelated hosting domain.
  */
 export const getBrandedLoaderUrl = (slug: string) => {
   const origin = getLoaderOrigin();
@@ -60,10 +49,7 @@ export const getBrandedLoaderUrl = (slug: string) => {
 
 
 /**
- * URL used inside loadstring. Prefers the branded domain (`/s/<slug>`) which
- * the host rewrites straight to the backend function, so executors receive Lua
- * and never see the backend URL. Falls back to the backend URL on hosts that
- * cannot proxy (local dev / lovable preview).
+ * URL used inside loadstring.
  */
 export const getLoaderUrl = (slug: string) => getBrandedLoaderUrl(slug);
 
