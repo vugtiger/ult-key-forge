@@ -37,21 +37,30 @@ export const getLoaderOrigin = () => {
 };
 
 
-/**
- * Deployed websites use their own `/s/<slug>` route. Editor previews use the
- * stable delivery endpoint rather than borrowing an unrelated hosting domain.
- */
+/** Pretty link shown on the website (needs a host that forwards /s/<slug>). */
 export const getBrandedLoaderUrl = (slug: string) => {
   const origin = getLoaderOrigin();
   if (origin) return `${origin}/s/${encodeURIComponent(slug)}`;
-  return `${BACKEND_FUNCTION_ORIGIN}/functions/v1/get-paste?slug=${encodeURIComponent(slug)}`;
+  return getDeliveryUrl(slug);
 };
 
+/** Always-working delivery endpoint, independent of the hosting provider. */
+export const getDeliveryUrl = (slug: string) =>
+  `${BACKEND_FUNCTION_ORIGIN}/functions/v1/get-paste/s/${encodeURIComponent(slug)}`;
 
 /**
- * URL used inside loadstring.
+ * URL used inside loadstring. Uses the pretty host only when it is configured
+ * to forward /s/<slug>; otherwise the executor would receive the website's
+ * HTML page and loadstring would return nil.
  */
-export const getLoaderUrl = (slug: string) => getBrandedLoaderUrl(slug);
+export const getLoaderUrl = (slug: string) => {
+  const forwardingHost = normalize(
+    (import.meta.env?.VITE_PUBLIC_LOADER_ORIGIN as string | undefined) || "",
+  );
+  return forwardingHost
+    ? `${forwardingHost}/s/${encodeURIComponent(slug)}`
+    : getDeliveryUrl(slug);
+};
 
 /** Ready-to-paste loadstring snippet. */
 export const getLoadstring = (slug: string, key?: string | null) => {
