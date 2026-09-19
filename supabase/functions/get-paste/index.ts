@@ -509,21 +509,16 @@ function escapeHtml(value: string): string {
   ));
 }
 
-// Fallback public host for legacy direct requests. Any deployed website can
-// override this setting; proxied requests always keep the visitor's real host.
-const FALLBACK_LOADER_HOST = Deno.env.get('PUBLIC_SITE_HOST') || 'ultluacodeprotectsyourcode.lovable.app';
-
-/** Host the visitor actually used, when it is not the raw backend host. */
-function resolvePublicHost(req: Request, url: URL): string {
+/** Host the visitor actually used, when it is not the raw delivery host. */
+function resolvePublicHost(req: Request, url: URL): string | null {
   const forwarded = (req.headers.get('x-forwarded-host') || '').toLowerCase().split(',')[0].trim();
-  const candidate = forwarded || '';
-  if (!candidate) return FALLBACK_LOADER_HOST;
-  if (candidate === url.hostname.toLowerCase()) return FALLBACK_LOADER_HOST;
-  if (candidate.endsWith('.supabase.co') || candidate.endsWith('.supabase.in')) return FALLBACK_LOADER_HOST;
-  return candidate;
+  if (!forwarded || !/^[a-z0-9.-]+(?::\d+)?$/.test(forwarded)) return null;
+  if (forwarded === url.host.toLowerCase()) return null;
+  if (forwarded.endsWith('.supabase.co') || forwarded.endsWith('.supabase.in')) return null;
+  return forwarded;
 }
 
-function generateBrandedLoaderPage(slug: string, host: string = FALLBACK_LOADER_HOST): string {
+function generateBrandedLoaderPage(slug: string, host: string): string {
   const site = `https://${host}`;
 
   const loadstring = `loadstring(game:HttpGet("${site}/s/${slug}"))()`;
@@ -3720,7 +3715,10 @@ Deno.serve(async (req) => {
       return new Response('', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
     
-    const slug = url.searchParams.get('slug');
+    // Website rewrites pass ?slug=..., while direct preview delivery can use
+    // /get-paste/s/<slug> so every later request keeps a clean query string.
+    const pathSlugMatch = url.pathname.match(/\/s\/([^/]+)\/?$/);
+    const slug = url.searchParams.get('slug') || (pathSlugMatch ? decodeURIComponent(pathSlugMatch[1]) : null);
     const uid = url.searchParams.get('uid');
     const ts = url.searchParams.get('ts');
     const tk = url.searchParams.get('tk');
@@ -3971,7 +3969,9 @@ Deno.serve(async (req) => {
     // Every URL embedded in delivered Lua stays on the public website domain
     // that proxied this request, regardless of hosting provider.
     const publicHost = resolvePublicHost(req, url);
-    const baseUrl = `https://${publicHost}/s/${encodeURIComponent(slugStr)}`;
+    const baseUrl = publicHost
+      ? `https://${publicHost}/s/${encodeURIComponent(slugStr)}`
+      : `${supabaseUrl}/functions/v1/get-paste/s/${encodeURIComponent(slugStr)}`;
 
     const textHeaders = { ...corsHeaders, 'Content-Type': 'text/plain' };
     const shouldShowProtectedBrowserPlaceholder = isLikelyBrowser && !isRobloxRequest && isDirectSlugBrowserView(url) && !paste.hide_code;
