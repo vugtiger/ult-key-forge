@@ -22,7 +22,7 @@ export const getBrandedLoaderUrl = getLoaderUrl;
 
 /** Ready-to-paste loadstring snippet. */
 export const getLoadstring = (slug: string, key?: string | null) => {
-  const line = `local s=game:HttpGet("${getLoaderUrl(slug)}"); local f,e=loadstring(s); if not f then error("ULT loader error: "..tostring(e)) end; f()`;
+  const line = `loadstring(game:HttpGet("${getLoaderUrl(slug)}"))()`;
   return key ? `_G.ScriptKey = "${key}"\n${line}` : line;
 };
 
