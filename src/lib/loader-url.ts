@@ -1,18 +1,6 @@
-// Hosts used for local development or the editor preview do not run deployment
-// rewrites. They use the delivery function directly so copied scripts still run.
-const NON_DEPLOYED_HOST_PATTERNS = [
-  /^localhost$/i,
-  /^127\.0\.0\.1$/,
-  /^0\.0\.0\.0$/,
-  /\.lovable\.app$/i,
-  /\.lovableproject\.com$/i,
-  /\.sandbox\.lovable\.dev$/i,
-];
-
 const normalize = (value: string) => value.replace(/\/+$/, "");
 
-/** Direct backend address — always works, used when no proxy host is available. */
-const BACKEND_FUNCTION_ORIGIN = normalize(
+const DELIVERY_ORIGIN = normalize(
   (import.meta.env?.VITE_SUPABASE_URL as string | undefined) || "",
 );
 
@@ -21,50 +9,27 @@ export const PUBLIC_LOADER_ORIGIN = normalize(
   (import.meta.env?.VITE_PUBLIC_LOADER_ORIGIN as string | undefined) || "",
 );
 
-const isDeployedWebsite = (hostname: string) =>
-  !NON_DEPLOYED_HOST_PATTERNS.some((pattern) => pattern.test(hostname));
-
-/**
- * The public loader origin is the website currently serving the app. Preview
- * environments intentionally return null because they cannot apply deployment
- * forwarding rules.
- */
+/** Use the site that is actually serving the app, regardless of hosting provider. */
 export const getLoaderOrigin = () => {
-  if (typeof window !== "undefined" && isDeployedWebsite(window.location.hostname)) {
-    return normalize(window.location.origin);
-  }
-  return PUBLIC_LOADER_ORIGIN || null;
+  if (PUBLIC_LOADER_ORIGIN) return PUBLIC_LOADER_ORIGIN;
+  if (typeof window !== "undefined") return normalize(window.location.origin);
+  return null;
 };
 
-
-/** Pretty link shown on the website (needs a host that forwards /s/<slug>). */
-export const getBrandedLoaderUrl = (slug: string) => {
-  const origin = getLoaderOrigin();
-  if (origin) return `${origin}/s/${encodeURIComponent(slug)}`;
-  return getDeliveryUrl(slug);
-};
-
-/** Always-working delivery endpoint, independent of the hosting provider. */
-export const getDeliveryUrl = (slug: string) =>
-  `${BACKEND_FUNCTION_ORIGIN}/functions/v1/get-paste/s/${encodeURIComponent(slug)}`;
-
-/**
- * URL used inside loadstring. Uses the pretty host only when it is configured
- * to forward /s/<slug>; otherwise the executor would receive the website's
- * HTML page and loadstring would return nil.
- */
+/** Public website route used for both display and execution. */
 export const getLoaderUrl = (slug: string) => {
-  const forwardingHost = normalize(
-    (import.meta.env?.VITE_PUBLIC_LOADER_ORIGIN as string | undefined) || "",
-  );
-  return forwardingHost
-    ? `${forwardingHost}/s/${encodeURIComponent(slug)}`
-    : getDeliveryUrl(slug);
+  const origin = getLoaderOrigin();
+  return origin ? `${origin}/s/${encodeURIComponent(slug)}` : `/s/${encodeURIComponent(slug)}`;
 };
+
+export const getBrandedLoaderUrl = getLoaderUrl;
 
 /** Ready-to-paste loadstring snippet. */
 export const getLoadstring = (slug: string, key?: string | null) => {
-  const line = `loadstring(game:HttpGet("${getLoaderUrl(slug)}"))()`;
+  const publicUrl = getLoaderUrl(slug);
+  const deliveryUrl = `${DELIVERY_ORIGIN}/functions/v1/get-paste/s/${encodeURIComponent(slug)}`;
+  const encodedDeliveryUrl = Array.from(deliveryUrl, (character) => character.charCodeAt(0)).join(",");
+  const line = `local s=game:HttpGet("${publicUrl}");local f=loadstring(s);if not f then f=loadstring(game:HttpGet(string.char(${encodedDeliveryUrl})))end;if not f then error("ULT loader unavailable")end;f()`;
   return key ? `_G.ScriptKey = "${key}"\n${line}` : line;
 };
 
