@@ -1,10 +1,16 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// Discord cannot observe the website origin, so deployments set PUBLIC_SITE_URL
-// to the current public website. It may belong to any hosting provider.
-const DEFAULT_SITE_URL = "https://ultluacodeprotectsyourcode.lovable.app";
-const PUBLIC_SITE_URL = (Deno.env.get("PUBLIC_SITE_URL") || DEFAULT_SITE_URL).replace(/\/+$/, "");
-const scriptUrl = (slug: string) => `${PUBLIC_SITE_URL}/s/${encodeURIComponent(slug)}`;
+// Discord cannot observe a browser origin. The website records the latest host
+// that successfully forwards /s/:slug, so deleted or stale deployments are not reused.
+async function scriptUrl(supabase: any, userId: string, slug: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('user_public_hosts')
+    .select('origin')
+    .eq('user_id', userId)
+    .maybeSingle();
+  const origin = typeof data?.origin === 'string' ? data.origin.replace(/\/+$/, '') : '';
+  return origin ? `${origin}/s/${encodeURIComponent(slug)}` : null;
+}
 
 
 
@@ -746,7 +752,10 @@ async function handleCommand(interaction: any) {
       }
 
       // Fixed URL format to match website
-      const rawUrl = scriptUrl(paste.slug);
+      const rawUrl = await scriptUrl(supabase, user.userId, paste.slug);
+      if (!rawUrl) {
+        return { type: 4, data: { content: 'Open your dashboard once on the Vercel or Netlify address you currently host, then retry this command.', flags: 64 } };
+      }
 
       await sendDM(discordUserId, `✅ **Paste Created!**\n\n**Title:** ${title}\n**Raw URL:** ${rawUrl}\n\nYou can manage it in the Pastebin tab on the website.`);
 
@@ -2442,7 +2451,10 @@ async function handleButton(interaction: any) {
         return { type: 4, data: { content: '❌ Script not found.', flags: 64 } };
       }
       
-      const rawUrl = scriptUrl(paste.slug);
+      const rawUrl = await scriptUrl(supabase, panel.user_id, paste.slug);
+      if (!rawUrl) {
+        return { type: 4, data: { content: 'The owner must open their dashboard once on the currently hosted Vercel or Netlify website, then retry.', flags: 64 } };
+      }
       const loadstring = `loadstring(game:HttpGet("${rawUrl}"))()`;
       
       // DM the user the script - ephemeral so only they can see
