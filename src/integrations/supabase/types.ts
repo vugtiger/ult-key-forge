@@ -1430,6 +1430,24 @@ export type Database = {
         }
         Relationships: []
       }
+      user_public_hosts: {
+        Row: {
+          origin: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          origin: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          origin?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
