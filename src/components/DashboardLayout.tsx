@@ -228,6 +228,21 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         .catch((error) => console.warn('IP tracking skipped:', error?.message));
     };
 
+    const rememberWorkingLoaderHost = async (userId: string) => {
+      try {
+        const response = await fetch(`/s/__ult_host_probe__?v=${Date.now()}`, { cache: "no-store" });
+        const body = await response.text();
+        if (/<!doctype html|<html/i.test(body)) return;
+        await (supabase.from("user_public_hosts" as any) as any).upsert({
+          user_id: userId,
+          origin: window.location.origin,
+          updated_at: new Date().toISOString(),
+        });
+      } catch {
+        // This host cannot forward /s/:slug, so never advertise it in Discord.
+      }
+    };
+
     const checkBanStatus = async (userId: string) => {
       try {
         const { data } = await supabase.functions.invoke('track-ip', { body: { user_id: userId, action: 'check_ban' } });
@@ -255,6 +270,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           initializedRef.current = true;
           loadUserTheme(session.user.id);
           trackLogin(session.user.id);
+           rememberWorkingLoaderHost(session.user.id);
           checkBanStatus(session.user.id);
         }
       }
@@ -269,6 +285,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           initializedRef.current = true;
           loadUserTheme(session.user.id);
           trackLogin(session.user.id);
+           rememberWorkingLoaderHost(session.user.id);
           checkBanStatus(session.user.id);
         }
       }

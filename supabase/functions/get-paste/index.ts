@@ -3008,6 +3008,14 @@ header.Size = UDim2.new(1, 0, 0, 68)
 header.BackgroundColor3 = SURFACE
 header.BorderSizePixel = 0
 header.ZIndex = 5
+Instance.new("UICorner", header).CornerRadius = UDim.new(0, 24)
+local headerBottomFiller = Instance.new("Frame", header)
+headerBottomFiller.AnchorPoint = Vector2.new(0, 1)
+headerBottomFiller.Position = UDim2.fromScale(0, 1)
+headerBottomFiller.Size = UDim2.new(1, 0, 0, 24)
+headerBottomFiller.BackgroundColor3 = SURFACE
+headerBottomFiller.BorderSizePixel = 0
+headerBottomFiller.ZIndex = 5
 local headerLine = Instance.new("Frame", header)
 headerLine.AnchorPoint = Vector2.new(0, 1)
 headerLine.Position = UDim2.fromScale(0, 1)
@@ -4197,9 +4205,23 @@ Deno.serve(async (req) => {
         });
         // Return a simple script that re-fetches the paste with the bypass token
         // The paste URL will then skip the key system and serve the normal protection loader
-        const redirectScript = `-- Key validated, loading protected script...
+        const redirectScript = paste.protection_mode === 'protection_key'
+          ? `-- Panel key validated; validate the loader's protection key in the same handoff.
+local _raw = rawget(_G, "ScriptKey")
+local _pkey = (_raw == nil) and "" or tostring(_raw):gsub("%s+", "")
+if _pkey == "" then error("No protection key set") end
+pcall(function() rawset(_G, "ScriptKey", nil) end)
+local _url = "${baseUrl}?uid=${uid}&kbt=${bypassToken}&pkey=" .. game:GetService("HttpService"):UrlEncode(_pkey) .. "&_=" .. tostring(tick())
+local _code = game:HttpGet(_url)
+local _fn, _compileError = loadstring(_code)
+if not _fn then error(_compileError or "ULT loader failed to compile") end
+_fn()`
+          : `-- Key validated, loading protected script...
 local _url = "${baseUrl}?uid=${uid}&kbt=${bypassToken}&_=" .. tostring(tick())
-loadstring(game:HttpGet(_url))()`;
+local _code = game:HttpGet(_url)
+local _fn, _compileError = loadstring(_code)
+if not _fn then error(_compileError or "ULT loader failed to compile") end
+_fn()`;
         console.log(`[get-paste] KEY_VALID: returning bypass redirect for protected paste ${paste.id}`);
         return new Response(`KEY_VALID_SCRIPT:\n${redirectScript}`, { status: 200, headers: textHeaders });
       }
