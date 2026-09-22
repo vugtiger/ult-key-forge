@@ -2717,7 +2717,7 @@ pcall(function()
   title.Position = UDim2.fromOffset(28, 28)
   title.Size = UDim2.new(1, -56, 0, 58)
   title.BackgroundTransparency = 1
-  title.Text = "ULT\nCHECKS"
+  title.Text = "ULT\\nCHECKS"
   title.TextColor3 = INK
   title.Font = Enum.Font.GothamBlack
   title.TextSize = 26
@@ -5122,44 +5122,7 @@ end`;
       }
     }
 
-    // ===== GLOBAL ANTI-FETCH PROTECTION =====
-    // This runs for ALL paste types (protected, public-protection, non-protected).
-    // When anti_fetch_enabled is on and there's no execution context (no uid, no tk, no kbt, no key),
-    // return a mini loader. setclipboard copies "-- Protected by ULT LUA" (useless).
-    // loadstring executes the loader which re-fetches with uid to get the real content.
-    if (paste.anti_fetch_enabled && !uid && !tk && !kbt && !keyParam && !isLikelyBrowser) {
-      console.log(`[get-paste] ANTI-FETCH: returning trap-baited mini loader slug=${slug} ip=${clientIp}`);
-      // Trap URL is embedded as fake "source" comments. If the caller copied the
-      // fetch result (setclipboard / writefile / dumper) instead of executing it,
-      // any human or bot that follows the link is permanently banned at /trap/.
-      // If the caller DID execute the response, the mini-loader below re-fetches
-      // with uid and never touches the trap URL, so legitimate loadstring works.
-      const trapToken = generateToken().slice(0, 24);
-      const trapUrlSupabase = `${baseUrl.replace(/\/get-paste.*$/, '')}/get-paste/source/${trapToken}`;
-      const siteHost = Deno.env.get('PUBLIC_SITE_URL')?.replace(/\/+$/, '')
-        || 'https://ultluacodeprotectsyourluacode.onrender.com';
-      const trapUrlDomain = `${siteHost}/s/source_${trapToken}`;
-      const miniLoader = `-- ULT LUA Protected Script
--- Redistribution prohibited. Source is bound to the original loader.
--- Source: ${trapUrlDomain}
--- Mirror: ${trapUrlSupabase}
--- Backup: ${trapUrlDomain}?m=1
-local _uid = 0
-local _okp, _p = pcall(function() return game:GetService("Players").LocalPlayer end)
-if _okp and _p then _uid = _p.UserId end
-local _url = "${baseUrl}?uid=" .. tostring(_uid) .. "&_=" .. tostring(tick())
-local _r
-local _s, _e = pcall(function() _r = game:HttpGet(_url) end)
-if not _s or not _r or _r == "" then
-  local _s2, _e2 = pcall(function() _r = game:HttpGetAsync(_url) end)
-  if not _s2 then _e = _e2 end
-end
-if not _r or _r == "" then error("[ULT] Network error: " .. tostring(_e)) end
-local _f, _le = loadstring(_r)
-if not _f then error("[ULT] Loadstring failed: " .. tostring(_le)) end
-return _f()`;
-      return new Response(miniLoader, { status: 200, headers: textHeaders });
-    }
+    // (Anti-fetch phase-1 mini-loader removed — falls through to normal encrypted flow.)
 
 
     // ===== NON-PROTECTED PASTE (no protection, no public_protection) =====
