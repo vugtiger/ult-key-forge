@@ -2554,43 +2554,35 @@ pcall(function()
   end
 end)
 
-local _hasRConsole = (type(rconsoleprint) == "function") or (type(rconsoleinfo) == "function") or (type(rconsolewarn) == "function")
-local _rPrint = rconsoleprint or rconsoleinfo or rconsolewarn or function() end
-local _rClear = rconsoleclear or function() end
-local _rName  = rconsolename or rconsolesettitle or function() end
+local CoreGui = game:GetService("CoreGui")
 
-pcall(function()
-  print([[
-+==============================================+
-|                                              |
-|   ##   ##  ##   ########                     |
-|   ##   ##  ##      ##                        |
-|   ##   ##  ##      ##                        |
-|   #######  ######  ##                        |
-|                                              |
-|          U L T   S Y S T E M                 |
-|          INITIALIZATION                      |
-|                                              |
-+==============================================+
+print([[
+╔══════════════════════════════════════════════╗
+║                                              ║
+║   ██╗   ██╗██╗  ████████╗                    ║
+║   ██║   ██║██║  ╚══██╔══╝                    ║
+║   ██║   ██║██║     ██║                       ║
+║   ██║   ██║██║     ██║                       ║
+║   ╚██████╔╝██║     ██║                       ║
+║    ╚═════╝ ╚═╝     ╚═╝                       ║
+║                                              ║
+║          U L T   S Y S T E M                 ║
+║          INITIALIZATION                      ║
+║                                              ║
+╚══════════════════════════════════════════════╝
 ]])
-end)
-
-if _hasRConsole and not _G._ULT_IS_MOBILE then
-  pcall(function() _rName("ULT Loader") _rClear() end)
-end
 
 -- Hide stale loading entries from previous runs
 pcall(function()
-  local _cg = game:GetService("CoreGui")
-  for _, v in ipairs(_cg:GetDescendants()) do
-    if v:IsA("TextLabel") and typeof(v.Text) == "string" and v.Text:find("Loading:", 1, true) then
+  for _, v in ipairs(CoreGui:GetDescendants()) do
+    if v:IsA("TextLabel") and v.Text:find("Loading:", 1, true) then
       v.Visible = false
     end
   end
 end)
 
 print("Loading:")
-task.wait(0.15)
+task.wait(0.3)
 
 -- ============ ON-SCREEN VERIFICATION WINDOW ============
 local _ultUI = { ok = false }
@@ -2762,8 +2754,8 @@ pcall(function()
   row("env", "Scanning environment")
   row("integrity", "Verifying loader integrity")
   row("sign", "Checking signatures")
-  row("auth", "Authenticating session")
-  row("payload", "Preparing payload")
+  row("auth", "Validating session credentials")
+  row("payload", "Checking execution pipeline")
 
   TweenService:Create(window, TweenInfo.new(0.25), { BackgroundTransparency = 0 }):Play()
   TweenService:Create(stroke, TweenInfo.new(0.25), { Transparency = 0 }):Play()
@@ -2796,31 +2788,9 @@ pcall(function()
 end)
 
 -- ============ REAL CHECKS DRIVING THE BAR ============
-local _ultBarLen = 30
-local _ultLabel = ""
-local function _ultBar(value)
-  local filled = math.floor(value / 100 * _ultBarLen)
-  local text = string.format("ULT | Loading: [%s%s] %d%%%s",
-    string.rep("#", filled), string.rep("-", _ultBarLen - filled), value,
-    _ultLabel ~= "" and (" - " .. _ultLabel) or "")
-  print(text)
-  if _hasRConsole and not _G._ULT_IS_MOBILE then
-    pcall(function() _rClear() _rPrint(text .. "\\n") end)
-  end
-  pcall(function()
-    local _cg = game:GetService("CoreGui")
-    for _, v in ipairs(_cg:GetDescendants()) do
-      if v:IsA("TextLabel") and typeof(v.Text) == "string" and v.Text:find("ULT | Loading:", 1, true) then
-        v.Text = text
-      end
-    end
-  end)
-  if _ultUI.ok then _ultUI.progress(value, _ultLabel) end
-end
-
 local _ultStages = {
   {
-    id = "env", label = "scanning environment", target = 20,
+    id = "env", label = "scanning environment", threshold = 0,
     run = function()
       local clean = ${v.antiEnvLog}()
       if not clean then _reportBypass("verify_env", "env_logger_detected") end
@@ -2828,7 +2798,7 @@ local _ultStages = {
     end,
   },
   {
-    id = "integrity", label = "verifying integrity", target = 45,
+    id = "integrity", label = "verifying integrity", threshold = 20,
     run = function()
       local clean = ${v.antiHook}()
       if not clean then _reportBypass("verify_hook", "hook_detected_during_verification") end
@@ -2836,7 +2806,7 @@ local _ultStages = {
     end,
   },
   {
-    id = "sign", label = "checking signatures", target = 65,
+    id = "sign", label = "checking signatures", threshold = 40,
     run = function()
       local clean = ${v.verified} and true or false
       if not clean then _reportBypass("verify_ls", "loadstring_integrity_failed") end
@@ -2850,55 +2820,84 @@ local _ultStages = {
     end,
   },
   {
-    id = "auth", label = "authenticating", target = 85,
+    id = "auth", label = "validating session credentials", threshold = 60,
     run = function()
-      local ok = type(fp) == "table" and fp.u ~= nil and tk ~= nil and tk ~= ""
+      local ok = type(fp) == "table"
+        and fp.u ~= nil and tostring(fp.u) ~= ""
+        and fp.t ~= nil and fp.nonce ~= nil
+        and tk ~= nil and tk ~= ""
+        and ${v.session} ~= nil and ${v.session} ~= ""
       return ok and true or false
     end,
   },
   {
-    id = "payload", label = "preparing payload", target = 100,
-    run = function() return true end,
+    id = "payload", label = "checking execution pipeline", threshold = 80,
+    run = function()
+      return type(${v.cleanLS}) == "function"
+        and type(${v.indirectExec}) == "function"
+        and type(${v.hexBytes}) == "function"
+        and type(${v.xorBytes}) == "function"
+        and type(${v.bytesToString}) == "function"
+        and type(kb) == "table" and #kb > 0
+    end,
   },
 }
 
-local _cur = 0
-for _, stage in ipairs(_ultStages) do
-  _ultLabel = stage.label
-  local passed = true
-  local okCall, result = pcall(stage.run)
-  if okCall then passed = result and true or false end
-  local from, to, frames = _cur, stage.target, 5
-  for i = 1, frames do
-    local t = i / frames
-    local eased = 1 - (1 - t) ^ 3
-    _ultBar(math.floor(from + (to - from) * eased))
-    task.wait(0.03)
-  end
-  _cur = to
-  if _ultUI.ok then _ultUI.mark(stage.id, passed) end
-end
-
--- Flash confirmation like the console entry, then close the window
-pcall(function()
-  for _ = 1, 3 do
-    if _hasRConsole and not _G._ULT_IS_MOBILE then
-      pcall(function() _rClear() _rPrint("ULT | Loading: [" .. string.rep("#", _ultBarLen) .. "] 100%\\n") end)
+local _ultNextStage = 1
+for i = 0, 100 do
+  while _ultStages[_ultNextStage] and i >= _ultStages[_ultNextStage].threshold do
+    local stage = _ultStages[_ultNextStage]
+    local okCall, result = pcall(stage.run)
+    local passed = okCall and result and true or false
+    if _ultUI.ok then
+      _ultUI.progress(i, stage.label)
+      _ultUI.mark(stage.id, passed)
     end
-    task.wait(0.12)
+    _ultNextStage = _ultNextStage + 1
   end
-end)
 
-local _done = "ULT | Loaded! [" .. string.rep("#", _ultBarLen) .. "] 100%"
-print(_done)
-if _hasRConsole and not _G._ULT_IS_MOBILE then
-  pcall(function() _rClear() _rPrint(_done .. "\\n") end)
+  local filled = math.floor(i / 100 * 30)
+  local bar = string.rep("#", filled) .. string.rep("-", 30 - filled)
+  local text = string.format("ULT | Loading: [%s] %d%%", bar, i)
+
+  pcall(function()
+    for _, v in ipairs(CoreGui:GetDescendants()) do
+      if v:IsA("TextLabel") and v.Text:find("Loading:", 1, true) then
+        v.Text = text
+      end
+    end
+  end)
+
+  if _ultUI.ok then _ultUI.progress(i) end
+  task.wait(0.04)
 end
+
+for flash = 1, 3 do
+  pcall(function()
+    for _, v in ipairs(CoreGui:GetDescendants()) do
+      if v:IsA("TextLabel") and v.Text:find("Loading:", 1, true) then
+        v.TextColor3 = Color3.fromRGB(0, 255, 0)
+      end
+    end
+  end)
+
+  task.wait(0.25)
+
+  pcall(function()
+    for _, v in ipairs(CoreGui:GetDescendants()) do
+      if v:IsA("TextLabel") and v.Text:find("Loading:", 1, true) then
+        v.TextColor3 = Color3.fromRGB(255, 255, 255)
+      end
+    end
+  end)
+
+  task.wait(0.25)
+end
+
 pcall(function()
-  local _cg = game:GetService("CoreGui")
-  for _, v in ipairs(_cg:GetDescendants()) do
-    if v:IsA("TextLabel") and typeof(v.Text) == "string" and v.Text:find("ULT | Loading:", 1, true) then
-      v.Text = _done
+  for _, v in ipairs(CoreGui:GetDescendants()) do
+    if v:IsA("TextLabel") and v.Text:find("Loading:", 1, true) then
+      v.Text = "ULT | Loaded! [##############################] 100%"
       v.TextColor3 = Color3.fromRGB(255, 255, 255)
     end
   end
