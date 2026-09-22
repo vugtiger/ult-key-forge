@@ -212,7 +212,16 @@ const AdminDashboard = () => {
   };
 
   const fetchUsers = async () => { setLoading(true); try { const data = await adminCall('list_users'); setUsers(data.users || []); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } finally { setLoading(false); } };
-  const fetchPastes = async () => { try { const data = await adminCall('list_pastes'); setPastes(data.pastes || []); } catch (e: any) { console.error(e); } };
+  const fetchPastes = async () => { try { const data = await adminCall('list_pastes', { limit: 200, search: pasteSearch || undefined }); setPastes(data.pastes || []); setPasteTotal(typeof data.total === 'number' ? data.total : (data.pastes || []).length); } catch (e: any) { toast({ title: "Could not load scripts", description: e.message, variant: "destructive" }); } };
+  const loadPasteContent = async (pasteId: string): Promise<string> => {
+    const existing = pastes.find(p => p.id === pasteId);
+    if (existing?.content) return existing.content;
+    const data = await adminCall('get_paste_content', { paste_id: pasteId });
+    const content = data?.content || '';
+    setPastes(prev => prev.map(p => (p.id === pasteId ? { ...p, content } : p)));
+    return content;
+  };
+
   const fetchAccessLogs = async () => { setDbLoading(true); try { const data = await adminCall('list_access_logs'); setAccessLogs(data.logs || []); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } finally { setDbLoading(false); } };
   const fetchSessions = async () => { setDbLoading(true); try { const data = await adminCall('list_sessions'); setSessions(data.sessions || []); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } finally { setDbLoading(false); } };
   const fetchActivity = async () => { setDbLoading(true); try { const data = await adminCall('list_activity'); setActivity(data.activity || []); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } finally { setDbLoading(false); } };
