@@ -25,6 +25,7 @@ import UltPromptsFile from "./pages/UltPromptsFile";
 import NotFound from "./pages/NotFound";
 import LoaderRedirect from "./pages/LoaderRedirect";
 import Compare from "./pages/Compare";
+import Blocked from "./pages/Blocked";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const App = () => (
           <Route path="/status" element={<Status />} />
           <Route path="/s/:slug" element={<LoaderRedirect />} />
           <Route path="/compare" element={<Compare />} />
+          <Route path="/blocked" element={<Blocked />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
