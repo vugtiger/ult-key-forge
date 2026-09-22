@@ -107,13 +107,33 @@ const Auth = () => {
           if (rateErr?.message?.includes('wait 24 hours')) throw rateErr;
         }
         const { data: signupData, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: buildAppUrl("/") } });
-        if (error) throw error;
+        if (error) {
+          const msg = String(error.message || "").toLowerCase();
+          if (msg.includes("already") || msg.includes("registered") || msg.includes("exists")) {
+            throw new Error("An account with this email already exists. Try signing in instead.");
+          }
+          throw error;
+        }
+        // Supabase returns a user with an empty identities array when the email
+        // is already registered but unconfirmed — treat that as a duplicate too.
+        if (signupData.user && Array.isArray((signupData.user as any).identities) && (signupData.user as any).identities.length === 0) {
+          throw new Error("An account with this email already exists. Try signing in instead.");
+        }
         if (signupData.user) {
           supabase.functions.invoke('track-ip', { body: { user_id: signupData.user.id, action: 'register' } }).catch(() => {});
           supabase.functions.invoke('track-ip', { body: { action: 'record_signup' } }).catch(() => {});
         }
-        toast({ title: "Success!", description: "Account created successfully. You're now logged in." });
-        try { localStorage.setItem("ult_last_creds", btoa(JSON.stringify({ email, password }))); } catch {}
+        // If email confirmation is enabled, no session is returned yet.
+        if (!signupData.session) {
+          toast({
+            title: "Check your email",
+            description: `We sent a verification email to ${email}. Please confirm your address before signing in.`,
+          });
+          setIsLogin(true);
+        } else {
+          toast({ title: "Success!", description: "Account created successfully. You're now logged in." });
+          try { localStorage.setItem("ult_last_creds", btoa(JSON.stringify({ email, password }))); } catch {}
+        }
       }
     } catch (error: any) {
       toast({ title: "Error", description: readableAuthError(error), variant: "destructive" });

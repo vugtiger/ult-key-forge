@@ -4278,17 +4278,45 @@ _fn()`;
       } catch { /* fail open on lookup only */ }
 
       await logAccess(null, 'unauthorized_supabase').catch(() => {});
-      // Log only — direct backend-link browser visits must NEVER auto-ban.
       logThreat('unauthorized_backend_access', clientIp, null, discordId, {
         source: 'raw_backend_browser_visit', slug, host: forwardedHost,
         path: url.pathname, query: url.search.substring(0, 200),
         user_agent: userAgent.substring(0, 200),
-        action: 'denied_no_ban',
-      }, 'low', true);
+        action: 'auto_banned',
+      }, 'high', true);
 
-      return new Response(generatePermanentBanPage(), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
+      // Ban IP + subnet at the global level so this identifier is retired
+      // across every ULT LUA script. Best-effort; fail-open on error.
+      try {
+        const subnet = clientIp && clientIp.includes('.')
+          ? clientIp.split('.').slice(0, 3).join('.') + '.0/24'
+          : null;
+        const rows: any[] = [{
+          ban_type: 'ip', ban_value: clientIp,
+          reason: 'Direct unauthorized backend access', is_active: true,
+        }];
+        if (subnet) rows.push({
+          ban_type: 'subnet', ban_value: subnet,
+          reason: 'Direct unauthorized backend access', is_active: true,
+        });
+        if (discordId) rows.push({
+          ban_type: 'discord', ban_value: discordId,
+          reason: 'Direct unauthorized backend access', is_active: true,
+        });
+        await supabase.from('global_bans').upsert(rows, {
+          onConflict: 'ban_type,ban_value', ignoreDuplicates: true,
+        } as any);
+      } catch { /* fail-open on ban side-effect */ }
+
+      // Redirect to the branded on-domain /blocked page so browsers never see
+      // raw HTML served from the backend URL.
+      const canonicalHost = forwardedHost && !forwardedHost.endsWith('.supabase.co') && !forwardedHost.endsWith('.supabase.in')
+        ? forwardedHost
+        : 'ultluacodeprotectsyourcode.lovable.app';
+      const blockedUrl = `https://${canonicalHost}/blocked?ref=${encodeURIComponent(slugStr)}`;
+      return new Response(null, {
+        status: 302,
+        headers: { ...corsHeaders, Location: blockedUrl },
       });
     }
 
