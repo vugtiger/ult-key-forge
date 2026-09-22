@@ -3012,35 +3012,6 @@ if s and r then
     local _assembled = table.concat(_pieces)
     _pieces = nil
 
-${options?.showConsoleFeedback ? `    pcall(function()
-      local pName = ${v.player}.DisplayName or ${v.player}.Name
-      if _hasRConsole and not _G._ULT_IS_MOBILE then
-        local _barLen = 24
-        local _phases = {{72, "decrypting"}, {88, "compiling"}, {100, "ready"}}
-        for _, ph in ipairs(_phases) do
-          local _pct = ph[1] / 100
-          local _filled = math.floor(_pct * _barLen)
-          local _empty = _barLen - _filled
-          local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-          _rPrint(string.format("[%s] %d%% %s\\n", _bar, ph[1], ph[2]))
-          task.wait(0.03)
-        end
-        _rPrint("ready. welcome " .. tostring(pName) .. "\\n")
-      end
-      -- Always fire a chat message too (PC + mobile) so the user sees it loaded
-      -- even when their dev console is full of game-side errors.
-      pcall(function()
-        local _sg = game:GetService("StarterGui")
-        _sg:SetCore("ChatMakeSystemMessage", {
-          Text = "loaded. welcome " .. tostring(pName),
-          Color = Color3.fromRGB(235, 235, 235),
-          Font = Enum.Font.SourceSans,
-        })
-      end)
-    end)
-` : ''}
-    
-
     -- v15.1: code mutation removed (per policy: never mutate bytecode on bypass — caused silent loadstring failures on false positives)
 
     local ${v.execFunc}, _err = ${v.indirectExec}(_assembled)
@@ -3110,32 +3081,6 @@ ${options?.showConsoleFeedback ? `    pcall(function()
     rawBytes = nil
     local code = ${v.bytesToString}(decoded)
     decoded = nil
-
-${options?.showConsoleFeedback ? `    pcall(function()
-      local pName = ${v.player}.DisplayName or ${v.player}.Name
-      if _hasRConsole and not _G._ULT_IS_MOBILE then
-        local _barLen = 24
-        local _phases = {{72, "decrypting"}, {88, "compiling"}, {100, "ready"}}
-        for _, ph in ipairs(_phases) do
-          local _pct = ph[1] / 100
-          local _filled = math.floor(_pct * _barLen)
-          local _empty = _barLen - _filled
-          local _bar = string.rep("#", _filled) .. string.rep("-", _empty)
-          _rPrint(string.format("[%s] %d%% %s\\n", _bar, ph[1], ph[2]))
-          task.wait(0.03)
-        end
-        _rPrint("ready. welcome " .. tostring(pName) .. "\\n")
-      end
-      pcall(function()
-        local _sg = game:GetService("StarterGui")
-        _sg:SetCore("ChatMakeSystemMessage", {
-          Text = "loaded. welcome " .. tostring(pName),
-          Color = Color3.fromRGB(235, 235, 235),
-          Font = Enum.Font.SourceSans,
-        })
-      end)
-    end)
-` : ''}
 
     -- v15.1: code mutation removed (policy: log bypass attempts only, do NOT corrupt code — caused false-positive silent crashes)
 
