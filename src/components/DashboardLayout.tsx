@@ -159,7 +159,7 @@ const BottomNav = ({ user }: { user: User | null }) => {
                 className={tabClass(location.pathname === item.url)}
               >
                 <item.icon size={17} />
-                <span className="block max-w-full text-center leading-[1.1]">{item.shortTitle || item.title}</span>
+                <span className="block max-w-full text-center leading-[1.1]">{"shortTitle" in item ? item.shortTitle : item.title}</span>
               </NavLink>
             ))}
             <button
