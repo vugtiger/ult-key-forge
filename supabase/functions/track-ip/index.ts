@@ -50,13 +50,17 @@ Deno.serve(async (req) => {
 
     // ===== AUTH VALIDATION for privileged actions =====
     const privilegedActions = ['register', 'login', 'verify', 'check_ban'];
+    let authedUserId: string | null = null;
     if (privilegedActions.includes(action) && user_id) {
       const authHeader = req.headers.get('Authorization');
+      // check_ban is safe to run without a verified session (IP/device only)
       if (!authHeader) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
+        if (action !== 'check_ban') {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      } else {
       // Validate the JWT and ensure user_id matches the authenticated user
       const anonKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY')!;
       const authClient = createClient(supabaseUrl, anonKey, {
