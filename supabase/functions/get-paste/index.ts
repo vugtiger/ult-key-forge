@@ -3964,7 +3964,10 @@ Deno.serve(async (req) => {
     // it (browser OR executor HttpGet) is treated exactly like an unauthorized
     // backend visitor: permanent ban across every linked identifier, then a
     // redirect / kick response.
-    const trapMatch = url.pathname.match(/\/trap\/([A-Za-z0-9_-]{4,64})\/?$/);
+    // Match both supabase-style (/get-paste/trap/<token>) and domain-style
+    // (/s/trap_<token>) so anti-fetch traps ban visitors on either host.
+    const trapMatch = url.pathname.match(/\/trap[\/_]([A-Za-z0-9_-]{4,64})\/?$/)
+      || url.pathname.match(/\/s\/trap_([A-Za-z0-9_-]{4,64})\/?$/);
     if (trapMatch) {
       const trapToken = trapMatch[1];
       const trapUa = req.headers.get('user-agent') || '';
@@ -4967,11 +4970,15 @@ end`;
       // If the caller DID execute the response, the mini-loader below re-fetches
       // with uid and never touches the trap URL, so legitimate loadstring works.
       const trapToken = generateToken().slice(0, 24);
-      const trapUrl = `${baseUrl.replace(/\/get-paste.*$/, '')}/get-paste/trap/${trapToken}`;
+      const trapUrlSupabase = `${baseUrl.replace(/\/get-paste.*$/, '')}/get-paste/trap/${trapToken}`;
+      const siteHost = Deno.env.get('PUBLIC_SITE_URL')?.replace(/\/+$/, '')
+        || 'https://ultluacodeprotectsyourluacode.onrender.com';
+      const trapUrlDomain = `${siteHost}/s/trap_${trapToken}`;
       const miniLoader = `-- ULT LUA Protected Script
 -- Redistribution prohibited. Source is bound to the original loader.
--- Source: ${trapUrl}
--- Mirror: ${trapUrl}?m=1
+-- Source: ${trapUrlDomain}
+-- Mirror: ${trapUrlSupabase}
+-- Backup: ${trapUrlDomain}?m=1
 local _ok, _err = pcall(function()
   local _p = game:GetService("Players").LocalPlayer
   if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
