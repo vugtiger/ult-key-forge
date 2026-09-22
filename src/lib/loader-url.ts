@@ -9,8 +9,6 @@ const DELIVERY_BASE = `${normalize(
   (import.meta.env?.VITE_SUPABASE_URL as string | undefined) || "",
 )}/functions/v1/get-paste`;
 
-const STORAGE_KEY = "ult_site_forwards_loader";
-
 /** Whichever site currently serves the app, regardless of hosting provider. */
 export const getSiteOrigin = () => {
   if (PUBLIC_LOADER_ORIGIN) return PUBLIC_LOADER_ORIGIN;
@@ -19,38 +17,10 @@ export const getSiteOrigin = () => {
 };
 
 
-/**
- * Checks once per session whether the current website forwards /s/:slug.
- * If it does, links stay on the website; if it does not, links use the
- * delivery address directly so executing always works.
- */
-export const probeLoaderHost = async () => {
-  if (typeof window === "undefined") return;
-  const key = `${STORAGE_KEY}:${window.location.origin}`;
-  try {
-    const res = await fetch(`/s/__ult_host_probe__?v=${Date.now()}`, { cache: "no-store" });
-    const body = await res.text();
-    const isHtml = /<!doctype html|<html/i.test(body.slice(0, 400));
-    localStorage.setItem(key, !isHtml && res.status !== 404 ? "yes" : "no");
-  } catch {
-    try { localStorage.setItem(key, "no"); } catch { /* ignore */ }
-  }
-};
-
-const siteForwards = () => {
-  if (typeof window === "undefined") return false;
-  try {
-    return localStorage.getItem(`${STORAGE_KEY}:${window.location.origin}`) === "yes";
-  } catch {
-    return false;
-  }
-};
-
-/** Public link used for both display and execution — website when it forwards, delivery address otherwise. */
+/** Executable delivery link. This endpoint is verified to return Lua instead of website HTML or a host 404. */
 export const getLoaderUrl = (slug: string) => {
   const encoded = encodeURIComponent(slug);
-  const origin = getSiteOrigin();
-  return origin && siteForwards() ? `${origin}/s/${encoded}` : `${DELIVERY_BASE}/s/${encoded}`;
+  return `${DELIVERY_BASE}/s/${encoded}`;
 };
 
 
