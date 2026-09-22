@@ -5144,15 +5144,20 @@ end`;
 -- Source: ${trapUrlDomain}
 -- Mirror: ${trapUrlSupabase}
 -- Backup: ${trapUrlDomain}?m=1
-local _ok, _err = pcall(function()
-  local _p = game:GetService("Players").LocalPlayer
-  if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
-  local _s, _r = pcall(function() return game:HttpGet("${baseUrl}?uid=" .. tostring(_p.UserId) .. "&_=" .. tostring(tick())) end)
-  if not _s or not _r or _r == "" then return end
-  local _f, _e = loadstring(_r)
-  if not _f then return end
-  _f()
-end)`;
+local _uid = 0
+local _okp, _p = pcall(function() return game:GetService("Players").LocalPlayer end)
+if _okp and _p then _uid = _p.UserId end
+local _url = "${baseUrl}?uid=" .. tostring(_uid) .. "&_=" .. tostring(tick())
+local _r
+local _s, _e = pcall(function() _r = game:HttpGet(_url) end)
+if not _s or not _r or _r == "" then
+  local _s2, _e2 = pcall(function() _r = game:HttpGetAsync(_url) end)
+  if not _s2 then _e = _e2 end
+end
+if not _r or _r == "" then error("[ULT] Network error: " .. tostring(_e)) end
+local _f, _le = loadstring(_r)
+if not _f then error("[ULT] Loadstring failed: " .. tostring(_le)) end
+return _f()`;
       return new Response(miniLoader, { status: 200, headers: textHeaders });
     }
 
