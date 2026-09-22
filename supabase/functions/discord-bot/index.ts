@@ -1,18 +1,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// Discord cannot observe a browser origin. The website records the latest host
-// it is served from; links always point at that website, never the backend.
-const FALLBACK_SITE = (Deno.env.get('PUBLIC_SITE_URL') || 'https://ultluacodeprotectsyourcode.lovable.app').replace(/\/+$/, '');
+const DELIVERY_BASE = `${(Deno.env.get('SUPABASE_URL') || '').replace(/\/+$/, '')}/functions/v1/get-paste`;
 
-async function scriptUrl(supabase: any, userId: string, slug: string): Promise<string> {
-  const { data } = await supabase
-    .from('user_public_hosts')
-    .select('origin')
-    .eq('user_id', userId)
-    .maybeSingle();
-  const origin = typeof data?.origin === 'string' ? data.origin.replace(/\/+$/, '') : '';
-  const base = origin || FALLBACK_SITE;
-  return `${base}/s/${encodeURIComponent(slug)}`;
+async function scriptUrl(_supabase: any, _userId: string, slug: string): Promise<string> {
+  return `${DELIVERY_BASE}/s/${encodeURIComponent(slug)}`;
 }
 
 
