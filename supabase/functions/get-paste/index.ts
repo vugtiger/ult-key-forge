@@ -2541,9 +2541,10 @@ if not ${v.antiEnvLog}() then _reportBypass("pre_fetch_env", "env_logger_before_
 if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_failed") end
 if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
-${options?.showConsoleFeedback ? `
--- rconsole loading bar — only on PC executors that support rconsole.
--- On mobile (no rconsole), we skip the console UI entirely and only chat-print the welcome later.
+${`
+-- Developer-console feedback. Always runs so the loader reports progress on every executor.
+-- rconsole is used as an extra surface when the executor supports it.
+
 _G._ULT_IS_MOBILE = false
 pcall(function()
   local _uis = game:GetService("UserInputService")
