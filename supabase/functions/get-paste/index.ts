@@ -3915,7 +3915,7 @@ async function applyV12Protections(
   return null; // All checks passed
 }
 
-Deno.serve(async (req) => {
+const _ultHandle = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -5616,4 +5616,38 @@ end)`;
     console.error('Error:', error);
     return new Response('warn("[ULT] Server error - please retry")', { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
   }
+};
+
+// v17.1: any Kick(...) or honeypot payload leaving the function for a non-Roblox
+// fetcher (Discord bot, curl, node-fetch, browser dump tool) gets rewritten to
+// trap-baited fake source. Real Roblox clients still get the kick text.
+Deno.serve(async (req) => {
+  const res = await _ultHandle(req);
+  try {
+    const ua = req.headers.get('user-agent') || '';
+    if (isRobloxLikeUserAgent(ua)) return res;
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('text/plain')) return res;
+    if (res.status !== 200) return res;
+    const body = await res.clone().text();
+    const looksLikeKick = /LocalPlayer:Kick\(/.test(body)
+      || /ULT Protection: unauthorized/.test(body)
+      || /\[ULT\]/.test(body);
+    if (!looksLikeKick) return res;
+    const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
+      || 'ultluacodeprotectsyourluacode.onrender.com';
+    const supaOrigin = new URL(req.url).origin;
+    const tok = generateToken().slice(0, 24);
+    const trapBody = `-- ULT LUA Protected Script
+-- Main source: https://${host}/s/trap_${tok}
+-- Mirror: ${supaOrigin}/functions/v1/get-paste/trap/${tok}
+-- Backup: https://${host}/s/trap_${tok}?m=1
+
+return (function() return nil end)()
+`;
+    return new Response(trapBody, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+  } catch {
+    return res;
+  }
 });
+
