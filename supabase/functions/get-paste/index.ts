@@ -2589,6 +2589,8 @@ local _ultUI = { ok = false }
 pcall(function()
   local Players = game:GetService("Players")
   local TweenService = game:GetService("TweenService")
+  local UserInputService = game:GetService("UserInputService")
+  local Lighting = game:GetService("Lighting")
   local player = Players.LocalPlayer
   if not player then return end
   local pg = player:FindFirstChildOfClass("PlayerGui") or player:WaitForChild("PlayerGui", 5)
@@ -2596,6 +2598,8 @@ pcall(function()
 
   local old = pg:FindFirstChild("ULTVerification")
   if old then old:Destroy() end
+  local oldBlur = Lighting:FindFirstChild("ULTVerificationBlur")
+  if oldBlur then oldBlur:Destroy() end
 
   local ACCENT = Color3.fromRGB(104, 190, 151)
   local INK = Color3.fromRGB(20, 32, 30)
@@ -2613,6 +2617,12 @@ pcall(function()
   gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
   gui.Parent = pg
 
+  local blur = Instance.new("BlurEffect")
+  blur.Name = "ULTVerificationBlur"
+  blur.Size = 0
+  blur.Parent = Lighting
+  TweenService:Create(blur, TweenInfo.new(0.3), { Size = 14 }):Play()
+
   local shade = Instance.new("Frame", gui)
   shade.Size = UDim2.fromScale(1, 1)
   shade.BackgroundColor3 = Color3.fromRGB(15, 24, 22)
@@ -2621,15 +2631,16 @@ pcall(function()
   shade.ZIndex = 1
 
   local window = Instance.new("Frame", gui)
+  window.Name = "MainWindow"
   window.AnchorPoint = Vector2.new(0.5, 0.5)
   window.Position = UDim2.fromScale(0.5, 0.5)
-  window.Size = UDim2.fromOffset(460, 330)
+  window.Size = UDim2.fromOffset(560, 650)
   window.BackgroundColor3 = SURFACE
   window.BorderSizePixel = 0
   window.ClipsDescendants = true
   window.BackgroundTransparency = 1
   window.ZIndex = 3
-  Instance.new("UICorner", window).CornerRadius = UDim.new(0, 22)
+  Instance.new("UICorner", window).CornerRadius = UDim.new(0, 18)
   local stroke = Instance.new("UIStroke", window)
   stroke.Color = BORDER
   stroke.Thickness = 1
@@ -2641,46 +2652,92 @@ pcall(function()
     local cam = workspace.CurrentCamera
     local function fit()
       local vp = (cam and cam.ViewportSize) or Vector2.new(1280, 720)
-      uiscale.Scale = math.clamp(math.min((vp.X - 24) / 460, (vp.Y - 24) / 330), 0.5, 1)
+      uiscale.Scale = math.clamp(math.min((vp.X - 24) / 560, (vp.Y - 24) / 650), 0.48, 1)
     end
     fit()
     if cam then cam:GetPropertyChangedSignal("ViewportSize"):Connect(fit) end
   end)
 
-  local monitor = Instance.new("TextLabel", window)
-  monitor.Size = UDim2.new(1, 0, 0, 34)
-  monitor.BackgroundColor3 = SOFT
-  monitor.BorderSizePixel = 0
-  monitor.Text = "Monitoring by ULT"
-  monitor.TextColor3 = ACCENT
-  monitor.Font = Enum.Font.GothamBold
-  monitor.TextSize = 12
-  monitor.ZIndex = 6
+  local header = Instance.new("Frame", window)
+  header.Size = UDim2.new(1, 0, 0, 68)
+  header.BackgroundColor3 = SURFACE
+  header.BorderSizePixel = 0
+  header.ZIndex = 5
+  Instance.new("UICorner", header).CornerRadius = UDim.new(0, 24)
+  local headerFiller = Instance.new("Frame", header)
+  headerFiller.AnchorPoint = Vector2.new(0, 1)
+  headerFiller.Position = UDim2.fromScale(0, 1)
+  headerFiller.Size = UDim2.new(1, 0, 0, 24)
+  headerFiller.BackgroundColor3 = SURFACE
+  headerFiller.BorderSizePixel = 0
+  headerFiller.ZIndex = 5
+  local headerLine = Instance.new("Frame", header)
+  headerLine.AnchorPoint = Vector2.new(0, 1)
+  headerLine.Position = UDim2.fromScale(0, 1)
+  headerLine.Size = UDim2.new(1, 0, 0, 1)
+  headerLine.BackgroundColor3 = BORDER
+  headerLine.BorderSizePixel = 0
+  headerLine.ZIndex = 6
+  local function dot(x, color)
+    local item = Instance.new("Frame", header)
+    item.Size = UDim2.fromOffset(12, 12)
+    item.Position = UDim2.new(0, x, 0.5, -6)
+    item.BackgroundColor3 = color
+    item.BorderSizePixel = 0
+    item.ZIndex = 7
+    Instance.new("UICorner", item).CornerRadius = UDim.new(1, 0)
+  end
+  dot(26, ACCENT)
+  dot(48, Color3.fromRGB(207, 213, 211))
+  dot(70, Color3.fromRGB(225, 229, 227))
+  local headerTitle = Instance.new("TextLabel", header)
+  headerTitle.AnchorPoint = Vector2.new(1, 0.5)
+  headerTitle.Position = UDim2.new(1, -24, 0.5, 0)
+  headerTitle.Size = UDim2.new(0, 300, 0, 28)
+  headerTitle.BackgroundTransparency = 1
+  headerTitle.Text = "U L T   V E R I F I C A T I O N"
+  headerTitle.TextColor3 = MUTED
+  headerTitle.Font = Enum.Font.GothamMedium
+  headerTitle.TextSize = 13
+  headerTitle.TextXAlignment = Enum.TextXAlignment.Right
+  headerTitle.ZIndex = 7
 
-  local title = Instance.new("TextLabel", window)
-  title.Position = UDim2.fromOffset(28, 52)
-  title.Size = UDim2.new(1, -56, 0, 28)
+  local body = Instance.new("Frame", window)
+  body.Position = UDim2.fromOffset(30, 94)
+  body.Size = UDim2.new(1, -60, 1, -120)
+  body.BackgroundColor3 = Color3.fromRGB(253, 254, 253)
+  body.BorderSizePixel = 0
+  body.ZIndex = 4
+  Instance.new("UICorner", body).CornerRadius = UDim.new(0, 26)
+  local bodyStroke = Instance.new("UIStroke", body)
+  bodyStroke.Color = BORDER
+  bodyStroke.Thickness = 1
+
+  local title = Instance.new("TextLabel", body)
+  title.Position = UDim2.fromOffset(28, 28)
+  title.Size = UDim2.new(1, -56, 0, 58)
   title.BackgroundTransparency = 1
-  title.Text = "ULT CLOUD"
+  title.Text = "ULT\nCHECKS"
   title.TextColor3 = INK
   title.Font = Enum.Font.GothamBlack
-  title.TextSize = 22
+  title.TextSize = 26
   title.TextXAlignment = Enum.TextXAlignment.Left
+  title.TextYAlignment = Enum.TextYAlignment.Top
   title.ZIndex = 6
 
-  local sub = Instance.new("TextLabel", window)
-  sub.Position = UDim2.fromOffset(28, 80)
+  local sub = Instance.new("TextLabel", body)
+  sub.Position = UDim2.fromOffset(28, 94)
   sub.Size = UDim2.new(1, -56, 0, 18)
   sub.BackgroundTransparency = 1
-  sub.Text = "Running security verification"
+  sub.Text = "R U N N I N G   S E C U R I T Y   V E R I F I C A T I O N"
   sub.TextColor3 = MUTED
   sub.Font = Enum.Font.GothamMedium
-  sub.TextSize = 12
+  sub.TextSize = 10
   sub.TextXAlignment = Enum.TextXAlignment.Left
   sub.ZIndex = 6
 
-  local track = Instance.new("Frame", window)
-  track.Position = UDim2.fromOffset(28, 112)
+  local track = Instance.new("Frame", body)
+  track.Position = UDim2.fromOffset(28, 128)
   track.Size = UDim2.new(1, -56, 0, 10)
   track.BackgroundColor3 = SOFT
   track.BorderSizePixel = 0
@@ -2694,9 +2751,9 @@ pcall(function()
   fill.ZIndex = 7
   Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
 
-  local pct = Instance.new("TextLabel", window)
+  local pct = Instance.new("TextLabel", body)
   pct.AnchorPoint = Vector2.new(1, 0)
-  pct.Position = UDim2.new(1, -28, 0, 78)
+  pct.Position = UDim2.new(1, -28, 0, 90)
   pct.Size = UDim2.fromOffset(60, 20)
   pct.BackgroundTransparency = 1
   pct.Text = "0%"
@@ -2706,9 +2763,9 @@ pcall(function()
   pct.TextXAlignment = Enum.TextXAlignment.Right
   pct.ZIndex = 6
 
-  local list = Instance.new("Frame", window)
-  list.Position = UDim2.fromOffset(28, 140)
-  list.Size = UDim2.new(1, -56, 0, 160)
+  local list = Instance.new("Frame", body)
+  list.Position = UDim2.fromOffset(28, 168)
+  list.Size = UDim2.new(1, -56, 0, 290)
   list.BackgroundTransparency = 1
   list.ZIndex = 6
   local layout = Instance.new("UIListLayout", list)
@@ -2720,27 +2777,30 @@ pcall(function()
   local function row(id, text)
     order = order + 1
     local item = Instance.new("Frame", list)
-    item.Size = UDim2.new(1, 0, 0, 24)
+    item.Size = UDim2.new(1, 0, 0, 50)
     item.BackgroundColor3 = SOFT
     item.BackgroundTransparency = 0.35
     item.BorderSizePixel = 0
     item.LayoutOrder = order
     item.ZIndex = 6
-    Instance.new("UICorner", item).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", item).CornerRadius = UDim.new(0, 14)
+    local itemStroke = Instance.new("UIStroke", item)
+    itemStroke.Color = BORDER
+    itemStroke.Thickness = 1
     local label = Instance.new("TextLabel", item)
-    label.Position = UDim2.fromOffset(10, 0)
+    label.Position = UDim2.fromOffset(18, 0)
     label.Size = UDim2.new(1, -70, 1, 0)
     label.BackgroundTransparency = 1
     label.Text = text
     label.TextColor3 = INK
     label.Font = Enum.Font.GothamMedium
-    label.TextSize = 12
+    label.TextSize = 13
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 7
     local state = Instance.new("TextLabel", item)
     state.AnchorPoint = Vector2.new(1, 0)
-    state.Position = UDim2.new(1, -10, 0, 0)
-    state.Size = UDim2.fromOffset(60, 24)
+    state.Position = UDim2.new(1, -18, 0, 0)
+    state.Size = UDim2.fromOffset(76, 50)
     state.BackgroundTransparency = 1
     state.Text = "..."
     state.TextColor3 = MUTED
@@ -2756,6 +2816,36 @@ pcall(function()
   row("sign", "Checking signatures")
   row("auth", "Validating session credentials")
   row("payload", "Checking execution pipeline")
+
+  local footer = Instance.new("TextLabel", body)
+  footer.Position = UDim2.fromOffset(28, 486)
+  footer.Size = UDim2.new(1, -56, 0, 16)
+  footer.BackgroundTransparency = 1
+  footer.Text = "PROTECTED  •  POWERED BY ULT"
+  footer.TextColor3 = Color3.fromRGB(132, 153, 147)
+  footer.Font = Enum.Font.GothamMedium
+  footer.TextSize = 9
+  footer.TextXAlignment = Enum.TextXAlignment.Right
+  footer.ZIndex = 6
+
+  local dragging = false
+  local dragStart, startPosition
+  header.InputBegan:Connect(function(event)
+    if event.UserInputType == Enum.UserInputType.MouseButton1 or event.UserInputType == Enum.UserInputType.Touch then
+      dragging = true
+      dragStart = event.Position
+      startPosition = window.Position
+    end
+  end)
+  header.InputEnded:Connect(function(event)
+    if event.UserInputType == Enum.UserInputType.MouseButton1 or event.UserInputType == Enum.UserInputType.Touch then dragging = false end
+  end)
+  UserInputService.InputChanged:Connect(function(event)
+    if dragging and (event.UserInputType == Enum.UserInputType.MouseMovement or event.UserInputType == Enum.UserInputType.Touch) then
+      local delta = event.Position - dragStart
+      window.Position = UDim2.new(startPosition.X.Scale, startPosition.X.Offset + delta.X, startPosition.Y.Scale, startPosition.Y.Offset + delta.Y)
+    end
+  end)
 
   TweenService:Create(window, TweenInfo.new(0.25), { BackgroundTransparency = 0 }):Play()
   TweenService:Create(stroke, TweenInfo.new(0.25), { Transparency = 0 }):Play()
@@ -2781,8 +2871,9 @@ pcall(function()
       TweenService:Create(window, TweenInfo.new(0.28), { BackgroundTransparency = 1 }):Play()
       TweenService:Create(stroke, TweenInfo.new(0.28), { Transparency = 1 }):Play()
       TweenService:Create(shade, TweenInfo.new(0.28), { BackgroundTransparency = 1 }):Play()
+      TweenService:Create(blur, TweenInfo.new(0.28), { Size = 0 }):Play()
       TweenService:Create(uiscale, TweenInfo.new(0.28), { Scale = uiscale.Scale * 0.96 }):Play()
-      task.delay(0.34, function() pcall(function() gui:Destroy() end) end)
+      task.delay(0.34, function() pcall(function() gui:Destroy() blur:Destroy() end) end)
     end)
   end
 end)
