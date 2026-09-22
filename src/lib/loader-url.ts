@@ -37,12 +37,22 @@ export const probeLoaderHost = async () => {
   }
 };
 
-/** Public link used for both display and execution — always the live website. */
+const siteForwards = () => {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(`${STORAGE_KEY}:${window.location.origin}`) === "yes";
+  } catch {
+    return false;
+  }
+};
+
+/** Public link used for both display and execution — website when it forwards, delivery address otherwise. */
 export const getLoaderUrl = (slug: string) => {
   const encoded = encodeURIComponent(slug);
   const origin = getSiteOrigin();
-  return origin ? `${origin}/s/${encoded}` : `${DELIVERY_BASE}/s/${encoded}`;
+  return origin && siteForwards() ? `${origin}/s/${encoded}` : `${DELIVERY_BASE}/s/${encoded}`;
 };
+
 
 export const getLoaderOrigin = getSiteOrigin;
 export const getBrandedLoaderUrl = getLoaderUrl;
