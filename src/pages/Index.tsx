@@ -143,8 +143,9 @@ const Index = () => {
           {/* Hero */}
           <section className="grid items-center gap-10 pt-8 lg:grid-cols-[1.1fr_0.9fr] lg:pt-12">
             <div className="relative">
-              <StatusDot />
+              <Reveal from="none" delay={40}><StatusDot /></Reveal>
 
+              <Reveal from="up" delay={120}>
               <h1 className="mt-6 max-w-4xl text-4xl font-black leading-[0.92] tracking-[-0.04em] text-foreground md:text-6xl xl:text-7xl glow-text">
                 Lua script protection
                 <br />
@@ -152,12 +153,15 @@ const Index = () => {
                 <br />
                 in your way.
               </h1>
+              </Reveal>
 
+              <Reveal from="up" delay={240}>
               <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">
                 Key delivery, source protection, and a real loader for Roblox executors. Free, no paid tiers.
               </p>
+              </Reveal>
 
-              <div className="mt-8 flex flex-wrap gap-3">
+              <Reveal from="up" delay={340} className="mt-8 flex flex-wrap gap-3">
                 <Button size="lg" onClick={() => navigate("/auth")} className="rounded-xl bg-foreground text-background px-8 py-5 text-sm font-semibold hover:bg-foreground/90">
                   Open dashboard
                   <ArrowRight className="ml-2" size={16} />
@@ -168,16 +172,16 @@ const Index = () => {
                     Join Discord
                   </Button>
                 </a>
-              </div>
+              </Reveal>
 
-              <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-xs text-muted-foreground">
+              <Reveal from="up" delay={440} className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2"><Shield size={13} /> Free, no paid tiers</div>
                 <div className="flex items-center gap-2"><Zap size={13} /> Unlimited keys</div>
                 <div className="flex items-center gap-2"><Terminal size={13} /> Console output in-game</div>
-              </div>
+              </Reveal>
             </div>
 
-            <Reveal from="right" delay={120}>
+            <Reveal from="zoom" delay={260}>
               <KeySystemPreview />
             </Reveal>
           </section>
