@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: ult-lua
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /s/*
+        destination: https://iyfvpnjrghsownkpazec.supabase.co/functions/v1/get-paste/s/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
