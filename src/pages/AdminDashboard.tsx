@@ -60,15 +60,14 @@ interface ThreatEntry {
 
 // Stat Card component
 const StatCard = ({ icon: Icon, label, value, color = "text-primary" }: { icon: any; label: string; value: number | string; color?: string }) => (
-  <div className="relative group">
-    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-    <div className="relative flex items-center gap-4 p-5 rounded-xl border border-border/20 bg-card/30 backdrop-blur-sm">
-      <div className={`flex items-center justify-center w-11 h-11 rounded-lg bg-muted/30 ${color}`}>
+  <div className="relative min-w-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-colors hover:border-primary/40">
+    <div className="flex min-w-0 items-center gap-3 p-3 sm:p-4">
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary ${color}`}>
         <Icon className="h-5 w-5" />
       </div>
-      <div>
-        <p className="text-2xl font-bold tracking-tight">{value}</p>
-        <p className="text-[11px] text-muted-foreground uppercase tracking-widest">{label}</p>
+      <div className="min-w-0">
+        <p className="text-xl font-bold sm:text-2xl">{value}</p>
+        <p className="break-words text-[11px] font-medium uppercase text-muted-foreground">{label}</p>
       </div>
     </div>
   </div>
@@ -76,26 +75,26 @@ const StatCard = ({ icon: Icon, label, value, color = "text-primary" }: { icon: 
 
 // Section wrapper
 const Section = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`rounded-xl border border-border/15 bg-card/20 backdrop-blur-sm overflow-hidden ${className}`}>
+  <div className={`min-w-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm ${className}`}>
     {children}
   </div>
 );
 
 const SectionHeader = ({ icon: Icon, title, subtitle, actions }: { icon: any; title: string; subtitle?: string; actions?: React.ReactNode }) => (
-  <div className="flex items-center justify-between px-6 py-4 border-b border-border/10 bg-muted/5">
-    <div className="flex items-center gap-3">
+  <div className="flex min-w-0 flex-col gap-3 border-b border-border bg-secondary/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+    <div className="flex min-w-0 items-center gap-3">
       <Icon className="h-5 w-5 text-muted-foreground" />
-      <div>
-        <h2 className="text-sm font-semibold tracking-wide">{title}</h2>
-        {subtitle && <p className="text-[11px] text-muted-foreground">{subtitle}</p>}
+      <div className="min-w-0">
+        <h2 className="break-words text-sm font-semibold">{title}</h2>
+        {subtitle && <p className="break-words text-xs text-muted-foreground">{subtitle}</p>}
       </div>
     </div>
-    {actions}
+    {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
   </div>
 );
 
 const SearchBar = ({ value, onChange, placeholder, onRefresh }: { value: string; onChange: (v: string) => void; placeholder: string; onRefresh: () => void }) => (
-  <div className="flex gap-3 px-6 py-4">
+  <div className="flex gap-2 p-4 sm:px-5">
     <div className="relative flex-1">
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
       <Input
@@ -105,7 +104,7 @@ const SearchBar = ({ value, onChange, placeholder, onRefresh }: { value: string;
         className="pl-10 bg-background/50 border-border/20 h-10 text-sm"
       />
     </div>
-    <Button onClick={onRefresh} variant="outline" size="icon" className="h-10 w-10 border-border/20 hover:bg-muted/30">
+    <Button aria-label="Refresh" onClick={onRefresh} variant="outline" size="icon" className="h-10 w-10 shrink-0">
       <RefreshCw className="h-4 w-4" />
     </Button>
   </div>
@@ -315,7 +314,7 @@ const AdminDashboard = () => {
   const banTypeColor = (t: string) => t === 'ip' ? 'text-red-400 bg-red-400/10' : t === 'subnet' ? 'text-amber-400 bg-amber-400/10' : t === 'roblox_id' ? 'text-blue-400 bg-blue-400/10' : 'text-purple-400 bg-purple-400/10';
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
       {/* JARVIS Welcome Overlay */}
       {showWelcome && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/90 backdrop-blur-xl animate-fade-in" 
@@ -334,22 +333,22 @@ const AdminDashboard = () => {
         </div>
       )}
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border/10 bg-background/60 backdrop-blur-2xl">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between h-14 px-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-xl">
+        <div className="mx-auto flex min-h-16 max-w-[1440px] items-center justify-between gap-3 px-4 py-2 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10">
               <Shield className="h-4 w-4 text-primary" />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold tracking-wide">COMMAND CENTER</span>
-              <span className="text-[10px] text-muted-foreground/50 hidden sm:inline">v2.0</span>
+            <div className="min-w-0">
+              <span className="block truncate text-sm font-bold">ULT Owner</span>
+              <span className="block text-[10px] text-muted-foreground">Command Center</span>
             </div>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={() => navigate("/dashboard")}
-            className="gap-2 text-xs rounded-full border-primary/30 bg-primary/5 hover:bg-primary/10 text-foreground"
+            className="h-auto max-w-[155px] shrink-0 gap-2 whitespace-normal px-3 py-2 text-center text-xs leading-4 sm:max-w-none"
           >
             <LogOut className="h-3.5 w-3.5 rotate-180" />
             <span>Back to Dashboard</span>
@@ -358,7 +357,7 @@ const AdminDashboard = () => {
         </div>
       </header>
 
-      <main className="max-w-[1400px] mx-auto px-6 py-8 space-y-8">
+       <main className="mx-auto max-w-[1440px] space-y-6 px-4 py-5 sm:px-6 sm:py-7">
         {/* Hero section */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-muted-foreground/40 text-xs">
@@ -367,8 +366,8 @@ const AdminDashboard = () => {
             <ChevronRight className="h-3 w-3" />
             <span className="text-foreground/70">Overview</span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Command Center</h1>
-          <p className="text-sm text-muted-foreground/60">Full site control · Threat detection · Global enforcement</p>
+          <h1 className="text-2xl font-bold sm:text-3xl">Owner Dashboard</h1>
+          <p className="max-w-2xl text-sm text-muted-foreground">Manage protection, people, activity, and enforcement from one organized workspace.</p>
         </div>
 
         {/* Critical threat alert */}
@@ -385,7 +384,7 @@ const AdminDashboard = () => {
         )}
 
         {/* Stats grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <StatCard icon={Users} label="Users" value={users.length} />
           <StatCard icon={FileCode} label="Pastes" value={pastes.length} />
           <StatCard icon={Ban} label="Banned" value={bannedCount} color="text-red-400" />
@@ -401,9 +400,10 @@ const AdminDashboard = () => {
           if (val === 'sessions' && sessions.length === 0) fetchSessions();
           if (val === 'activity' && activity.length === 0) fetchActivity();
           if (val === 'banned-accounts' && bannedAccounts.length === 0) fetchBannedAccounts();
-        }} className="w-full">
-          <div className="border-b border-border/10 -mx-6 px-6">
-            <TabsList className="bg-transparent h-auto p-0 gap-0 rounded-none">
+        }} className="w-full lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start lg:gap-6">
+          <aside className="min-w-0 lg:sticky lg:top-24">
+            <div className="mb-2 hidden px-2 text-[11px] font-semibold uppercase text-muted-foreground lg:block">Workspace</div>
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-lg border border-border bg-card p-2 shadow-sm sm:grid-cols-3 lg:grid-cols-1">
               {[
                 
                 { value: "threats", icon: Crosshair, label: "Threats", badge: unresolvedThreats.length || undefined },
@@ -424,10 +424,10 @@ const AdminDashboard = () => {
                   value={tab.value}
                   type="button"
                   onClick={tab.onClick}
-                  className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3 text-xs font-medium text-muted-foreground data-[state=active]:text-foreground transition-all"
+                  className="min-h-11 min-w-0 justify-start whitespace-normal rounded-md border border-transparent px-3 py-2 text-left text-xs font-medium leading-4 text-muted-foreground transition-colors data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <tab.icon className="h-3.5 w-3.5 mr-1.5" />
-                  {tab.label}
+                   <tab.icon className="mr-2 h-4 w-4 shrink-0" />
+                   <span className="min-w-0 break-words">{tab.label}</span>
                   {tab.badge && tab.badge > 0 && (
                     <span className="ml-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold px-1">
                       {tab.badge}
@@ -436,7 +436,8 @@ const AdminDashboard = () => {
                 </TabsTrigger>
               ))}
             </TabsList>
-          </div>
+          </aside>
+          <div className="min-w-0">
 
 
           {/* ===== THREATS ===== */}
@@ -798,11 +799,12 @@ const AdminDashboard = () => {
           </TabsContent>
 
           {/* ===== DISCORD SERVERS ===== */}
-          <TabsContent value="discord-servers" className="mt-6">
+          <TabsContent value="discord-servers" className="mt-4 lg:mt-0">
             <Section>
               <DiscordServersTab />
             </Section>
           </TabsContent>
+          </div>
         </Tabs>
       </main>
       <JarvisVoice onTabChange={setActiveTab} onRefreshData={() => {
