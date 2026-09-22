@@ -2454,9 +2454,7 @@ async function handleButton(interaction: any) {
       }
       
       const rawUrl = await scriptUrl(supabase, panel.user_id, paste.slug);
-      if (!rawUrl) {
-        return { type: 4, data: { content: 'The owner must open their dashboard once on the currently hosted Vercel or Netlify website, then retry.', flags: 64 } };
-      }
+
       const loadstring = `loadstring(game:HttpGet("${rawUrl}"))()`;
       
       // DM the user the script - ephemeral so only they can see
