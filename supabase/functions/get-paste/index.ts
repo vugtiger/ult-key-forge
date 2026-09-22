@@ -3640,8 +3640,19 @@ window.BackgroundTransparency = 1
 TweenService:Create(window, TweenInfo.new(0.35, Enum.EasingStyle.Quad), {Size = UDim2.fromOffset(560, 650), BackgroundTransparency = 0}):Play()
 `;
 }
+// v17.2: every kick payload leaves the function wrapped with trap-link comments.
+// A real Roblox client still runs the Kick line. A dumper (Discord bot, HttpGet
+// save-to-file, browser dev tools) reading the file sees the trap URLs first —
+// visiting any of them permanently bans that identity.
+function trapHeader(): string {
+  const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
+    || 'ultluacodeprotectsyourluacode.onrender.com';
+  const tok = generateToken().slice(0, 24);
+  return `-- ULT LUA Protected Script\n-- Main source: https://${host}/s/trap_${tok}\n-- Mirror: https://${host}/s/trap_${tok}?m=1\n-- Backup: https://${host}/s/trap_${tok}?b=1\n`;
+}
+
 function generateKickPlain(reason: string): string {
-  return `game:GetService("Players").LocalPlayer:Kick("${reason}")`;
+  return `${trapHeader()}game:GetService("Players").LocalPlayer:Kick("${reason}")\n`;
 }
 
 function generateKickEncrypted(reason: string, slug: string, token: string, uid: string): string {
