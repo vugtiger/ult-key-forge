@@ -623,8 +623,9 @@ const AdminDashboard = () => {
           {/* ===== PASTES ===== */}
           <TabsContent value="pastes" className="mt-6">
             <Section>
-              <SectionHeader icon={FileCode} title="Paste Management" subtitle={`${filteredPastes.length} pastes`} />
+              <SectionHeader icon={FileCode} title="Paste Management" subtitle={`Showing ${filteredPastes.length} of ${pasteTotal.toLocaleString()} pastes`} />
               <SearchBar value={pasteSearch} onChange={setPasteSearch} placeholder="Search by title, slug, or owner..." onRefresh={fetchPastes} />
+
               <div className="divide-y divide-border/10">
                 {filteredPastes.map(paste => (
                   <div key={paste.id} className="p-4 transition-colors hover:bg-muted/5 sm:px-5">
