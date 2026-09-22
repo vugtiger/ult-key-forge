@@ -45,8 +45,6 @@ async function refreshGlobalBans() {
 }
 
 function isPermanentlyBanned(ip: string): boolean {
-  // Admins are NEVER banned
-  if (isAdminIp(ip)) return false;
   // Check DB global bans cache
   if (globalBanCache.ips.has(ip)) return true;
   for (const subnet of globalBanCache.subnets) {
@@ -218,7 +216,7 @@ async function banIdentity(
   const robloxIds = new Set<string>();
   const discordIds = new Set<string>();
   const hwids = new Set<string>();
-  if (seedIp && !isAdminIp(seedIp)) ips.add(seedIp);
+  if (seedIp) ips.add(seedIp);
   if (seedRoblox) robloxIds.add(seedRoblox);
   if (seedDiscord) discordIds.add(seedDiscord);
   if (seedHwid) hwids.add(seedHwid);
@@ -236,7 +234,7 @@ async function banIdentity(
         .or(orFilters.join(','))
         .limit(500);
       for (const row of linked || []) {
-        if (row.ip_address && !isAdminIp(row.ip_address)) ips.add(row.ip_address);
+        if (row.ip_address) ips.add(row.ip_address);
         if (isValidRobloxId(row.roblox_user_id)) robloxIds.add(row.roblox_user_id);
         if (row.discord_user_id) discordIds.add(row.discord_user_id);
       }
@@ -263,7 +261,6 @@ async function banIdentity(
 
   // ---- Apply the bans ----
   for (const ip of ips) {
-    if (isAdminIp(ip)) continue;
     if (await writeBan('ip', ip, reason, { ...baseMeta, linked_via: ip === seedIp ? 'seed' : 'identity_graph' })) {
       autoBannedIpsThisSession.add(ip);
       banned.push(`ip:${ip}`);
@@ -3627,6 +3624,11 @@ Deno.serve(async (req) => {
       discord_user_id: null, details: { action: 'blocked_at_gate' }, severity: 'high',
       resolved: true, auto_banned: true,
     }).then(() => {}, (e: any) => console.error('Threat log failed:', e));
+    const bannedUa = req.headers.get('user-agent') || '';
+    if (isLikelyBrowserRequest(req.headers) && !isRobloxLikeUserAgent(bannedUa)) {
+      const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '') || 'ultluaprotectsyourluacode.onrender.com';
+      return new Response(null, { status: 302, headers: { ...corsHeaders, Location: `https://${host}/blocked?reason=banned` } });
+    }
     return new Response(generateKickPlain('Permanently banned from ULT LUA - this device, account and network are blocked'), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
   }
 
@@ -3818,6 +3820,10 @@ Deno.serve(async (req) => {
           || (url.pathname.match(/\/s\/([^/]+)\/?$/)?.[1] ?? '');
         const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
           || 'ultluacodeprotectsyourcode.lovable.app';
+        await banIdentity({ ip: earlyIp }, 'unauthorized_backend_page', {
+          source: 'raw_backend_browser_visit', ref_slug: refSlug, path: url.pathname,
+        });
+        globalBanCache.lastRefresh = 0;
         return new Response(null, {
           status: 302,
           headers: {

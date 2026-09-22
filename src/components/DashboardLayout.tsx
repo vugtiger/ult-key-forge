@@ -266,7 +266,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     };
 
     const trackLogin = (userId: string) => {
-      supabase.functions.invoke('track-ip', { body: { user_id: userId, action: 'login' } })
+      const deviceId = localStorage.getItem('ult_device_id') || crypto.randomUUID().replace(/-/g, '');
+      localStorage.setItem('ult_device_id', deviceId);
+      supabase.functions.invoke('track-ip', { body: { user_id: userId, action: 'login', device_id: deviceId } })
         .catch((error) => console.warn('IP tracking skipped:', error?.message));
     };
 
@@ -287,14 +289,20 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
     const checkBanStatus = async (userId: string) => {
       try {
-        const { data } = await supabase.functions.invoke('track-ip', { body: { user_id: userId, action: 'check_ban' } });
-        if (data?.banned) {
+        const deviceId = localStorage.getItem('ult_device_id') || crypto.randomUUID().replace(/-/g, '');
+        localStorage.setItem('ult_device_id', deviceId);
+        const { data, error } = await supabase.functions.invoke('track-ip', { body: { user_id: userId, action: 'check_ban', device_id: deviceId } });
+        if (error || data?.banned) {
           resetTheme();
           await supabase.auth.signOut();
           localStorage.removeItem('sb-iyfvpnjrghsownkpazec-auth-token');
-          navigate("/auth", { state: { banReason: data.reason || 'Your account has been banned.' } });
+          navigate("/auth", { state: { banReason: data?.reason || 'Access could not be verified.' } });
         }
-      } catch (err) { console.warn('Ban check skipped:', err); }
+      } catch {
+        resetTheme();
+        await supabase.auth.signOut();
+        navigate("/auth", { state: { banReason: 'Access could not be verified.' } });
+      }
     };
 
     const safeSetUser = (sessionUser: User) => {
