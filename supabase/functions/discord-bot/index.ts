@@ -757,9 +757,7 @@ async function handleCommand(interaction: any) {
 
       // Fixed URL format to match website
       const rawUrl = await scriptUrl(supabase, user.userId, paste.slug);
-      if (!rawUrl) {
-        return { type: 4, data: { content: 'Open your dashboard once on the Vercel or Netlify address you currently host, then retry this command.', flags: 64 } };
-      }
+
 
       await sendDM(discordUserId, `✅ **Paste Created!**\n\n**Title:** ${title}\n**Raw URL:** ${rawUrl}\n\nYou can manage it in the Pastebin tab on the website.`);
 
