@@ -1,5 +1,4 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { browserRedirectIfHtml } from "../_shared/browserBlock.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,8 +11,6 @@ const DISCORD_TOKEN_URL = 'https://discord.com/api/oauth2/token';
 const DISCORD_USER_URL = 'https://discord.com/api/users/@me';
 
 Deno.serve(async (req) => {
-  const _blocked = browserRedirectIfHtml(req);
-  if (_blocked) return _blocked;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

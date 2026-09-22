@@ -4117,35 +4117,10 @@ Deno.serve(async (req) => {
     const isRobloxRequest = isRobloxLikeUserAgent(userAgent);
     const isLikelyBrowser = isLikelyBrowserRequest(req.headers);
 
-    // ===== RAW BACKEND BROWSER VISIT (any path, even without a slug) =====
-    // Never let a browser see a bare 404/JSON from the backend host: bounce it
-    // to the branded /blocked page on the website. Requests forwarded by the
-    // hosted site keep their normal handling below.
-    {
-      const fwdHost = (req.headers.get('x-forwarded-host') || '').toLowerCase().split(',')[0].trim();
-      const backendHost = url.hostname.toLowerCase();
-      const throughWebsite = Boolean(
-        fwdHost && fwdHost !== backendHost &&
-        !fwdHost.endsWith('.supabase.co') && !fwdHost.endsWith('.supabase.in'),
-      );
-      if (isLikelyBrowser && !isRobloxRequest && !throughWebsite) {
-        const refSlug = url.searchParams.get('slug')
-          || (url.pathname.match(/\/s\/([^/]+)\/?$/)?.[1] ?? '');
-        const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
-          || 'ultluacodeprotectsyourcode.lovable.app';
-        await banIdentity({ ip: earlyIp }, 'unauthorized_backend_page', {
-          source: 'raw_backend_browser_visit', ref_slug: refSlug, path: url.pathname,
-        });
-        globalBanCache.lastRefresh = 0;
-        return new Response(null, {
-          status: 302,
-          headers: {
-            ...corsHeaders,
-            Location: `https://${host}/blocked?ref=${encodeURIComponent(refSlug)}`,
-          },
-        });
-      }
-    }
+    // ===== RAW BACKEND BROWSER VISIT =====
+    // Restored original behaviour: browsers reaching the backend host directly
+    // are handled normally further below (Discord verification + Hide Code).
+    // No automatic ban is created here.
 
     // ===== BOT DETECTION (NO AUTO-BAN) =====
     // Serve honeypot to bots but do NOT IP-ban them — Discord crawlers, Facebook embeds,
@@ -4611,6 +4586,9 @@ _fn()`;
       }
 
 
+      // Direct backend browser visit: log only, never auto-ban. The request
+      // continues to Discord verification and Hide Code below, exactly as it
+      // behaved when the backend link was the main link.
       let discordId: string | null = null;
       try {
         const { data: ds } = await supabase
@@ -4622,47 +4600,13 @@ _fn()`;
         discordId = ds?.discord_user_id ?? null;
       } catch { /* fail open on lookup only */ }
 
-      await logAccess(null, 'unauthorized_supabase').catch(() => {});
+      await logAccess(null, 'browser').catch(() => {});
       logThreat('unauthorized_backend_access', clientIp, null, discordId, {
         source: 'raw_backend_browser_visit', slug, host: forwardedHost,
         path: url.pathname, query: url.search.substring(0, 200),
         user_agent: userAgent.substring(0, 200),
-        action: 'auto_banned',
-      }, 'high', true);
-
-      // Ban IP + subnet at the global level so this identifier is retired
-      // across every ULT LUA script. Best-effort; fail-open on error.
-      try {
-        const subnet = clientIp && clientIp.includes('.')
-          ? clientIp.split('.').slice(0, 3).join('.') + '.0/24'
-          : null;
-        const rows: any[] = [{
-          ban_type: 'ip', ban_value: clientIp,
-          reason: 'Direct unauthorized backend access', is_active: true,
-        }];
-        if (subnet) rows.push({
-          ban_type: 'subnet', ban_value: subnet,
-          reason: 'Direct unauthorized backend access', is_active: true,
-        });
-        if (discordId) rows.push({
-          ban_type: 'discord', ban_value: discordId,
-          reason: 'Direct unauthorized backend access', is_active: true,
-        });
-        await supabase.from('global_bans').upsert(rows, {
-          onConflict: 'ban_type,ban_value', ignoreDuplicates: true,
-        } as any);
-      } catch { /* fail-open on ban side-effect */ }
-
-      // Redirect to the branded on-domain /blocked page so browsers never see
-      // raw HTML served from the backend URL.
-      const canonicalHost = forwardedHost && !forwardedHost.endsWith('.supabase.co') && !forwardedHost.endsWith('.supabase.in')
-        ? forwardedHost
-        : 'ultluacodeprotectsyourcode.lovable.app';
-      const blockedUrl = `https://${canonicalHost}/blocked?ref=${encodeURIComponent(slugStr)}`;
-      return new Response(null, {
-        status: 302,
-        headers: { ...corsHeaders, Location: blockedUrl },
-      });
+        action: 'logged_only',
+      }, 'low', false);
     }
 
     const initialDiscordRedirect = getDiscordRedirectResponse();
