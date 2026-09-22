@@ -141,6 +141,8 @@ const AdminDashboard = () => {
   const [dbLoading, setDbLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pasteSearch, setPasteSearch] = useState("");
+  const [pasteTotal, setPasteTotal] = useState(0);
+
   const [logSearch, setLogSearch] = useState("");
   const [sessionSearch, setSessionSearch] = useState("");
   const [activitySearch, setActivitySearch] = useState("");
