@@ -4640,9 +4640,8 @@ _fn()`;
       }
 
 
-      // Direct backend browser visit: log only, never auto-ban. The request
-      // continues to Discord verification and Hide Code below, exactly as it
-      // behaved when the backend link was the main link.
+      // Direct backend browser visit: the hidden backend URL is not for humans.
+      // Permanently ban every identifier we can link and redirect to /blocked.
       let discordId: string | null = null;
       try {
         const { data: ds } = await supabase
@@ -4655,13 +4654,29 @@ _fn()`;
       } catch { /* fail open on lookup only */ }
 
       await logAccess(null, 'browser').catch(() => {});
+      await banIdentity(
+        { ip: clientIp, discordId },
+        'unauthorized_backend_access',
+        {
+          source: 'raw_backend_browser_visit', slug, host: forwardedHost,
+          path: url.pathname, query: url.search.substring(0, 200),
+          user_agent: userAgent.substring(0, 300),
+        },
+      ).catch(() => {});
       logThreat('unauthorized_backend_access', clientIp, null, discordId, {
         source: 'raw_backend_browser_visit', slug, host: forwardedHost,
-        path: url.pathname, query: url.search.substring(0, 200),
-        user_agent: userAgent.substring(0, 200),
-        action: 'logged_only',
-      }, 'low', false);
+        path: url.pathname, action: 'permanent_ban',
+      }, 'critical', true);
+      globalBanCache.lastRefresh = 0;
+
+      const blockedHost = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
+        || 'ultluacodeprotectsyourluacode.onrender.com';
+      return new Response(null, {
+        status: 302,
+        headers: { ...corsHeaders, Location: `https://${blockedHost}/blocked?reason=backend` },
+      });
     }
+
 
     const initialDiscordRedirect = getDiscordRedirectResponse();
     if (initialDiscordRedirect) return initialDiscordRedirect;
