@@ -3802,6 +3802,32 @@ Deno.serve(async (req) => {
     const isRobloxRequest = isRobloxLikeUserAgent(userAgent);
     const isLikelyBrowser = isLikelyBrowserRequest(req.headers);
 
+    // ===== RAW BACKEND BROWSER VISIT (any path, even without a slug) =====
+    // Never let a browser see a bare 404/JSON from the backend host: bounce it
+    // to the branded /blocked page on the website. Requests forwarded by the
+    // hosted site keep their normal handling below.
+    {
+      const fwdHost = (req.headers.get('x-forwarded-host') || '').toLowerCase().split(',')[0].trim();
+      const backendHost = url.hostname.toLowerCase();
+      const throughWebsite = Boolean(
+        fwdHost && fwdHost !== backendHost &&
+        !fwdHost.endsWith('.supabase.co') && !fwdHost.endsWith('.supabase.in'),
+      );
+      if (isLikelyBrowser && !isRobloxRequest && !throughWebsite) {
+        const refSlug = url.searchParams.get('slug')
+          || (url.pathname.match(/\/s\/([^/]+)\/?$/)?.[1] ?? '');
+        const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
+          || 'ultluacodeprotectsyourcode.lovable.app';
+        return new Response(null, {
+          status: 302,
+          headers: {
+            ...corsHeaders,
+            Location: `https://${host}/blocked?ref=${encodeURIComponent(refSlug)}`,
+          },
+        });
+      }
+    }
+
     // ===== BOT DETECTION (NO AUTO-BAN) =====
     // Serve honeypot to bots but do NOT IP-ban them — Discord crawlers, Facebook embeds,
     // and other legitimate services share infrastructure IPs with real users.

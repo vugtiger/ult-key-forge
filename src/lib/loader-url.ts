@@ -18,15 +18,6 @@ export const getSiteOrigin = () => {
   return "";
 };
 
-/** True only when this host is proven to forward /s/:slug to the delivery service. */
-const siteForwards = () => {
-  if (typeof window === "undefined") return false;
-  try {
-    return localStorage.getItem(`${STORAGE_KEY}:${window.location.origin}`) === "yes";
-  } catch {
-    return false;
-  }
-};
 
 /**
  * Checks once per session whether the current website forwards /s/:slug.
@@ -46,12 +37,11 @@ export const probeLoaderHost = async () => {
   }
 };
 
-/** Public link used for both display and execution. */
+/** Public link used for both display and execution — always the live website. */
 export const getLoaderUrl = (slug: string) => {
   const encoded = encodeURIComponent(slug);
   const origin = getSiteOrigin();
-  if (origin && siteForwards()) return `${origin}/s/${encoded}`;
-  return `${DELIVERY_BASE}/s/${encoded}`;
+  return origin ? `${origin}/s/${encoded}` : `${DELIVERY_BASE}/s/${encoded}`;
 };
 
 export const getLoaderOrigin = getSiteOrigin;

@@ -1,9 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 // Discord cannot observe a browser origin. The website records the latest host
-// that successfully forwards /s/:slug; if none is recorded we fall back to the
-// delivery address so the link always executes.
-const DELIVERY_BASE = `${(Deno.env.get('SUPABASE_URL') || '').replace(/\/+$/, '')}/functions/v1/get-paste`;
+// it is served from; links always point at that website, never the backend.
+const FALLBACK_SITE = (Deno.env.get('PUBLIC_SITE_URL') || 'https://ultluacodeprotectsyourcode.lovable.app').replace(/\/+$/, '');
 
 async function scriptUrl(supabase: any, userId: string, slug: string): Promise<string> {
   const { data } = await supabase
@@ -12,7 +11,7 @@ async function scriptUrl(supabase: any, userId: string, slug: string): Promise<s
     .eq('user_id', userId)
     .maybeSingle();
   const origin = typeof data?.origin === 'string' ? data.origin.replace(/\/+$/, '') : '';
-  const base = origin || DELIVERY_BASE;
+  const base = origin || FALLBACK_SITE;
   return `${base}/s/${encodeURIComponent(slug)}`;
 }
 
