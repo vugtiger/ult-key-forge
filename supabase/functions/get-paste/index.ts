@@ -3068,25 +3068,34 @@ end)
 -- We do NOT scan the paste's source for words like "writefile"/"hookfunction",
 -- because those are legitimate APIs innocent scripts use all the time.
 -- Only actual hook/logger/exfil BEHAVIOR against the loader itself trips this.
-task.spawn(function()
-  local checks = {
-    { name = "monitor_hook",   fn = function() return ${v.antiHook}() end,   reason = "runtime_loadstring_hook_after_load" },
-    { name = "monitor_envlog", fn = function() return ${v.antiEnvLog}() end, reason = "runtime_env_logger_after_load" },
-    { name = "monitor_logger", fn = function() return ${v.antiLogger}() end, reason = "runtime_logger_after_load" },
-    { name = "monitor_dump",   fn = function() return ${v.antiDump}() end,   reason = "runtime_dump_tool_after_load" },
-  }
-  -- Give the payload ~2s to initialize (avoids flagging its own boot code)
-  task.wait(2)
-  for _ = 1, 30 do -- ~60s of monitoring, then rely on ghost traps/canaries
-    for _, c in ipairs(checks) do
-      local ok, clean = pcall(c.fn)
-      if ok and clean == false then
-        pcall(function() _reportBypass(c.name, c.reason) end)
-      end
-    end
+do
+  -- Capture protection refs BEFORE the post-exec scrub nils them
+  local _monHook   = ${v.antiHook}
+  local _monEnv    = ${v.antiEnvLog}
+  local _monLog    = ${v.antiLogger}
+  local _monDump   = ${v.antiDump}
+  task.spawn(function()
+    local checks = {
+      { name = "monitor_hook",   fn = _monHook, reason = "runtime_loadstring_hook_after_load" },
+      { name = "monitor_envlog", fn = _monEnv,  reason = "runtime_env_logger_after_load" },
+      { name = "monitor_logger", fn = _monLog,  reason = "runtime_logger_after_load" },
+      { name = "monitor_dump",   fn = _monDump, reason = "runtime_dump_tool_after_load" },
+    }
+    -- Give the payload ~2s to initialize (avoids flagging its own boot code)
     task.wait(2)
-  end
-end)
+    for _ = 1, 30 do -- ~60s of monitoring, then rely on ghost traps/canaries
+      for _, c in ipairs(checks) do
+        if type(c.fn) == "function" then
+          local ok, clean = pcall(c.fn)
+          if ok and clean == false then
+            pcall(function() _reportBypass(c.name, c.reason) end)
+          end
+        end
+      end
+      task.wait(2)
+    end
+  end)
+end
 
 
 
