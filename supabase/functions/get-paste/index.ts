@@ -3958,6 +3958,60 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
+
+    // ===== ANTI-FETCH TRAP ENDPOINT =====
+    // Anti-fetch returns fake "source" containing a trap URL. Anyone who visits
+    // it (browser OR executor HttpGet) is treated exactly like an unauthorized
+    // backend visitor: permanent ban across every linked identifier, then a
+    // redirect / kick response.
+    const trapMatch = url.pathname.match(/\/trap\/([A-Za-z0-9_-]{4,64})\/?$/);
+    if (trapMatch) {
+      const trapToken = trapMatch[1];
+      const trapUa = req.headers.get('user-agent') || '';
+      const trapIsBrowser = isLikelyBrowserRequest(req.headers) && !isRobloxLikeUserAgent(trapUa);
+      let trapDiscord: string | null = null;
+      try {
+        const { data: ds } = await supabase
+          .from('discord_oauth_sessions')
+          .select('discord_user_id')
+          .eq('ip_address', earlyIp)
+          .gt('expires_at', new Date().toISOString())
+          .maybeSingle();
+        trapDiscord = ds?.discord_user_id ?? null;
+      } catch { /* fail open on lookup only */ }
+
+      await banIdentity(
+        { ip: earlyIp, discordId: trapDiscord },
+        'anti_fetch_trap_visit',
+        {
+          source: 'anti_fetch_trap',
+          token: trapToken,
+          via: trapIsBrowser ? 'browser' : 'executor_or_tool',
+          user_agent: trapUa.substring(0, 300),
+          path: url.pathname,
+        },
+      ).catch(() => {});
+      logThreat('anti_fetch_trap_visit', earlyIp, null, trapDiscord, {
+        token: trapToken, via: trapIsBrowser ? 'browser' : 'executor_or_tool',
+        user_agent: trapUa.substring(0, 200),
+      }, 'critical', true);
+      globalBanCache.lastRefresh = 0;
+
+      if (trapIsBrowser) {
+        const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
+          || 'ultluacodeprotectsyourluacode.onrender.com';
+        return new Response(null, {
+          status: 302,
+          headers: { ...corsHeaders, Location: `https://${host}/blocked?reason=trap` },
+        });
+      }
+      return new Response(
+        generateKickPlain('Permanently banned from ULT LUA - script redistribution attempt detected'),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } },
+      );
+    }
+
+
     
     // ===== BYPASS REPORT ENDPOINT =====
     // When the Lua loader detects a bypass attempt, it calls this to instantly global-ban the attacker
