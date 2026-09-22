@@ -5139,11 +5139,7 @@ end`;
       const siteHost = Deno.env.get('PUBLIC_SITE_URL')?.replace(/\/+$/, '')
         || 'https://ultluacodeprotectsyourluacode.onrender.com';
       const trapUrlDomain = `${siteHost}/s/source_${trapToken}`;
-      const miniLoader = `-- ULT LUA Protected Script
--- Redistribution prohibited. Source is bound to the original loader.
--- Source: ${trapUrlDomain}
--- Mirror: ${trapUrlSupabase}
--- Backup: ${trapUrlDomain}?m=1
+      const miniLoader = `
 local _uid = 0
 local _okp, _p = pcall(function() return game:GetService("Players").LocalPlayer end)
 if _okp and _p then _uid = _p.UserId end
