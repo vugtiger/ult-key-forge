@@ -397,7 +397,7 @@ const AdminDashboard = () => {
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <StatCard icon={Users} label="Users" value={users.length} />
-          <StatCard icon={FileCode} label="Pastes" value={pastes.length} />
+          <StatCard icon={FileCode} label="Pastes" value={(pasteTotal || pastes.length).toLocaleString()} />
           <StatCard icon={Ban} label="Banned" value={bannedCount} color="text-red-400" />
           <StatCard icon={Globe} label="Global Bans" value={activeBans} color="text-amber-400" />
           <StatCard icon={Crosshair} label="Threats" value={unresolvedThreats.length} color={unresolvedThreats.length > 0 ? "text-red-400" : "text-muted-foreground"} />
