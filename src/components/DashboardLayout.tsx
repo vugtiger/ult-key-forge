@@ -11,6 +11,7 @@ import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEffect";
 import { applyDashboardLayout, LayoutPreset, TabDensity, TabShape } from "@/components/DashboardCustomizer";
+import { checkBan } from "@/lib/banCheck";
 
 const navigationItems = [
   { title: "Key System", url: "/dashboard", icon: Zap },
