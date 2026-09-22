@@ -3938,9 +3938,17 @@ Deno.serve(async (req) => {
       resolved: true, auto_banned: true,
     }).then(() => {}, (e: any) => console.error('Threat log failed:', e));
     const bannedUa = req.headers.get('user-agent') || '';
+    const bannedHost = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '') || 'ultluacodeprotectsyourluacode.onrender.com';
     if (isLikelyBrowserRequest(req.headers) && !isRobloxLikeUserAgent(bannedUa)) {
-      const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '') || 'ultluaprotectsyourluacode.onrender.com';
-      return new Response(null, { status: 302, headers: { ...corsHeaders, Location: `https://${host}/blocked?reason=banned` } });
+      return new Response(null, { status: 302, headers: { ...corsHeaders, Location: `https://${bannedHost}/blocked?reason=banned` } });
+    }
+    // Non-Roblox fetches (Discord bots, curl, node-fetch, proxies) get trap-baited
+    // fake source instead of the raw kick text. Following the trap link bans them.
+    if (!isRobloxLikeUserAgent(bannedUa)) {
+      const bannedTrap = generateToken().slice(0, 24);
+      const bannedSupaBase = new URL(req.url).origin;
+      const trapBody = `-- ULT LUA Protected Script\n-- Main source: https://${bannedHost}/s/trap_${bannedTrap}\n-- Mirror: ${bannedSupaBase}/functions/v1/get-paste/trap/${bannedTrap}\n-- Backup: https://${bannedHost}/s/trap_${bannedTrap}?m=1\n\nreturn (function() return nil end)()\n`;
+      return new Response(trapBody, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
     return new Response(generateKickPlain('Permanently banned from ULT LUA - this device, account and network are blocked'), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
   }
