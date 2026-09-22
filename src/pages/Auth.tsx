@@ -70,13 +70,15 @@ const Auth = () => {
   useEffect(() => {
     const allowSession = async (session: any) => {
       if (!session) return;
-      const { data, error } = await supabase.functions.invoke('track-ip', {
-        body: { user_id: session.user.id, action: 'check_ban', device_id: getDeviceId() },
-      });
-      if (error || data?.banned) {
-        await supabase.auth.signOut();
-        if (data?.banned) navigate('/auth', { state: { banReason: data.reason || 'You are permanently banned from ULT LUA.' } });
-        return;
+      try {
+        const data = await checkBan(session.user.id);
+        if (data?.banned) {
+          await supabase.auth.signOut();
+          navigate('/auth', { state: { banReason: data.reason || 'You are permanently banned from ULT LUA.' } });
+          return;
+        }
+      } catch {
+        // a slow ban service should not keep a valid user stuck on the sign-in page
       }
       navigate("/dashboard");
     };
