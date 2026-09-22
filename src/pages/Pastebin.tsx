@@ -430,13 +430,13 @@ const Pastebin = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-5">
+      <div className="min-w-0 space-y-5">
         {/* Header */}
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/12 flex items-center justify-center">
             <CloudLogo size={20} className="text-primary" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold">Pastebin</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Upload and share your Lua scripts with raw links</p>
           </div>
@@ -445,7 +445,7 @@ const Pastebin = () => {
         <TabHelpSection {...pastebinHelp} />
 
         {/* Create New Paste */}
-        <div className="rounded-xl border border-primary/10 bg-card/20 p-5 backdrop-blur-xl">
+        <div className="min-w-0 rounded-xl border border-primary/10 bg-card/20 p-4 backdrop-blur-xl sm:p-5">
           <h2 className="text-sm font-semibold mb-4">Create New Paste</h2>
           <div className="space-y-3">
             <div className="space-y-1.5">
@@ -526,7 +526,7 @@ const Pastebin = () => {
         </div>
 
         {/* Script Protection Section with Tabs */}
-        <div className={`rounded-xl border border-primary/10 bg-card/20 p-5 backdrop-blur-xl transition-opacity ${pastes.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className={`min-w-0 rounded-xl border border-primary/10 bg-card/20 p-4 backdrop-blur-xl transition-opacity sm:p-5 ${pastes.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}>
           <h2 className="text-sm font-semibold flex items-center gap-2 mb-4">
             <Shield className="h-4 w-4 text-primary" />
             Script Protection
@@ -554,37 +554,36 @@ const Pastebin = () => {
 
             {selectedPaste && (
               <Tabs defaultValue="access" className="w-full">
-                <TabsList className="grid w-full grid-cols-5">
-                  <TabsTrigger value="access">Access Control</TabsTrigger>
-                  <TabsTrigger value="options">
-                    <Shield className="h-4 w-4 mr-1" />
+                <TabsList className="grid h-auto w-full grid-cols-2 gap-1.5 rounded-xl p-1.5 sm:grid-cols-3 lg:grid-cols-5">
+                  <TabsTrigger value="access" className="min-h-10 min-w-0 whitespace-normal px-2 text-center text-xs leading-tight lg:min-h-9">Access Control</TabsTrigger>
+                  <TabsTrigger value="options" className="min-h-10 min-w-0 whitespace-normal px-2 text-xs leading-tight lg:min-h-9">
+                    <Shield className="mr-1 h-3.5 w-3.5" />
                     Options
                   </TabsTrigger>
-                  <TabsTrigger value="advanced">
-                    <Zap className="h-4 w-4 mr-1" />
+                  <TabsTrigger value="advanced" className="min-h-10 min-w-0 whitespace-normal px-2 text-xs leading-tight lg:min-h-9">
+                    <Zap className="mr-1 h-3.5 w-3.5" />
                     Advanced
-                    <Badge variant="outline" className="text-[8px] ml-1 px-1">NEW</Badge>
                   </TabsTrigger>
-                  <TabsTrigger value="time">
-                    <Clock className="h-4 w-4 mr-1" />
+                  <TabsTrigger value="time" className="min-h-10 min-w-0 whitespace-normal px-2 text-xs leading-tight lg:min-h-9">
+                    <Clock className="mr-1 h-3.5 w-3.5" />
                     Time
                   </TabsTrigger>
-                  <TabsTrigger value="hwid">
-                    <Fingerprint className="h-4 w-4 mr-1" />
+                  <TabsTrigger value="hwid" className="col-span-2 min-h-10 min-w-0 whitespace-normal px-2 text-xs leading-tight sm:col-span-1 lg:min-h-9">
+                    <Fingerprint className="mr-1 h-3.5 w-3.5" />
                     HWID
                   </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="access" className="space-y-4">
                   {/* Protection Toggle */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-background/30 border border-border/30">
-                    <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-border/30 bg-background/30 p-3">
+                    <div className="flex min-w-0 items-center gap-2">
                       {selectedPaste.protection_enabled ? (
                         <Lock className="h-4 w-4 text-primary" />
                       ) : (
                         <Unlock className="h-4 w-4 text-muted-foreground" />
                       )}
-                      <span className="text-sm">
+                      <span className="min-w-0 text-sm leading-tight">
                         {selectedPaste.protection_enabled ? "Protection Enabled" : "Protection Disabled"}
                       </span>
                     </div>
@@ -597,17 +596,17 @@ const Pastebin = () => {
                   {/* User ID Input */}
                   <div className="space-y-2">
                     <Label>Roblox User ID</Label>
-                    <div className="flex gap-2">
+                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
                       <Input
                         placeholder="Enter Roblox User ID (e.g., 123456789)"
                         value={robloxUserId}
                         onChange={(e) => setRobloxUserId(e.target.value)}
-                        className="bg-background/50 flex-1"
+                        className="min-w-0 bg-background/50 sm:flex-1"
                       />
                       <Button 
                         variant="outline" 
                         onClick={() => addAccessEntry('whitelist')}
-                        className="shrink-0"
+                        className="w-full min-w-0 sm:w-auto"
                       >
                         <UserPlus className="h-4 w-4 mr-1" />
                         Whitelist
@@ -615,7 +614,7 @@ const Pastebin = () => {
                       <Button 
                         variant="outline" 
                         onClick={() => addAccessEntry('blacklist')}
-                        className="shrink-0 text-destructive border-destructive/50 hover:bg-destructive/10"
+                        className="w-full min-w-0 text-destructive border-destructive/50 hover:bg-destructive/10 sm:w-auto"
                       >
                         <UserMinus className="h-4 w-4 mr-1" />
                         Blacklist
@@ -1190,7 +1189,7 @@ const Pastebin = () => {
         </div>
 
         {/* Existing Pastes */}
-        <div className="rounded-xl border border-primary/10 bg-card/20 p-5 backdrop-blur-xl">
+        <div className="min-w-0 rounded-xl border border-primary/10 bg-card/20 p-4 backdrop-blur-xl sm:p-5">
           <h2 className="text-sm font-semibold mb-4">Your Pastes</h2>
             {pastes.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
@@ -1201,7 +1200,7 @@ const Pastebin = () => {
                 {pastes.map((paste) => (
                   <Card key={paste.id} className="border-border/30 bg-background/30">
                     <CardContent className="pt-4">
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-medium truncate">
@@ -1245,7 +1244,7 @@ const Pastebin = () => {
                             Created: {new Date(paste.created_at).toLocaleDateString()}
                           </p>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="grid w-full grid-cols-4 gap-1 sm:flex sm:w-auto">
                           <Button
                             variant="ghost"
                             size="icon"
