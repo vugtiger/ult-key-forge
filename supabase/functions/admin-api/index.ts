@@ -68,16 +68,46 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'list_pastes') {
-      const { data: pastes, error } = await serviceClient.from('pastes')
-        .select('id, title, slug, content, user_id, created_at, updated_at, protection_enabled')
-        .order('created_at', { ascending: false });
+      const limit = Math.min(Number(params.limit) || 200, 500);
+      const offset = Math.max(Number(params.offset) || 0, 0);
+      const search = typeof params.search === 'string' ? params.search.trim() : '';
+
+      let query = serviceClient.from('pastes')
+        .select('id, title, slug, user_id, created_at, updated_at, protection_enabled', { count: 'exact' });
+      if (search) {
+        const safe = search.replace(/[%,()]/g, '');
+        if (safe) query = query.or(`title.ilike.%${safe}%,slug.ilike.%${safe}%`);
+      }
+      const { data: pastes, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
       if (error) throw error;
-      const { data: authUsers } = await serviceClient.auth.admin.listUsers({ perPage: 1000 });
+
+      const ownerIds = [...new Set((pastes || []).map(p => p.user_id).filter(Boolean))];
       const emailMap: Record<string, string> = {};
-      (authUsers?.users || []).forEach(u => { emailMap[u.id] = u.email || 'Unknown'; });
-      const enriched = (pastes || []).map(p => ({ ...p, owner_email: emailMap[p.user_id] || 'Unknown' }));
-      return json({ pastes: enriched });
+      if (ownerIds.length) {
+        const [{ data: owners }, lookups] = await Promise.all([
+          serviceClient.from('profiles').select('id, username').in('id', ownerIds),
+          Promise.all(ownerIds.slice(0, 60).map(id => serviceClient.auth.admin.getUserById(id))),
+        ]);
+        (owners || []).forEach((o: any) => { if (o.username) emailMap[o.id] = o.username; });
+        lookups.forEach((res: any) => {
+          const u = res?.data?.user;
+          if (u?.id && u?.email) emailMap[u.id] = u.email;
+        });
+      }
+
+      const enriched = (pastes || []).map(p => ({ ...p, content: '', owner_email: emailMap[p.user_id] || 'Unknown' }));
+      return json({ pastes: enriched, total: count ?? enriched.length, limit, offset });
     }
+
+    if (action === 'get_paste_content') {
+      const { data, error } = await serviceClient.from('pastes')
+        .select('id, content').eq('id', params.paste_id).maybeSingle();
+      if (error) throw error;
+      return json({ content: data?.content || '' });
+    }
+
 
     if (action === 'list_access_logs') {
       const { data: logs, error } = await serviceClient.from('paste_access_logs')

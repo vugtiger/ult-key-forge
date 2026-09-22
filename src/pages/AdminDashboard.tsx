@@ -141,6 +141,8 @@ const AdminDashboard = () => {
   const [dbLoading, setDbLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pasteSearch, setPasteSearch] = useState("");
+  const [pasteTotal, setPasteTotal] = useState(0);
+
   const [logSearch, setLogSearch] = useState("");
   const [sessionSearch, setSessionSearch] = useState("");
   const [activitySearch, setActivitySearch] = useState("");
@@ -212,7 +214,16 @@ const AdminDashboard = () => {
   };
 
   const fetchUsers = async () => { setLoading(true); try { const data = await adminCall('list_users'); setUsers(data.users || []); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } finally { setLoading(false); } };
-  const fetchPastes = async () => { try { const data = await adminCall('list_pastes'); setPastes(data.pastes || []); } catch (e: any) { console.error(e); } };
+  const fetchPastes = async () => { try { const data = await adminCall('list_pastes', { limit: 200, search: pasteSearch || undefined }); setPastes(data.pastes || []); setPasteTotal(typeof data.total === 'number' ? data.total : (data.pastes || []).length); } catch (e: any) { toast({ title: "Could not load scripts", description: e.message, variant: "destructive" }); } };
+  const loadPasteContent = async (pasteId: string): Promise<string> => {
+    const existing = pastes.find(p => p.id === pasteId);
+    if (existing?.content) return existing.content;
+    const data = await adminCall('get_paste_content', { paste_id: pasteId });
+    const content = data?.content || '';
+    setPastes(prev => prev.map(p => (p.id === pasteId ? { ...p, content } : p)));
+    return content;
+  };
+
   const fetchAccessLogs = async () => { setDbLoading(true); try { const data = await adminCall('list_access_logs'); setAccessLogs(data.logs || []); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } finally { setDbLoading(false); } };
   const fetchSessions = async () => { setDbLoading(true); try { const data = await adminCall('list_sessions'); setSessions(data.sessions || []); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } finally { setDbLoading(false); } };
   const fetchActivity = async () => { setDbLoading(true); try { const data = await adminCall('list_activity'); setActivity(data.activity || []); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } finally { setDbLoading(false); } };
@@ -282,7 +293,7 @@ const AdminDashboard = () => {
   const handleAutoBanThreat = async (threat: ThreatEntry) => { try { if (threat.source_ip) await adminCall('add_global_ban', { ban_type: 'ip', ban_value: threat.source_ip, reason: `Auto-ban: ${threat.threat_type}` }); if (threat.roblox_user_id) await adminCall('add_global_ban', { ban_type: 'roblox_id', ban_value: threat.roblox_user_id, reason: `Auto-ban: ${threat.threat_type}` }); if (threat.discord_user_id) await adminCall('add_global_ban', { ban_type: 'discord_id', ban_value: threat.discord_user_id, reason: `Auto-ban: ${threat.threat_type}` }); await adminCall('resolve_threat', { threat_id: threat.id, auto_banned: true }); toast({ title: "Threat Auto-Banned" }); fetchThreats(); fetchGlobalBans(); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } };
 
   const handleCopy = (content: string) => { navigator.clipboard.writeText(content); toast({ title: "Copied" }); };
-  const handleDownloadPaste = (paste: AdminPaste) => { const blob = new Blob([paste.content], { type: 'text/plain' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${paste.title || paste.slug}.lua`; a.click(); URL.revokeObjectURL(url); };
+  const handleDownloadPaste = async (paste: AdminPaste) => { try { const content = await loadPasteContent(paste.id); const blob = new Blob([content], { type: 'text/plain' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${paste.title || paste.slug}.lua`; a.click(); URL.revokeObjectURL(url); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } };
 
   const filteredUsers = users.filter(u => u.email?.toLowerCase().includes(searchTerm.toLowerCase()) || u.discord_username?.toLowerCase().includes(searchTerm.toLowerCase()) || u.ip_addresses.some(ip => ip.address.includes(searchTerm)));
   const filteredPastes = pastes.filter(p => (p.title || '').toLowerCase().includes(pasteSearch.toLowerCase()) || p.slug.toLowerCase().includes(pasteSearch.toLowerCase()) || p.owner_email.toLowerCase().includes(pasteSearch.toLowerCase()));
@@ -386,7 +397,7 @@ const AdminDashboard = () => {
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <StatCard icon={Users} label="Users" value={users.length} />
-          <StatCard icon={FileCode} label="Pastes" value={pastes.length} />
+          <StatCard icon={FileCode} label="Pastes" value={(pasteTotal || pastes.length).toLocaleString()} />
           <StatCard icon={Ban} label="Banned" value={bannedCount} color="text-red-400" />
           <StatCard icon={Globe} label="Global Bans" value={activeBans} color="text-amber-400" />
           <StatCard icon={Crosshair} label="Threats" value={unresolvedThreats.length} color={unresolvedThreats.length > 0 ? "text-red-400" : "text-muted-foreground"} />
@@ -612,8 +623,9 @@ const AdminDashboard = () => {
           {/* ===== PASTES ===== */}
           <TabsContent value="pastes" className="mt-6">
             <Section>
-              <SectionHeader icon={FileCode} title="Paste Management" subtitle={`${filteredPastes.length} pastes`} />
+              <SectionHeader icon={FileCode} title="Paste Management" subtitle={`Showing ${filteredPastes.length} of ${pasteTotal.toLocaleString()} pastes`} />
               <SearchBar value={pasteSearch} onChange={setPasteSearch} placeholder="Search by title, slug, or owner..." onRefresh={fetchPastes} />
+
               <div className="divide-y divide-border/10">
                 {filteredPastes.map(paste => (
                   <div key={paste.id} className="p-4 transition-colors hover:bg-muted/5 sm:px-5">
@@ -636,17 +648,18 @@ const AdminDashboard = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-1 self-end sm:flex-shrink-0 sm:self-auto">
-                        <Button size="sm" variant="ghost" onClick={() => setExpandedPaste(expandedPaste === paste.id ? null : paste.id)} className="h-8 w-8 p-0 text-muted-foreground/40">
+                        <Button size="sm" variant="ghost" onClick={async () => { if (expandedPaste === paste.id) { setExpandedPaste(null); return; } try { await loadPasteContent(paste.id); setExpandedPaste(paste.id); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } }} className="h-8 w-8 p-0 text-muted-foreground/40">
                           {expandedPaste === paste.id ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleCopy(paste.content)} className="h-8 w-8 p-0 text-muted-foreground/40"><Copy className="h-3.5 w-3.5" /></Button>
+                        <Button size="sm" variant="ghost" onClick={async () => { try { handleCopy(await loadPasteContent(paste.id)); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } }} className="h-8 w-8 p-0 text-muted-foreground/40"><Copy className="h-3.5 w-3.5" /></Button>
                         <Button size="sm" variant="ghost" onClick={() => handleDownloadPaste(paste)} className="h-8 w-8 p-0 text-muted-foreground/40"><Download className="h-3.5 w-3.5" /></Button>
                         <Button size="sm" variant="ghost" onClick={() => handleDeletePaste(paste.id)} className="h-8 w-8 p-0 text-muted-foreground/40 hover:text-red-400"><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </div>
                     {expandedPaste === paste.id && (
-                      <pre className="mt-3 p-4 bg-background/50 rounded-lg text-xs max-h-48 overflow-auto font-mono text-muted-foreground/60 border border-border/10">{paste.content.substring(0, 2000)}</pre>
+                      <pre className="mt-3 p-4 bg-background/50 rounded-lg text-xs max-h-48 overflow-auto font-mono text-muted-foreground/60 border border-border/10">{(paste.content || '').substring(0, 2000)}</pre>
                     )}
+
                   </div>
                 ))}
               </div>

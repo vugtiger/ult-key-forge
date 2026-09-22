@@ -2541,9 +2541,10 @@ if not ${v.antiEnvLog}() then _reportBypass("pre_fetch_env", "env_logger_before_
 if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_failed") end
 if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
-${options?.showConsoleFeedback ? `
--- rconsole loading bar — only on PC executors that support rconsole.
--- On mobile (no rconsole), we skip the console UI entirely and only chat-print the welcome later.
+${`
+-- Developer-console feedback. Always runs so the loader reports progress on every executor.
+-- rconsole is used as an extra surface when the executor supports it.
+
 _G._ULT_IS_MOBILE = false
 pcall(function()
   local _uis = game:GetService("UserInputService")
@@ -2561,42 +2562,54 @@ local _rPrint = rconsoleprint or rconsoleinfo or rconsolewarn or function() end
 local _rClear = rconsoleclear or function() end
 local _rName  = rconsolename or rconsolesettitle or function() end
 
+-- Developer-console banner + live progress (works on every executor via print/warn).
+pcall(function()
+  print("==================================================")
+  print("   U L T   S Y S T E M   -   INITIALIZATION")
+  print("==================================================")
+end)
+
+local _ultBarLen = 30
+local _ultPhases = {
+  { target = 18, label = "scanning environment" },
+  { target = 36, label = "verifying integrity" },
+  { target = 55, label = "checking signatures" },
+  { target = 74, label = "authenticating" },
+  { target = 92, label = "preparing payload" },
+}
+
 if _hasRConsole and not _G._ULT_IS_MOBILE then
-  pcall(function()
-    _rName("loader")
-    _rClear()
-    _rPrint("initializing...\\n")
-    local _barLen = 28
-    -- smooth animated bar with easing (ease-out cubic)
-    local _phases = {
-      {target = 18, label = "scanning environment"},
-      {target = 36, label = "verifying integrity"},
-      {target = 55, label = "checking signatures"},
-      {target = 74, label = "authenticating"},
-      {target = 92, label = "preparing payload"},
-    }
-    local _cur = 0
-    for _, ph in ipairs(_phases) do
-      local _from = _cur
-      local _to = ph.target
-      local _frames = 8
-      for i = 1, _frames do
-        local _t = i / _frames
-        -- ease-out cubic for smoother motion
-        local _eased = 1 - (1 - _t) ^ 3
-        local _pct = math.floor(_from + (_to - _from) * _eased)
-        local _filled = math.floor((_pct / 100) * _barLen)
-        local _empty = _barLen - _filled
-        local _bar = string.rep("=", _filled) .. string.rep(" ", _empty)
-        pcall(_rClear)
-        _rPrint(string.format("[%s] %d%%\\n%s\\n", _bar, _pct, ph.label))
-        task.wait(0.012)
-      end
-      _cur = _to
-    end
-  end)
+  pcall(function() _rName("ULT Loader") _rClear() end)
 end
-` : ''}
+
+pcall(function()
+  local _cur = 0
+  for _, ph in ipairs(_ultPhases) do
+    local _from, _to, _frames = _cur, ph.target, 6
+    for i = 1, _frames do
+      local _t = i / _frames
+      local _eased = 1 - (1 - _t) ^ 3
+      local _pct = math.floor(_from + (_to - _from) * _eased)
+      local _filled = math.floor((_pct / 100) * _ultBarLen)
+      local _line = string.format("ULT | Loading: [%s%s] %d%% - %s",
+        string.rep("#", _filled), string.rep("-", _ultBarLen - _filled), _pct, ph.label)
+      print(_line)
+      if _hasRConsole and not _G._ULT_IS_MOBILE then
+        pcall(function() _rClear() _rPrint(_line .. "\\n") end)
+      end
+      task.wait(0.02)
+    end
+    _cur = _to
+  end
+  local _done = "ULT | Loaded! [" .. string.rep("#", _ultBarLen) .. "] 100%"
+  print(_done)
+  if _hasRConsole and not _G._ULT_IS_MOBILE then
+    pcall(function() _rClear() _rPrint(_done .. "\\n") end)
+  end
+end)
+
+`}
+
 
 -- Execute HTTP request
 local s, r = ${v.hookGuard}.pcall_ref(function()
