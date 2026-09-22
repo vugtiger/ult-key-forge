@@ -95,35 +95,21 @@ const Auth = () => {
     setLoading(true);
     try {
       const deviceId = getDeviceId();
-      const { data: preBan, error: preBanError } = await supabase.functions.invoke('track-ip', {
-        body: { action: 'check_ban', device_id: deviceId },
-      });
-      if (preBanError) throw new Error('Unable to verify access. Please try again.');
-      if (preBan?.banned) throw new Error(preBan.reason || 'This device or network is permanently banned from ULT LUA.');
       if (isLogin) {
-        try {
-          const ratePromise = supabase.functions.invoke('track-ip', { body: { action: 'check_rate_limit', limit_action: 'login' } });
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
-          const { data: loginRateCheck } = await Promise.race([ratePromise, timeoutPromise]) as any;
-          if (loginRateCheck?.allowed === false) throw new Error('Too many login attempts. Please wait before trying again.');
-        } catch (rateErr: any) {
-          if (rateErr?.message?.includes('Too many login')) throw rateErr;
-        }
+        // Sign in first, then run a single ban check (cached) so the flow stays fast.
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        clearBanCache();
         try {
-          const banPromise = supabase.functions.invoke('track-ip', { body: { user_id: data.user.id, action: 'check_ban', device_id: deviceId } });
-          const banTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
-          const { data: banCheck } = await Promise.race([banPromise, banTimeout]) as any;
+          const banCheck = await checkBan(data.user.id, { force: true, timeoutMs: 4000 });
           if (banCheck?.banned) {
             await supabase.auth.signOut();
             toast({ title: "Account Banned", description: banCheck.reason || "Your account has been banned.", variant: "destructive" });
             setLoading(false);
             return;
           }
-        } catch (banError) {
-          await supabase.auth.signOut();
-          throw banError;
+        } catch {
+          // a slow ban service must not block a valid sign-in
         }
         supabase.functions.invoke('track-ip', { body: { user_id: data.user.id, action: 'login', device_id: deviceId } }).catch(() => {});
         try { localStorage.setItem("ult_last_creds", btoa(JSON.stringify({ email, password }))); } catch {}
