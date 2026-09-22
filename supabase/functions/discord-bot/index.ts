@@ -2,8 +2,13 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const DELIVERY_BASE = `${(Deno.env.get('SUPABASE_URL') || '').replace(/\/+$/, '')}/functions/v1/get-paste`;
 
+// Public website that forwards /s/* to the delivery function. Configurable per host.
+const SITE_BASE = (Deno.env.get('PUBLIC_SITE_URL') || 'https://ultluacodeprotectsyourluacode.onrender.com')
+  .replace(/\/+$/, '');
+
 async function scriptUrl(_supabase: any, _userId: string, slug: string): Promise<string> {
-  return `${DELIVERY_BASE}/s/${encodeURIComponent(slug)}`;
+  const encoded = encodeURIComponent(slug);
+  return SITE_BASE ? `${SITE_BASE}/s/${encoded}` : `${DELIVERY_BASE}/s/${encoded}`;
 }
 
 

@@ -17,10 +17,11 @@ export const getSiteOrigin = () => {
 };
 
 
-/** Executable delivery link. This endpoint is verified to return Lua instead of website HTML or a host 404. */
+/** Executable delivery link. Uses the current website origin (the host forwards /s/* to the script service). */
 export const getLoaderUrl = (slug: string) => {
   const encoded = encodeURIComponent(slug);
-  return `${DELIVERY_BASE}/s/${encoded}`;
+  const origin = getSiteOrigin();
+  return origin ? `${origin}/s/${encoded}` : `${DELIVERY_BASE}/s/${encoded}`;
 };
 
 
