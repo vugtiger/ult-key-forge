@@ -11,6 +11,7 @@ import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEffect";
 import { applyDashboardLayout, LayoutPreset, TabDensity, TabShape } from "@/components/DashboardCustomizer";
+import { checkBan } from "@/lib/banCheck";
 
 const navigationItems = [
   { title: "Key System", url: "/dashboard", icon: Zap },
@@ -289,19 +290,15 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
     const checkBanStatus = async (userId: string) => {
       try {
-        const deviceId = localStorage.getItem('ult_device_id') || crypto.randomUUID().replace(/-/g, '');
-        localStorage.setItem('ult_device_id', deviceId);
-        const { data, error } = await supabase.functions.invoke('track-ip', { body: { user_id: userId, action: 'check_ban', device_id: deviceId } });
-        if (error || data?.banned) {
+        const data = await checkBan(userId);
+        if (data?.banned) {
           resetTheme();
           await supabase.auth.signOut();
           localStorage.removeItem('sb-iyfvpnjrghsownkpazec-auth-token');
           navigate("/auth", { state: { banReason: data?.reason || 'Access could not be verified.' } });
         }
       } catch {
-        resetTheme();
-        await supabase.auth.signOut();
-        navigate("/auth", { state: { banReason: 'Access could not be verified.' } });
+        // A slow or failing check must not sign a legitimate user out.
       }
     };
 
