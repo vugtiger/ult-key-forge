@@ -11,6 +11,7 @@ import CloudLogo from "@/components/CloudLogo";
 import CloudBackground from "@/components/CloudBackground";
 import SnowEffect from "@/components/SnowEffect";
 import { buildAppUrl } from "@/lib/site-url";
+import { checkBan, clearBanCache } from "@/lib/banCheck";
 
 const readableAuthError = (error: any): string => {
   const raw =
