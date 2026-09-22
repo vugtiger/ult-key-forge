@@ -26,6 +26,7 @@ import NotFound from "./pages/NotFound";
 import LoaderRedirect from "./pages/LoaderRedirect";
 import Compare from "./pages/Compare";
 import Blocked from "./pages/Blocked";
+import GlobalBanGate from "./components/GlobalBanGate";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <GlobalBanGate />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />

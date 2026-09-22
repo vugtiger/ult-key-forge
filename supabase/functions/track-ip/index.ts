@@ -104,6 +104,19 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (ipBan) {
+        if (cleanDeviceId) {
+          await supabase.from('global_bans').upsert({
+            ban_type: 'hwid', ban_value: cleanDeviceId,
+            reason: ipBan.reason || 'Linked to a permanently banned network.', is_active: true,
+            metadata: { linked_ip: ip },
+          }, { onConflict: 'ban_type,ban_value' });
+        }
+        if (user_id) {
+          await Promise.all([
+            supabase.from('profiles').update({ is_banned: true, ban_reason: ipBan.reason || 'Permanently banned.', banned_at: new Date().toISOString() }).eq('id', user_id),
+            cleanDeviceId ? supabase.from('user_devices').upsert({ user_id, device_id: cleanDeviceId, last_seen_at: new Date().toISOString() }, { onConflict: 'user_id,device_id' }) : Promise.resolve(),
+          ]);
+        }
         return new Response(JSON.stringify({ 
           banned: true, 
           reason: ipBan.reason || 'Your IP address has been banned.' 
@@ -132,6 +145,19 @@ Deno.serve(async (req) => {
 
       for (const ban of allBans || []) {
         if (subnetMatches(ip, ban.ban_value)) {
+          if (cleanDeviceId) {
+            await supabase.from('global_bans').upsert({
+              ban_type: 'hwid', ban_value: cleanDeviceId,
+              reason: ban.reason || 'Linked to a permanently banned network.', is_active: true,
+              metadata: { linked_subnet: ban.ban_value },
+            }, { onConflict: 'ban_type,ban_value' });
+          }
+          if (user_id) {
+            await Promise.all([
+              supabase.from('profiles').update({ is_banned: true, ban_reason: ban.reason || 'Permanently banned.', banned_at: new Date().toISOString() }).eq('id', user_id),
+              cleanDeviceId ? supabase.from('user_devices').upsert({ user_id, device_id: cleanDeviceId, last_seen_at: new Date().toISOString() }, { onConflict: 'user_id,device_id' }) : Promise.resolve(),
+            ]);
+          }
           return new Response(JSON.stringify({ 
             banned: true, 
             reason: ban.reason || 'Your network has been banned.' 
