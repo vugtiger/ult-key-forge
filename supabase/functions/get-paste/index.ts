@@ -2717,7 +2717,7 @@ pcall(function()
   title.Position = UDim2.fromOffset(28, 28)
   title.Size = UDim2.new(1, -56, 0, 58)
   title.BackgroundTransparency = 1
-  title.Text = "ULT\\nCHECKS"
+  title.Text = "ULT\nCHECKS"
   title.TextColor3 = INK
   title.Font = Enum.Font.GothamBlack
   title.TextSize = 26
