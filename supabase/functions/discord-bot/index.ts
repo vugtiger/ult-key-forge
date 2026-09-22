@@ -1,15 +1,19 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 // Discord cannot observe a browser origin. The website records the latest host
-// that successfully forwards /s/:slug, so deleted or stale deployments are not reused.
-async function scriptUrl(supabase: any, userId: string, slug: string): Promise<string | null> {
+// that successfully forwards /s/:slug; if none is recorded we fall back to the
+// delivery address so the link always executes.
+const DELIVERY_BASE = `${(Deno.env.get('SUPABASE_URL') || '').replace(/\/+$/, '')}/functions/v1/get-paste`;
+
+async function scriptUrl(supabase: any, userId: string, slug: string): Promise<string> {
   const { data } = await supabase
     .from('user_public_hosts')
     .select('origin')
     .eq('user_id', userId)
     .maybeSingle();
   const origin = typeof data?.origin === 'string' ? data.origin.replace(/\/+$/, '') : '';
-  return origin ? `${origin}/s/${encodeURIComponent(slug)}` : null;
+  const base = origin || DELIVERY_BASE;
+  return `${base}/s/${encodeURIComponent(slug)}`;
 }
 
 
@@ -753,9 +757,7 @@ async function handleCommand(interaction: any) {
 
       // Fixed URL format to match website
       const rawUrl = await scriptUrl(supabase, user.userId, paste.slug);
-      if (!rawUrl) {
-        return { type: 4, data: { content: 'Open your dashboard once on the Vercel or Netlify address you currently host, then retry this command.', flags: 64 } };
-      }
+
 
       await sendDM(discordUserId, `✅ **Paste Created!**\n\n**Title:** ${title}\n**Raw URL:** ${rawUrl}\n\nYou can manage it in the Pastebin tab on the website.`);
 
@@ -2452,9 +2454,7 @@ async function handleButton(interaction: any) {
       }
       
       const rawUrl = await scriptUrl(supabase, panel.user_id, paste.slug);
-      if (!rawUrl) {
-        return { type: 4, data: { content: 'The owner must open their dashboard once on the currently hosted Vercel or Netlify website, then retry.', flags: 64 } };
-      }
+
       const loadstring = `loadstring(game:HttpGet("${rawUrl}"))()`;
       
       // DM the user the script - ephemeral so only they can see
