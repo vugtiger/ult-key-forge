@@ -86,9 +86,17 @@ Deno.serve(async (req) => {
       const ownerIds = [...new Set((pastes || []).map(p => p.user_id).filter(Boolean))];
       const emailMap: Record<string, string> = {};
       if (ownerIds.length) {
-        const { data: owners } = await serviceClient.from('profiles').select('id, email, username').in('id', ownerIds);
-        (owners || []).forEach((o: any) => { emailMap[o.id] = o.email || o.username || 'Unknown'; });
+        const [{ data: owners }, lookups] = await Promise.all([
+          serviceClient.from('profiles').select('id, username').in('id', ownerIds),
+          Promise.all(ownerIds.slice(0, 60).map(id => serviceClient.auth.admin.getUserById(id))),
+        ]);
+        (owners || []).forEach((o: any) => { if (o.username) emailMap[o.id] = o.username; });
+        lookups.forEach((res: any) => {
+          const u = res?.data?.user;
+          if (u?.id && u?.email) emailMap[u.id] = u.email;
+        });
       }
+
       const enriched = (pastes || []).map(p => ({ ...p, content: '', owner_email: emailMap[p.user_id] || 'Unknown' }));
       return json({ pastes: enriched, total: count ?? enriched.length, limit, offset });
     }
