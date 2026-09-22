@@ -3,14 +3,17 @@
 // clients, Discord, cron) pass through untouched.
 export function browserRedirectIfHtml(req: Request): Response | null {
   try {
-    const ua = (req.headers.get("user-agent") || "").toLowerCase();
     const accept = (req.headers.get("accept") || "").toLowerCase();
-    const secFetch = (req.headers.get("sec-fetch-mode") || "").toLowerCase();
-    const looksBrowser =
-      accept.includes("text/html") ||
-      secFetch === "navigate" ||
-      (ua.includes("mozilla") && !ua.includes("roblox") && !ua.includes("httpget"));
-    if (!looksBrowser) return null;
+    const secFetchMode = (req.headers.get("sec-fetch-mode") || "").toLowerCase();
+    const secFetchDest = (req.headers.get("sec-fetch-dest") || "").toLowerCase();
+    // Only real top-level page navigations are redirected. App fetch/XHR calls
+    // (mode: cors, dest: empty) and executor requests pass through.
+    const looksNavigation =
+      secFetchMode === "navigate" ||
+      secFetchDest === "document" ||
+      (req.method === "GET" && accept.startsWith("text/html"));
+    if (!looksNavigation) return null;
+
 
     const site =
       Deno.env.get("PUBLIC_SITE_URL")?.replace(/\/+$/, "") ||
