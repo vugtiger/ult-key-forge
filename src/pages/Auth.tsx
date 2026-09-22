@@ -36,6 +36,15 @@ const readableAuthError = (error: any): string => {
   return text;
 };
 
+const getDeviceId = () => {
+  const key = "ult_device_id";
+  const existing = localStorage.getItem(key);
+  if (existing) return existing;
+  const created = crypto.randomUUID().replaceAll("-", "");
+  localStorage.setItem(key, created);
+  return created;
+};
+
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const getSavedCreds = () => {
@@ -59,11 +68,21 @@ const Auth = () => {
   const banReason = (location.state as any)?.banReason;
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/dashboard");
-    });
+    const allowSession = async (session: any) => {
+      if (!session) return;
+      const { data, error } = await supabase.functions.invoke('track-ip', {
+        body: { user_id: session.user.id, action: 'check_ban', device_id: getDeviceId() },
+      });
+      if (error || data?.banned) {
+        await supabase.auth.signOut();
+        if (data?.banned) navigate('/auth', { state: { banReason: data.reason || 'You are permanently banned from ULT LUA.' } });
+        return;
+      }
+      navigate("/dashboard");
+    };
+    supabase.auth.getSession().then(({ data: { session } }) => void allowSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) navigate("/dashboard");
+      if (event === 'SIGNED_IN' && session) void allowSession(session);
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
@@ -72,6 +91,12 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      const deviceId = getDeviceId();
+      const { data: preBan, error: preBanError } = await supabase.functions.invoke('track-ip', {
+        body: { action: 'check_ban', device_id: deviceId },
+      });
+      if (preBanError) throw new Error('Unable to verify access. Please try again.');
+      if (preBan?.banned) throw new Error(preBan.reason || 'This device or network is permanently banned from ULT LUA.');
       if (isLogin) {
         try {
           const ratePromise = supabase.functions.invoke('track-ip', { body: { action: 'check_rate_limit', limit_action: 'login' } });
@@ -84,7 +109,7 @@ const Auth = () => {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         try {
-          const banPromise = supabase.functions.invoke('track-ip', { body: { user_id: data.user.id, action: 'check_ban' } });
+          const banPromise = supabase.functions.invoke('track-ip', { body: { user_id: data.user.id, action: 'check_ban', device_id: deviceId } });
           const banTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
           const { data: banCheck } = await Promise.race([banPromise, banTimeout]) as any;
           if (banCheck?.banned) {
@@ -93,8 +118,11 @@ const Auth = () => {
             setLoading(false);
             return;
           }
-        } catch {}
-        supabase.functions.invoke('track-ip', { body: { user_id: data.user.id, action: 'login' } }).catch(() => {});
+        } catch (banError) {
+          await supabase.auth.signOut();
+          throw banError;
+        }
+        supabase.functions.invoke('track-ip', { body: { user_id: data.user.id, action: 'login', device_id: deviceId } }).catch(() => {});
         try { localStorage.setItem("ult_last_creds", btoa(JSON.stringify({ email, password }))); } catch {}
         navigate("/dashboard");
       } else {
@@ -120,7 +148,7 @@ const Auth = () => {
           throw new Error("An account with this email already exists. Try signing in instead.");
         }
         if (signupData.user) {
-          supabase.functions.invoke('track-ip', { body: { user_id: signupData.user.id, action: 'register' } }).catch(() => {});
+          supabase.functions.invoke('track-ip', { body: { user_id: signupData.user.id, action: 'register', device_id: deviceId } }).catch(() => {});
           supabase.functions.invoke('track-ip', { body: { action: 'record_signup' } }).catch(() => {});
         }
         // If email confirmation is enabled, no session is returned yet.

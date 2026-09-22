@@ -10,6 +10,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const jsonResponse = (body: Record<string, unknown>, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+});
+
+const getIpv4Subnet = (ip: string) => /^\d{1,3}(\.\d{1,3}){3}$/.test(ip)
+  ? `${ip.split('.').slice(0, 3).join('.')}.0/24`
+  : null;
+
+const subnetMatches = (ip: string, subnet: string) => subnet.endsWith('/24')
+  ? ip.split('.').slice(0, 3).join('.') === subnet.replace(/\.0\/24$/, '')
+  : ip.startsWith(subnet);
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -17,7 +30,10 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { user_id, action, limit_action } = body;
+    const { user_id, action, limit_action, device_id } = body;
+    const cleanDeviceId = typeof device_id === 'string' && /^[A-Za-z0-9_-]{16,128}$/.test(device_id)
+      ? device_id
+      : null;
     
     // Get IP from request headers
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
@@ -30,7 +46,7 @@ Deno.serve(async (req) => {
     console.log(`IP tracking for user ${user_id ?? 'anon'}, action: ${action}, IP: ${ip}`);
 
     // ===== AUTH VALIDATION for privileged actions =====
-    const privilegedActions = ['register', 'login', 'verify'];
+    const privilegedActions = ['register', 'login', 'verify', 'check_ban'];
     if (privilegedActions.includes(action) && user_id) {
       const authHeader = req.headers.get('Authorization');
       if (!authHeader) {
@@ -96,6 +112,17 @@ Deno.serve(async (req) => {
         });
       }
 
+      if (cleanDeviceId) {
+        const { data: deviceBan } = await supabase
+          .from('global_bans')
+          .select('reason')
+          .eq('ban_type', 'hwid')
+          .eq('ban_value', cleanDeviceId)
+          .eq('is_active', true)
+          .maybeSingle();
+        if (deviceBan) return jsonResponse({ banned: true, reason: deviceBan.reason || 'This device has been permanently banned.' });
+      }
+
       // Check subnet bans
       const { data: allBans } = await supabase
         .from('global_bans')
@@ -104,13 +131,49 @@ Deno.serve(async (req) => {
         .eq('is_active', true);
 
       for (const ban of allBans || []) {
-        if (ip.startsWith(ban.ban_value)) {
+        if (subnetMatches(ip, ban.ban_value)) {
           return new Response(JSON.stringify({ 
             banned: true, 
             reason: ban.reason || 'Your network has been banned.' 
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
+        }
+      }
+
+
+      // Carry an existing ban to a returning account's current IP and browser device.
+      // This catches the same account after its VPN is disabled or changed.
+      if (user_id) {
+        const [{ data: knownIps }, { data: knownDevices }] = await Promise.all([
+          supabase.from('user_ips').select('ip_address').eq('user_id', user_id),
+          supabase.from('user_devices').select('device_id').eq('user_id', user_id),
+        ]);
+        const ipValues = (knownIps || []).map((row) => row.ip_address).filter(Boolean);
+        const deviceValues = (knownDevices || []).map((row) => row.device_id).filter(Boolean);
+        const linkedBans: Array<{ reason: string | null }> = [];
+        if (ipValues.length) {
+          const { data } = await supabase.from('global_bans').select('reason').eq('ban_type', 'ip').eq('is_active', true).in('ban_value', ipValues).limit(1);
+          if (data?.[0]) linkedBans.push(data[0]);
+        }
+        if (!linkedBans.length && deviceValues.length) {
+          const { data } = await supabase.from('global_bans').select('reason').eq('ban_type', 'hwid').eq('is_active', true).in('ban_value', deviceValues).limit(1);
+          if (data?.[0]) linkedBans.push(data[0]);
+        }
+        const linkedBan = linkedBans[0];
+        if (linkedBan) {
+          const reason = linkedBan.reason || 'This account is permanently banned.';
+          const rows: Record<string, unknown>[] = [
+            { ban_type: 'ip', ban_value: ip, reason, is_active: true, metadata: { linked_user_id: user_id } },
+          ];
+          const subnet = getIpv4Subnet(ip);
+          if (subnet) rows.push({ ban_type: 'subnet', ban_value: subnet, reason, is_active: true, metadata: { linked_user_id: user_id } });
+          if (cleanDeviceId) rows.push({ ban_type: 'hwid', ban_value: cleanDeviceId, reason, is_active: true, metadata: { linked_user_id: user_id } });
+          await Promise.all([
+            supabase.from('global_bans').upsert(rows, { onConflict: 'ban_type,ban_value' }),
+            supabase.from('profiles').update({ is_banned: true, ban_reason: reason, banned_at: new Date().toISOString() }).eq('id', user_id),
+          ]);
+          return jsonResponse({ banned: true, reason });
         }
       }
 
@@ -194,6 +257,10 @@ Deno.serve(async (req) => {
       });
       
       if (error) throw error;
+
+      if (cleanDeviceId) {
+        await supabase.from('user_devices').upsert({ user_id, device_id: cleanDeviceId, last_seen_at: new Date().toISOString() }, { onConflict: 'user_id,device_id' });
+      }
       
       return new Response(JSON.stringify({ success: true, message: 'IP registered' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -201,6 +268,9 @@ Deno.serve(async (req) => {
     }
     
     if (action === 'login') {
+      if (cleanDeviceId) {
+        await supabase.from('user_devices').upsert({ user_id, device_id: cleanDeviceId, last_seen_at: new Date().toISOString() }, { onConflict: 'user_id,device_id' });
+      }
       // First, check if this IP is blocked for this user
       const { data: blockedIp } = await supabase
         .from('blocked_ips')
