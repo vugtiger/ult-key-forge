@@ -4960,8 +4960,18 @@ end`;
     // return a mini loader. setclipboard copies "-- Protected by ULT LUA" (useless).
     // loadstring executes the loader which re-fetches with uid to get the real content.
     if (paste.anti_fetch_enabled && !uid && !tk && !kbt && !keyParam && !isLikelyBrowser) {
-      console.log(`[get-paste] ANTI-FETCH: returning mini loader for slug=${slug} ip=${clientIp}`);
-      const miniLoader = `-- Protected by ULT LUA
+      console.log(`[get-paste] ANTI-FETCH: returning trap-baited mini loader slug=${slug} ip=${clientIp}`);
+      // Trap URL is embedded as fake "source" comments. If the caller copied the
+      // fetch result (setclipboard / writefile / dumper) instead of executing it,
+      // any human or bot that follows the link is permanently banned at /trap/.
+      // If the caller DID execute the response, the mini-loader below re-fetches
+      // with uid and never touches the trap URL, so legitimate loadstring works.
+      const trapToken = generateToken().slice(0, 24);
+      const trapUrl = `${baseUrl.replace(/\/get-paste.*$/, '')}/get-paste/trap/${trapToken}`;
+      const miniLoader = `-- ULT LUA Protected Script
+-- Redistribution prohibited. Source is bound to the original loader.
+-- Source: ${trapUrl}
+-- Mirror: ${trapUrl}?m=1
 local _ok, _err = pcall(function()
   local _p = game:GetService("Players").LocalPlayer
   if not _p then _p = game:GetService("Players").PlayerAdded:Wait() end
@@ -4973,6 +4983,7 @@ local _ok, _err = pcall(function()
 end)`;
       return new Response(miniLoader, { status: 200, headers: textHeaders });
     }
+
 
     // ===== NON-PROTECTED PASTE (no protection, no public_protection) =====
     // CRITICAL FIX v10.1: Non-protected pastes now use the same 2-phase encrypted flow.
