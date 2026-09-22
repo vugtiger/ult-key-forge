@@ -6,7 +6,7 @@ const getDeviceId = () => {
   const key = "ult_device_id";
   const existing = localStorage.getItem(key);
   if (existing) return existing;
-  const created = crypto.randomUUID().replaceAll("-", "");
+  const created = crypto.randomUUID().replace(/-/g, "");
   localStorage.setItem(key, created);
   return created;
 };
