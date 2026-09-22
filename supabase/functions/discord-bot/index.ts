@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { browserRedirectIfHtml } from "../_shared/browserBlock.ts";
 
 const DELIVERY_BASE = `${(Deno.env.get('SUPABASE_URL') || '').replace(/\/+$/, '')}/functions/v1/get-paste`;
 
@@ -2679,6 +2680,8 @@ async function handleModal(interaction: any) {
 }
 
 Deno.serve(async (req) => {
+  const _blocked = browserRedirectIfHtml(req);
+  if (_blocked) return _blocked;
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }

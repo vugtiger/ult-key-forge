@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { browserRedirectIfHtml } from "../_shared/browserBlock.ts";
 
 // Module-level client — reused across requests
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -24,6 +25,8 @@ const subnetMatches = (ip: string, subnet: string) => subnet.endsWith('/24')
   : ip.startsWith(subnet);
 
 Deno.serve(async (req) => {
+  const _blocked = browserRedirectIfHtml(req);
+  if (_blocked) return _blocked;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
