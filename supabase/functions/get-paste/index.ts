@@ -2715,13 +2715,14 @@ pcall(function()
 
   local title = Instance.new("TextLabel", body)
   title.Position = UDim2.fromOffset(28, 28)
-  title.Size = UDim2.new(1, -56, 0, 28)
+  title.Size = UDim2.new(1, -56, 0, 58)
   title.BackgroundTransparency = 1
   title.Text = "ULT\nCHECKS"
   title.TextColor3 = INK
   title.Font = Enum.Font.GothamBlack
   title.TextSize = 26
   title.TextXAlignment = Enum.TextXAlignment.Left
+  title.TextYAlignment = Enum.TextYAlignment.Top
   title.ZIndex = 6
 
   local sub = Instance.new("TextLabel", body)
