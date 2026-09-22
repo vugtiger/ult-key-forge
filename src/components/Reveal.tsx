@@ -6,18 +6,21 @@ interface RevealProps {
   /** Delay in ms before the reveal transition starts */
   delay?: number;
   /** Direction the content travels from */
-  from?: "up" | "down" | "left" | "right" | "none";
+  from?: "up" | "down" | "left" | "right" | "none" | "zoom";
+  /** Animation duration in ms */
+  duration?: number;
 }
 
 const OFFSETS: Record<NonNullable<RevealProps["from"]>, string> = {
-  up: "translate3d(0, 32px, 0)",
-  down: "translate3d(0, -32px, 0)",
-  left: "translate3d(-32px, 0, 0)",
-  right: "translate3d(32px, 0, 0)",
+  up: "translate3d(0, 44px, 0) scale(0.985)",
+  down: "translate3d(0, -44px, 0) scale(0.985)",
+  left: "translate3d(-44px, 0, 0) scale(0.985)",
+  right: "translate3d(44px, 0, 0) scale(0.985)",
+  zoom: "scale(0.92)",
   none: "none",
 };
 
-const Reveal = ({ children, className, delay = 0, from = "up" }: RevealProps) => {
+const Reveal = ({ children, className, delay = 0, from = "up", duration = 820 }: RevealProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -54,8 +57,8 @@ const Reveal = ({ children, className, delay = 0, from = "up" }: RevealProps) =>
       style={{
         opacity: visible ? 1 : 0,
         transform: visible ? "none" : OFFSETS[from],
-        filter: visible ? "none" : "blur(6px)",
-        transition: `opacity 700ms cubic-bezier(0.22, 1, 0.36, 1) ${delay}ms, transform 700ms cubic-bezier(0.22, 1, 0.36, 1) ${delay}ms, filter 700ms ease ${delay}ms`,
+        filter: visible ? "none" : "blur(10px)",
+        transition: `opacity ${duration}ms cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms, transform ${duration}ms cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms, filter ${duration}ms ease ${delay}ms`,
         willChange: "opacity, transform",
       }}
     >
