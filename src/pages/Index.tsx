@@ -172,16 +172,16 @@ const Index = () => {
                     Join Discord
                   </Button>
                 </a>
-              </div>
+              </Reveal>
 
-              <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-xs text-muted-foreground">
+              <Reveal from="up" delay={440} className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2"><Shield size={13} /> Free, no paid tiers</div>
                 <div className="flex items-center gap-2"><Zap size={13} /> Unlimited keys</div>
                 <div className="flex items-center gap-2"><Terminal size={13} /> Console output in-game</div>
-              </div>
+              </Reveal>
             </div>
 
-            <Reveal from="right" delay={120}>
+            <Reveal from="zoom" delay={260}>
               <KeySystemPreview />
             </Reveal>
           </section>
