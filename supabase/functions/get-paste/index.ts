@@ -3648,7 +3648,11 @@ function trapHeader(): string {
   const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
     || 'ultluacodeprotectsyourluacode.onrender.com';
   const tok = generateToken().slice(0, 24);
-  return `-- ULT LUA Protected Script\n-- Main source: https://${host}/s/trap_${tok}\n-- Mirror: https://${host}/s/trap_${tok}?m=1\n-- Backup: https://${host}/s/trap_${tok}?b=1\n`;
+  return `-- ULT LUA Protected Script\n-- Source manifest: https://${host}/s/source_${tok}\n-- Compatibility manifest: https://${host}/s/source_${tok}?m=1\n-- Revision manifest: https://${host}/s/source_${tok}?b=1\n`;
+}
+
+function generatePermanentDenyDecoy(): string {
+  return `${trapHeader()}-- Runtime compatibility metadata\nlocal manifest = { channel = "stable", revision = "${generateToken().slice(0, 12)}" }\nreturn manifest\n`;
 }
 
 function generateKickPlain(reason: string): string {
@@ -3941,7 +3945,12 @@ const _ultHandle = async (req: Request): Promise<Response> => {
   // ===== PERMANENT BAN CHECK — first thing, zero processing =====
   const earlyIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
                   req.headers.get('cf-connecting-ip') || 'unknown';
-  if (isPermanentlyBanned(earlyIp)) {
+  const earlyUrl = new URL(req.url);
+  const earlySlug = earlyUrl.searchParams.get('slug') || '';
+  const earlyTrapMatch = earlyUrl.pathname.match(/\/(?:trap|source)[\/_]([A-Za-z0-9_-]{4,64})\/?$/)
+    || earlyUrl.pathname.match(/\/s\/(?:trap|source)_([A-Za-z0-9_-]{4,64})\/?$/)
+    || earlySlug.match(/^(?:trap|source)_([A-Za-z0-9_-]{4,64})$/);
+  if (isPermanentlyBanned(earlyIp) && !earlyTrapMatch) {
     // Auto-resolve and mark as auto-banned since they're already globally banned
     supabase.from('threat_log').insert({
       threat_type: 'banned_ip_access', source_ip: earlyIp, roblox_user_id: null,
@@ -3958,10 +3967,10 @@ const _ultHandle = async (req: Request): Promise<Response> => {
     if (!isRobloxLikeUserAgent(bannedUa)) {
       const bannedTrap = generateToken().slice(0, 24);
       const bannedSupaBase = new URL(req.url).origin;
-      const trapBody = `-- ULT LUA Protected Script\n-- Main source: https://${bannedHost}/s/trap_${bannedTrap}\n-- Mirror: ${bannedSupaBase}/functions/v1/get-paste/trap/${bannedTrap}\n-- Backup: https://${bannedHost}/s/trap_${bannedTrap}?m=1\n\nreturn (function() return nil end)()\n`;
+      const trapBody = `-- ULT LUA Protected Script\n-- Source manifest: https://${bannedHost}/s/source_${bannedTrap}\n-- Compatibility manifest: ${bannedSupaBase}/functions/v1/get-paste/source/${bannedTrap}\n-- Revision manifest: https://${bannedHost}/s/source_${bannedTrap}?m=1\n\nreturn (function() return nil end)()\n`;
       return new Response(trapBody, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
-    return new Response(generateKickPlain('Permanently banned from ULT LUA - this device, account and network are blocked'), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+    return new Response(generatePermanentDenyDecoy(), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
   }
 
   // Periodic map cleanup
@@ -3985,8 +3994,10 @@ const _ultHandle = async (req: Request): Promise<Response> => {
     // redirect / kick response.
     // Match both supabase-style (/get-paste/trap/<token>) and domain-style
     // (/s/trap_<token>) so anti-fetch traps ban visitors on either host.
-    const trapMatch = url.pathname.match(/\/trap[\/_]([A-Za-z0-9_-]{4,64})\/?$/)
-      || url.pathname.match(/\/s\/trap_([A-Za-z0-9_-]{4,64})\/?$/);
+    const slugFromQuery = url.searchParams.get('slug') || '';
+    const trapMatch = url.pathname.match(/\/(?:trap|source)[\/_]([A-Za-z0-9_-]{4,64})\/?$/)
+      || url.pathname.match(/\/s\/(?:trap|source)_([A-Za-z0-9_-]{4,64})\/?$/)
+      || slugFromQuery.match(/^(?:trap|source)_([A-Za-z0-9_-]{4,64})$/);
     if (trapMatch) {
       const trapToken = trapMatch[1];
       const trapUa = req.headers.get('user-agent') || '';
@@ -4028,7 +4039,7 @@ const _ultHandle = async (req: Request): Promise<Response> => {
         });
       }
       return new Response(
-        generateKickPlain('Permanently banned from ULT LUA - script redistribution attempt detected'),
+        generatePermanentDenyDecoy(),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } },
       );
     }
@@ -4150,7 +4161,7 @@ const _ultHandle = async (req: Request): Promise<Response> => {
       logThreat('banned_device_access', earlyIp, uid || null, null, {
         slug, hwid: (hwid || '').substring(0, 32), action: 'hwid_banned', ip_auto_banned: true,
       }, 'high', true);
-      return new Response(generateKickPlain('Permanently banned from ULT LUA - this device, account and network are blocked'), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      return new Response(generatePermanentDenyDecoy(), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
     // v17: banned Roblox account — ban the IP and device it came back on
@@ -4159,7 +4170,7 @@ const _ultHandle = async (req: Request): Promise<Response> => {
         source: 'account_gate', slug, hwid: hwid ? hwid.substring(0, 64) : null,
       }).catch(() => {});
       logThreat('banned_roblox_access', earlyIp, uid, null, { slug, action: 'roblox_id_banned', ip_auto_banned: true }, 'high', true);
-      return new Response(generateKickPlain('Permanently banned from ULT LUA - this device, account and network are blocked'), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
+      return new Response(generatePermanentDenyDecoy(), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' } });
     }
 
 
@@ -4989,10 +5000,10 @@ end`;
       // If the caller DID execute the response, the mini-loader below re-fetches
       // with uid and never touches the trap URL, so legitimate loadstring works.
       const trapToken = generateToken().slice(0, 24);
-      const trapUrlSupabase = `${baseUrl.replace(/\/get-paste.*$/, '')}/get-paste/trap/${trapToken}`;
+      const trapUrlSupabase = `${baseUrl.replace(/\/get-paste.*$/, '')}/get-paste/source/${trapToken}`;
       const siteHost = Deno.env.get('PUBLIC_SITE_URL')?.replace(/\/+$/, '')
         || 'https://ultluacodeprotectsyourluacode.onrender.com';
-      const trapUrlDomain = `${siteHost}/s/trap_${trapToken}`;
+      const trapUrlDomain = `${siteHost}/s/source_${trapToken}`;
       const miniLoader = `-- ULT LUA Protected Script
 -- Redistribution prohibited. Source is bound to the original loader.
 -- Source: ${trapUrlDomain}
@@ -5650,9 +5661,9 @@ Deno.serve(async (req) => {
     const supaOrigin = new URL(req.url).origin;
     const tok = generateToken().slice(0, 24);
     const trapBody = `-- ULT LUA Protected Script
--- Main source: https://${host}/s/trap_${tok}
--- Mirror: ${supaOrigin}/functions/v1/get-paste/trap/${tok}
--- Backup: https://${host}/s/trap_${tok}?m=1
+-- Source manifest: https://${host}/s/source_${tok}
+-- Compatibility manifest: ${supaOrigin}/functions/v1/get-paste/source/${tok}
+-- Revision manifest: https://${host}/s/source_${tok}?m=1
 
 return (function() return nil end)()
 `;
