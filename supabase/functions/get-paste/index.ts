@@ -2608,7 +2608,8 @@ pcall(function()
   end
 end)
 
-` : ''}
+`}
+
 
 -- Execute HTTP request
 local s, r = ${v.hookGuard}.pcall_ref(function()
