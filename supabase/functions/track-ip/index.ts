@@ -50,32 +50,40 @@ Deno.serve(async (req) => {
 
     // ===== AUTH VALIDATION for privileged actions =====
     const privilegedActions = ['register', 'login', 'verify', 'check_ban'];
+    let authedUserId: string | null = null;
     if (privilegedActions.includes(action) && user_id) {
       const authHeader = req.headers.get('Authorization');
+      // check_ban is safe to run without a verified session (IP/device only)
       if (!authHeader) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        if (action !== 'check_ban') {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      } else {
+        const anonKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY')!;
+        const authClient = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } }
         });
-      }
-      // Validate the JWT and ensure user_id matches the authenticated user
-      const anonKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY')!;
-      const authClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: authHeader } }
-      });
-      const { data: { user }, error: authError } = await authClient.auth.getUser();
-      if (authError || !user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      // Prevent user_id spoofing: override with authenticated user's ID
-      if (user.id !== user_id) {
-        console.warn(`[track-ip] user_id mismatch: body=${user_id} auth=${user.id}`);
-        return new Response(JSON.stringify({ error: 'Forbidden' }), {
-          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+        const { data: { user }, error: authError } = await authClient.auth.getUser();
+        if (authError || !user) {
+          if (action !== 'check_ban') {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+              status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+        } else {
+          authedUserId = user.id;
+          if (user.id !== user_id) {
+            console.warn(`[track-ip] user_id mismatch: body=${user_id} auth=${user.id}`);
+            return new Response(JSON.stringify({ error: 'Forbidden' }), {
+              status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+        }
       }
     }
+    void authedUserId;
 
     // ===== BAN CHECK =====
     if (action === 'check_ban') {
