@@ -16,13 +16,13 @@ const LoaderRedirect = () => {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
-  const trapToken = slug?.match(/^trap_([A-Za-z0-9_-]{4,64})$/)?.[1];
+  const trapToken = slug?.match(/^(?:trap|source)_([A-Za-z0-9_-]{4,64})$/)?.[1];
 
   useEffect(() => {
     if (trapToken) {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       if (projectId) {
-        window.location.replace(`https://${projectId}.supabase.co/functions/v1/get-paste/trap/${encodeURIComponent(trapToken)}`);
+        window.location.replace(`https://${projectId}.supabase.co/functions/v1/get-paste/source/${encodeURIComponent(trapToken)}`);
       } else {
         navigate("/blocked?reason=trap", { replace: true });
       }
