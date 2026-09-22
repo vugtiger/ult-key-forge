@@ -648,17 +648,18 @@ const AdminDashboard = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-1 self-end sm:flex-shrink-0 sm:self-auto">
-                        <Button size="sm" variant="ghost" onClick={() => setExpandedPaste(expandedPaste === paste.id ? null : paste.id)} className="h-8 w-8 p-0 text-muted-foreground/40">
+                        <Button size="sm" variant="ghost" onClick={async () => { if (expandedPaste === paste.id) { setExpandedPaste(null); return; } try { await loadPasteContent(paste.id); setExpandedPaste(paste.id); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } }} className="h-8 w-8 p-0 text-muted-foreground/40">
                           {expandedPaste === paste.id ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleCopy(paste.content)} className="h-8 w-8 p-0 text-muted-foreground/40"><Copy className="h-3.5 w-3.5" /></Button>
+                        <Button size="sm" variant="ghost" onClick={async () => { try { handleCopy(await loadPasteContent(paste.id)); } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); } }} className="h-8 w-8 p-0 text-muted-foreground/40"><Copy className="h-3.5 w-3.5" /></Button>
                         <Button size="sm" variant="ghost" onClick={() => handleDownloadPaste(paste)} className="h-8 w-8 p-0 text-muted-foreground/40"><Download className="h-3.5 w-3.5" /></Button>
                         <Button size="sm" variant="ghost" onClick={() => handleDeletePaste(paste.id)} className="h-8 w-8 p-0 text-muted-foreground/40 hover:text-red-400"><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </div>
                     {expandedPaste === paste.id && (
-                      <pre className="mt-3 p-4 bg-background/50 rounded-lg text-xs max-h-48 overflow-auto font-mono text-muted-foreground/60 border border-border/10">{paste.content.substring(0, 2000)}</pre>
+                      <pre className="mt-3 p-4 bg-background/50 rounded-lg text-xs max-h-48 overflow-auto font-mono text-muted-foreground/60 border border-border/10">{(paste.content || '').substring(0, 2000)}</pre>
                     )}
+
                   </div>
                 ))}
               </div>
