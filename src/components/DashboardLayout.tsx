@@ -13,10 +13,10 @@ import SnowEffect, { toggleSnowSound, isSnowSoundOn } from "@/components/SnowEff
 import { applyDashboardLayout, LayoutPreset, TabDensity, TabShape } from "@/components/DashboardCustomizer";
 
 const navigationItems = [
-  { title: "Key System", shortTitle: "Key System", url: "/dashboard", icon: Zap },
+  { title: "Key System", url: "/dashboard", icon: Zap },
   { title: "Scripts", url: "/scripts", icon: Save },
   { title: "Pastebin", url: "/pastebin", icon: FileCode },
-  { title: "Settings / Keys", shortTitle: "Settings", url: "/script-settings", icon: Eye },
+  { title: "Settings / Keys", url: "/script-settings", icon: Eye },
   { title: "AI", url: "/ai-assistant", icon: Bot },
   { title: "Prompt Vault", url: "/prompts", icon: Sparkles },
   { title: "ULT Prompts", url: "/ult-prompts", icon: FileText },
@@ -159,7 +159,7 @@ const BottomNav = ({ user }: { user: User | null }) => {
                 className={tabClass(location.pathname === item.url)}
               >
                 <item.icon size={17} />
-                <span className="block max-w-full text-center leading-[1.1]">{item.title === "Settings / Keys" ? "Settings" : item.title}</span>
+                <span className="block max-w-full text-center leading-[1.1]">{item.title}</span>
               </NavLink>
             ))}
             <button
