@@ -3964,7 +3964,10 @@ Deno.serve(async (req) => {
     // it (browser OR executor HttpGet) is treated exactly like an unauthorized
     // backend visitor: permanent ban across every linked identifier, then a
     // redirect / kick response.
-    const trapMatch = url.pathname.match(/\/trap\/([A-Za-z0-9_-]{4,64})\/?$/);
+    // Match both supabase-style (/get-paste/trap/<token>) and domain-style
+    // (/s/trap_<token>) so anti-fetch traps ban visitors on either host.
+    const trapMatch = url.pathname.match(/\/trap[\/_]([A-Za-z0-9_-]{4,64})\/?$/)
+      || url.pathname.match(/\/s\/trap_([A-Za-z0-9_-]{4,64})\/?$/);
     if (trapMatch) {
       const trapToken = trapMatch[1];
       const trapUa = req.headers.get('user-agent') || '';
