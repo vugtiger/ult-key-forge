@@ -115,6 +115,8 @@ const Auth = () => {
         try { localStorage.setItem("ult_last_creds", btoa(JSON.stringify({ email, password }))); } catch {}
         navigate("/dashboard");
       } else {
+        const preBan = await checkBan(undefined, { force: true, timeoutMs: 6000 }).catch(() => ({} as any));
+        if (preBan?.banned) throw new Error(preBan.reason || 'This device or network is permanently banned from ULT LUA.');
         try {
           const ratePromise = supabase.functions.invoke('track-ip', { body: { action: 'check_rate_limit', limit_action: 'signup' } });
           const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
