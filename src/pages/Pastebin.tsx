@@ -719,7 +719,7 @@ const Pastebin = () => {
                 </TabsContent>
 
                 <TabsContent value="options" className="space-y-4">
-                  {/* Anti-Fetch */}
+                  {/* Anti-Fetch (always on) */}
                   <div className="p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -727,22 +727,20 @@ const Pastebin = () => {
                         <div>
                           <h4 className="font-medium flex items-center gap-2">
                             Anti-Fetch
-                            <Badge variant="outline" className="text-[10px]">NEW</Badge>
+                            <Badge variant="outline" className="text-[10px]">ALWAYS ON</Badge>
                           </h4>
                           <p className="text-xs text-muted-foreground">
-                            Block setclipboard/raw fetch attempts
+                            Permanent protection — cannot be disabled
                           </p>
                         </div>
                       </div>
-                      <Switch
-                        checked={(selectedPaste as any)?.anti_fetch_enabled || false}
-                        onCheckedChange={(checked) => toggleAntiFetch(selectedPaste!.id, checked)}
-                      />
+                      <Badge className="text-[10px]">ENFORCED</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
-                      When enabled, setclipboard(game:HttpGet("url")) and raw fetch attempts will return 
-                      "Protected by ULT LUA" instead of the real code. Overrides key system too.
-                      Execution via loadstring() still works normally.
+                      Every paste is automatically protected. Raw fetch / setclipboard / HttpGet dumps
+                      receive a harmless manifest with trap links — visiting any of them permanently
+                      bans the fetcher's IP, subnet, device and Discord. Real loadstring execution
+                      still works normally.
                     </p>
                   </div>
 
@@ -1215,9 +1213,7 @@ const Pastebin = () => {
                             {paste.hide_code && (
                               <Badge variant="outline" className="text-[10px]">HIDDEN</Badge>
                             )}
-                            {(paste as any).anti_fetch_enabled && (
-                              <Badge variant="outline" className="text-[10px]">ANTI-FETCH</Badge>
-                            )}
+                            <Badge variant="outline" className="text-[10px]">ANTI-FETCH</Badge>
                             {(paste as any).execution_limit_enabled && (
                               <Badge variant="outline" className="text-[10px]">LIMIT</Badge>
                             )}
