@@ -2999,6 +2999,97 @@ if _ultUI.ok then
   _ultUI.close()
 end
 
+-- ============ PERSISTENT MONITOR BADGE ============
+-- Small green top-middle label that lives after the verification window closes,
+-- so users can see the runtime bypass monitor is still watching in the background.
+pcall(function()
+  local Players = game:GetService("Players")
+  local TweenService = game:GetService("TweenService")
+  local player = Players.LocalPlayer
+  if not player then return end
+  local pg = player:FindFirstChildOfClass("PlayerGui") or player:WaitForChild("PlayerGui", 5)
+  if not pg then return end
+  local old = pg:FindFirstChild("ULTMonitor")
+  if old then old:Destroy() end
+
+  local gui = Instance.new("ScreenGui")
+  gui.Name = "ULTMonitor"
+  gui.ResetOnSpawn = false
+  gui.IgnoreGuiInset = true
+  gui.DisplayOrder = 999999997
+  gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+  gui.Parent = pg
+
+  local badge = Instance.new("Frame", gui)
+  badge.AnchorPoint = Vector2.new(0.5, 0)
+  badge.Position = UDim2.new(0.5, 0, 0, 12)
+  badge.Size = UDim2.fromOffset(196, 28)
+  badge.BackgroundColor3 = Color3.fromRGB(232, 246, 236)
+  badge.BackgroundTransparency = 0.05
+  badge.BorderSizePixel = 0
+  Instance.new("UICorner", badge).CornerRadius = UDim.new(1, 0)
+  local stroke = Instance.new("UIStroke", badge)
+  stroke.Color = Color3.fromRGB(104, 190, 151)
+  stroke.Thickness = 1
+
+  local dot = Instance.new("Frame", badge)
+  dot.AnchorPoint = Vector2.new(0, 0.5)
+  dot.Position = UDim2.new(0, 12, 0.5, 0)
+  dot.Size = UDim2.fromOffset(8, 8)
+  dot.BackgroundColor3 = Color3.fromRGB(52, 168, 108)
+  dot.BorderSizePixel = 0
+  Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+
+  local label = Instance.new("TextLabel", badge)
+  label.AnchorPoint = Vector2.new(0.5, 0.5)
+  label.Position = UDim2.new(0.5, 8, 0.5, 0)
+  label.Size = UDim2.new(1, -32, 1, 0)
+  label.BackgroundTransparency = 1
+  label.Text = "ULT  •  MONITORING ACTIVE"
+  label.TextColor3 = Color3.fromRGB(28, 92, 62)
+  label.Font = Enum.Font.GothamBold
+  label.TextSize = 12
+  label.TextXAlignment = Enum.TextXAlignment.Center
+
+  -- Gentle pulse so the user sees it is live
+  task.spawn(function()
+    while gui.Parent do
+      TweenService:Create(dot, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { BackgroundTransparency = 0.55 }):Play()
+      task.wait(0.95)
+      TweenService:Create(dot, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { BackgroundTransparency = 0 }):Play()
+      task.wait(0.95)
+    end
+  end)
+end)
+
+-- ============ BACKGROUND BYPASS MONITOR ============
+-- Runs AFTER the verification UI unloads. Watches ONLY our own protection
+-- surface — loader integrity, environment/loadstring hooks, canary tripwires.
+-- We do NOT scan the paste's source for words like "writefile"/"hookfunction",
+-- because those are legitimate APIs innocent scripts use all the time.
+-- Only actual hook/logger/exfil BEHAVIOR against the loader itself trips this.
+task.spawn(function()
+  local checks = {
+    { name = "monitor_hook",   fn = function() return ${v.antiHook}() end,   reason = "runtime_loadstring_hook_after_load" },
+    { name = "monitor_envlog", fn = function() return ${v.antiEnvLog}() end, reason = "runtime_env_logger_after_load" },
+    { name = "monitor_logger", fn = function() return ${v.antiLogger}() end, reason = "runtime_logger_after_load" },
+    { name = "monitor_dump",   fn = function() return ${v.antiDump}() end,   reason = "runtime_dump_tool_after_load" },
+  }
+  -- Give the payload ~2s to initialize (avoids flagging its own boot code)
+  task.wait(2)
+  for _ = 1, 30 do -- ~60s of monitoring, then rely on ghost traps/canaries
+    for _, c in ipairs(checks) do
+      local ok, clean = pcall(c.fn)
+      if ok and clean == false then
+        pcall(function() _reportBypass(c.name, c.reason) end)
+      end
+    end
+    task.wait(2)
+  end
+end)
+
+
+
 
 
 -- Execute HTTP request
