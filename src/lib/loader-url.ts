@@ -46,12 +46,11 @@ export const probeLoaderHost = async () => {
   }
 };
 
-/** Public link used for both display and execution. */
+/** Public link used for both display and execution — always the live website. */
 export const getLoaderUrl = (slug: string) => {
   const encoded = encodeURIComponent(slug);
   const origin = getSiteOrigin();
-  if (origin && siteForwards()) return `${origin}/s/${encoded}`;
-  return `${DELIVERY_BASE}/s/${encoded}`;
+  return origin ? `${origin}/s/${encoded}` : `${DELIVERY_BASE}/s/${encoded}`;
 };
 
 export const getLoaderOrigin = getSiteOrigin;
