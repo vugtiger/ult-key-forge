@@ -18,15 +18,6 @@ export const getSiteOrigin = () => {
   return "";
 };
 
-/** True only when this host is proven to forward /s/:slug to the delivery service. */
-const siteForwards = () => {
-  if (typeof window === "undefined") return false;
-  try {
-    return localStorage.getItem(`${STORAGE_KEY}:${window.location.origin}`) === "yes";
-  } catch {
-    return false;
-  }
-};
 
 /**
  * Checks once per session whether the current website forwards /s/:slug.
