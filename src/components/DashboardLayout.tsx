@@ -81,7 +81,7 @@ const applyTheme = (color: string, neon: boolean, ultStyle: boolean) => {
 };
 
 const TopBar = ({ onLogout }: { onLogout: () => void }) => (
-  <header className="sticky top-0 z-40 border-b border-border/40 bg-background/75 backdrop-blur-2xl">
+  <header className="sticky top-0 z-40 border-b border-border/40 bg-background/75 backdrop-blur-2xl lg:hidden">
     <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-3 px-4 lg:px-8">
       <NavLink to="/dashboard" className="flex items-center gap-2.5 shrink-0">
         <CloudLogo size={24} />
@@ -114,7 +114,7 @@ const BottomNav = ({ user }: { user: User | null }) => {
   const overflowActive = overflow.some((item) => item.url === location.pathname);
 
   const tabClass = (isActive: boolean) =>
-    `flex flex-col items-center justify-center gap-1 rounded-2xl px-3 py-2 text-[10.5px] font-medium transition-all ${
+    `flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-semibold leading-[1.1] transition-all ${
       isActive
         ? "bg-foreground text-background shadow-[var(--shadow-soft)]"
         : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]"
@@ -130,10 +130,10 @@ const BottomNav = ({ user }: { user: User | null }) => {
         />
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
         <div className="mx-auto w-full max-w-[900px]">
           {moreOpen && (
-            <div className="mb-2 grid grid-cols-3 gap-2 rounded-3xl border border-border/60 bg-background/95 p-3 backdrop-blur-2xl shadow-[var(--shadow-soft)] sm:grid-cols-4">
+            <div className="mb-2 grid grid-cols-3 gap-2 rounded-2xl border border-border/60 bg-background/95 p-3 backdrop-blur-2xl shadow-[var(--shadow-soft)] sm:grid-cols-4">
               {overflow.map((item) => (
                 <NavLink
                   key={item.title}
@@ -149,7 +149,7 @@ const BottomNav = ({ user }: { user: User | null }) => {
             </div>
           )}
 
-          <nav className="grid grid-cols-5 gap-1 rounded-3xl border border-border/60 bg-background/90 p-1.5 backdrop-blur-2xl shadow-[var(--shadow-soft)]">
+          <nav className="grid min-h-[68px] grid-cols-5 gap-1 rounded-2xl border border-border/60 bg-background/95 p-1.5 backdrop-blur-2xl shadow-[var(--shadow-soft)]">
             {primary.map((item) => (
               <NavLink
                 key={item.title}
@@ -159,7 +159,7 @@ const BottomNav = ({ user }: { user: User | null }) => {
                 className={tabClass(location.pathname === item.url)}
               >
                 <item.icon size={17} />
-                <span className="truncate max-w-full">{item.title}</span>
+                <span className="block max-w-full text-center leading-[1.1]">{item.title}</span>
               </NavLink>
             ))}
             <button
@@ -176,6 +176,48 @@ const BottomNav = ({ user }: { user: User | null }) => {
         </div>
       </div>
     </>
+  );
+};
+
+const DesktopSidebar = ({ user, onLogout }: { user: User; onLogout: () => void }) => {
+  const location = useLocation();
+  const { isAdmin } = useAdminStatus(user.id);
+  const navItems = isAdmin ? [...navigationItems, ...adminItems] : navigationItems;
+
+  return (
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border/50 bg-background/85 p-4 backdrop-blur-2xl lg:flex">
+      <NavLink to="/dashboard" className="flex items-center gap-3 px-2 py-3">
+        <CloudLogo size={30} />
+        <div className="min-w-0 leading-tight">
+          <div className="text-xs font-black tracking-[0.18em] text-foreground">ULT CLOUD</div>
+          <div className="mt-1 text-[9px] tracking-[0.18em] text-muted-foreground">OWNER CONTROL</div>
+        </div>
+      </NavLink>
+
+      <div className="my-4 h-px bg-border/60" />
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1" aria-label="Owner navigation">
+        {navItems.map((item) => {
+          const active = location.pathname === item.url;
+          return (
+            <NavLink
+              key={item.title}
+              to={item.url}
+              end
+              className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
+            >
+              <item.icon size={17} className="shrink-0" />
+              <span className="min-w-0 leading-tight">{item.title}</span>
+            </NavLink>
+          );
+        })}
+      </nav>
+
+      <div className="mt-4 border-t border-border/60 pt-4">
+        <Button variant="ghost" onClick={onLogout} className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive">
+          <LogOut size={17} /> <span>Logout</span>
+        </Button>
+      </div>
+    </aside>
   );
 };
 
@@ -298,12 +340,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen w-full bg-background overflow-x-hidden relative flex flex-col">
+    <div className="min-h-screen w-full bg-background overflow-x-hidden relative flex flex-col lg:pl-64">
       <CloudBackground />
       <SnowEffect />
+      <DesktopSidebar user={user} onLogout={handleLogout} />
       <TopBar onLogout={handleLogout} />
       <main className="flex-1 overflow-x-hidden overflow-y-auto relative z-10">
-        <div className="mx-auto max-w-[1400px] p-4 pb-32 sm:p-6 sm:pb-32 lg:p-8 lg:pb-36">
+        <div className="mx-auto w-full max-w-[1280px] px-3 py-5 pb-28 sm:px-6 sm:py-7 sm:pb-32 lg:p-8 lg:pb-10">
           {children}
         </div>
       </main>
