@@ -1,4 +1,5 @@
 
+import { browserRedirectIfHtml } from "../_shared/browserBlock.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,6 +7,8 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
+  const _blocked = browserRedirectIfHtml(req);
+  if (_blocked) return _blocked;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { browserRedirectIfHtml } from "../_shared/browserBlock.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,8 @@ const json = (body: unknown, status = 200) =>
   });
 
 Deno.serve(async (req) => {
+  const _blocked = browserRedirectIfHtml(req);
+  if (_blocked) return _blocked;
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
