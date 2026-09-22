@@ -454,7 +454,7 @@ const AdminDashboard = () => {
               ) : (
                 <div className="divide-y divide-border/10">
                   {threats.map(threat => (
-                    <div key={threat.id} className={`flex items-start justify-between gap-4 p-5 transition-colors ${threat.resolved ? 'opacity-40' : 'hover:bg-muted/5'}`}>
+                    <div key={threat.id} className={`flex min-w-0 flex-col gap-4 p-4 transition-colors sm:flex-row sm:items-start sm:justify-between sm:p-5 ${threat.resolved ? 'opacity-40' : 'hover:bg-muted/5'}`}>
                       <div className="space-y-2 flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${severityColor(threat.severity)}`}>
@@ -472,7 +472,7 @@ const AdminDashboard = () => {
                         <p className="text-[11px] text-muted-foreground/40">{new Date(threat.created_at).toLocaleString()}</p>
                       </div>
                       {!threat.resolved && (
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-shrink-0">
                           <Button size="sm" variant="ghost" onClick={() => handleResolveThreat(threat.id)} className="text-xs h-8 text-muted-foreground hover:text-green-400">
                             <ShieldCheck className="h-3.5 w-3.5 mr-1" />Resolve
                           </Button>
@@ -493,17 +493,17 @@ const AdminDashboard = () => {
             {/* Add ban form */}
             <Section>
               <SectionHeader icon={Ban} title="Add Global Ban" subtitle="Block IPs, subnets, Roblox IDs, or Discord IDs site-wide" />
-              <div className="p-6 space-y-3">
-                <div className="flex flex-wrap gap-3">
-                  <select value={newBanType} onChange={e => setNewBanType(e.target.value)} className="bg-background/50 border border-border/20 rounded-lg px-3 py-2.5 text-sm min-w-[160px] focus:outline-none focus:ring-1 focus:ring-primary/30">
+              <div className="space-y-3 p-4 sm:p-5">
+                <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                  <select value={newBanType} onChange={e => setNewBanType(e.target.value)} className="h-10 w-full min-w-0 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary/30">
                     <option value="ip">IP Address</option>
                     <option value="subnet">Subnet</option>
                     <option value="roblox_id">Roblox User ID</option>
                     <option value="discord_id">Discord User ID</option>
                   </select>
-                  <Input placeholder="Value to ban..." value={newBanValue} onChange={e => setNewBanValue(e.target.value)} className="flex-1 min-w-[200px] bg-background/50 border-border/20" />
-                  <Input placeholder="Reason (optional)" value={newBanReason} onChange={e => setNewBanReason(e.target.value)} className="flex-1 min-w-[150px] bg-background/50 border-border/20" />
-                  <Button onClick={handleAddGlobalBan} className="bg-red-500/10 text-red-400 hover:bg-red-500/20 border-0 gap-2">
+                  <Input placeholder="Value to ban..." value={newBanValue} onChange={e => setNewBanValue(e.target.value)} className="min-w-0" />
+                  <Input placeholder="Reason (optional)" value={newBanReason} onChange={e => setNewBanReason(e.target.value)} className="min-w-0" />
+                  <Button onClick={handleAddGlobalBan} className="w-full gap-2 md:w-auto">
                     <Ban className="h-4 w-4" />Add Ban
                   </Button>
                 </div>
@@ -523,8 +523,8 @@ const AdminDashboard = () => {
               ) : (
                 <div className="divide-y divide-border/10">
                   {globalBans.filter(b => b.is_active).map(ban => (
-                    <div key={ban.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-muted/5 transition-colors">
-                      <div className="flex items-center gap-3 min-w-0">
+                    <div key={ban.id} className="flex min-w-0 items-center justify-between gap-3 p-4 transition-colors hover:bg-muted/5 sm:px-5">
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
                         <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${banTypeColor(ban.ban_type)}`}>
                           {ban.ban_type.replace('_', ' ')}
                         </span>
@@ -554,7 +554,7 @@ const AdminDashboard = () => {
               ) : (
                 <div className="divide-y divide-border/10">
                   {filteredUsers.map(user => (
-                    <div key={user.id} className={`flex items-start justify-between gap-4 px-6 py-4 transition-colors hover:bg-muted/5 ${user.is_banned ? 'bg-red-500/3' : ''}`}>
+                    <div key={user.id} className={`flex min-w-0 flex-col gap-4 p-4 transition-colors hover:bg-muted/5 sm:flex-row sm:items-start sm:justify-between sm:px-5 ${user.is_banned ? 'bg-destructive/5' : ''}`}>
                       <div className="space-y-1.5 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-medium truncate">{user.email}</p>
@@ -568,7 +568,7 @@ const AdminDashboard = () => {
                           <span>·</span>
                           <span>Last {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'Never'}</span>
                         </div>
-                        <p className="text-[10px] text-muted-foreground/25 font-mono">{user.id}</p>
+                        <p className="break-all font-mono text-[10px] text-muted-foreground/50">{user.id}</p>
                         {user.ip_addresses.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-1">
                             {user.ip_addresses.map((ip, idx) => (
@@ -580,15 +580,15 @@ const AdminDashboard = () => {
                         )}
                         {user.ban_reason && <p className="text-[11px] text-red-400/60 mt-1">Reason: {user.ban_reason}</p>}
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-shrink-0">
                         {user.is_banned ? (
                           <Button size="sm" variant="ghost" onClick={() => handleUnbanUser(user.id)} className="text-xs h-8 text-muted-foreground hover:text-green-400">
                             <Unlock className="h-3.5 w-3.5 mr-1" />Unban
                           </Button>
                         ) : (
                           selectedUserId === user.id ? (
-                            <div className="flex items-center gap-2">
-                              <Input placeholder="Reason..." value={banReason} onChange={e => setBanReason(e.target.value)} className="text-xs h-8 w-28 bg-background/50 border-border/20" />
+                            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:flex-initial">
+                              <Input placeholder="Reason..." value={banReason} onChange={e => setBanReason(e.target.value)} className="h-8 min-w-[130px] flex-1 text-xs sm:w-40 sm:flex-none" />
                               <Button size="sm" onClick={() => handleBanUser(user.id)} className="text-xs h-8 bg-red-500/10 text-red-400 hover:bg-red-500/20 border-0">Ban</Button>
                               <Button size="sm" variant="ghost" onClick={() => { setSelectedUserId(null); setBanReason(""); }} className="text-xs h-8">✕</Button>
                             </div>
@@ -616,8 +616,8 @@ const AdminDashboard = () => {
               <SearchBar value={pasteSearch} onChange={setPasteSearch} placeholder="Search by title, slug, or owner..." onRefresh={fetchPastes} />
               <div className="divide-y divide-border/10">
                 {filteredPastes.map(paste => (
-                  <div key={paste.id} className="px-6 py-4 hover:bg-muted/5 transition-colors">
-                    <div className="flex items-start justify-between gap-4">
+                  <div key={paste.id} className="p-4 transition-colors hover:bg-muted/5 sm:px-5">
+                    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="space-y-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium truncate">{paste.title || paste.slug}</p>
@@ -627,7 +627,7 @@ const AdminDashboard = () => {
                             <Unlock className="h-3 w-3 text-muted-foreground/30" />
                           )}
                         </div>
-                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground/40">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
                           <span className="font-mono">{paste.slug}</span>
                           <span>·</span>
                           <span>{paste.owner_email}</span>
@@ -635,7 +635,7 @@ const AdminDashboard = () => {
                           <span>{new Date(paste.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-1 self-end sm:flex-shrink-0 sm:self-auto">
                         <Button size="sm" variant="ghost" onClick={() => setExpandedPaste(expandedPaste === paste.id ? null : paste.id)} className="h-8 w-8 p-0 text-muted-foreground/40">
                           {expandedPaste === paste.id ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                         </Button>
@@ -663,7 +663,7 @@ const AdminDashboard = () => {
               ) : (
                 <div className="divide-y divide-border/10">
                   {filteredLogs.slice(0, 100).map(log => (
-                    <div key={log.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-muted/5 transition-colors text-xs">
+                    <div key={log.id} className="flex min-w-0 items-center justify-between gap-3 p-4 text-xs transition-colors hover:bg-muted/5 sm:px-5">
                       <div className="space-y-1 flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-mono text-foreground/70">{log.ip_address}</span>
@@ -699,10 +699,10 @@ const AdminDashboard = () => {
               ) : (
                 <div className="divide-y divide-border/10">
                   {filteredSessions.map(s => (
-                    <div key={s.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-muted/5 transition-colors">
-                      <div className="space-y-0.5">
-                        <p className="text-sm font-medium">{s.user_email}</p>
-                        <p className="text-[11px] text-muted-foreground/40 font-mono">{s.ip_address || 'No IP'} · Last active {new Date(s.last_active).toLocaleString()}</p>
+                    <div key={s.id} className="min-w-0 p-4 transition-colors hover:bg-muted/5 sm:px-5">
+                      <div className="min-w-0 space-y-1">
+                        <p className="break-all text-sm font-medium">{s.user_email}</p>
+                        <p className="break-words font-mono text-[11px] text-muted-foreground">{s.ip_address || 'No IP'} · Last active {new Date(s.last_active).toLocaleString()}</p>
                       </div>
                     </div>
                   ))}
@@ -721,9 +721,9 @@ const AdminDashboard = () => {
               ) : (
                 <div className="divide-y divide-border/10">
                   {filteredActivity.slice(0, 100).map(a => (
-                    <div key={a.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-muted/5 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <p className="text-sm font-medium">{a.user_email}</p>
+                    <div key={a.id} className="flex min-w-0 flex-col gap-2 p-4 transition-colors hover:bg-muted/5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+                        <p className="break-all text-sm font-medium">{a.user_email}</p>
                         <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-md bg-muted/10 text-muted-foreground/50">{a.activity_type}</span>
                       </div>
                       <span className="text-[11px] text-muted-foreground/30">{new Date(a.created_at).toLocaleString()}</span>
@@ -764,7 +764,7 @@ const AdminDashboard = () => {
                   {bannedAccounts
                     .filter(a => a.email?.toLowerCase().includes(bannedAccountSearch.toLowerCase()) || a.username?.toLowerCase().includes(bannedAccountSearch.toLowerCase()) || a.ban_reason?.toLowerCase().includes(bannedAccountSearch.toLowerCase()))
                     .map(account => (
-                    <div key={account.id} className="flex items-start justify-between gap-4 px-6 py-4 hover:bg-muted/5 transition-colors">
+                    <div key={account.id} className="flex min-w-0 flex-col gap-4 p-4 transition-colors hover:bg-muted/5 sm:flex-row sm:items-start sm:justify-between sm:px-5">
                       <div className="space-y-1.5 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-medium truncate">{account.email}</p>
@@ -774,9 +774,9 @@ const AdminDashboard = () => {
                         {account.discord_username && <p className="text-xs text-muted-foreground/50">Discord: {account.discord_username}</p>}
                         {account.ban_reason && <p className="text-[11px] text-red-400/60 mt-1">Reason: {account.ban_reason}</p>}
                         {account.banned_at && <p className="text-[10px] text-muted-foreground/30">Banned: {new Date(account.banned_at).toLocaleString()}</p>}
-                        <p className="text-[10px] text-muted-foreground/25 font-mono">{account.id}</p>
+                        <p className="break-all font-mono text-[10px] text-muted-foreground/50">{account.id}</p>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-shrink-0">
                         <Button size="sm" variant="ghost" onClick={async () => {
                           try {
                             await adminCall('unban_user', { target_user_id: account.id });
