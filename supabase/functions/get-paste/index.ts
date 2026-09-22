@@ -2541,10 +2541,7 @@ if not ${v.antiEnvLog}() then _reportBypass("pre_fetch_env", "env_logger_before_
 if not ${v.verified} then _reportBypass("ls_unverified", "loadstring_integrity_failed") end
 if ${v.hookcheckLS} and not ${v.clonedLS} then _reportBypass("ls_hooked_no_clone", "hookcheck_true_no_fallback") end
 
-${`
--- Developer-console feedback. Always runs so the loader reports progress on every executor.
--- rconsole is used as an extra surface when the executor supports it.
-
+-- ULT verification window + developer-console loading bar (always runs, real checks)
 _G._ULT_IS_MOBILE = false
 pcall(function()
   local _uis = game:GetService("UserInputService")
@@ -2562,53 +2559,356 @@ local _rPrint = rconsoleprint or rconsoleinfo or rconsolewarn or function() end
 local _rClear = rconsoleclear or function() end
 local _rName  = rconsolename or rconsolesettitle or function() end
 
--- Developer-console banner + live progress (works on every executor via print/warn).
 pcall(function()
-  print("==================================================")
-  print("   U L T   S Y S T E M   -   INITIALIZATION")
-  print("==================================================")
+  print([[
++==============================================+
+|                                              |
+|   ##   ##  ##   ########                     |
+|   ##   ##  ##      ##                        |
+|   ##   ##  ##      ##                        |
+|   #######  ######  ##                        |
+|                                              |
+|          U L T   S Y S T E M                 |
+|          INITIALIZATION                      |
+|                                              |
++==============================================+
+]])
 end)
-
-local _ultBarLen = 30
-local _ultPhases = {
-  { target = 18, label = "scanning environment" },
-  { target = 36, label = "verifying integrity" },
-  { target = 55, label = "checking signatures" },
-  { target = 74, label = "authenticating" },
-  { target = 92, label = "preparing payload" },
-}
 
 if _hasRConsole and not _G._ULT_IS_MOBILE then
   pcall(function() _rName("ULT Loader") _rClear() end)
 end
 
+-- Hide stale loading entries from previous runs
 pcall(function()
-  local _cur = 0
-  for _, ph in ipairs(_ultPhases) do
-    local _from, _to, _frames = _cur, ph.target, 6
-    for i = 1, _frames do
-      local _t = i / _frames
-      local _eased = 1 - (1 - _t) ^ 3
-      local _pct = math.floor(_from + (_to - _from) * _eased)
-      local _filled = math.floor((_pct / 100) * _ultBarLen)
-      local _line = string.format("ULT | Loading: [%s%s] %d%% - %s",
-        string.rep("#", _filled), string.rep("-", _ultBarLen - _filled), _pct, ph.label)
-      print(_line)
-      if _hasRConsole and not _G._ULT_IS_MOBILE then
-        pcall(function() _rClear() _rPrint(_line .. "\\n") end)
-      end
-      task.wait(0.02)
+  local _cg = game:GetService("CoreGui")
+  for _, v in ipairs(_cg:GetDescendants()) do
+    if v:IsA("TextLabel") and typeof(v.Text) == "string" and v.Text:find("Loading:", 1, true) then
+      v.Visible = false
     end
-    _cur = _to
-  end
-  local _done = "ULT | Loaded! [" .. string.rep("#", _ultBarLen) .. "] 100%"
-  print(_done)
-  if _hasRConsole and not _G._ULT_IS_MOBILE then
-    pcall(function() _rClear() _rPrint(_done .. "\\n") end)
   end
 end)
 
-`}
+print("Loading:")
+task.wait(0.15)
+
+-- ============ ON-SCREEN VERIFICATION WINDOW ============
+local _ultUI = { ok = false }
+pcall(function()
+  local Players = game:GetService("Players")
+  local TweenService = game:GetService("TweenService")
+  local player = Players.LocalPlayer
+  if not player then return end
+  local pg = player:FindFirstChildOfClass("PlayerGui") or player:WaitForChild("PlayerGui", 5)
+  if not pg then return end
+
+  local old = pg:FindFirstChild("ULTVerification")
+  if old then old:Destroy() end
+
+  local ACCENT = Color3.fromRGB(104, 190, 151)
+  local INK = Color3.fromRGB(20, 32, 30)
+  local MUTED = Color3.fromRGB(110, 132, 126)
+  local SURFACE = Color3.fromRGB(250, 253, 251)
+  local SOFT = Color3.fromRGB(231, 244, 237)
+  local BORDER = Color3.fromRGB(211, 228, 219)
+  local BAD = Color3.fromRGB(205, 75, 75)
+
+  local gui = Instance.new("ScreenGui")
+  gui.Name = "ULTVerification"
+  gui.ResetOnSpawn = false
+  gui.IgnoreGuiInset = true
+  gui.DisplayOrder = 999999998
+  gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+  gui.Parent = pg
+
+  local shade = Instance.new("Frame", gui)
+  shade.Size = UDim2.fromScale(1, 1)
+  shade.BackgroundColor3 = Color3.fromRGB(15, 24, 22)
+  shade.BackgroundTransparency = 0.45
+  shade.BorderSizePixel = 0
+  shade.ZIndex = 1
+
+  local window = Instance.new("Frame", gui)
+  window.AnchorPoint = Vector2.new(0.5, 0.5)
+  window.Position = UDim2.fromScale(0.5, 0.5)
+  window.Size = UDim2.fromOffset(460, 330)
+  window.BackgroundColor3 = SURFACE
+  window.BorderSizePixel = 0
+  window.ClipsDescendants = true
+  window.BackgroundTransparency = 1
+  window.ZIndex = 3
+  Instance.new("UICorner", window).CornerRadius = UDim.new(0, 22)
+  local stroke = Instance.new("UIStroke", window)
+  stroke.Color = BORDER
+  stroke.Thickness = 1
+  stroke.Transparency = 1
+
+  local uiscale = Instance.new("UIScale", window)
+  uiscale.Scale = 0.94
+  pcall(function()
+    local cam = workspace.CurrentCamera
+    local function fit()
+      local vp = (cam and cam.ViewportSize) or Vector2.new(1280, 720)
+      uiscale.Scale = math.clamp(math.min((vp.X - 24) / 460, (vp.Y - 24) / 330), 0.5, 1)
+    end
+    fit()
+    if cam then cam:GetPropertyChangedSignal("ViewportSize"):Connect(fit) end
+  end)
+
+  local monitor = Instance.new("TextLabel", window)
+  monitor.Size = UDim2.new(1, 0, 0, 34)
+  monitor.BackgroundColor3 = SOFT
+  monitor.BorderSizePixel = 0
+  monitor.Text = "Monitoring by ULT"
+  monitor.TextColor3 = ACCENT
+  monitor.Font = Enum.Font.GothamBold
+  monitor.TextSize = 12
+  monitor.ZIndex = 6
+
+  local title = Instance.new("TextLabel", window)
+  title.Position = UDim2.fromOffset(28, 52)
+  title.Size = UDim2.new(1, -56, 0, 28)
+  title.BackgroundTransparency = 1
+  title.Text = "ULT CLOUD"
+  title.TextColor3 = INK
+  title.Font = Enum.Font.GothamBlack
+  title.TextSize = 22
+  title.TextXAlignment = Enum.TextXAlignment.Left
+  title.ZIndex = 6
+
+  local sub = Instance.new("TextLabel", window)
+  sub.Position = UDim2.fromOffset(28, 80)
+  sub.Size = UDim2.new(1, -56, 0, 18)
+  sub.BackgroundTransparency = 1
+  sub.Text = "Running security verification"
+  sub.TextColor3 = MUTED
+  sub.Font = Enum.Font.GothamMedium
+  sub.TextSize = 12
+  sub.TextXAlignment = Enum.TextXAlignment.Left
+  sub.ZIndex = 6
+
+  local track = Instance.new("Frame", window)
+  track.Position = UDim2.fromOffset(28, 112)
+  track.Size = UDim2.new(1, -56, 0, 10)
+  track.BackgroundColor3 = SOFT
+  track.BorderSizePixel = 0
+  track.ZIndex = 6
+  Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+  local fill = Instance.new("Frame", track)
+  fill.Size = UDim2.new(0, 0, 1, 0)
+  fill.BackgroundColor3 = ACCENT
+  fill.BorderSizePixel = 0
+  fill.ZIndex = 7
+  Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+  local pct = Instance.new("TextLabel", window)
+  pct.AnchorPoint = Vector2.new(1, 0)
+  pct.Position = UDim2.new(1, -28, 0, 78)
+  pct.Size = UDim2.fromOffset(60, 20)
+  pct.BackgroundTransparency = 1
+  pct.Text = "0%"
+  pct.TextColor3 = ACCENT
+  pct.Font = Enum.Font.GothamBold
+  pct.TextSize = 13
+  pct.TextXAlignment = Enum.TextXAlignment.Right
+  pct.ZIndex = 6
+
+  local list = Instance.new("Frame", window)
+  list.Position = UDim2.fromOffset(28, 140)
+  list.Size = UDim2.new(1, -56, 0, 160)
+  list.BackgroundTransparency = 1
+  list.ZIndex = 6
+  local layout = Instance.new("UIListLayout", list)
+  layout.Padding = UDim.new(0, 6)
+  layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+  local rows = {}
+  local order = 0
+  local function row(id, text)
+    order = order + 1
+    local item = Instance.new("Frame", list)
+    item.Size = UDim2.new(1, 0, 0, 24)
+    item.BackgroundColor3 = SOFT
+    item.BackgroundTransparency = 0.35
+    item.BorderSizePixel = 0
+    item.LayoutOrder = order
+    item.ZIndex = 6
+    Instance.new("UICorner", item).CornerRadius = UDim.new(0, 8)
+    local label = Instance.new("TextLabel", item)
+    label.Position = UDim2.fromOffset(10, 0)
+    label.Size = UDim2.new(1, -70, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = INK
+    label.Font = Enum.Font.GothamMedium
+    label.TextSize = 12
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 7
+    local state = Instance.new("TextLabel", item)
+    state.AnchorPoint = Vector2.new(1, 0)
+    state.Position = UDim2.new(1, -10, 0, 0)
+    state.Size = UDim2.fromOffset(60, 24)
+    state.BackgroundTransparency = 1
+    state.Text = "..."
+    state.TextColor3 = MUTED
+    state.Font = Enum.Font.GothamBold
+    state.TextSize = 11
+    state.TextXAlignment = Enum.TextXAlignment.Right
+    state.ZIndex = 7
+    rows[id] = state
+  end
+
+  row("env", "Scanning environment")
+  row("integrity", "Verifying loader integrity")
+  row("sign", "Checking signatures")
+  row("auth", "Authenticating session")
+  row("payload", "Preparing payload")
+
+  TweenService:Create(window, TweenInfo.new(0.25), { BackgroundTransparency = 0 }):Play()
+  TweenService:Create(stroke, TweenInfo.new(0.25), { Transparency = 0 }):Play()
+
+  _ultUI.ok = true
+  _ultUI.progress = function(value, label)
+    pcall(function()
+      TweenService:Create(fill, TweenInfo.new(0.18), { Size = UDim2.new(value / 100, 0, 1, 0) }):Play()
+      pct.Text = tostring(math.floor(value)) .. "%"
+      if label then sub.Text = label end
+    end)
+  end
+  _ultUI.mark = function(id, passed)
+    pcall(function()
+      local state = rows[id]
+      if not state then return end
+      state.Text = passed and "PASS" or "BLOCKED"
+      state.TextColor3 = passed and ACCENT or BAD
+    end)
+  end
+  _ultUI.close = function()
+    pcall(function()
+      TweenService:Create(window, TweenInfo.new(0.28), { BackgroundTransparency = 1 }):Play()
+      TweenService:Create(stroke, TweenInfo.new(0.28), { Transparency = 1 }):Play()
+      TweenService:Create(shade, TweenInfo.new(0.28), { BackgroundTransparency = 1 }):Play()
+      TweenService:Create(uiscale, TweenInfo.new(0.28), { Scale = uiscale.Scale * 0.96 }):Play()
+      task.delay(0.34, function() pcall(function() gui:Destroy() end) end)
+    end)
+  end
+end)
+
+-- ============ REAL CHECKS DRIVING THE BAR ============
+local _ultBarLen = 30
+local _ultLabel = ""
+local function _ultBar(value)
+  local filled = math.floor(value / 100 * _ultBarLen)
+  local text = string.format("ULT | Loading: [%s%s] %d%%%s",
+    string.rep("#", filled), string.rep("-", _ultBarLen - filled), value,
+    _ultLabel ~= "" and (" - " .. _ultLabel) or "")
+  print(text)
+  if _hasRConsole and not _G._ULT_IS_MOBILE then
+    pcall(function() _rClear() _rPrint(text .. "\\n") end)
+  end
+  pcall(function()
+    local _cg = game:GetService("CoreGui")
+    for _, v in ipairs(_cg:GetDescendants()) do
+      if v:IsA("TextLabel") and typeof(v.Text) == "string" and v.Text:find("ULT | Loading:", 1, true) then
+        v.Text = text
+      end
+    end
+  end)
+  if _ultUI.ok then _ultUI.progress(value, _ultLabel) end
+end
+
+local _ultStages = {
+  {
+    id = "env", label = "scanning environment", target = 20,
+    run = function()
+      local clean = ${v.antiEnvLog}()
+      if not clean then _reportBypass("verify_env", "env_logger_detected") end
+      return clean
+    end,
+  },
+  {
+    id = "integrity", label = "verifying integrity", target = 45,
+    run = function()
+      local clean = ${v.antiHook}()
+      if not clean then _reportBypass("verify_hook", "hook_detected_during_verification") end
+      return clean
+    end,
+  },
+  {
+    id = "sign", label = "checking signatures", target = 65,
+    run = function()
+      local clean = ${v.verified} and true or false
+      if not clean then _reportBypass("verify_ls", "loadstring_integrity_failed") end
+      pcall(function()
+        if hookcheck and hookcheck(${v.cleanLS}) then
+          clean = false
+          _reportBypass("verify_cleanls", "clean_loadstring_hooked")
+        end
+      end)
+      return clean
+    end,
+  },
+  {
+    id = "auth", label = "authenticating", target = 85,
+    run = function()
+      local ok = type(fp) == "table" and fp.u ~= nil and tk ~= nil and tk ~= ""
+      return ok and true or false
+    end,
+  },
+  {
+    id = "payload", label = "preparing payload", target = 100,
+    run = function() return true end,
+  },
+}
+
+local _cur = 0
+for _, stage in ipairs(_ultStages) do
+  _ultLabel = stage.label
+  local passed = true
+  local okCall, result = pcall(stage.run)
+  if okCall then passed = result and true or false end
+  local from, to, frames = _cur, stage.target, 5
+  for i = 1, frames do
+    local t = i / frames
+    local eased = 1 - (1 - t) ^ 3
+    _ultBar(math.floor(from + (to - from) * eased))
+    task.wait(0.03)
+  end
+  _cur = to
+  if _ultUI.ok then _ultUI.mark(stage.id, passed) end
+end
+
+-- Flash confirmation like the console entry, then close the window
+pcall(function()
+  for _ = 1, 3 do
+    if _hasRConsole and not _G._ULT_IS_MOBILE then
+      pcall(function() _rClear() _rPrint("ULT | Loading: [" .. string.rep("#", _ultBarLen) .. "] 100%\\n") end)
+    end
+    task.wait(0.12)
+  end
+end)
+
+local _done = "ULT | Loaded! [" .. string.rep("#", _ultBarLen) .. "] 100%"
+print(_done)
+if _hasRConsole and not _G._ULT_IS_MOBILE then
+  pcall(function() _rClear() _rPrint(_done .. "\\n") end)
+end
+pcall(function()
+  local _cg = game:GetService("CoreGui")
+  for _, v in ipairs(_cg:GetDescendants()) do
+    if v:IsA("TextLabel") and typeof(v.Text) == "string" and v.Text:find("ULT | Loading:", 1, true) then
+      v.Text = _done
+      v.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end
+  end
+end)
+if _ultUI.ok then
+  _ultUI.progress(100, "verification complete")
+  task.wait(0.2)
+  _ultUI.close()
+end
+
 
 
 -- Execute HTTP request
