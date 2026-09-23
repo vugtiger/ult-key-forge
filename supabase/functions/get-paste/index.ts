@@ -3213,7 +3213,8 @@ if s and r then
 
     if ${v.execFunc} then
       local _co = coroutine.create(function() return ${v.execFunc}() end)
-      coroutine.resume(_co)
+      local _runOk, _runErr = coroutine.resume(_co)
+      if not _runOk then warn("[ULT] Script error: " .. tostring(_runErr)) end
       ${v.execFunc} = nil
       _co = nil
 
@@ -3295,7 +3296,8 @@ if s and r then
       local execCo = coroutine.create(function()
         return ${v.execFunc}()
       end)
-      local execOk = coroutine.resume(execCo)
+      local execOk, execRunErr = coroutine.resume(execCo)
+      if not execOk then warn("[ULT] Script error: " .. tostring(execRunErr)) end
       ${v.execFunc} = nil
       execCo = nil
       
@@ -5122,44 +5124,7 @@ end`;
       }
     }
 
-    // ===== GLOBAL ANTI-FETCH PROTECTION =====
-    // This runs for ALL paste types (protected, public-protection, non-protected).
-    // When anti_fetch_enabled is on and there's no execution context (no uid, no tk, no kbt, no key),
-    // return a mini loader. setclipboard copies "-- Protected by ULT LUA" (useless).
-    // loadstring executes the loader which re-fetches with uid to get the real content.
-    if (paste.anti_fetch_enabled && !uid && !tk && !kbt && !keyParam && !isLikelyBrowser) {
-      console.log(`[get-paste] ANTI-FETCH: returning trap-baited mini loader slug=${slug} ip=${clientIp}`);
-      // Trap URL is embedded as fake "source" comments. If the caller copied the
-      // fetch result (setclipboard / writefile / dumper) instead of executing it,
-      // any human or bot that follows the link is permanently banned at /trap/.
-      // If the caller DID execute the response, the mini-loader below re-fetches
-      // with uid and never touches the trap URL, so legitimate loadstring works.
-      const trapToken = generateToken().slice(0, 24);
-      const trapUrlSupabase = `${baseUrl.replace(/\/get-paste.*$/, '')}/get-paste/source/${trapToken}`;
-      const siteHost = Deno.env.get('PUBLIC_SITE_URL')?.replace(/\/+$/, '')
-        || 'https://ultluacodeprotectsyourluacode.onrender.com';
-      const trapUrlDomain = `${siteHost}/s/source_${trapToken}`;
-      const miniLoader = `-- ULT LUA Protected Script
--- Redistribution prohibited. Source is bound to the original loader.
--- Source: ${trapUrlDomain}
--- Mirror: ${trapUrlSupabase}
--- Backup: ${trapUrlDomain}?m=1
-local _uid = 0
-local _okp, _p = pcall(function() return game:GetService("Players").LocalPlayer end)
-if _okp and _p then _uid = _p.UserId end
-local _url = "${baseUrl}?uid=" .. tostring(_uid) .. "&_=" .. tostring(tick())
-local _r
-local _s, _e = pcall(function() _r = game:HttpGet(_url) end)
-if not _s or not _r or _r == "" then
-  local _s2, _e2 = pcall(function() _r = game:HttpGetAsync(_url) end)
-  if not _s2 then _e = _e2 end
-end
-if not _r or _r == "" then error("[ULT] Network error: " .. tostring(_e)) end
-local _f, _le = loadstring(_r)
-if not _f then error("[ULT] Loadstring failed: " .. tostring(_le)) end
-return _f()`;
-      return new Response(miniLoader, { status: 200, headers: textHeaders });
-    }
+    // (Anti-fetch phase-1 mini-loader removed — falls through to normal encrypted flow.)
 
 
     // ===== NON-PROTECTED PASTE (no protection, no public_protection) =====
@@ -5364,12 +5329,21 @@ return _f()`;
       const sessionSecret = generateSessionSecret(clientIp, Date.now());
       const serverNonce = generateServerNonce();
       const trustLevel = getTrustScore(clientIp);
-      // v12.2: Non-blocking token insert
-      supabase.from('paste_execution_tokens').insert({
+      // The loader immediately exchanges this token for encrypted content.
+      // Wait for persistence so the callback cannot miss it and receive another
+      // loader forever (which looked like a completely silent execution).
+      const { error: tokenInsertError } = await supabase.from('paste_execution_tokens').insert({
         paste_id: paste.id, roblox_user_id: '0', token: newToken,
         expires_at: new Date(Date.now() + 30000).toISOString(),
         bound_ip: clientIp,
-      }).then(() => {}, () => {});
+      });
+      if (tokenInsertError) {
+        console.error(`[get-paste] token insert failed for slug=${slug}:`, tokenInsertError);
+        return new Response('warn("[ULT] Could not start a secure session. Please retry.")', {
+          status: 200,
+          headers: textHeaders,
+        });
+      }
       const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
         showConsoleFeedback: paste.show_loading_bar !== false,
         serverNonce,
