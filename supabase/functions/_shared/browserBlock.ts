@@ -17,7 +17,7 @@ export function browserRedirectIfHtml(req: Request): Response | null {
 
     const site =
       Deno.env.get("PUBLIC_SITE_URL")?.replace(/\/+$/, "") ||
-      "https://ultluacodeprotectsyourluacode.onrender.com";
+      "https://ultluacodeprotectsyourluacode1.onrender.com";
     return Response.redirect(`${site}/blocked`, 302);
   } catch {
     return null;
