@@ -4,7 +4,7 @@ import { browserRedirectIfHtml } from "../_shared/browserBlock.ts";
 const DELIVERY_BASE = `${(Deno.env.get('SUPABASE_URL') || '').replace(/\/+$/, '')}/functions/v1/get-paste`;
 
 // Public website that forwards /s/* to the delivery function. Configurable per host.
-const SITE_BASE = (Deno.env.get('PUBLIC_SITE_URL') || 'https://ultluacodeprotectsyourluacode.onrender.com')
+const SITE_BASE = (Deno.env.get('PUBLIC_SITE_URL') || 'https://ultluacodeprotectsyourluacode1.onrender.com')
   .replace(/\/+$/, '');
 
 async function scriptUrl(_supabase: any, _userId: string, slug: string): Promise<string> {
