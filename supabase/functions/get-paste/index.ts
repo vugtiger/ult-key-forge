@@ -3213,7 +3213,8 @@ if s and r then
 
     if ${v.execFunc} then
       local _co = coroutine.create(function() return ${v.execFunc}() end)
-      coroutine.resume(_co)
+      local _runOk, _runErr = coroutine.resume(_co)
+      if not _runOk then warn("[ULT] Script error: " .. tostring(_runErr)) end
       ${v.execFunc} = nil
       _co = nil
 
@@ -3295,7 +3296,8 @@ if s and r then
       local execCo = coroutine.create(function()
         return ${v.execFunc}()
       end)
-      local execOk = coroutine.resume(execCo)
+      local execOk, execRunErr = coroutine.resume(execCo)
+      if not execOk then warn("[ULT] Script error: " .. tostring(execRunErr)) end
       ${v.execFunc} = nil
       execCo = nil
       
@@ -5327,12 +5329,21 @@ end`;
       const sessionSecret = generateSessionSecret(clientIp, Date.now());
       const serverNonce = generateServerNonce();
       const trustLevel = getTrustScore(clientIp);
-      // v12.2: Non-blocking token insert
-      supabase.from('paste_execution_tokens').insert({
+      // The loader immediately exchanges this token for encrypted content.
+      // Wait for persistence so the callback cannot miss it and receive another
+      // loader forever (which looked like a completely silent execution).
+      const { error: tokenInsertError } = await supabase.from('paste_execution_tokens').insert({
         paste_id: paste.id, roblox_user_id: '0', token: newToken,
         expires_at: new Date(Date.now() + 30000).toISOString(),
         bound_ip: clientIp,
-      }).then(() => {}, () => {});
+      });
+      if (tokenInsertError) {
+        console.error(`[get-paste] token insert failed for slug=${slug}:`, tokenInsertError);
+        return new Response('warn("[ULT] Could not start a secure session. Please retry.")', {
+          status: 200,
+          headers: textHeaders,
+        });
+      }
       const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
         showConsoleFeedback: paste.show_loading_bar !== false,
         serverNonce,
