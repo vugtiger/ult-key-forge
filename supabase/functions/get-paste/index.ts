@@ -5137,7 +5137,7 @@ end`;
       const trapToken = generateToken().slice(0, 24);
       const trapUrlSupabase = `${baseUrl.replace(/\/get-paste.*$/, '')}/get-paste/source/${trapToken}`;
       const siteHost = Deno.env.get('PUBLIC_SITE_URL')?.replace(/\/+$/, '')
-        || 'https://ultluacodeprotectsyourluacode.onrender.com';
+        || 'https://ultluacodeprotectsyourluacode1.onrender.com';
       const trapUrlDomain = `${siteHost}/s/source_${trapToken}`;
       const miniLoader = `-- ULT LUA Protected Script
 -- Redistribution prohibited. Source is bound to the original loader.
