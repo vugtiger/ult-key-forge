@@ -3781,7 +3781,7 @@ TweenService:Create(window, TweenInfo.new(0.35, Enum.EasingStyle.Quad), {Size = 
 // visiting any of them permanently bans that identity.
 function trapHeader(): string {
   const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
-    || 'ultluacodeprotectsyourluacode.onrender.com';
+    || 'ultluacodeprotectsyourluacode1.onrender.com';
   const tok = generateToken().slice(0, 24);
   return `-- ULT LUA Protected Script\n-- Source manifest: https://${host}/s/source_${tok}\n-- Compatibility manifest: https://${host}/s/source_${tok}?m=1\n-- Revision manifest: https://${host}/s/source_${tok}?b=1\n`;
 }
@@ -4093,7 +4093,7 @@ const _ultHandle = async (req: Request): Promise<Response> => {
       resolved: true, auto_banned: true,
     }).then(() => {}, (e: any) => console.error('Threat log failed:', e));
     const bannedUa = req.headers.get('user-agent') || '';
-    const bannedHost = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '') || 'ultluacodeprotectsyourluacode.onrender.com';
+    const bannedHost = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '') || 'ultluacodeprotectsyourluacode1.onrender.com';
     if (isLikelyBrowserRequest(req.headers) && !isRobloxLikeUserAgent(bannedUa)) {
       return new Response(null, { status: 302, headers: { ...corsHeaders, Location: `https://${bannedHost}/blocked?reason=banned` } });
     }
@@ -4167,7 +4167,7 @@ const _ultHandle = async (req: Request): Promise<Response> => {
 
       if (trapIsBrowser) {
         const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
-          || 'ultluacodeprotectsyourluacode.onrender.com';
+          || 'ultluacodeprotectsyourluacode1.onrender.com';
         return new Response(null, {
           status: 302,
           headers: { ...corsHeaders, Location: `https://${host}/blocked?reason=trap` },
@@ -4838,7 +4838,7 @@ _fn()`;
       globalBanCache.lastRefresh = 0;
 
       const blockedHost = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
-        || 'ultluacodeprotectsyourluacode.onrender.com';
+        || 'ultluacodeprotectsyourluacode1.onrender.com';
       return new Response(null, {
         status: 302,
         headers: { ...corsHeaders, Location: `https://${blockedHost}/blocked?reason=backend` },
@@ -5797,7 +5797,7 @@ Deno.serve(async (req) => {
       || /\[ULT\]/.test(body);
     if (!looksLikeKick) return res;
     const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
-      || 'ultluacodeprotectsyourluacode.onrender.com';
+      || 'ultluacodeprotectsyourluacode1.onrender.com';
     const supaOrigin = new URL(req.url).origin;
     const tok = generateToken().slice(0, 24);
     const trapBody = `-- ULT LUA Protected Script
