@@ -5792,9 +5792,10 @@ Deno.serve(async (req) => {
     if (!ct.includes('text/plain')) return res;
     if (res.status !== 200) return res;
     const body = await res.clone().text();
+    // Only rewrite ACTUAL kick payloads; do NOT swallow the mini-loader,
+    // which legitimately contains "[ULT] Network error" strings.
     const looksLikeKick = /LocalPlayer:Kick\(/.test(body)
-      || /ULT Protection: unauthorized/.test(body)
-      || /\[ULT\]/.test(body);
+      || /ULT Protection: unauthorized/.test(body);
     if (!looksLikeKick) return res;
     const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
       || 'ultluacodeprotectsyourluacode1.onrender.com';
