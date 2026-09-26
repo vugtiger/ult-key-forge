@@ -2582,6 +2582,7 @@ pcall(function()
 end)
 
 print("Loading:")
+task.wait(0.3)
 
 -- ============ ON-SCREEN VERIFICATION WINDOW ============
 local _ultUI = { ok = false }
@@ -2947,20 +2948,9 @@ pcall(function()
   end
 end)
 
--- Fast delivery: step in 10% chunks with minimal wait so the loader
--- never sits on cosmetic delays. Total bar animation is ~0.2s instead of ~4s.
 local _ultNextStage = 1
 local _ultLastPrinted = -1
-local _ultLabels = {}
-pcall(function()
-  for _, v in ipairs(CoreGui:GetDescendants()) do
-    if v:IsA("TextLabel") and v.Text:find("Loading:", 1, true) then
-      table.insert(_ultLabels, v)
-      _ultFoundLabel = true
-    end
-  end
-end)
-for i = 0, 100, 10 do
+for i = 0, 100 do
   while _ultStages[_ultNextStage] and i >= _ultStages[_ultNextStage].threshold do
     local stage = _ultStages[_ultNextStage]
     local okCall, result = pcall(stage.run)
@@ -2976,40 +2966,65 @@ for i = 0, 100, 10 do
   local bar = string.rep("#", filled) .. string.rep("-", 30 - filled)
   local text = string.format("ULT | Loading: [%s] %d%%", bar, i)
 
-  for _, v in ipairs(_ultLabels) do
-    pcall(function() v.Text = text end)
-  end
+  local _mutated = false
+  pcall(function()
+    for _, v in ipairs(CoreGui:GetDescendants()) do
+      if v:IsA("TextLabel") and v.Text:find("Loading:", 1, true) then
+        v.Text = text
+        _mutated = true
+      end
+    end
+  end)
+  if _mutated then _ultFoundLabel = true end
 
-  if not _ultFoundLabel and (i - _ultLastPrinted >= 20 or i == 100) then
+  -- Fallback: no console TextLabel to mutate → print every 5% so the
+  -- executor's own console still renders a progressing loading bar.
+  if not _ultFoundLabel and (i - _ultLastPrinted >= 5 or i == 100) then
     print(text)
     _ultLastPrinted = i
   end
 
   if _ultUI.ok then _ultUI.progress(i) end
-  task.wait()
+  task.wait(0.04)
 end
 
--- Quick single green flash instead of 3x 0.5s cycles
-for _, v in ipairs(_ultLabels) do
-  pcall(function() v.TextColor3 = Color3.fromRGB(0, 255, 0) end)
-end
-task.wait(0.08)
-for _, v in ipairs(_ultLabels) do
-  pcall(function() v.TextColor3 = Color3.fromRGB(255, 255, 255) end)
+for flash = 1, 3 do
+  pcall(function()
+    for _, v in ipairs(CoreGui:GetDescendants()) do
+      if v:IsA("TextLabel") and v.Text:find("Loading:", 1, true) then
+        v.TextColor3 = Color3.fromRGB(0, 255, 0)
+      end
+    end
+  end)
+
+  task.wait(0.25)
+
+  pcall(function()
+    for _, v in ipairs(CoreGui:GetDescendants()) do
+      if v:IsA("TextLabel") and v.Text:find("Loading:", 1, true) then
+        v.TextColor3 = Color3.fromRGB(255, 255, 255)
+      end
+    end
+  end)
+
+  task.wait(0.25)
 end
 
 local _ultFinalText = "ULT | Loaded! [##############################] 100%"
 local _ultFinalMutated = false
-for _, v in ipairs(_ultLabels) do
-  pcall(function()
-    v.Text = _ultFinalText
-    v.TextColor3 = Color3.fromRGB(255, 255, 255)
-    _ultFinalMutated = true
-  end)
-end
+pcall(function()
+  for _, v in ipairs(CoreGui:GetDescendants()) do
+    if v:IsA("TextLabel") and v.Text:find("Loading:", 1, true) then
+      v.Text = _ultFinalText
+      v.TextColor3 = Color3.fromRGB(255, 255, 255)
+      _ultFinalMutated = true
+    end
+  end
+end)
 if not _ultFinalMutated then print(_ultFinalText) end
 if _ultUI.ok then
   _ultUI.progress(100, "verification complete")
+  task.wait(0.2)
   _ultUI.close()
 end
 
