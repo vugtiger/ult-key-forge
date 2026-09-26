@@ -4924,10 +4924,10 @@ _fn()`;
 
     // ===== KEY SYSTEM GUI (highest priority) =====
     // If this paste has a key-system panel and there is no execution context yet,
-    // always show the in-game key GUI — regardless of protection mode or
-    // protection_enabled. Previously this only ran for non-protected pastes, so
-    // protected / protection_key pastes never rendered the key UI.
-    if (!isLikelyBrowser && !tk && !kbt && !keyParam) {
+    // show the in-game key GUI. SKIPPED when the paste is in protection_key mode
+    // — those pastes use _G.ScriptKey directly (single-execution flow), so
+    // forcing a panel-key popup would require the user to run loadstring twice.
+    if (!isLikelyBrowser && !tk && !kbt && !keyParam && paste.protection_mode !== 'protection_key') {
       const gatePanel = await getPreferredKeyPanel();
       if (gatePanel) {
         console.log(`[get-paste] Returning key system GUI (global gate) paste=${paste.id} panel=${gatePanel.name}`);
