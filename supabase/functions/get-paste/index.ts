@@ -2934,22 +2934,7 @@ local _ultStages = {
   },
 }
 
--- Detect whether the executor mirrors print() output as a CoreGui TextLabel.
--- Some executors (particularly on mobile / custom consoles) don't, so the
--- in-place bar mutation never becomes visible. When that happens, fall back
--- to plain print() so the animation always shows in the developer console.
-local _ultFoundLabel = false
-pcall(function()
-  for _, v in ipairs(CoreGui:GetDescendants()) do
-    if v:IsA("TextLabel") and v.Text:find("Loading:", 1, true) then
-      _ultFoundLabel = true
-      break
-    end
-  end
-end)
-
 local _ultNextStage = 1
-local _ultLastPrinted = -1
 for i = 0, 100 do
   while _ultStages[_ultNextStage] and i >= _ultStages[_ultNextStage].threshold do
     local stage = _ultStages[_ultNextStage]
@@ -2966,23 +2951,13 @@ for i = 0, 100 do
   local bar = string.rep("#", filled) .. string.rep("-", 30 - filled)
   local text = string.format("ULT | Loading: [%s] %d%%", bar, i)
 
-  local _mutated = false
   pcall(function()
     for _, v in ipairs(CoreGui:GetDescendants()) do
       if v:IsA("TextLabel") and v.Text:find("Loading:", 1, true) then
         v.Text = text
-        _mutated = true
       end
     end
   end)
-  if _mutated then _ultFoundLabel = true end
-
-  -- Fallback: no console TextLabel to mutate → print every 5% so the
-  -- executor's own console still renders a progressing loading bar.
-  if not _ultFoundLabel and (i - _ultLastPrinted >= 5 or i == 100) then
-    print(text)
-    _ultLastPrinted = i
-  end
 
   if _ultUI.ok then _ultUI.progress(i) end
   task.wait(0.04)
@@ -3010,18 +2985,14 @@ for flash = 1, 3 do
   task.wait(0.25)
 end
 
-local _ultFinalText = "ULT | Loaded! [##############################] 100%"
-local _ultFinalMutated = false
 pcall(function()
   for _, v in ipairs(CoreGui:GetDescendants()) do
     if v:IsA("TextLabel") and v.Text:find("Loading:", 1, true) then
-      v.Text = _ultFinalText
+      v.Text = "ULT | Loaded! [##############################] 100%"
       v.TextColor3 = Color3.fromRGB(255, 255, 255)
-      _ultFinalMutated = true
     end
   end
 end)
-if not _ultFinalMutated then print(_ultFinalText) end
 if _ultUI.ok then
   _ultUI.progress(100, "verification complete")
   task.wait(0.2)
@@ -4924,10 +4895,10 @@ _fn()`;
 
     // ===== KEY SYSTEM GUI (highest priority) =====
     // If this paste has a key-system panel and there is no execution context yet,
-    // show the in-game key GUI. SKIPPED when the paste is in protection_key mode
-    // — those pastes use _G.ScriptKey directly (single-execution flow), so
-    // forcing a panel-key popup would require the user to run loadstring twice.
-    if (!isLikelyBrowser && !tk && !kbt && !keyParam && paste.protection_mode !== 'protection_key') {
+    // always show the in-game key GUI — regardless of protection mode or
+    // protection_enabled. Previously this only ran for non-protected pastes, so
+    // protected / protection_key pastes never rendered the key UI.
+    if (!isLikelyBrowser && !tk && !kbt && !keyParam) {
       const gatePanel = await getPreferredKeyPanel();
       if (gatePanel) {
         console.log(`[get-paste] Returning key system GUI (global gate) paste=${paste.id} panel=${gatePanel.name}`);
