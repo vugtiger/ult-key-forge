@@ -5,14 +5,18 @@ const normalizeUrl = (value: string) => value.replace(/\/$/, "");
 
 export const isRecoveryLinkPayload = (hash = window.location.hash) => {
   const params = new URLSearchParams(hash.replace(/^#/, ""));
+  const query = new URLSearchParams(window.location.search);
+  const has = (k: string) => params.has(k) || query.has(k);
 
   return (
     params.get("type") === "recovery" ||
-    params.has("access_token") ||
-    params.has("refresh_token") ||
-    params.has("token_hash") ||
-    params.has("error_code") ||
-    params.has("error_description")
+    query.get("type") === "recovery" ||
+    has("code") ||
+    has("access_token") ||
+    has("refresh_token") ||
+    has("token_hash") ||
+    has("error_code") ||
+    has("error_description")
   );
 };
 
