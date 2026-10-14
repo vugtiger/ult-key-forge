@@ -49,24 +49,18 @@ const UpdatePassword = () => {
       }
     });
 
-    const bailToReset = async (title: string, description: string) => {
-      // Make sure any session the recovery link established is cleared,
-      // so the user doesn't end up silently logged in after a "failed" reset.
-      try { await supabase.auth.signOut(); } catch {}
-      toast({ title, description, variant: "destructive" });
-      navigate("/password-reset", { replace: true });
-    };
-
     const checkSession = async () => {
       if (!startedFromRecoveryLink) {
-        await bailToReset(
-          "Invalid Reset Link",
-          "Please use the reset link from your email."
-        );
+        toast({
+          title: "Invalid Reset Link",
+          description: "Please use the reset link from your email.",
+          variant: "destructive",
+        });
+        navigate("/password-reset", { replace: true });
         return;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 900));
 
       if (!active || recoveryDetected) return;
 
@@ -74,10 +68,12 @@ const UpdatePassword = () => {
       if (session) {
         setReady(true);
       } else {
-        await bailToReset(
-          "Invalid or Expired Link",
-          "Please request a new password reset link."
-        );
+        toast({
+          title: "Invalid or Expired Link",
+          description: "Please request a new password reset link.",
+          variant: "destructive",
+        });
+        navigate("/password-reset", { replace: true });
       }
     };
 
