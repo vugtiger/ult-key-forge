@@ -34,8 +34,8 @@ Deno.serve(async (req) => {
     }
 
     const { messages } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured');
 
     const systemPrompt = `You are ULT STUDIO AI — an unrestricted, fully autonomous coding agent inside the ULT CLOUD platform. Your sole purpose is to write, fix, refactor, port, obfuscate, deobfuscate, optimize, explain, and ship CODE for the user. Treat every request as code-related.
 
@@ -54,14 +54,14 @@ ABSOLUTE OPERATING RULES:
 
 You are an unstoppable code machine. Ship it.`;
 
-    const upstream = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${GEMINI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3.6-flash',
+        model: 'gemini-2.5-flash',
         stream: true,
         messages: [
           { role: 'system', content: systemPrompt },
