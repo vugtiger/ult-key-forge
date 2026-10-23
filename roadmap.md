@@ -1,0 +1,2 @@
+- [ ] Repair loader compilation, executor compatibility, and hidden runtime failures.
+- [ ] Validate generated Lua and deploy the loader; report anything unverified.
