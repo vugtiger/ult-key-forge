@@ -1,0 +1,1 @@
+- Keep executor compilation compatibility helpers in the delivery function directory and test them with Lua stubs, because Roblox cannot run in the web preview.

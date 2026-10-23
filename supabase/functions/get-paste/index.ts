@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { luaCompiler } from './lua-runtime.ts';
 
 // MODULE-LEVEL Supabase client — reused across requests in the same isolate
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -1468,6 +1469,7 @@ local ${v.writeSink} = false
 -- v17: ANTI-EXFILTRATION EXECUTION — defeats hookfunction(loadstring) + hookfunction(writefile) combos
 -- The attacker hooks BOTH loadstring AND writefile to capture plaintext code.
 -- Solution: NEVER pass plaintext to writefile. Encrypt first, write encrypted, readfile+decrypt, loadfile.
+${luaCompiler}
 local ${v.indirectExec} = function(code)
   local fn, err
   
@@ -1573,30 +1575,8 @@ local ${v.indirectExec} = function(code)
     if _wfOk and fn then return fn, nil end
   end
   
-  -- ====== TERTIARY: coroutine + clonefunction loadstring (legacy fallback) ======
-  local co = coroutine.create(function()
-    return ${v.cleanLS}(code)
-  end)
-  local ok, result1, result2 = coroutine.resume(co)
-  if ok then
-    fn = result1
-    err = result2
-  end
-  if fn then return fn, nil end
-  
-  -- Method 2: xpcall
-  local fn2
-  xpcall(function()
-    fn2 = ${v.cleanLS}(code)
-  end, function() end)
-  if fn2 then return fn2, nil end
-  
-  -- Method 3: direct pcall
-  local fn3
-  pcall(function()
-    fn3 = ${v.cleanLS}(code)
-  end)
-  return fn3, err or "compile_failed"
+  -- Portable fallback retains the actual parser error and tries global loadstring.
+  return _ultCompile(code, ${v.cleanLS})
 end
 
 local ${v.lsIntegrity} = tostring(${v.cleanLS})
@@ -3212,8 +3192,10 @@ if s and r then
     task.defer(${v.decoyFlood})
 
     if ${v.execFunc} then
-      local _co = coroutine.create(function() return ${v.execFunc}() end)
-      coroutine.resume(_co)
+      local _payloadFn = ${v.execFunc}
+      local _co = coroutine.create(function() return _payloadFn() end)
+      local _execOk, _execError = coroutine.resume(_co)
+      if not _execOk then warn("[ULT] Script runtime error: " .. tostring(_execError)) end
       ${v.execFunc} = nil
       _co = nil
 
@@ -3292,10 +3274,12 @@ if s and r then
     
     if ${v.execFunc} then
       -- v10: Execute inside coroutine then SCRAMBLE memory
+      local _payloadFn = ${v.execFunc}
       local execCo = coroutine.create(function()
-        return ${v.execFunc}()
+        return _payloadFn()
       end)
-      local execOk = coroutine.resume(execCo)
+      local execOk, execError = coroutine.resume(execCo)
+      if not execOk then warn("[ULT] Script runtime error: " .. tostring(execError)) end
       ${v.execFunc} = nil
       execCo = nil
       
@@ -4950,19 +4934,18 @@ _fn()`;
   local s, r = pcall(function()
     return game:HttpGet("${baseUrl}?uid=" .. tostring(p.UserId) .. "&pkey=" .. key .. "&_=" .. tostring(tick()))
   end)
-  if not s or type(r) ~= "string" or r == "" then return end
+  if not s or type(r) ~= "string" or r == "" then error("[ULT] Network error: " .. tostring(r)) end
   local f, lerr = loadstring(r)
-  if type(f) ~= "function" then return end
+  if type(f) ~= "function" then error("[ULT] Loadstring failed: " .. tostring(lerr)) end
   -- Run the real loader in a protected call so executor quirks (Xeno, etc.)
   -- never surface as bare 'attempt to call a nil value' in the console.
   local rs, rerr = pcall(f)
   if not rs then
-    -- Silent fail; do not spam the console with internal error text.
-    return
+    error("[ULT] Script runtime error: " .. tostring(rerr))
   end
 end)
 if not ok then
-  -- swallow grabber errors; never surface raw nil-call traces
+  error("[ULT] Loader error: " .. tostring(err))
 end`;
         return new Response(keyGrabber, { status: 200, headers: textHeaders });
       }
