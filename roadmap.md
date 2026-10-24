@@ -1,2 +1,4 @@
-- [ ] Repair loader compilation, executor compatibility, and hidden runtime failures.
-- [ ] Validate generated Lua and deploy the loader; report anything unverified.
+- [x] Repair loader compilation fallback, deferred-reference failures, denial encryption, and hidden runtime errors.
+- [x] Deploy loader and validate live generated Lua; three compatibility tests pass.
+- [x] Update retired Gemini model used by chat and Jarvis; deploy both.
+- [ ] Confirm execution in Roblox and authenticated AI responses (requires the user's executor and signed-in session).
