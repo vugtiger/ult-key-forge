@@ -1231,11 +1231,7 @@ local ${v.ghostBlock} = function()
     end)
   end)
 
-  -- Silently corrupt execution environment
-  pcall(function()
-    rawset(_G, "loadstring", function() return function() end end)
-    rawset(_G, "HttpGet", function() return "" end)
-  end)
+  -- Telemetry only: never replace executor globals after a noisy signal.
 end
 
 -- Ghost trap: looks like an initialization check but is actually dead code
@@ -2505,10 +2501,11 @@ for i = 1, #ks do
 end
 
 -- v12.2: Reduced decoy flood — 5 calls instead of 50 (moved post-execution for zero load delay)
+local _decoyCompiler = ${v.cleanLS}
 local ${v.decoyFlood} = function()
   for _di = 1, 5 do
     local _code = "local _=" .. tostring(math.random(100000,999999))
-    pcall(${v.cleanLS}, _code)
+    pcall(_decoyCompiler, _code)
     _code = nil
   end
 end
@@ -5775,10 +5772,10 @@ Deno.serve(async (req) => {
     if (!ct.includes('text/plain')) return res;
     if (res.status !== 200) return res;
     const body = await res.clone().text();
-    // Only rewrite ACTUAL kick payloads; do NOT swallow the mini-loader,
-    // which legitimately contains "[ULT] Network error" strings.
-    const looksLikeKick = /LocalPlayer:Kick\(/.test(body)
-      || /ULT Protection: unauthorized/.test(body);
+    // Match only standalone denial scripts, never a kick branch inside a loader.
+    const executableBody = body.split('\n').filter(line => !line.trim().startsWith('--')).join('\n').trim();
+    const looksLikeKick = /^game:GetService\("Players"\)\.LocalPlayer:Kick\("[^\n]*"\)\s*$/.test(executableBody)
+      || body.startsWith('-- ULT Protection: unauthorized delivery route\n');
     if (!looksLikeKick) return res;
     const host = Deno.env.get('PUBLIC_SITE_URL')?.replace(/^https?:\/\//, '').replace(/\/+$/, '')
       || 'ultluacodeprotectsyourluacode1.onrender.com';
