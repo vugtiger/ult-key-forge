@@ -3775,9 +3775,9 @@ function generateKickPlain(reason: string): string {
   return `${trapHeader()}game:GetService("Players").LocalPlayer:Kick("${reason}")\n`;
 }
 
-function generateKickEncrypted(reason: string, slug: string, token: string, uid: string): string {
+function generateKickEncrypted(reason: string, slug: string, token: string, uid: string, entropy: string | null = null): string {
   const kickScript = `game:GetService("Players").LocalPlayer:Kick("${reason}")`;
-  const key = `${slug}:${token}:ULTv9:${uid}`;
+  const key = `${slug}:${token}:ULTv9:${uid}:${entropy || "0"}`;
   return xorToHex(kickScript, key);
 }
 
@@ -3891,13 +3891,8 @@ local ${checkVar} = coroutine.create(function()
 end)
 pcall(function() coroutine.resume(${checkVar}) end)
 if ${trapVar} then
-  -- Detected decompile/debug hook - corrupt environment
-  pcall(function()
-    rawset(_G, "loadstring", function() return function() end end)
-    rawset(_G, "game", setmetatable({}, {__index = function() return function() end end}))
-  end)
-  while true do wait(9e9) end
-  return
+  -- Non-critical detection must not corrupt executor globals or hang innocent scripts.
+  if type(warn) == "function" then warn("[ULT] Debug instrumentation detected") end
 end
 ${code}`;
 }
@@ -3996,7 +3991,7 @@ function applyDeliveryObfuscation(code: string): string {
 // Main v12 protection gate — runs before content delivery
 async function applyV12Protections(
   paste: any, uid: string, clientIp: string, hwid: string | null,
-  slug: string, tk: string, supabaseClient: any, baseUrl: string
+  slug: string, tk: string, supabaseClient: any, baseUrl: string, entropy: string | null
 ): Promise<Response | null> {
   const textHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -4010,7 +4005,7 @@ async function applyV12Protections(
     if (new Date(paste.time_bomb_expires_at) < new Date()) {
       console.log(`[v12] TIME_BOMB: paste ${paste.id} expired at ${paste.time_bomb_expires_at}`);
       fireWebhookAlert(paste, uid, clientIp, hwid, 'time_bomb_expired');
-      return new Response(generateKickEncrypted('This script has expired', slug, tk, uid), {
+      return new Response(generateKickEncrypted('This script has expired', slug, tk, uid, entropy), {
         status: 200, headers: textHeaders,
       });
     }
@@ -4022,7 +4017,7 @@ async function applyV12Protections(
     if (!allowed) {
       console.log(`[v12] EXEC_LIMIT: uid=${uid} paste=${paste.id} limit=${paste.execution_limit_per_user}/${paste.execution_limit_window}`);
       fireWebhookAlert(paste, uid, clientIp, hwid, 'execution_limit_reached');
-      return new Response(generateKickEncrypted(`Execution limit reached (${paste.execution_limit_per_user} per ${paste.execution_limit_window})`, slug, tk, uid), {
+      return new Response(generateKickEncrypted(`Execution limit reached (${paste.execution_limit_per_user} per ${paste.execution_limit_window})`, slug, tk, uid, entropy), {
         status: 200, headers: textHeaders,
       });
     }
@@ -4034,7 +4029,7 @@ async function applyV12Protections(
     if (!maResult.allowed) {
       console.log(`[v12] MULTI_ACCOUNT: blocked hwid on paste ${paste.id} uid=${uid}`);
       fireWebhookAlert(paste, uid, clientIp, hwid, 'multi_account_blocked');
-      return new Response(generateKickEncrypted('Multiple accounts detected on this device - access blocked', slug, tk, uid), {
+      return new Response(generateKickEncrypted('Multiple accounts detected on this device - access blocked', slug, tk, uid, entropy), {
         status: 200, headers: textHeaders,
       });
     }
@@ -5211,7 +5206,7 @@ return _f()`;
         
         // v12: Protection checks for non-protected pastes too
         paste._ua = req.headers.get('user-agent') || '';
-        const v12NonProtResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
+        const v12NonProtResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl, entropy);
         if (v12NonProtResult) return v12NonProtResult;
 
         logAccess(uid, 'execution', true).catch(() => {});
@@ -5359,7 +5354,7 @@ return _f()`;
     }
 
     if (!/^\d+$/.test(uid)) {
-      return new Response(generateKickEncrypted('Invalid user ID', slug, tk, uid), {
+      return new Response(generateKickEncrypted('Invalid user ID', slug, tk, uid, entropy), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
@@ -5373,7 +5368,7 @@ return _f()`;
     if (!isRobloxRequest && userAgent.includes('axios')) {
       const strikes = (suspiciousIps.get(clientIp)?.strikes || 0) + 2;
       suspiciousIps.set(clientIp, { strikes, lastStrike: Date.now() });
-      return new Response(generateKickEncrypted('Access denied - Invalid client', slug, tk, uid), {
+      return new Response(generateKickEncrypted('Access denied - Invalid client', slug, tk, uid, entropy), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
@@ -5457,7 +5452,7 @@ return _f()`;
       if (gameBindings && gameBindings.length > 0) {
         const allowedGameIds = gameBindings.map(b => b.game_id);
         if (!allowedGameIds.includes(gid) && !allowedGameIds.includes(pid)) {
-          return new Response(generateKickEncrypted('This script is not supported on this game', slug, tk, uid), {
+          return new Response(generateKickEncrypted('This script is not supported on this game', slug, tk, uid, entropy), {
             status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
           });
         }
@@ -5485,7 +5480,7 @@ return _f()`;
       );
 
       if (isBlacklisted) {
-        return new Response(generateKickEncrypted('You are blacklisted', slug, tk, uid), {
+        return new Response(generateKickEncrypted('You are blacklisted', slug, tk, uid, entropy), {
           status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
         });
       }
@@ -5506,7 +5501,7 @@ return _f()`;
             claimed_uid: uid, hwid_owner: hwidOwnerPub.roblox_user_id, slug,
           }, 'critical', false);
           autoBanNewIp(clientIp, 'uid_spoofing_public_protection', uid, null);
-          return new Response(generateKickEncrypted('Access denied - identity mismatch', slug, tk, uid), {
+          return new Response(generateKickEncrypted('Access denied - identity mismatch', slug, tk, uid, entropy), {
             status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
           });
         }
@@ -5525,7 +5520,7 @@ return _f()`;
 
           if (existingLock) {
             if (existingLock.hwid !== hwid) {
-              return new Response(generateKickEncrypted('HWID mismatch - locked to another device', slug, tk, uid), {
+              return new Response(generateKickEncrypted('HWID mismatch - locked to another device', slug, tk, uid, entropy), {
                 status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
               });
             }
@@ -5544,7 +5539,7 @@ return _f()`;
 
       // ===== v12: NEW PROTECTION CHECKS (public protection path) =====
       paste._ua = req.headers.get('user-agent') || '';
-      const v12PubResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
+      const v12PubResult = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl, entropy);
       if (v12PubResult) return v12PubResult;
 
       logAccess(uid, 'execution', true).catch(() => {});
@@ -5579,7 +5574,7 @@ return _f()`;
     });
 
     if (isBlacklisted) {
-      return new Response(generateKickEncrypted('You are blacklisted', slug, tk, uid), {
+      return new Response(generateKickEncrypted('You are blacklisted', slug, tk, uid, entropy), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
@@ -5594,13 +5589,13 @@ return _f()`;
     });
 
     if (!hasWhitelist) {
-      return new Response(generateKickEncrypted('Not whitelisted', slug, tk, uid), {
+      return new Response(generateKickEncrypted('Not whitelisted', slug, tk, uid, entropy), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
 
     if (!hasValidWhitelist) {
-      return new Response(generateKickEncrypted('Your whitelist time has expired', slug, tk, uid), {
+      return new Response(generateKickEncrypted('Your whitelist time has expired', slug, tk, uid, entropy), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
       });
     }
@@ -5629,7 +5624,7 @@ return _f()`;
         }, 'critical', false);
         // Auto-ban the spoofing IP and the fake uid
         autoBanNewIp(clientIp, `uid_spoofing_hwid_mismatch`, uid, null);
-        return new Response(generateKickEncrypted('Access denied - identity mismatch detected', slug, tk, uid), {
+        return new Response(generateKickEncrypted('Access denied - identity mismatch detected', slug, tk, uid, entropy), {
           status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
         });
       }
@@ -5650,7 +5645,7 @@ return _f()`;
           actual_hwid: hwid.substring(0, 16),
           slug,
         }, 'high', false);
-        return new Response(generateKickEncrypted('HWID mismatch - this script is locked to another device. Contact the script owner to reset your HWID.', slug, tk, uid), {
+        return new Response(generateKickEncrypted('HWID mismatch - this script is locked to another device. Contact the script owner to reset your HWID.', slug, tk, uid, entropy), {
           status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
         });
       }
@@ -5662,7 +5657,7 @@ return _f()`;
       if (!hwid || hwid.length < 4) {
         // No HWID sent — executor doesn't support gethwid()
         console.log(`[get-paste] HWID_MISSING: uid=${uid} slug=${slug} mode=${protectionMode}`);
-        return new Response(generateKickEncrypted('Your executor does not support HWID locking. Please use an executor with gethwid() support.', slug, tk, uid), {
+        return new Response(generateKickEncrypted('Your executor does not support HWID locking. Please use an executor with gethwid() support.', slug, tk, uid, entropy), {
           status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
         });
       }
@@ -5684,7 +5679,7 @@ return _f()`;
             actual_hwid: hwid.substring(0, 16),
             slug,
           }, 'high', false);
-          return new Response(generateKickEncrypted('HWID mismatch - this script is locked to another device. Contact the script owner to reset your HWID.', slug, tk, uid), {
+          return new Response(generateKickEncrypted('HWID mismatch - this script is locked to another device. Contact the script owner to reset your HWID.', slug, tk, uid, entropy), {
             status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
           });
         }
@@ -5733,7 +5728,7 @@ return _f()`;
 
     // ===== v12: NEW PROTECTION CHECKS =====
     paste._ua = req.headers.get('user-agent') || '';
-    const v12Result = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl);
+    const v12Result = await applyV12Protections(paste, uid, clientIp, hwid, slug, tk, supabase, baseUrl, entropy);
     if (v12Result) return v12Result;
 
     logAccess(uid, 'execution', true).catch(() => {});
