@@ -21,6 +21,7 @@ export async function fetchGemini(apiKey: string, payload: Record<string, unknow
       });
       if (res.ok || !RETRYABLE.has(res.status)) return res;
       const text = await res.text().catch(() => '');
+      console.error('Gemini', model, res.status, text.slice(0, 300));
       last = new Response(text, { status: res.status, headers: res.headers });
     }
   }
