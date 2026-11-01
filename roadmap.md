@@ -2,3 +2,5 @@
 - [x] Deploy loader and validate live generated Lua; three compatibility tests pass.
 - [x] Update retired Gemini model used by chat and Jarvis; deploy both.
 - [ ] Confirm execution in Roblox and authenticated AI responses (requires the user's executor and signed-in session).
+- [ ] Diagnose and repair chat and Jarvis provider errors; verify authenticated replies.
+- [ ] Improve Jarvis British voice selection and speech delivery.
