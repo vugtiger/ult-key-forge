@@ -5,3 +5,4 @@
 - [x] Repair AI response format mismatches and expose safe Google Gemini errors; three error-handling tests pass.
 - [ ] Deploy both AI functions and diagnose live provider response; blocked by paused hosted services.
 - [x] Improve Jarvis British voice selection and natural speech delivery; actual voice depends on device availability.
+- [ ] Resume hosted services and verify authenticated login and dependent features.
