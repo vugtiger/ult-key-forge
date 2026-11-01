@@ -2,3 +2,6 @@
 - [x] Deploy loader and validate live generated Lua; three compatibility tests pass.
 - [x] Update retired Gemini model used by chat and Jarvis; deploy both.
 - [ ] Confirm execution in Roblox and authenticated AI responses (requires the user's executor and signed-in session).
+- [x] Repair AI response format mismatches and expose safe Google Gemini errors; three error-handling tests pass.
+- [ ] Deploy both AI functions and diagnose live provider response; blocked by paused hosted services.
+- [x] Improve Jarvis British voice selection and natural speech delivery; actual voice depends on device availability.

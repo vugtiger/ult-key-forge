@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Mic, MicOff, Volume2, VolumeX, Trash2, Send, Bot, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { configureJarvisSpeech, functionErrorMessage } from "@/lib/jarvis-speech";
 
 interface Message {
   role: "user" | "assistant";
@@ -40,18 +41,7 @@ const JarvisAI = () => {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     
-    // Try to find a deep male British voice for Jarvis feel
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(v => 
-      v.name.includes("Daniel") || v.name.includes("Google UK English Male") || 
-      v.name.includes("Microsoft Mark") || v.name.includes("Alex")
-    ) || voices.find(v => v.lang.startsWith("en") && v.name.toLowerCase().includes("male"))
-      || voices.find(v => v.lang.startsWith("en"));
-    
-    if (preferred) utterance.voice = preferred;
-    utterance.rate = 0.95;
-    utterance.pitch = 0.85;
-    utterance.volume = 1;
+    configureJarvisSpeech(utterance);
     
     utterance.onstart = () => setSpeaking(true);
     utterance.onend = () => setSpeaking(false);
@@ -68,19 +58,20 @@ const JarvisAI = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("ai-chat", {
-        body: { messages: [...messages, userMsg] },
+      const { data, error } = await supabase.functions.invoke("jarvis-voice", {
+        body: { message: userMsg.content },
       });
       if (error) throw error;
       
-      const reply = data?.response || "I couldn't process that, sir.";
+      if (data?.error) throw new Error(data.error);
+      const reply = data?.speech || "I couldn't process that, sir.";
       setMessages(prev => [...prev, { role: "assistant", content: reply }]);
       
       // Strip code blocks for speech
       const speechText = reply.replace(/```[\s\S]*?```/g, "... code block omitted ...").slice(0, 500);
       speak(speechText);
     } catch (err: any) {
-      const errorMsg = "My systems encountered an error, sir. Please try again.";
+      const errorMsg = await functionErrorMessage(err);
       setMessages(prev => [...prev, { role: "assistant", content: errorMsg }]);
       speak(errorMsg);
     } finally {

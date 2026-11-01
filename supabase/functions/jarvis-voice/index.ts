@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { browserRedirectIfHtml } from "../_shared/browserBlock.ts";
+import { geminiError } from "../_shared/gemini-error.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -94,6 +95,7 @@ PERSONALITY:
 - Speak like the real JARVIS from Iron Man — calm, composed, British wit
 - Address the user as "sir" occasionally
 - Be concise — you're speaking out loud, not writing
+- Use natural British phrasing, measured confidence and understated dry wit. Avoid robotic status speeches and repeated "sir". Never claim a task succeeded before its action is executed.
 - When something goes wrong: "It appears we have a situation, sir."
 - You're knowledgeable about EVERYTHING — coding, security, analytics, Discord, Roblox, the web, and this platform
 - If the user asks about ANY topic (code, tech, general knowledge), answer it confidently
@@ -172,27 +174,23 @@ ${userContext}`;
         ],
         temperature: 0.5,
         max_tokens: 600,
+        response_format: { type: 'json_object' },
       }),
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ speech: "I'm being rate limited at the moment, sir. Give me a moment.", action: null }), {
-          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ speech: "It appears our AI credits need topping up, sir.", action: null }), {
-          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      const errorText = await response.text();
-      console.error('[JARVIS] AI error:', response.status, errorText);
-      throw new Error(`AI API error: ${response.status}`);
+      const message = await geminiError(response);
+      console.error('[JARVIS] Gemini request failed:', response.status);
+      return new Response(JSON.stringify({ error: message, action: null }), {
+        status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     const data = await response.json();
     const rawContent = data.choices?.[0]?.message?.content || '';
+    if (!rawContent.trim()) return new Response(JSON.stringify({ error: 'Gemini returned no spoken response.', action: null }), {
+      status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
     
     console.log('[JARVIS] Raw AI response:', rawContent);
 
@@ -232,10 +230,12 @@ ${userContext}`;
   } catch (error) {
     console.error('[JARVIS] Error:', error);
     return new Response(JSON.stringify({
-      speech: "My systems encountered an unexpected error, sir. I'll need a moment to recover.",
+      error: error instanceof Error && error.message === 'GEMINI_API_KEY is not configured'
+        ? 'Google Gemini API key is not configured.'
+        : 'Jarvis could not reach Google Gemini. Please try again later.',
       action: null
     }), {
-      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
