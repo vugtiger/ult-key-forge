@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { browserRedirectIfHtml } from "../_shared/browserBlock.ts";
 import { geminiError } from "../_shared/gemini-error.ts";
+import { fetchGemini } from "../_shared/gemini-fetch.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -160,22 +161,14 @@ ${userContext}`;
 
     console.log('[JARVIS] Processing command:', message);
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${GEMINI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gemini-3.8-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.5,
-        max_tokens: 600,
-        response_format: { type: 'json_object' },
-      }),
+    const response = await fetchGemini(GEMINI_API_KEY, {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: message }
+      ],
+      temperature: 0.5,
+      max_tokens: 600,
+      response_format: { type: 'json_object' },
     });
 
     if (!response.ok) {
