@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { browserRedirectIfHtml } from "../_shared/browserBlock.ts";
+import { geminiError } from "../_shared/gemini-error.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,7 +34,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { messages } = await req.json();
+    const { messages, stream = true } = await req.json();
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured');
 
@@ -62,7 +63,7 @@ You are an unstoppable code machine. Ship it.`;
       },
       body: JSON.stringify({
         model: 'gemini-3.8-flash',
-        stream: true,
+        stream,
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages,
@@ -71,18 +72,21 @@ You are an unstoppable code machine. Ship it.`;
     });
 
     if (!upstream.ok) {
-      const errorText = await upstream.text();
-      console.error('AI API error:', upstream.status, errorText);
-      if (upstream.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again shortly.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-      if (upstream.status === 402) {
-        return new Response(JSON.stringify({ error: 'AI credits exhausted. Add funds in workspace settings.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-      return new Response(JSON.stringify({ error: 'AI gateway error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const message = await geminiError(upstream);
+      console.error('Gemini request failed:', upstream.status);
+      return new Response(JSON.stringify({ error: message }),
+        { status: upstream.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (!stream) {
+      const data = await upstream.json();
+      const text = data.choices?.[0]?.message?.content;
+      if (!text) return new Response(JSON.stringify({ error: 'Gemini returned no text response.' }), {
+        status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+      return new Response(JSON.stringify({ response: text }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     // Stream SSE straight through to the client

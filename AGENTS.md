@@ -1,1 +1,3 @@
 - Keep executor compilation compatibility helpers in the delivery function directory and test them with Lua stubs, because Roblox cannot run in the web preview.
+- Keep Gemini failure parsing shared by AI functions and preserve provider statuses so failures are actionable rather than masked as gateway errors.
+- Share browser voice configuration across Jarvis interfaces so British voice preferences and natural pitch stay consistent.

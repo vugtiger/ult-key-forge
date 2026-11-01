@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { configureJarvisSpeech, functionErrorMessage } from "@/lib/jarvis-speech";
 
 type JarvisState = "idle" | "listening" | "processing" | "speaking";
 
@@ -22,31 +23,12 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
   const location = useLocation();
   const { toast } = useToast();
 
-  const getBritishVoice = useCallback(() => {
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = [
-      "Daniel", "Google UK English Male", "Microsoft George",
-      "Microsoft Ryan", "Arthur", "James", "Oliver"
-    ];
-    for (const name of preferred) {
-      const found = voices.find(v => v.name.includes(name));
-      if (found) return found;
-    }
-    const british = voices.find(v => v.lang === "en-GB" || v.lang === "en_GB");
-    if (british) return british;
-    return voices.find(v => v.lang.startsWith("en")) || voices[0];
-  }, []);
-
   const speak = useCallback((text: string) => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
-    const voice = getBritishVoice();
-    if (voice) utterance.voice = voice;
-    utterance.rate = 0.92;
-    utterance.pitch = 0.82;
-    utterance.volume = 1;
+    configureJarvisSpeech(utterance);
 
     utterance.onstart = () => setState("speaking");
     utterance.onend = () => {
@@ -57,7 +39,7 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
     
     synthRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-  }, [getBritishVoice, wakeWordActive]);
+  }, [wakeWordActive]);
 
   // Call admin-api edge function
   const callAdminApi = useCallback(async (action: string, params: Record<string, any> = {}) => {
@@ -256,7 +238,8 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
       console.log('[JARVIS] Response error:', error);
 
       if (error) throw error;
-      
+      if (data?.error) throw new Error(data.error);
+
       // Robust extraction - handle nested or differently shaped responses
       let speech = "I didn't quite catch that, sir.";
       let action = null;
@@ -282,9 +265,12 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
       
     } catch (err: any) {
       console.error('[JARVIS] Error:', err);
-      speak("My apologies, sir. I encountered a technical difficulty.");
+      setState('idle');
+      const message = await functionErrorMessage(err);
+      toast({ title: 'Jarvis unavailable', description: message, variant: 'destructive' });
+      speak(message);
     }
-  }, [location.pathname, executeAction, speak]);
+  }, [location.pathname, executeAction, speak, toast]);
 
   // Active listening
   const startActiveListening = useCallback(() => {

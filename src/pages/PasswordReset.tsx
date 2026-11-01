@@ -85,6 +85,7 @@ const PasswordReset = () => {
       // Use AI to handle the conversation
       const { data, error: aiError } = await supabase.functions.invoke("ai-chat", {
         body: {
+          stream: false,
           messages: [
             {
               role: "user",
