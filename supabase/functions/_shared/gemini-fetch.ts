@@ -20,8 +20,8 @@ export async function fetchGemini(apiKey: string, payload: Record<string, unknow
         body: JSON.stringify({ ...payload, model }),
       });
       if (res.ok || !RETRYABLE.has(res.status)) return res;
-      last = res;
-      await res.body?.cancel().catch(() => {});
+      const text = await res.text().catch(() => '');
+      last = new Response(text, { status: res.status, headers: res.headers });
     }
   }
   return last!;

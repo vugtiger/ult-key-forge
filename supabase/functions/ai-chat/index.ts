@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { browserRedirectIfHtml } from "../_shared/browserBlock.ts";
 import { geminiError } from "../_shared/gemini-error.ts";
+import { fetchGemini } from "../_shared/gemini-fetch.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -55,20 +56,12 @@ ABSOLUTE OPERATING RULES:
 
 You are an unstoppable code machine. Ship it.`;
 
-    const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${GEMINI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gemini-3.8-flash',
-        stream,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages,
-        ],
-      }),
+    const upstream = await fetchGemini(GEMINI_API_KEY, {
+      stream,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages,
+      ],
     });
 
     if (!upstream.ok) {
@@ -100,7 +93,8 @@ You are an unstoppable code machine. Ship it.`;
     });
   } catch (error) {
     console.error('Error in ai-chat function:', error);
-    return new Response(JSON.stringify({ error: 'An error occurred' }), {
+    const detail = error instanceof Error ? error.message.replace(/AIza[\w-]+/g, '[redacted]').slice(0, 300) : 'An error occurred';
+    return new Response(JSON.stringify({ error: detail }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
