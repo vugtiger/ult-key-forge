@@ -1,19 +1,25 @@
 import { fetchGemini } from './gemini-fetch.ts';
 
-Deno.test('retries 503 overload then falls back to second model and succeeds', async () => {
-  const models: string[] = [];
+Deno.test('retries 503 overload up to 4 times then succeeds', async () => {
+  let calls = 0;
   const orig = globalThis.fetch;
-  globalThis.fetch = ((_u: unknown, init: RequestInit) => {
-    const m = JSON.parse(String(init.body)).model;
-    models.push(m);
-    return Promise.resolve(m === 'gemini-2.5-flash'
-      ? new Response('{}', { status: 200 })
-      : new Response('{"error":{"message":"busy"}}', { status: 503 }));
+  globalThis.fetch = (() => {
+    calls++;
+    return Promise.resolve(calls < 3 ? new Response('{"error":{"message":"busy"}}', { status: 503 }) : new Response('{}', { status: 200 }));
   }) as typeof fetch;
   try {
     const res = await fetchGemini('k', {});
-    if (res.status !== 200) throw new Error('status ' + res.status);
-    if (models.join() !== 'gemini-3.8-flash,gemini-3.8-flash,gemini-2.5-flash') throw new Error(models.join());
+    if (res.status !== 200 || calls !== 3) throw new Error(`${res.status}/${calls}`);
+  } finally { globalThis.fetch = orig; }
+});
+
+Deno.test('keeps provider message after exhausting retries', async () => {
+  let calls = 0;
+  const orig = globalThis.fetch;
+  globalThis.fetch = (() => { calls++; return Promise.resolve(new Response('{"error":{"message":"busy"}}', { status: 503 })); }) as typeof fetch;
+  try {
+    const res = await fetchGemini('k', {});
+    if (res.status !== 503 || calls !== 4 || !(await res.text()).includes('busy')) throw new Error(`${res.status}/${calls}`);
   } finally { globalThis.fetch = orig; }
 });
 
