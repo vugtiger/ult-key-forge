@@ -230,10 +230,12 @@ ${userContext}`;
   } catch (error) {
     console.error('[JARVIS] Error:', error);
     return new Response(JSON.stringify({
-      speech: "My systems encountered an unexpected error, sir. I'll need a moment to recover.",
+      error: error instanceof Error && error.message === 'GEMINI_API_KEY is not configured'
+        ? 'Google Gemini API key is not configured.'
+        : 'Jarvis could not reach Google Gemini. Please try again later.',
       action: null
     }), {
-      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
