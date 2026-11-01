@@ -3,7 +3,8 @@
 - [x] Update retired Gemini model used by chat and Jarvis; deploy both.
 - [ ] Confirm execution in Roblox and authenticated AI responses (requires the user's executor and signed-in session).
 - [x] Repair AI response format mismatches and expose safe Google Gemini errors; three error-handling tests pass.
-- [ ] Deploy both AI functions and diagnose live provider response; blocked while resumed hosted services are still starting.
+- [x] Deploy both AI functions; live diagnosis: Google Gemini returns 503 "high demand" (provider-side). Added bounded retry.
+- [ ] Confirm AI replies once Google capacity recovers (outside our control).
 - [x] Improve Jarvis British voice selection and natural speech delivery; actual voice depends on device availability.
 - [x] Resume hosted services with the user's approval.
 - [ ] Verify authenticated login and dependent features; blocked while hosted services are still starting after multiple status checks.
