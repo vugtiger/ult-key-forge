@@ -1,10 +1,11 @@
 
 import { browserRedirectIfHtml } from "../_shared/browserBlock.ts";
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { getDiscordGuilds, DiscordError, type DiscordGuild } from './invites.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+let cache: { guilds: DiscordGuild[]; updated: number } | null = null;
+let pending: Promise<DiscordGuild[]> | null = null;
+const CACHE_TTL = 5 * 60 * 1000;
 
 Deno.serve(async (req) => {
   const _blocked = browserRedirectIfHtml(req);
@@ -19,45 +20,20 @@ Deno.serve(async (req) => {
       throw new Error("Missing DISCORD_BOT_TOKEN");
     }
 
-    const response = await fetch('https://discord.com/api/v10/users/@me/guilds', {
-      headers: {
-        'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Discord API error:', response.status, errorText);
-      // Don't 500 the UI — return empty list with a reason
-      return new Response(
-        JSON.stringify({
-          guilds: [],
-          error:
-            response.status === 401
-              ? 'Discord rejected the bot token (401). Update DISCORD_BOT_TOKEN.'
-              : `Discord API error: ${response.status}`,
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+    if (!cache || Date.now() - cache.updated >= CACHE_TTL) {
+      pending ??= getDiscordGuilds(DISCORD_BOT_TOKEN).then(guilds => {
+        cache = { guilds, updated: Date.now() };
+        return guilds;
+      }).finally(() => { pending = null; });
+      await pending;
     }
-
-    const guilds = await response.json();
-
-    // Return simplified guild data with icon URLs
-    const simplified = guilds.map((g: any) => ({
-      id: g.id,
-      name: g.name,
-      icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.${g.icon.startsWith('a_') ? 'gif' : 'png'}?size=128` : null,
-      member_count: g.approximate_member_count || null,
-    }));
-
-    return new Response(JSON.stringify(simplified), {
+    return new Response(JSON.stringify(cache?.guilds ?? []), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error: any) {
     console.error('Error fetching guilds:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
+    return new Response(JSON.stringify({ guilds: cache?.guilds ?? [], stale: !!cache, error: error instanceof DiscordError ? error.message : 'Unable to load Discord servers.' }), {
+      status: cache ? 200 : error instanceof DiscordError ? error.status : 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
