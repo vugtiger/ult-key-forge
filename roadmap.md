@@ -1,3 +1,5 @@
+- [ ] Improve Jarvis spoken voice and reliable dashboard commands, including Discord server navigation.
+- [ ] Generate real Discord invites for bot guilds and show join controls on landing and owner pages.
 - [x] Repair loader compilation fallback, deferred-reference failures, denial encryption, and hidden runtime errors.
 - [x] Deploy loader and validate live generated Lua; three compatibility tests pass.
 - [x] Update retired Gemini model used by chat and Jarvis; deploy both.
