@@ -280,6 +280,12 @@ Deno.serve(async (req) => {
       return json({ success: true, keys: insertedKeys, panel_id: panelId });
     }
 
+    if (action === 'resolve_all_threats') {
+      const { error } = await serviceClient.from('threat_log').update({ resolved: true }).eq('resolved', false);
+      if (error) throw error;
+      return json({ success: true });
+    }
+
     if (action === 'clear_threats') {
       await serviceClient.from('threat_log').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       return json({ success: true });

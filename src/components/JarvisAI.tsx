@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Mic, MicOff, Volume2, VolumeX, Trash2, Send, Bot, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { configureJarvisSpeech, functionErrorMessage } from "@/lib/jarvis-speech";
+import { speakJarvis, stopJarvisSpeech, functionErrorMessage } from "@/lib/jarvis-speech";
 
 interface Message {
   role: "user" | "assistant";
@@ -38,16 +38,7 @@ const JarvisAI = () => {
 
   const speak = useCallback((text: string) => {
     if (!voiceEnabled || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    configureJarvisSpeech(utterance);
-    
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    
-    window.speechSynthesis.speak(utterance);
+    void speakJarvis(text, () => setSpeaking(true), () => setSpeaking(false));
   }, [voiceEnabled]);
 
   const sendMessage = useCallback(async (text: string) => {
@@ -170,7 +161,7 @@ const JarvisAI = () => {
           <div className="flex items-center gap-2">
             <Button 
               variant="ghost" size="icon" 
-              onClick={() => { setVoiceEnabled(!voiceEnabled); if (speaking) window.speechSynthesis.cancel(); }}
+              onClick={() => { setVoiceEnabled(!voiceEnabled); if (speaking) { stopJarvisSpeech(); setSpeaking(false); } }}
               className="h-8 w-8 text-cyan-500/60 hover:text-cyan-400 hover:bg-cyan-500/10"
             >
               {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}

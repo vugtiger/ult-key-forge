@@ -12,6 +12,7 @@ import {
   ChevronRight, Zap, Lock, Unlock, Bot, ShieldBan, Server
 } from "lucide-react";
 import JarvisVoice from "@/components/JarvisVoice";
+import { speakJarvis } from '@/lib/jarvis-speech';
 import BannedUsersTab from "@/components/access-monitor/BannedUsersTab";
 import BannedIPsTab from "@/components/access-monitor/BannedIPsTab";
 import DiscordServersTab from "@/components/DiscordServersTab";
@@ -167,18 +168,7 @@ const AdminDashboard = () => {
     if (authReady && isAdmin && !jarvisWelcomedRef.current) {
       jarvisWelcomedRef.current = true;
       const timer = setTimeout(() => {
-        if (window.speechSynthesis) {
-          const voices = window.speechSynthesis.getVoices();
-          const preferred = voices.find(v => 
-            v.name.includes("Daniel") || v.name.includes("Google UK English Male") || v.name.includes("Microsoft George")
-          ) || voices.find(v => v.lang.startsWith("en"));
-          
-          const utterance = new SpeechSynthesisUtterance("Welcome back, sir. All systems are operational. Your command center is ready.");
-          if (preferred) utterance.voice = preferred;
-          utterance.rate = 0.92;
-          utterance.pitch = 0.82;
-          window.speechSynthesis.speak(utterance);
-        }
+        void speakJarvis('Welcome back, sir. Your command centre is ready.', () => {}, () => {});
       }, 1500);
       // Hide welcome overlay after animation
       const hideTimer = setTimeout(() => setShowWelcome(false), 3000);
