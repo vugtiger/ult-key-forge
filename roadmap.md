@@ -1,3 +1,4 @@
+- [ ] Diagnose and fix loader needing repeated executions; validate generated Lua and compatibility tests.
 - [x] Add natural Gemini British speech; authenticated live audio generation verified, with browser voice fallback.
 - [x] Add dashboard inspection/refresh and Discord navigation; report failed actions and preserve threats when resolving all.
 - [x] Add reusable exact-server invite generation and shared join controls on landing and owner pages; three invite tests pass.
