@@ -13,7 +13,7 @@ export class DiscordError extends Error {
   }
 }
 
-export async function getDiscordGuilds(token: string): Promise<DiscordGuild[]> {
+export async function getDiscordGuilds(token: string, resolveInvites = true, targetGuild?: string): Promise<DiscordGuild[]> {
   const request = (path: string, init: RequestInit = {}) => fetch(`https://discord.com/api/v10/${path}`, {
     ...init, headers: { Authorization: `Bot ${token}`, 'Content-Type': 'application/json' },
   });
@@ -36,9 +36,10 @@ export async function getDiscordGuilds(token: string): Promise<DiscordGuild[]> {
     const item: DiscordGuild = {
       id: guild.id, name: guild.name,
       icon: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.${guild.icon.startsWith('a_') ? 'gif' : 'png'}?size=128` : null,
-      member_count: null, invite_url: null, invite_status: 'Invite unavailable',
+      member_count: null, invite_url: null, invite_status: resolveInvites ? 'Invite unavailable' : 'Available on request',
     };
     result.push(item);
+    if (!resolveInvites || (targetGuild && targetGuild !== guild.id)) continue;
     if (rateLimited) { item.invite_status = 'Discord rate limited'; continue; }
     const [details, channels, roles] = await Promise.all([
       request(`guilds/${guild.id}?with_counts=true`), request(`guilds/${guild.id}/channels`), request(`guilds/${guild.id}/roles`),

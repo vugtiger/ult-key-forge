@@ -20,6 +20,10 @@ Deno.serve(async (req) => {
     const input = z.object({ message: z.string().trim().min(1).max(8000), context: z.object({ currentPage: z.string().max(100) }).optional() }).safeParse(await req.json().catch(() => null));
     if (!input.success) return new Response(JSON.stringify({ error: 'Please provide a valid Jarvis command.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     const { message, context } = input.data;
+    // Common local navigation commands need no model call or privileged data scan.
+    if (/\b(show|open|bring|go|join)\b/i.test(message) && /\bdiscord\b/i.test(message) && /\b(server|servers)\b/i.test(message)) {
+      return new Response(JSON.stringify({ speech: 'Bringing up the Discord servers, sir. Select the server you would like to join.', action: { type: 'switch_tab', params: { tab: 'discord-servers' } } }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured');
 

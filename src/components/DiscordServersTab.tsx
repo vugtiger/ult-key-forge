@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, ExternalLink, Users, Server } from "lucide-react";
+import DiscordJoinButton from './DiscordJoinButton';
 
 interface Guild {
   id: string;
@@ -103,18 +104,7 @@ const DiscordServersTab = () => {
               </div>
               
               <div className="mt-3 flex gap-2">
-                {guild.invite_url ? (
-                  <Button asChild variant="outline" size="sm" className="w-full text-xs h-8">
-                    <a href={guild.invite_url} target="_blank" rel="noopener noreferrer" aria-label={`Join ${guild.name}`}>
-                      <ExternalLink className="h-3 w-3" /><span>Join server</span>
-                    </a>
-                  </Button>
-                ) : (
-                  <div className="w-full">
-                    <Button disabled variant="ghost" size="sm" className="w-full text-xs h-8">Invite unavailable</Button>
-                    <p className="text-xs text-muted-foreground mt-2">{guild.invite_status || 'Bot needs Create Invite permission'}</p>
-                  </div>
-                )}
+                <DiscordJoinButton guildId={guild.id} name={guild.name} inviteUrl={guild.invite_url} />
               </div>
             </div>
           ))}

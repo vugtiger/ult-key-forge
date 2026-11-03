@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Bot, RefreshCw, Users, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import DiscordJoinButton from './DiscordJoinButton';
 
 interface Guild {
   id: string;
@@ -91,15 +92,7 @@ const DiscordServerShowcase = () => {
                   </p>
                 )}
               </div>
-              {guild.invite_url ? (
-                <Button asChild size="sm" variant="outline" className="w-full mt-auto text-xs">
-                  <a href={guild.invite_url} target="_blank" rel="noopener noreferrer" aria-label={`Join ${guild.name}`}>
-                    <ExternalLink className="h-3 w-3" /><span>Join server</span>
-                  </a>
-                </Button>
-              ) : (
-                <Button disabled size="sm" variant="ghost" className="w-full mt-auto text-xs" title={guild.invite_status || 'Invite unavailable'}>Invite unavailable</Button>
-              )}
+              <DiscordJoinButton guildId={guild.id} name={guild.name} inviteUrl={guild.invite_url} />
             </Card>
           ))}
         </div>
