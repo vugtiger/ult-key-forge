@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { Bot, RefreshCw, Users } from "lucide-react";
+import { Bot, RefreshCw, Users, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Guild {
@@ -8,23 +8,28 @@ interface Guild {
   name: string;
   icon: string | null;
   member_count: number | null;
+  invite_url: string | null;
+  invite_status?: string;
 }
 
 const DiscordServerShowcase = () => {
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const fetchGuilds = async () => {
     setLoading(true);
     try {
       const baseUrl = import.meta.env.VITE_SUPABASE_URL;
       const res = await fetch(`${baseUrl}/functions/v1/discord-bot-guilds`);
-      if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Unable to load Discord servers');
+      setError(data?.error || '');
       const list = Array.isArray(data) ? data : Array.isArray(data?.guilds) ? data.guilds : [];
       setGuilds(list);
     } catch (err) {
       console.error('Failed to fetch guilds:', err);
+      setError(err instanceof Error ? err.message : 'Unable to load Discord servers');
     } finally {
       setLoading(false);
     }
@@ -32,8 +37,7 @@ const DiscordServerShowcase = () => {
 
   useEffect(() => {
     fetchGuilds();
-    // Refresh every 30 seconds for real-time feel
-    const interval = setInterval(fetchGuilds, 30000);
+    const interval = setInterval(fetchGuilds, 300000);
     return () => clearInterval(interval);
   }, []);
 
@@ -50,6 +54,7 @@ const DiscordServerShowcase = () => {
         </p>
       </div>
 
+      {error && <p role="alert" className="text-center text-destructive mb-4 text-sm">{error}</p>}
       {loading && guilds.length === 0 ? (
         <div className="flex items-center justify-center py-16">
           <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -86,6 +91,15 @@ const DiscordServerShowcase = () => {
                   </p>
                 )}
               </div>
+              {guild.invite_url ? (
+                <Button asChild size="sm" variant="outline" className="w-full mt-auto text-xs">
+                  <a href={guild.invite_url} target="_blank" rel="noopener noreferrer" aria-label={`Join ${guild.name}`}>
+                    <ExternalLink className="h-3 w-3" /><span>Join server</span>
+                  </a>
+                </Button>
+              ) : (
+                <Button disabled size="sm" variant="ghost" className="w-full mt-auto text-xs" title={guild.invite_status || 'Invite unavailable'}>Invite unavailable</Button>
+              )}
             </Card>
           ))}
         </div>
