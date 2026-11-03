@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { configureJarvisSpeech, functionErrorMessage } from "@/lib/jarvis-speech";
+import { speakJarvis, stopJarvisSpeech, functionErrorMessage } from "@/lib/jarvis-speech";
 
 type JarvisState = "idle" | "listening" | "processing" | "speaking";
 
@@ -24,21 +24,10 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
   const { toast } = useToast();
 
   const speak = useCallback((text: string) => {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    configureJarvisSpeech(utterance);
-
-    utterance.onstart = () => setState("speaking");
-    utterance.onend = () => {
+    void speakJarvis(text, () => setState('speaking'), () => {
       setState("idle");
       if (wakeWordActive) startWakeWordListening();
-    };
-    utterance.onerror = () => setState("idle");
-    
-    synthRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
+    });
   }, [wakeWordActive]);
 
   // Call admin-api edge function
@@ -47,7 +36,7 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
     const { data, error } = await supabase.functions.invoke('admin-api', {
       body: { action, ...params },
     });
-    if (error) throw error;
+    if (error) throw new Error(await functionErrorMessage(error));
     if (data?.error) throw new Error(data.error);
     return data;
   }, []);
@@ -136,9 +125,8 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
           break;
 
         case "resolve_all_threats":
-          // Resolve all threats one by one isn't efficient, use clear_threats to mark all resolved
-          await callAdminApi('clear_threats');
-          toast({ title: "All threats cleared" });
+          await callAdminApi('resolve_all_threats');
+          toast({ title: "All threats resolved" });
           onRefreshData?.();
           break;
 
@@ -160,9 +148,10 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
 
         case "toggle_protection":
           if (action.params?.slug) {
-            await supabase.from('pastes')
+            const { error } = await supabase.from('pastes')
               .update({ protection_enabled: action.params.enabled })
               .eq('slug', action.params.slug);
+            if (error) throw error;
             toast({ title: `Protection ${action.params.enabled ? 'enabled' : 'disabled'}` });
             onRefreshData?.();
           }
@@ -170,9 +159,10 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
 
         case "toggle_tracking":
           if (action.params?.slug) {
-            await supabase.from('pastes')
+            const { error } = await supabase.from('pastes')
               .update({ ip_tracking_enabled: action.params.enabled })
               .eq('slug', action.params.slug);
+            if (error) throw error;
             toast({ title: `Tracking ${action.params.enabled ? 'enabled' : 'disabled'}` });
             onRefreshData?.();
           }
@@ -210,12 +200,23 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
           }
           break;
 
+        case "refresh_dashboard":
+          onRefreshData?.();
+          break;
+        case "inspect": {
+          const allowed = ['list_users', 'list_pastes', 'list_access_logs', 'list_sessions', 'list_activity', 'list_global_bans', 'list_threats', 'list_banned_accounts'];
+          if (!allowed.includes(action.params?.operation)) throw new Error('That inspection is not available.');
+          const result = await callAdminApi(action.params.operation, { search: action.params.search, limit: 50 });
+          const records = Object.values(result).find(Array.isArray);
+          return `I found ${Array.isArray(records) ? records.length : 0} matching records, sir. The relevant panel is ready.`;
+        }
         default:
-          console.warn('[JARVIS] Unknown action type:', action.type);
+          throw new Error('That action is not connected to this dashboard yet.');
       }
     } catch (err: any) {
       console.error('[JARVIS] Action execution error:', err);
       toast({ title: "Action failed", description: err.message, variant: "destructive" });
+      throw err;
     }
   }, [navigate, onTabChange, onRefreshData, callAdminApi, toast]);
 
@@ -259,7 +260,8 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
 
       // Execute action first, then speak
       if (action && action.type) {
-        await executeAction(action);
+        const result = await executeAction(action);
+        if (typeof result === 'string') speech = result;
       }
       speak(speech);
       
@@ -411,7 +413,7 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
     return () => {
       try { recognitionRef.current?.stop(); } catch {}
       try { wakeRecognitionRef.current?.stop(); } catch {}
-      window.speechSynthesis?.cancel();
+      stopJarvisSpeech();
     };
   }, []);
 
@@ -430,7 +432,7 @@ const JarvisVoice = ({ onTabChange, onRefreshData }: JarvisVoiceProps) => {
         setTimeout(() => startWakeWordListening(), 500);
       }
     } else if (state === "speaking") {
-      window.speechSynthesis.cancel();
+      stopJarvisSpeech();
       setState("idle");
       if (wakeWordActive) {
         setTimeout(() => startWakeWordListening(), 500);

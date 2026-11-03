@@ -10,20 +10,23 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * it retries with a short growing backoff (gemini-2.5-flash is retired, so no fallback model). Terminal statuses (400/401/403/404) are returned immediately.
  */
 export async function fetchGemini(apiKey: string, payload: Record<string, unknown>): Promise<Response> {
+  return fetchGeminiRequest(apiKey, ENDPOINT, { ...payload, model: MODELS[0] });
+}
+
+export async function fetchGeminiRequest(apiKey: string, endpoint: string, payload: Record<string, unknown>, native = false): Promise<Response> {
   let last: Response | null = null;
-  for (const model of MODELS) {
     for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
       if (attempt > 0) await sleep(attempt * 1000 + Math.floor(Math.random() * 400));
-      const res = await fetch(ENDPOINT, {
+      const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, model }),
+        headers: native ? { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' } : { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
       if (res.ok || !RETRYABLE.has(res.status)) return res;
       const text = await res.text().catch(() => '');
-      console.error('Gemini', model, res.status, text.slice(0, 300));
+      console.error('Gemini request failed', res.status);
       last = new Response(text, { status: res.status, headers: res.headers });
     }
-  }
-  return last!;
+  if (!last) throw new Error('Gemini returned no response');
+  return last;
 }

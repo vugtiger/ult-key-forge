@@ -1,3 +1,6 @@
 - Keep executor compilation compatibility helpers in the delivery function directory and test them with Lua stubs, because Roblox cannot run in the web preview.
 - Keep Gemini failure parsing shared by AI functions and preserve provider statuses so failures are actionable rather than masked as gateway errors.
-- Share browser voice configuration across Jarvis interfaces so British voice preferences and natural pitch stay consistent.- Route all Gemini calls through the shared fetch helper so overload retries stay bounded and consistent across AI functions.
+- Share Jarvis audio playback and British browser fallback across all interfaces so interruption and delivery stay consistent.
+- Route all Gemini calls through the shared fetch helper so overload retries stay bounded and consistent across AI functions.
+- Resolve Discord join URLs server-side with reusable channel invites; never fabricate invites from guild IDs or expose private channel invites.
+- Keep Jarvis actions within connected dashboard operations and enforce admin authorization server-side; report execution failures instead of claiming success.

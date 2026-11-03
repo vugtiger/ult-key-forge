@@ -2,26 +2,32 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, ExternalLink, Users, Server } from "lucide-react";
+import DiscordJoinButton from './DiscordJoinButton';
 
 interface Guild {
   id: string;
   name: string;
   icon: string | null;
   member_count: number | null;
+  invite_url: string | null;
+  invite_status?: string;
 }
 
 const DiscordServersTab = () => {
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const fetchGuilds = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('discord-bot-guilds');
       if (error) throw error;
-      setGuilds(Array.isArray(data) ? data : (data?.guilds ?? []));
+      setErrorMessage(data?.error || '');
+      setGuilds(Array.isArray(data) ? data : Array.isArray(data?.guilds) ? data.guilds : []);
     } catch (e: any) {
       console.error('Failed to fetch guilds:', e);
+      setErrorMessage('Unable to load Discord servers. Please try refreshing.');
     } finally {
       setLoading(false);
     }
@@ -45,6 +51,7 @@ const DiscordServersTab = () => {
         </Button>
       </div>
 
+      {errorMessage && <p role="alert" className="px-6 text-sm text-destructive">{errorMessage}</p>}
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
@@ -97,17 +104,7 @@ const DiscordServersTab = () => {
               </div>
               
               <div className="mt-3 flex gap-2">
-                <a 
-                  href={`https://discord.gg/${guild.id}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex-1"
-                >
-                  <Button variant="ghost" size="sm" className="w-full text-xs h-8 border border-border/20 hover:border-primary/30 hover:bg-primary/5 hover:text-primary gap-1.5 transition-all duration-300">
-                    <ExternalLink className="h-3 w-3" />
-                    Open in Discord
-                  </Button>
-                </a>
+                <DiscordJoinButton guildId={guild.id} name={guild.name} inviteUrl={guild.invite_url} />
               </div>
             </div>
           ))}
