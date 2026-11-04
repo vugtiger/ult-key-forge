@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { luaCompiler } from './lua-runtime.ts';
+import { persistExecutionToken } from './token-issuance.ts';
 
 // MODULE-LEVEL Supabase client — reused across requests in the same isolate
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
