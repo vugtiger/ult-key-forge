@@ -4,6 +4,35 @@ let speechGeneration = 0;
 let activeAudio: AudioBufferSourceNode | null = null;
 let audioContext: AudioContext | null = null;
 
+// Browsers block sound until the user taps once. Unlock audio on the very first
+// tap anywhere (including the tap that opens the admin panel).
+function unlockAudio() {
+  try {
+    audioContext ??= new AudioContext();
+    void audioContext.resume();
+    window.speechSynthesis?.getVoices();
+  } catch { /* ignore */ }
+}
+if (typeof window !== 'undefined') {
+  ['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, unlockAudio, { capture: true, passive: true }));
+}
+
+function waitForAudioUnlock(): Promise<void> {
+  if (!audioContext || audioContext.state === 'running') return Promise.resolve();
+  return new Promise(resolve => {
+    const done = () => { void audioContext?.resume().finally(resolve); ['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.removeEventListener(ev, done, true)); };
+    ['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, done, { capture: true, once: true }));
+  });
+}
+
+const CACHE_PREFIX = 'jarvis-voice:';
+function readCache(text: string) {
+  try { const v = localStorage.getItem(CACHE_PREFIX + text); return v ? JSON.parse(v) : null; } catch { return null; }
+}
+function writeCache(text: string, data: unknown) {
+  try { if (text.length <= 120) localStorage.setItem(CACHE_PREFIX + text, JSON.stringify(data)); } catch { /* storage full */ }
+}
+
 export function stopJarvisSpeech() {
   speechGeneration++;
   activeAudio?.stop();
@@ -17,10 +46,15 @@ export async function speakJarvis(text: string, onStart: () => void, onEnd: () =
   try {
     audioContext ??= new AudioContext();
     void audioContext.resume();
-    const request = supabase.functions.invoke('jarvis-speech', { body: { text: text.slice(0, 1500) } });
-    const { data, error } = maxWaitMs
-      ? await Promise.race([request, new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Natural voice too slow')), maxWaitMs))])
-      : await request;
+    const cached = readCache(text);
+    let data = cached, error: unknown = null;
+    if (!cached) {
+      const request = supabase.functions.invoke('jarvis-speech', { body: { text: text.slice(0, 1500) } });
+      ({ data, error } = maxWaitMs
+        ? await Promise.race([request, new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Natural voice too slow')), maxWaitMs))])
+        : await request);
+      if (!error && data?.audio) writeCache(text, data);
+    }
     if (generation !== speechGeneration) return;
     if (error || !data?.audio) throw new Error('Natural voice unavailable');
     const binary = atob(data.audio);
@@ -35,6 +69,7 @@ export async function speakJarvis(text: string, onStart: () => void, onEnd: () =
       const channel = buffer.getChannelData(0);
       for (let i = 0; i < samples; i++) channel[i] = view.getInt16(i * 2, true) / 32768;
     }
+    await waitForAudioUnlock();
     if (generation !== speechGeneration) return;
     const source = audioContext.createBufferSource();
     source.buffer = buffer;
