@@ -1,4 +1,4 @@
-- [ ] Diagnose and fix loader needing repeated executions; validate generated Lua and compatibility tests.
+- [x] Fix initial token storage race across six loader paths and preserve keys on retries; five regression/compatibility tests pass.
 - [x] Add natural Gemini British speech; authenticated live audio generation verified, with browser voice fallback.
 - [x] Add dashboard inspection/refresh and Discord navigation; report failed actions and preserve threats when resolving all.
 - [x] Add reusable exact-server invite generation and shared join controls on landing and owner pages; three invite tests pass.
@@ -12,4 +12,4 @@
 - [ ] Confirm AI replies once Google capacity recovers (outside our control).
 - [x] Improve Jarvis British voice selection and natural speech delivery; actual voice depends on device availability.
 - [x] Resume hosted services with the user's approval.
-- [ ] Verify authenticated login and dependent features; blocked while hosted services are still starting after multiple status checks.
+- [x] Verify authenticated owner dashboard access and live Jarvis Discord navigation/audio generation.
