@@ -11,13 +11,16 @@ export function stopJarvisSpeech() {
   window.speechSynthesis?.cancel();
 }
 
-export async function speakJarvis(text: string, onStart: () => void, onEnd: () => void) {
+export async function speakJarvis(text: string, onStart: () => void, onEnd: () => void, maxWaitMs?: number) {
   stopJarvisSpeech();
   const generation = speechGeneration;
   try {
     audioContext ??= new AudioContext();
-    await audioContext.resume();
-    const { data, error } = await supabase.functions.invoke('jarvis-speech', { body: { text: text.slice(0, 1500) } });
+    void audioContext.resume();
+    const request = supabase.functions.invoke('jarvis-speech', { body: { text: text.slice(0, 1500) } });
+    const { data, error } = maxWaitMs
+      ? await Promise.race([request, new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Natural voice too slow')), maxWaitMs))])
+      : await request;
     if (generation !== speechGeneration) return;
     if (error || !data?.audio) throw new Error('Natural voice unavailable');
     const binary = atob(data.audio);
