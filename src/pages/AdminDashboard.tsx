@@ -168,8 +168,8 @@ const AdminDashboard = () => {
     if (authReady && isAdmin && !jarvisWelcomedRef.current) {
       jarvisWelcomedRef.current = true;
       const timer = setTimeout(() => {
-        void speakJarvis('Welcome back, sir. Your command centre is ready.', () => {}, () => {});
-      }, 1500);
+        void speakJarvis('Welcome back, sir. Your command centre is ready.', () => {}, () => {}, 1200);
+      }, 0);
       // Hide welcome overlay after animation
       const hideTimer = setTimeout(() => setShowWelcome(false), 3000);
       return () => { clearTimeout(timer); clearTimeout(hideTimer); };
