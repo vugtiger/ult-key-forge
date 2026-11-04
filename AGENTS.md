@@ -4,3 +4,4 @@
 - Route all Gemini calls through the shared fetch helper so overload retries stay bounded and consistent across AI functions.
 - Resolve Discord join URLs server-side with reusable channel invites; never fabricate invites from guild IDs or expose private channel invites.
 - Keep Jarvis actions within connected dashboard operations and enforce admin authorization server-side; report execution failures instead of claiming success.
+- Await persisted execution tokens before returning any loader and retain caller credentials across failed handoffs, avoiding first-execution races.

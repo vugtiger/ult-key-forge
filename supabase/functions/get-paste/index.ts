@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { luaCompiler } from './lua-runtime.ts';
+import { persistExecutionToken } from './token-issuance.ts';
 
 // MODULE-LEVEL Supabase client — reused across requests in the same isolate
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -4509,7 +4510,7 @@ const _ultHandle = async (req: Request): Promise<Response> => {
       const serverNonce = generateServerNonce();
       const trustLevel = getTrustScore(clientIp);
       // v12.3: MUST await token insert — otherwise phase-2 request arrives before token exists in DB
-      await supabase.from('paste_execution_tokens').insert({
+      await persistExecutionToken(row => supabase.from('paste_execution_tokens').insert(row), {
         paste_id: paste.id,
         roblox_user_id: '0',
         token: newToken,
@@ -4716,7 +4717,7 @@ const _ultHandle = async (req: Request): Promise<Response> => {
       // through the bypass-token redirect instead of serving the payload directly.
       if (paste.protection_enabled || paste.public_protection || paste.protection_mode === 'protection_key') {
         const bypassToken = generateToken();
-        await supabase.from('paste_execution_tokens').insert({
+        await persistExecutionToken(row => supabase.from('paste_execution_tokens').insert(row), {
           paste_id: paste.id, roblox_user_id: uid, token: bypassToken,
           expires_at: new Date(Date.now() + 30000).toISOString(),
           bound_ip: clientIp,
@@ -4728,7 +4729,7 @@ const _ultHandle = async (req: Request): Promise<Response> => {
 local _raw = rawget(_G, "ScriptKey")
 local _pkey = (_raw == nil) and "" or tostring(_raw):gsub("%s+", "")
 if _pkey == "" then error("No protection key set") end
-pcall(function() rawset(_G, "ScriptKey", nil) end)
+-- Preserve ScriptKey through network/compilation retries.
 local _url = "${baseUrl}?uid=${uid}&kbt=${bypassToken}&pkey=" .. game:GetService("HttpService"):UrlEncode(_pkey) .. "&_=" .. tostring(tick())
 local _code = game:HttpGet(_url)
 local _fn, _compileError = loadstring(_code)
@@ -4747,7 +4748,7 @@ _fn()`;
       // For non-protected pastes, still use encrypted delivery — never raw
       const npToken = generateToken();
       const npSessionSecret = generateSessionSecret(clientIp, Date.now());
-      await supabase.from('paste_execution_tokens').insert({
+      await persistExecutionToken(row => supabase.from('paste_execution_tokens').insert(row), {
         paste_id: paste.id, roblox_user_id: uid, token: npToken,
         expires_at: new Date(Date.now() + 30000).toISOString(),
         bound_ip: clientIp,
@@ -4921,8 +4922,8 @@ _fn()`;
     pcall(function() p:Kick("invalid key format") end)
     return
   end
-  -- Strip the global so it cannot be re-read by other scripts after load.
-  pcall(function() rawset(_G, "ScriptKey", nil) end)
+  -- Keep the supplied credential available if this handoff fails.
+  -- Preserve ScriptKey through network/compilation retries.
   local s, r = pcall(function()
     return game:HttpGet("${baseUrl}?uid=" .. tostring(p.UserId) .. "&pkey=" .. key .. "&_=" .. tostring(tick()))
   end)
@@ -5086,7 +5087,7 @@ end`;
         // Issue a regular execution token + return the standard encrypted loader
         const newToken = generateToken();
         const sessionSecret = generateToken().slice(0, 16);
-        await supabase.from('paste_execution_tokens').insert({
+        await persistExecutionToken(row => supabase.from('paste_execution_tokens').insert(row), {
           paste_id: paste.id, roblox_user_id: uid, token: newToken,
           expires_at: new Date(Date.now() + 30000).toISOString(), bound_ip: clientIp,
         });
@@ -5282,7 +5283,7 @@ return _f()`;
           const sessionSecret = generateSessionSecret(clientIp, Date.now());
           const serverNonce = generateServerNonce();
           const trustLevel = getTrustScore(clientIp);
-          await supabase.from('paste_execution_tokens').insert({
+          await persistExecutionToken(row => supabase.from('paste_execution_tokens').insert(row), {
             paste_id: paste.id, roblox_user_id: uid, token: newToken,
             expires_at: new Date(Date.now() + 30000).toISOString(),
             bound_ip: clientIp,
@@ -5339,12 +5340,12 @@ return _f()`;
       const sessionSecret = generateSessionSecret(clientIp, Date.now());
       const serverNonce = generateServerNonce();
       const trustLevel = getTrustScore(clientIp);
-      // v12.2: Non-blocking token insert
-      supabase.from('paste_execution_tokens').insert({
+      // Persist before phase two can request its payload.
+      await persistExecutionToken(row => supabase.from('paste_execution_tokens').insert(row), {
         paste_id: paste.id, roblox_user_id: '0', token: newToken,
         expires_at: new Date(Date.now() + 30000).toISOString(),
         bound_ip: clientIp,
-      }).then(() => {}, () => {});
+      });
       const loader = generateLoader(slugStr, baseUrl, newToken, sessionSecret, {
         showConsoleFeedback: paste.show_loading_bar !== false,
         serverNonce,
