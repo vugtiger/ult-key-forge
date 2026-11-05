@@ -1,6 +1,6 @@
 import { fetchGemini } from './gemini-fetch.ts';
 
-Deno.test('retries 503 overload up to 4 times then succeeds', async () => {
+Deno.test('falls through models on 503 then succeeds', async () => {
   let calls = 0;
   const orig = globalThis.fetch;
   globalThis.fetch = (() => {
@@ -19,7 +19,7 @@ Deno.test('keeps provider message after exhausting retries', async () => {
   globalThis.fetch = (() => { calls++; return Promise.resolve(new Response('{"error":{"message":"busy"}}', { status: 503 })); }) as typeof fetch;
   try {
     const res = await fetchGemini('k', {});
-    if (res.status !== 503 || calls !== 4 || !(await res.text()).includes('busy')) throw new Error(`${res.status}/${calls}`);
+    if (res.status !== 503 || calls !== 3 || !(await res.text()).includes('busy')) throw new Error(`${res.status}/${calls}`);
   } finally { globalThis.fetch = orig; }
 });
 

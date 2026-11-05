@@ -12,7 +12,7 @@ import {
   ChevronRight, Zap, Lock, Unlock, Bot, ShieldBan, Server
 } from "lucide-react";
 import JarvisVoice from "@/components/JarvisVoice";
-import { speakJarvis } from '@/lib/jarvis-speech';
+import { playJarvisClip, stopJarvisSpeech } from '@/lib/jarvis-speech';
 import BannedUsersTab from "@/components/access-monitor/BannedUsersTab";
 import BannedIPsTab from "@/components/access-monitor/BannedIPsTab";
 import DiscordServersTab from "@/components/DiscordServersTab";
@@ -163,16 +163,17 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // JARVIS welcome on first load
+  // JARVIS welcome: starts the instant the owner panel opens (pre-recorded clip, no waiting on sign-in checks)
   useEffect(() => {
-    if (authReady && isAdmin && !jarvisWelcomedRef.current) {
-      jarvisWelcomedRef.current = true;
-      const timer = setTimeout(() => {
-        void speakJarvis('Welcome back, sir. Your command centre is ready.', () => {}, () => {}, 4000);
-      }, 0);
-      // Hide welcome overlay after animation
+    if (jarvisWelcomedRef.current) return;
+    jarvisWelcomedRef.current = true;
+    void playJarvisClip('/audio/jarvis-welcome.mp3', 'Welcome back, sir. Your command centre is ready.');
+  }, []);
+
+  useEffect(() => {
+    if (authReady && isAdmin) {
       const hideTimer = setTimeout(() => setShowWelcome(false), 3000);
-      return () => { clearTimeout(timer); clearTimeout(hideTimer); };
+      return () => clearTimeout(hideTimer);
     }
   }, [authReady, isAdmin]);
 
@@ -180,12 +181,12 @@ const AdminDashboard = () => {
     let mounted = true;
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;
-      if (!session) { navigate("/auth"); return; }
+      if (!session) { stopJarvisSpeech(); navigate("/auth"); return; }
       setCurrentUserId(session.user.id);
       const { data } = await supabase.from('user_roles').select('role')
         .eq('user_id', session.user.id).eq('role', 'admin').maybeSingle();
       if (!mounted) return;
-      if (!data) { navigate("/dashboard"); return; }
+      if (!data) { stopJarvisSpeech(); navigate("/dashboard"); return; }
       setIsAdmin(true);
       setAuthReady(true);
     });
