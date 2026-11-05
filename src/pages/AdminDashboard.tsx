@@ -12,7 +12,7 @@ import {
   ChevronRight, Zap, Lock, Unlock, Bot, ShieldBan, Server
 } from "lucide-react";
 import JarvisVoice from "@/components/JarvisVoice";
-import { speakJarvis, playJarvisClip, stopJarvisSpeech } from '@/lib/jarvis-speech';
+import { playJarvisClip, stopJarvisSpeech } from '@/lib/jarvis-speech';
 import BannedUsersTab from "@/components/access-monitor/BannedUsersTab";
 import BannedIPsTab from "@/components/access-monitor/BannedIPsTab";
 import DiscordServersTab from "@/components/DiscordServersTab";
