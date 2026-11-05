@@ -7,12 +7,12 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * Calls Gemini's OpenAI-compatible endpoint. On temporary overload (429/5xx)
- * it retries with a short growing backoff (gemini-2.5-flash is retired, so no fallback model). Terminal statuses (400/401/403/404) are returned immediately.
+ * it moves straight to the next model with no waiting, so replies stay fast. Terminal statuses (400/401/403/404) are returned immediately.
  */
 export async function fetchGemini(apiKey: string, payload: Record<string, unknown>): Promise<Response> {
   let res: Response | null = null;
   for (const model of MODELS) {
-    res = await fetchGeminiRequest(apiKey, ENDPOINT, { ...payload, model }, false, 2);
+    res = await fetchGeminiRequest(apiKey, ENDPOINT, { ...payload, model }, false, 1);
     if (res.ok || !RETRYABLE.has(res.status)) return res;
   }
   return res!;

@@ -25,7 +25,7 @@ Deno.serve(async req => {
     const parsed = z.object({ text: z.string().trim().min(1).max(1500) }).safeParse(await req.json().catch(() => null));
     if (!parsed.success) return json({ error: 'Supply a spoken response of 1–1500 characters.' }, 400);
     const response = await fetchGeminiRequest(key, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent', {
-      contents: [{ role: 'user', parts: [{ text: parsed.data.text, speech_metadata: { style: 'Read only the supplied text. A composed British male assistant, clear natural English accent, smooth resonant delivery, measured conversational pace and understated dry wit. No theatrical impersonation, no exaggerated robotic effects.' } }] }],
+      contents: [{ role: 'user', parts: [{ text: parsed.data.text, speech_metadata: { style: 'Read only the supplied text. A refined English AI butler: crisp Received Pronunciation, calm smooth baritone, precise clipped diction, brisk but unhurried pace, polite and quietly dry. Never casual, never American.' } }] }],
       generationConfig: { responseModalities: ['AUDIO'], responseFormat: { audio: { mimeType: 'AUDIO_L16', sampleRate: 24000 } }, speechConfig: { voiceConfig: { voice: 'Charon' } } },
     }, true);
     if (!response.ok) return json({ error: await geminiError(response) }, response.status);
