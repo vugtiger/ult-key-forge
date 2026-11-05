@@ -90,6 +90,27 @@ export async function speakJarvis(text: string, onStart: () => void, onEnd: () =
   }
 }
 
+/** Plays a pre-recorded natural Jarvis clip instantly (no network to Gemini). */
+export async function playJarvisClip(url: string, fallbackText: string) {
+  stopJarvisSpeech();
+  const generation = speechGeneration;
+  try {
+    audioContext ??= new AudioContext();
+    void audioContext.resume();
+    const bytes = await (await fetch(url)).arrayBuffer();
+    const buffer = await audioContext.decodeAudioData(bytes);
+    await waitForAudioUnlock();
+    if (generation !== speechGeneration) return;
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioContext.destination);
+    activeAudio = source;
+    source.start();
+  } catch {
+    if (generation === speechGeneration) void speakJarvis(fallbackText, () => {}, () => {}, 4000);
+  }
+}
+
 export function configureJarvisSpeech(utterance: SpeechSynthesisUtterance) {
   const voices = window.speechSynthesis.getVoices();
   const british = voices.filter(v => /^en[-_]GB$/i.test(v.lang));
