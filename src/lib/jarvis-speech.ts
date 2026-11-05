@@ -95,13 +95,15 @@ export function configureJarvisSpeech(utterance: SpeechSynthesisUtterance) {
   const british = voices.filter(v => /^en[-_]GB$/i.test(v.lang));
   const preferred = ['Google UK English Male', 'Daniel', 'Microsoft Ryan', 'Microsoft George', 'Arthur', 'Oliver', 'James'];
   const voice = preferred.map(name => british.find(v => v.name.includes(name))).find(Boolean)
-    ?? british.find(v => !/female|sonia|susan|serena|hazel/i.test(v.name))
-    ?? british[0]
-    ?? voices.find(v => v.lang.startsWith('en'));
+    ?? british.find(v => /male/i.test(v.name) && !/female/i.test(v.name))
+    ?? voices.find(v => v.lang.startsWith('en') && /\b(male|daniel|aaron|arthur|fred|alex|tom|rishi)\b/i.test(v.name) && !/female/i.test(v.name))
+    ?? british.find(v => !/female|sonia|susan|serena|hazel|kate|libby|martha|stephanie|samantha|karen|moira|tessa|fiona/i.test(v.name))
+    ?? british[0];
+  const male = voice && !/female|sonia|susan|serena|hazel|kate|libby|martha|stephanie|samantha|karen|moira|tessa|fiona/i.test(voice.name) && /male|daniel|arthur|ryan|george|oliver|james|aaron|fred|alex|tom|rishi/i.test(voice.name);
   if (voice) utterance.voice = voice;
   utterance.lang = 'en-GB';
   utterance.rate = 0.94;
-  utterance.pitch = 1;
+  utterance.pitch = male ? 0.9 : 0.6;
   utterance.volume = 1;
 }
 
