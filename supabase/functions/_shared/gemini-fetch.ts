@@ -1,5 +1,5 @@
 const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-const MODELS = ['gemini-3.8-flash'];
+const MODELS = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
 const ATTEMPTS = 4;
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 
@@ -10,12 +10,17 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * it retries with a short growing backoff (gemini-2.5-flash is retired, so no fallback model). Terminal statuses (400/401/403/404) are returned immediately.
  */
 export async function fetchGemini(apiKey: string, payload: Record<string, unknown>): Promise<Response> {
-  return fetchGeminiRequest(apiKey, ENDPOINT, { ...payload, model: MODELS[0] });
+  let res: Response | null = null;
+  for (const model of MODELS) {
+    res = await fetchGeminiRequest(apiKey, ENDPOINT, { ...payload, model }, false, 2);
+    if (res.ok || !RETRYABLE.has(res.status)) return res;
+  }
+  return res!;
 }
 
-export async function fetchGeminiRequest(apiKey: string, endpoint: string, payload: Record<string, unknown>, native = false): Promise<Response> {
+export async function fetchGeminiRequest(apiKey: string, endpoint: string, payload: Record<string, unknown>, native = false, attempts = ATTEMPTS): Promise<Response> {
   let last: Response | null = null;
-    for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+    for (let attempt = 0; attempt < attempts; attempt++) {
       if (attempt > 0) await sleep(attempt * 1000 + Math.floor(Math.random() * 400));
       const res = await fetch(endpoint, {
         method: 'POST',
