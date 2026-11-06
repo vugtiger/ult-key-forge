@@ -25,7 +25,7 @@ function waitForAudioUnlock(): Promise<void> {
   });
 }
 
-const CACHE_PREFIX = 'jarvis-voice:';
+const CACHE_PREFIX = 'jarvis-voice:british-male-v2:';
 function readCache(text: string) {
   try { const v = localStorage.getItem(CACHE_PREFIX + text); return v ? JSON.parse(v) : null; } catch { return null; }
 }

@@ -37,7 +37,7 @@ const JarvisAI = () => {
   }, [listening]);
 
   const speak = useCallback((text: string) => {
-    if (!voiceEnabled || !window.speechSynthesis) return;
+    if (!voiceEnabled) return;
     void speakJarvis(text, () => setSpeaking(true), () => setSpeaking(false));
   }, [voiceEnabled]);
 
